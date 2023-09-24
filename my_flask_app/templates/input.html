@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container mt-4">
+    <h1>What do you see as Possible?</h1>
+    <p>
+      Enter your possibility or goal in the text field below. Your goal should be specific, measurable, achievable, relevant, and time-bound (SMART). Our tool will analyze your input and generate a structured solution to help you understand the necessary steps to achieve your goal.
+    </p>
+
+    <form action="/goal_selection" method="post" id="goal-form">
+      <label for="user_text" class="form-label">What is your Possibility or Goal:</label>
+      <input class="form-control mb-3" type="text" name="user_text" maxlength="255">
+      <input class="btn btn-primary" type="submit" value="Submit">
+    </form>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/input.js') }}"></script>  
+<script type="module">
+    import { showLoadingSpinner } from '{{ url_for("static", filename="js/base_functions.js") }}';
+
+    // Show the loading spinner when the form is submitted
+    const form = document.getElementById('goal-form');
+    const spinner = document.getElementById('loading-spinner');
+
+    form.addEventListener('submit', (e) => {
+      spinner.classList.remove('d-none');
+      showLoadingSpinner(); // Call the animateSpinnerText function
+    });
+  </script>
+{% endblock %}

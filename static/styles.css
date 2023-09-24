@@ -1,0 +1,423 @@
+/* Base Typography */
+body {
+  font-family: 'Jost', sans-serif;
+  font-weight: 400;
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+h1 {
+  font-family: 'Mr Dafoe', cursive;
+  font-weight: 400;
+  color: #ffa726;
+  text-shadow: 1px 1px 0px #e91e63;
+  font-size: 3.0rem;
+  text-align: center;
+}
+
+h2 {
+  font-family: 'Unica One', sans-serif;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: #104a3a;
+  text-shadow: 1px 1px 0px #000000;
+}
+
+/* Custom colors and styling for navigation bar */
+nav.navbar {
+  background-image: linear-gradient(120deg, #673ab7 0%, #00bcd4 100%);
+  border-bottom: 5px solid #e91e63;
+}
+
+nav.navbar .navbar-brand {
+  color: #ffffff;
+  font-weight: 500;
+  font-size: 3.5rem;
+}
+
+/* Retro-futuristic background pattern */
+body:before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: radial-gradient(circle at 10% 20%, #e91e63 10%, transparent 10%),
+                    radial-gradient(circle at 90% 20%, #00bcd4 10%, transparent 10%),
+                    radial-gradient(circle at 40% 60%, #9c27b0 10%, transparent 10%),
+                    radial-gradient(circle at 60% 80%, #ffc107 10%, transparent 10%);
+  background-size: 40px 40px;
+  background-attachment: fixed;
+  opacity: 0.4;
+  z-index: -1;
+}
+
+/* Background box for text readability */
+.container,
+.card {
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.card:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.card-header,
+.card-footer {
+  background-color: #673ab7;
+  color: #ffffff;
+}
+
+/* Button styling */
+.btn-primary {
+  background-color: #ff5722;
+  border-color: #ff5722;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+  background-color: #e64a19;
+  border-color: #ff5722;
+}
+
+/* All-caps headings on Outcome page */
+.outcome h2 {
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* Navbar brand*/
+.navbar-brand h1 {
+  font-size: 3.75rem;
+  text-shadow: 1px 1px 0px #e91e63;
+}
+
+.structured-speculation {
+  display: block;
+  font-family: 'Unica One', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.75);
+  letter-spacing: 0.7em;
+}
+
+.loading-spinner-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  padding: 35px;
+  border-radius: 5px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.spinner-text {
+  margin-top: 10px;
+}
+
+.spinner-text {
+  font-family: 'Unica One', sans-serif;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.75);
+  letter-spacing: 0.7em;
+}
+
+.loading-spinner-overlay.fade-in {
+  animation: fadeInBlur 0.5s ease-in-out forwards;
+}
+
+@keyframes fadeInBlur {
+  0% {
+    opacity: 0;
+    filter: blur(5px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+#generate-new-goals .refresh-icon {
+  display: inline-block;
+  transition: transform 0.5s ease;
+}
+
+#generate-new-goals:hover .refresh-icon {
+  transform: rotate(360deg);
+}
+
+.retro-futuristic-card {
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border: 3px solid #00bcd4;
+}
+
+.retro-futuristic-card:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.retro-futuristic-card.non-compliant {
+  border-color: red;
+}
+
+.retro-futuristic-card.non-compliant:hover {
+  box-shadow: 0 8px 16px rgba(196, 93, 93, 0.2);
+}
+
+.retro-futuristic-card.non-compliant .card-body {
+  box-shadow: inset 0 0 10px rgba(196, 93, 93, 0.5);
+}
+
+.domain-text {
+  font-family: 'Unica One', sans-serif;
+  text-transform: uppercase;
+  font-size: 1.5rem;
+}
+
+.user-input {
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+#user-input-container {
+  background-color: #f5f5f5;
+  color: #ffffff;
+  border-radius: 5px;
+  margin-bottom: 5px;
+}
+
+#user-input-display {
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+#user-input-edit {
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 1.2rem;
+  border: none;
+  max-width: 100%;
+  background-color: transparent;
+}
+
+#user-input-edit:focus {
+  background-color: #cce5ff;
+}
+
+.header-row {
+  background-color: #ffc107;
+}
+
+.your-goal {
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 1.2rem;
+  width: 80%;
+}
+
+.actions {
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 1.2rem;
+  width: 20%;
+  text-align: center;
+}
+
+.table-bordered > thead > tr > th {
+  border-bottom: 2px dotted #dee2e6;
+}
+
+.fulfilled-goal {
+  text-align: left;
+}
+
+.domain-icon-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border: 3px solid #00bcd4;
+  width: 100px;
+  height: 100px;
+}
+
+.domain-icon-container .domain-icon {
+  font-size: 2rem;
+}
+
+.domain-title {
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 1.5em;
+  margin-top: 1em;
+}
+
+.report-section-title {
+  font-family: 'Unica One', sans-serif;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: #104a3a;
+  text-shadow: 1px 1px 0px #000000;
+  margin-bottom: 0.5em;
+  margin-top: 1em;
+}
+
+/* Phase accordion styling */
+.accordion-header {
+  color: #ffffff;
+  border-radius: 5px;
+  margin-bottom: 5px;
+}
+
+.accordion-button {
+  text-transform: uppercase;
+  font-family: 'Unica One', sans-serif;
+  font-weight: 500;
+  font-size: 0.8em;
+  text-shadow: 1px 1px 0px #000000;
+}
+
+.accordion-button:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.accordion-button:not(.collapsed) {
+  color: #ffffff;
+}
+
+.accordion-body {
+  background-color: #f5f5f5;
+  border-radius: 5px;
+  padding: 20px;
+}
+
+.phase-colors {
+  --phase-0: #e91e63;
+  --phase-1: #00bcd4;
+  --phase-2: #9c27b0;
+  --phase-3: #ffc107;
+  --phase-4: #66bd0e;
+  /* Add more colors if needed */
+}
+
+.status-indicator .badge {
+  text-transform: uppercase;
+  text-shadow: 1px 1px 0px #000000;
+}
+
+.badge-primary,
+.badge-primary:not(.dropdown-toggle).dropdown-item:focus,
+.badge-primary:not(.dropdown-toggle).dropdown-item:hover {
+  color: #fff;
+
+/* Card Layout */
+.card-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.card {
+  flex: 1 0 calc(33.333% - 20px); /* Adjust the percentage based on the number of cards per row */
+  display: flex;
+  flex-direction: column;
+}
+
+.card-body {
+  flex-grow: 1;
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+
+
+/* Text Wipe Effect */
+@keyframes wipeOn {
+  0% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+.text-wipe-on span {
+  display: inline-block;
+  overflow: hidden;
+  animation: wipeOn 0.1s forwards;
+  opacity: 0;
+  transform-origin: left;
+}
+
+.hidden-text {
+  opacity: 0;
+}
+
+/* Fade In Effect */
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 1s forwards;
+  opacity: 0;
+}
+
+.text-fade-in {
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+}
+
+.fonts-loaded .text-fade-in {
+  opacity: 1;
+}
+
+.generated-image {
+  border-radius: 25px;
+}
+
+.fade-in-text {
+  opacity: 0;
+  animation: fadeInText 2s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+@keyframes fadeInText {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+}
