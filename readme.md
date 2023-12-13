@@ -27,22 +27,25 @@ SSPEC PossParse's goal is to enable users to:
  
 2. Install the required dependencies:
 
-pip install -r requirements.txt  
+    ```shell 
+    pip install -r requirements.txt  
  
 3. Set up environment variables by creating a .env file with the following content (make sure to replace placeholders with your actual API keys):
 
-AZURE_OPENAI_API_KEY='your_azure_openai_api_key'  
-AZURE_OPENAI_ENDPOINT='your_azure_openai_endpoint'  
-AZURE_DEPLOYMENT_NAME='your_azure_deployment_name'  
-STABILITY_KEY='your_stability_sdk_api_key'  
+    ```shell 
+    AZURE_OPENAI_API_KEY='your_azure_openai_api_key'  
+    AZURE_OPENAI_ENDPOINT='your_azure_openai_endpoint'  
+    AZURE_DEPLOYMENT_NAME='your_azure_deployment_name'  
+    STABILITY_KEY='your_stability_sdk_api_key'  
  
 4. Initialize the database:
 
-flask db upgrade  
+    ```shell 
+    flask db upgrade  
  
 5. Start the application:
-
-flask run  
+    ```shell 
+    flask run  
  
 
 # Using the App
