@@ -1,24 +1,30 @@
-// Function to handle the click event on CE pills
-function handleCEPillClick(event) {
-  const ceId = event.target.dataset.ceId;
-
-  // AJAX call to fetch CE data based on the CE ID
-  fetch(`/get_ce_by_id?ce_id=${ceId}`)
-    .then((response) => response.json())
-    .then((data) => {
-      // Check if the CE has already been analyzed
-      if (data.ce.ce_type) {
-        // If already analyzed, show the CE details in a modal or tooltip
-        showCEModal(data.ce);
-      } else {
-        // If not analyzed, analyze the COS and get the CE type
-        analyzeCOS(ceId, data.ce);
-      }
-    })
-    .catch((error) => {
-      console.log('Error:', error);
-    });
-}
+// Function to handle the click event on CE pills  
+function handleCEPillClick(event) {  
+  const ceId = event.target.dataset.ceId;  
+  
+  // AJAX call to fetch CE data based on the CE ID  
+  fetch(`/get_ce_by_id?ce_id=${ceId}`)  
+    .then((response) => response.json())  
+    .then((data) => {  
+      // Ensure that 'data' and 'data.ce' are defined  
+      if (data && data.ce) {  
+        // Check if the CE has already been analyzed  
+        if (data.ce.ce_type) {  
+          // If already analyzed, show the CE details in a modal or tooltip  
+          showCEModal(data.ce);  
+        } else {  
+          // If not analyzed, analyze the COS and get the CE type  
+          analyzeCOS(ceId, data.ce);  
+        }  
+      } else {  
+        // Handle the case where 'data' or 'data.ce' is undefined  
+        console.error('CE data is undefined or not structured correctly:', data);  
+      }  
+    })  
+    .catch((error) => {  
+      console.error('Error:', error);  
+    });  
+}  
 
 // Function to analyze the COS and get the CE type
 function analyzeCOS(ceId, ceData) {

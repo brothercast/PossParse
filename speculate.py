@@ -16,7 +16,6 @@ _engine = create_engine(db_uri)
 Session = sessionmaker(bind=_engine)
 session = Session()
 
-
 class SSOL(Base):
     __tablename__ = "ssol"
 
@@ -172,8 +171,10 @@ def create_cos(ssol_id, content, status, accountable_party, completion_date):
 
 
 def get_cos_by_id(cos_id):
-    cos = session.query(COS).filter_by(id=cos_id).first()
+    # Ensure cos_id is treated as a string
+    cos = session.query(COS).filter_by(id=str(cos_id)).first()
     return cos
+
 
 
 def update_cos_by_id(cos_id, updated_data):

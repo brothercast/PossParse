@@ -17,24 +17,16 @@ function handleCEPillClick(event) {
 
 // Function to analyze the CE and get the CE type
 function analyzeCE(ceId, ceData) {
-  fetch(`/get_ce_by_id?ce_id=${ceId}`)
+  fetch('/analyze_ce_type', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ cos_content: ceData.content }),
+  })
     .then((response) => response.json())
     .then((data) => {
-      const cosContent = data.ce.content;
-      fetch('/analyze_ce_type', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ cos_content: cosContent }),
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          updateCEwithAnalyzedCE(ceId, data.ce);
-        })
-        .catch((error) => {
-          console.log('Error:', error);
-        });
+      updateCEwithAnalyzedCE(ceId, ceData, data.ce_type);
     })
     .catch((error) => {
       console.log('Error:', error);
@@ -52,8 +44,7 @@ function updateCEwithAnalyzedCE(ceId, ceData, ceType) {
   })
     .then((response) => response.json())
     .then((data) => {
-      // Check if the CE data includes the ce_type property
-      if (data.ce.ce_type) {
+      if (data.ce && data.ce.ce_type) {
         showCEModal(data.ce);
       } else {
         showCEModal(ceData);
@@ -126,10 +117,155 @@ function showCEModal(ceData) {
   });
 }
 
-// Add event listeners to CE pills
-document.addEventListener('DOMContentLoaded', () => {
-  const cePills = document.querySelectorAll('.ce-pill-button');
-  cePills.forEach((pill) => {
-    pill.addEventListener('click', handleCEPillClick);
-  });
-});
+// Function to handle the edit button click for CE
+function handleCEEditButtonClick(event) {
+  const row = event.target.closest('tr');
+  const ceContentCell = row.querySelector('.ce-content-cell');
+  const currentContent = ceContentCell.textContent.trim();
+  
+  // Replace the content cells with editable fields
+  ceContentCell.innerHTML = `<input type="text" class="form-control form-control-sm ce-content-input" value="${currentContent}">`;
+  
+  // Show the update and cancel buttons, hide the edit and delete buttons
+  row.querySelector('.edit-ce-button').classList.add('d-none');
+  row.querySelector('.delete-ce-button').classList.add('d-none');
+  row.querySelector('.update-ce-button').classList.remove('d-none');
+  row.querySelector('.cancel-ce-button').classList.remove('d-none');
+}
+
+// Function to handle the update button click for CE
+function handleCEUpdateButtonClick(event) {
+  const row = event.target.closest('tr');
+  const ceContentInput = row.querySelector('.ce-content-input');
+  
+  // If there is a valid input field, update the CE content
+  if (ceContentInput) {
+    const newContent = ceContentInput.value.trim();
+    row.querySelector('.ce-content-cell').textContent = newContent;
+  }
+
+  // Hide the update and cancel buttons and show the edit button
+  row.querySelector('.edit-ce-button').classList.remove('d-none');
+  row.querySelector('.update-ce-button').classList.add('d-none');
+  row.querySelector('.cancel-ce-button').classList.add('d-none');
+}
+
+// Function to handle the cancel button click for CE
+function handleCECancelButtonClick(event) {
+  const row = event.target.closest('tr');
+  const ceContentCell = row.querySelector('.ce-content-cell');
+  const originalContent = ceContentCell.dataset.originalContent;
+  
+  // Revert the content cell to its original value
+  ceContentCell.textContent = originalContent;
+
+  // Hide the update and cancel buttons and show the edit button
+  row.querySelector('.edit-ce-button').classList.remove('d-none');
+  row.querySelector('.update-ce-button').classList.add('d-none');
+  row.querySelector('.cancel-ce-button').classList.add('d-none');
+}
+
+// Add event listeners to CE pills and buttons within the CE table
+document.addEventListener('DOMContentLoaded', () => {  
+  const cosTable = document.querySelector('#cos-table');  
+    
+  if (cosTable) {  
+    cosTable.addEventListener('click', (event) => {  
+      if (event.target.matches('.edit-ce-button')) {  
+        handleEditButtonClick(event);  
+      } else if (event.target.matches('.delete-ce-button')) {  
+        handleDeleteButtonClick(event);  
+      } else if (event.target.matches('.analyze-ce-button')) {  
+        handleAnalyzeButtonClick(event);  
+      }  
+    });  
+  }  
+});  
+  
+function handleEditButtonClick(event) {  
+  const row = event.target.closest('tr');  
+  const ceContentCell = row.querySelector('.ce-content-cell');  
+  const currentContent = ceContentCell.textContent.trim();  
+  
+  // Replace the content cell with an input field  
+  ceContentCell.innerHTML = `<input type="text" class="form-control form-control-sm ce-content-input" value="${currentContent}">`;  
+  
+  // Change the "Edit" button to a "Save" button  
+  event.target.classList.add('d-none');  
+  const saveButton = row.querySelector('.save-ce-button');  
+  if (saveButton) {  
+    saveButton.classList.remove('d-none');  
+  }  
+  
+  // Add click event for the save button  
+  saveButton.addEventListener('click', (e) => handleSaveButtonClick(e, row));  
+}  
+  
+function handleSaveButtonClick(event, row) {  
+  const ceContentInput = row.querySelector('.ce-content-input');  
+  const newContent = ceContentInput.value.trim();  
+  const ceId = row.dataset.ceId;  
+  // Send the updated content to the server  
+  fetch(`/update_cos`, {  
+    method: 'POST',  
+    headers: {'Content-Type': 'application/json'},  
+    body: JSON.stringify({cos_id: ceId, content: newContent}),  
+  })  
+  .then(response => response.json())  
+  .then(data => {  
+    // Check if the update was successful  
+    if (data.success) {  
+      // Update the UI to show the new content  
+      const ceContentCell = row.querySelector('.ce-content-cell');  
+      ceContentCell.textContent = newContent;  
+      // Change the "Save" button back to an "Edit" button  
+      const editButton = row.querySelector('.edit-ce-button');  
+      editButton.classList.remove('d-none');  
+      event.target.classList.add('d-none');  
+    } else {  
+      console.error('Error updating CE:', data.error);  
+    }  
+  })  
+  .catch(error => console.error('Error:', error));  
+}  
+  
+function handleDeleteButtonClick(event) {  
+  const row = event.target.closest('tr');  
+  const ceId = row.dataset.ceId;  
+  // Send a delete request to the server  
+  fetch(`/delete_cos`, {  
+    method: 'POST',  
+    headers: {'Content-Type': 'application/json'},  
+    body: JSON.stringify({cos_id: ceId}),  
+  })  
+  .then(response => response.json())  
+  .then(data => {  
+    // Check if the delete was successful  
+    if (data.success) {  
+      // Remove the row from the table  
+      row.remove();  
+    } else {  
+      console.error('Error deleting CE:', data.error);  
+    }  
+  })  
+  .catch(error => console.error('Error:', error));  
+}  
+  
+function handleAnalyzeButtonClick(event) {  
+  const row = event.target.closest('tr');  
+  const ceId = row.dataset.ceId;  
+  // Send the COS/CE content to the server for analysis  
+  fetch(`/analyze_cos/${ceId}`)  
+  .then(response => response.json())  
+  .then(data => {  
+    // Display the analysis results  
+    if (data.analyzed_cos) {  
+      // Update the UI with the analyzed data  
+      // This could be displaying a modal, updating a field, etc.  
+      console.log('Analyzed COS:', data.analyzed_cos);  
+    } else {  
+      console.error('Error analyzing COS:', data.error);  
+    }  
+  })  
+  .catch(error => console.error('Error:', error));  
+}  

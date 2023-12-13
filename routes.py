@@ -1,26 +1,33 @@
-import os
+import os  
 import json
 import openai
-from app import app
-from dotenv import load_dotenv
-from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data
-from flask import Blueprint, render_template, request, flash, redirect, url_for, session, jsonify, Markup
-from speculate import create_cos, get_cos_by_id, update_cos_by_id, delete_cos_by_id, get_badge_class_from_status
-from sqlalchemy import Column, Integer, String, Date, ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
-
-
-load_dotenv()
-openai.api_key = os.environ["OPENAI_API_KEY"]
-
-Base = declarative_base()
-
-routes_bp = Blueprint('routes_bp', __name__)
-
-class COS(Base):
-    __tablename__ = "cos"
-
+from app import app  
+from dotenv import load_dotenv  
+from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data  
+from flask import Blueprint, render_template, request, flash, redirect, url_for, session, jsonify 
+from markupsafe import Markup  
+from speculate import create_cos, get_cos_by_id, update_cos_by_id, delete_cos_by_id, get_badge_class_from_status, get_ce_by_id, analyze_cos, extract_conditional_elements
+from sqlalchemy import Column, Integer, String, Date, ForeignKey  
+from sqlalchemy.orm import relationship  
+from sqlalchemy.ext.declarative import declarative_base  
+   
+# Load environment variables  
+load_dotenv()  
+azure_openai_key = os.environ["AZURE_OPENAI_API_KEY"]  
+azure_openai_endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]  
+deployment_name = os.environ["AZURE_DEPLOYMENT_NAME"]  
+  
+# Initialize Azure OpenAI client  
+openai.api_key = azure_openai_key  
+openai.api_base = azure_openai_endpoint  
+openai.api_type = 'azure'  # Necessary for using the OpenAI library with Azure OpenAI  
+openai.api_version = '2023-07-01'  # Latest / target version of the API  
+  
+Base = declarative_base()   
+  
+routes_bp = Blueprint('routes_bp', __name__)  
+class COS(Base):  
+    __tablename__ = "cos"  
     id = Column(Integer, primary_key=True)
     content = Column(String)
     status = Column(String)
@@ -31,6 +38,7 @@ class COS(Base):
     ssol = relationship("SSOL", back_populates="cos")
 
     conditional_elements = relationship("CE", back_populates="cos")
+
 
 @app.route('/')
 def index():
@@ -167,25 +175,26 @@ def delete_cos():
     delete_cos_by_id(cos_id)
     return jsonify(success=True)
 
-@app.route('/get_ce_by_id', methods=['GET'])
-def get_ce_by_id():
-    try:
-        ce_id = request.args.get('ce_id')
-        ce = get_ce_by_id(ce_id)
-        if ce:
-            ce_data = {
-                'id': str(ce.id),
-                'content': ce.content,
-                'status': ce.status,
-                'accountable_party': ce.accountable_party,
-                'completion_date': ce.completion_date,
-                'ce_type': ce.ce_type
-            }
-            return jsonify(ce=ce_data)
-        else:
-            return jsonify(ce=None)
-    except Exception as e:
-        return jsonify(error=str(e))
+# Update the route to accept a query parameter for ce_id  
+@app.route('/get_ce_by_id', methods=['GET'])  
+def get_ce_by_id_route():  
+    try:  
+        ce_id = request.args.get('ce_id')  
+        ce = get_ce_by_id(ce_id)  
+        if ce:  
+            ce_data = {  
+                'id': str(ce.id),  
+                'content': ce.content,  
+                'status': ce.status,  
+                'accountable_party': ce.accountable_party,  
+                'completion_date': ce.completion_date.isoformat() if ce.completion_date else None,  
+            }  
+            return jsonify(ce=ce_data)  
+        else:  
+            return jsonify(ce=None), 404  
+    except Exception as e:  
+        return jsonify(error=str(e)), 500  
+
 
 @app.route('/analyze_ce_type', methods=['POST'])
 def analyze_ce_type():
@@ -194,3 +203,27 @@ def analyze_ce_type():
 @routes_bp.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/analyze_cos/<string:cos_id>', methods=['GET'])    
+def analyze_cos_route(cos_id):  
+    # Retrieve the COS by its ID  
+    cos = get_cos_by_id(cos_id)  
+    # Check if the COS exists  
+    if not cos:  
+        # If not found, return an empty list and 404 status  
+        return jsonify(analyzed_cos=[]), 404  
+  
+    # If the COS is found, analyze its content  
+    analyzed_data = analyze_cos(cos.content)  
+    # Extract conditional elements from the analyzed data  
+    conditional_elements = extract_conditional_elements(analyzed_data)  
+    # Return the analyzed data as JSON  
+    return jsonify(analyzed_cos=conditional_elements)  
+    return jsonify(analyzed_cos=analyzed_data)
+
+""" def analyze_cos_content(cos_content):
+    # Use GPT-3.5 to analyze the COS content and extract conditional elements
+    # Call the function that sends the prompt to GPT-3.5 and gets the response
+    analyzed_text = speculate.analyze_cos(cos_content)
+    # Extract conditional elements from the response and return them
+    return speculate.extract_conditional_elements(analyzed_text) """

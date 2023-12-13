@@ -25,24 +25,26 @@
     Based on your input, we have speculated three high-level outcomes.
     Please choose the one that is closest to your desired result, or click the "Speculate New Outcomes" button to generate a new set of possibilities.
   </p>
-  <div class="card-container">
+  <div class="row">
     {% for goal in goals %}
-      <div class="card retro-futuristic-card text-center mb-4 {% if not goal.compliant %}non-compliant{% endif %}">
-        <div class="card-body card-content">
-          <i class="{{ goal.icon }} fa-2x mb-3"></i>
-          <p class="domain domain-text">{{ goal.domain | title }}</p>
-          <h5 class="card-title" data-text="{{ goal.title }}">{{ goal.title | safe }}</h5>
-          {% if goal.compliant %}
-          <form action="/outcome" method="post" class="goal-selection-form">
-            <input type="hidden" name="selected_goal" value="{{ goal.title }}">
-            <input type="hidden" name="domain" value="{{ goal.domain }}">
-            <input type="hidden" name="domain_icon" value="{{ goal.icon }}">
-            <input type="hidden" name="user_text" value="{{ user_input }}">
-            <button type="submit" class="btn btn-primary">Select</button>
-          </form>
-          {% else %}
-          <button type="button" class="btn btn-danger" onclick="window.location.href='/';">Start Over</button>
-          {% endif %}
+      <div class="col-md-4 mb-4">
+        <div class="card retro-futuristic-card text-center {% if not goal.compliant %}non-compliant{% endif %}">
+          <div class="card-body card-content">
+            <i class="{{ goal.icon }} fa-2x mb-3"></i>
+            <p class="domain domain-text">{{ goal.domain | title }}</p>
+            <h5 class="card-title" data-text="{{ goal.title }}">{{ goal.title | safe }}</h5>
+            {% if goal.compliant %}
+            <form action="/outcome" method="post" class="goal-selection-form">
+              <input type="hidden" name="selected_goal" value="{{ goal.title }}">
+              <input type="hidden" name="domain" value="{{ goal.domain }}">
+              <input type="hidden" name="domain_icon" value="{{ goal.icon }}">
+              <input type="hidden" name="user_text" value="{{ user_input }}">
+              <button type="submit" class="btn btn-primary">Select</button>
+            </form>
+            {% else %}
+            <button type="button" class="btn btn-danger" onclick="window.location.href='/';">Start Over</button>
+            {% endif %}
+          </div>
         </div>
       </div>
     {% endfor %}
