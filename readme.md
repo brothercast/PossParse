@@ -1,5 +1,5 @@
 # SSPEC Possibility Parser Flask Web App  
-![SSPEC PossParse] (static/images/sspec_default.png)  
+![SSPEC PossParse] (https://github.com/brothercast/PossParse/blob/AzureResources/static/images/sspec_default.png)  
 SSPEC PossParse is an innovative web application designed to facilitate mass collaboration across various divides. By leveraging the power of structured speculation and the latest AI language models, it provides a platform for users to generate and select goals, create structured outcomes, and engage with conditional elements of satisfaction (COS).  
   
 ## Purpose  
