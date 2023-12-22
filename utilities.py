@@ -230,10 +230,10 @@ def is_goal_compliant(selected_goal):
 
 def get_domain_icon_and_name(goal_domain):  
     messages = [  
-        {"role": "system", "content": "You are an AI that suggests a domain and FontAwesome icon class based on the goal domain. Output only the domain and icon class in JSON format."},  
+        {"role": "system", "content": "You are an AI that suggests a domain and FontAwesome 6 free icon class based on the goal domain. Output only the domain and icon class in JSON format."},  
         {"role": "user", "content": f"What is the best domain and corresponding FontAwesome icon class for the goal related to '{goal_domain}'?"}  
     ]  
-    response_content = generate_chat_response(messages, role='Domain and Icon', task='Fetch Domain and Icon', temperature=0.37)  
+    response_content = generate_chat_response(messages, role='Domain and Icon', task='Fetch Domain and free FontAwesome 6 Icon', temperature=0.37)  
   
     try:  
         # Log the raw response content for debugging  
@@ -325,7 +325,7 @@ def generate_image(prompt, goal_title, seed=None, width=512, height=512):
 
 def generate_structured_solution(selected_goal):
     messages = [
-        {"role": "system", "content": "You are an ethics-bound AI that determines conditions of satisfaction needed to complete a given goal across these phases: Discovery, Engagement, Action, Completion, and Legacy, based on first principles. For each phase, please speculate a set of specific, measurable Conditions of Satisfaction (COS) in the past tense, which when met, ensure or indicate project completion. Ensure that the COS are specific to the goal and follow a logical progression through the phases. Provide the response in JSON format, with each phase as a key and its COS as an array of strings. For example: {'discovery': ['COS 1', 'COS 2'], 'engagement': ['COS 1', 'COS 2'], ...}."},
+        {"role": "system", "content": "You are an ethics-bound AI that speculates specific conditions of satisfaction needed to complete a given goal across these phases: Discovery, Engagement, Action, Completion, and Legacy, based on first principles. For each phase, please speculate a set of specific, measurable Conditions of Satisfaction (COS) in the past tense, which when met, ensure or indicate project completion. Ensure that the COS are specific to the goal and follow a logical progression through the phases. Provide the response in JSON format, with each phase as a key and its COS as an array of strings. For example: {'discovery': ['COS 1', 'COS 2'], 'engagement': ['COS 1', 'COS 2'], ...}."},
         {"role": "user", "content": f"Generate a Structured Solution which fulfills the following goal: '{selected_goal}'. Provide between 2 to 5 specific, measurable Conditions of Satisfaction (COS) for each phase: Discovery, Engagement, Action, Completion, and Legacy, in JSON format."}
     ]
 

@@ -22,8 +22,8 @@ SSPEC PossParse's goal is to enable users to:
   
 1. Clone the repository:  
    ```shell  
-   git clone https://github.com/your-username/sspec-posspars.git  
-   cd sspec-posspars  
+   git clone https://github.com/brothercast/PossParse.git 
+   cd posspars  
  
 2. Install the required dependencies:
 

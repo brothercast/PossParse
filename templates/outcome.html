@@ -60,7 +60,7 @@
                     </thead>
                     <tbody>
                       {% for ce in ce_list %}
-                        <tr class="ce-row" data-ce-id="{{ ce.id }}">
+                        <tr class="ce-row" data-ce-id="{{ ce.id }}"> <!-- Ensure data-ce-id is set correctly -->
                           <td class="status-cell">
                             <span class="badge {{ ce.status | get_badge_class_from_status }} status-pill">{{ ce.status }}</span>
                           </td>
@@ -69,12 +69,14 @@
                           <td class="ce-completion-date-cell">{{ ce.completion_date }}</td>
                           <td>
                             <button class="btn btn-sm btn-primary edit-ce-button">Edit</button>
+                            <button class="btn btn-sm btn-success update-ce-button d-none">Update</button> <!-- Add update button -->
+                            <button class="btn btn-sm btn-secondary cancel-ce-button d-none">Cancel</button> <!-- Add cancel button -->
                             <button class="btn btn-sm btn-danger delete-ce-button">Delete</button>
                             <button class="btn btn-sm btn-info analyze-ce-button" data-ce-id="{{ ce.id }}">Analyze</button>
                           </td>
                         </tr>
                       {% endfor %}
-                    </tbody>
+                    </tbody>                    
                   </table>
                   <button class="btn btn-success btn-sm add-ce" data-bs-toggle="modal" data-bs-target="#addCEModal" data-phase="{{ phase_name }}">Add Condition of Satisfaction</button>
                 {% else %}
