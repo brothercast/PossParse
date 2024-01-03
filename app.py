@@ -1,7 +1,8 @@
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 import os
+from flask import Flask
 from dotenv import load_dotenv
+from flask_migrate import Migrate 
+from flask_sqlalchemy import SQLAlchemy
 from speculate import get_badge_class_from_status
 
 # Load environment variables
@@ -16,6 +17,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Optionally to suppress w
 
 # Initialize SQLAlchemy with the Flask app
 db = SQLAlchemy(app)
+migrate = Migrate(app, db) 
 
 # Import the functions from speculate after db has been initialized to avoid circular imports
 from speculate import get_badge_class_from_status

@@ -114,7 +114,7 @@ def generate_outcome_data(request, method, selected_goal=None, domain=None, doma
     outcome_data['structured_solution'] = structured_solution
 
     # Generate an image using the Stable Diffusion API
-    image_prompt = f"A visually stunning futuristic illustration depicting '{selected_goal}' as a fulfilled goal, Mary Blair 1959, isometric"
+    image_prompt = f"A visually stunning futuristic illustration depicting '{selected_goal}' as a fulfilled goal, Mary Blair 1962, isometric"
     generated_image = generate_image(image_prompt, selected_goal)
     if generated_image:
         unique_filename = f"generated_image_{uuid.uuid4().hex}.png"
@@ -293,7 +293,8 @@ def generate_image(prompt, goal_title, seed=None, width=512, height=512):
     stability_api = stability_client.StabilityInference(  
         key=stability_api_key,  
         verbose=True,  
-        engine="stable-diffusion-xl-beta-v2-2-2",  
+        #engine="stable-diffusion-xl-beta-v2-2-2",
+        engine="stable-diffusion-xl-1024-v1-0",  
     )  
 
     try:

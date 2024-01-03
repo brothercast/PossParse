@@ -421,3 +421,23 @@ body:before {
   }
 }
 }
+
+.editing .edit-ce-button,
+.editing .delete-ce-button {
+  display: none;
+}
+
+.editing .update-ce-button,
+.editing .cancel-ce-button {
+  display: inline-block;
+}
+
+.ce-row[data-editing="true"] .edit-ce-button,
+.ce-row[data-editing="true"] .delete-ce-button {
+  display: none;
+}
+
+.ce-row[data-editing="true"] .update-ce-button,
+.ce-row[data-editing="true"] .cancel-ce-button {
+  display: inline-block;
+}

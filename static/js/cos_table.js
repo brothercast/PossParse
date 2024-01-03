@@ -3,85 +3,130 @@ document.addEventListener('DOMContentLoaded', () => {
   phaseTables.forEach(table => {
     table.addEventListener('click', handlePhaseTableClick);
   });
-
-  const cePills = document.querySelectorAll('.ce-pill-button');
-  cePills.forEach(pill => {
-    pill.addEventListener('click', handleCEPillClick);
-  });
 });
 
-function handlePhaseTableClick(event) {
-  const target = event.target;
-  const row = target.closest('tr');
+function handlePhaseTableClick(event) {  
+  const target = event.target;  
+  const row = target.closest('tr');  
   if (!row) return;
 
-  const cosId = row.dataset.cosId;
-
   if (target.matches('.edit-ce-button')) {
+    toggleEditMode(row, true);
     turnRowToEditMode(row);
   } else if (target.matches('.update-ce-button')) {
+    const cosId = row.dataset.ceId;
     updateCOS(row, cosId);
   } else if (target.matches('.cancel-ce-button')) {
-    cancelEditMode(row);
+    toggleEditMode(row, false);
+    revertRowFromEditMode(row);
   } else if (target.matches('.delete-ce-button')) {
-    if (confirm('Are you sure you want to delete this Condition of Satisfaction?')) {
-      deleteCOS(cosId, row);
-    }
+    const cosId = row.dataset.ceId;
+    deleteCOS(cosId, row);
+  } else if (target.matches('.analyze-ce-button')) {
+    const cosId = row.dataset.ceId;
+    analyzeCOS(cosId);
+  }
+}
+
+function toggleEditMode(row, editing) {
+  if (editing) {
+    row.dataset.editing = "true";
+    row.classList.add('editing');
+  } else {
+    row.dataset.editing = "false";
+    row.classList.remove('editing');
   }
 }
 
 function turnRowToEditMode(row) {
-  storeOriginalValues(row); // Store original values before editing
-  const statusCell = row.querySelector('.status-cell');
-  const statusValue = statusCell.textContent.trim();
-  statusCell.innerHTML = createStatusDropdown(statusValue);
+  if (!row) {
+    console.error('The provided row is null or undefined.');
+    return;
+  }
 
-  const ceContentCell = row.querySelector('.ce-content-cell');
-  const ceContentValue = ceContentCell.textContent.trim();
-  ceContentCell.innerHTML = `<input type="text" class="form-control form-control-sm" value="${ceContentValue}">`;
-
+  // Retrieve the current values and elements
+  const statusSpan = row.querySelector('.status-cell span');
+  const contentCell = row.querySelector('.ce-content-cell');
   const accountablePartyCell = row.querySelector('.ce-accountable-party-cell');
-  const accountablePartyValue = accountablePartyCell.textContent.trim();
-  accountablePartyCell.innerHTML = `<input type="text" class="form-control form-control-sm" value="${accountablePartyValue}">`;
-
   const completionDateCell = row.querySelector('.ce-completion-date-cell');
-  const completionDateValue = completionDateCell.textContent.trim();
-  completionDateCell.innerHTML = `<input type="date" class="form-control form-control-sm" value="${completionDateValue}">`;
 
+  // Check if all elements are present
+  if (!statusSpan) {
+    console.error('The status span is missing in the row.');
+    return;
+  }
+  if (!contentCell) {
+    console.error('The content cell is missing in the row.');
+    return;
+  }
+  if (!accountablePartyCell) {
+    console.error('The accountable party cell is missing in the row.');
+    return;
+  }
+  if (!completionDateCell) {
+    console.error('The completion date cell is missing in the row.');
+    return;
+  }
+
+  // Store the current non-editable values
+  storeOriginalValues(row);
+
+  // Retrieve the current values or use default empty values
+  const currentStatus = statusSpan.textContent.trim() || 'Proposed';
+  const currentContent = contentCell.textContent.trim() || '';
+  const currentAccountableParty = accountablePartyCell.textContent.trim() || '';
+  const currentCompletionDate = completionDateCell.textContent.trim() || '';
+
+  // Replace the current values with input fields
+  row.querySelector('.status-cell').innerHTML = createStatusDropdown(currentStatus);
+  contentCell.innerHTML = `<input type="text" class="form-control form-control-sm" value="${currentContent}">`;
+  accountablePartyCell.innerHTML = `<input type="text" class="form-control form-control-sm" value="${currentAccountableParty}">`;
+  completionDateCell.innerHTML = `<input type="date" class="form-control form-control-sm" value="${currentCompletionDate}">`;
+
+  // Change button visibility
   toggleButtonVisibility(row, true);
 }
 
-function updateCOS(row, cosId) {
+function handleUpdate(row) {
+  // Retrieve input values from the row
+  const cosId = row.dataset.ceId;
   const contentInput = row.querySelector('.ce-content-cell input').value;
   const statusSelect = row.querySelector('.status-cell select');
-  const statusInput = statusSelect.value;
+  const statusInput = statusSelect.options[statusSelect.selectedIndex].value;
   const accountablePartyInput = row.querySelector('.ce-accountable-party-cell input').value;
   const completionDateInput = row.querySelector('.ce-completion-date-cell input').value;
 
+  // AJAX request to update the COS entry on the server
   fetch(`/update_cos/${cosId}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify({
+      cos_id: cosId,
       content: contentInput,
       status: statusInput,
       accountable_party: accountablePartyInput,
       completion_date: completionDateInput
-    }),
+    })
   })
-  .then(handleResponse)
-  .then(data => {
-    if (data.cos) {
-      // Update the row with the new values
-      row.querySelector('.ce-content-cell').textContent = contentInput;
-      row.querySelector('.status-cell').textContent = statusInput;
-      row.querySelector('.ce-accountable-party-cell').textContent = accountablePartyInput;
-      row.querySelector('.ce-completion-date-cell').textContent = completionDateInput;
-      toggleButtonVisibility(row, false);
-    } else {
-      console.error('Error updating COS:', data.error);
+  .then(response => {
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+    return response.text();
+  })
+  .then(text => {
+    try {
+      const data = JSON.parse(text);
+      // Handle the response data
+    } catch (error) {
+      console.error('The response was not valid JSON:', text);
     }
   })
-  .catch(error => console.error('Error:', error));
+  .catch(error => {
+    console.error('Error:', error);
+  });
 }
 
 function cancelEditMode(row) {
@@ -102,17 +147,14 @@ function toggleButtonVisibility(row, editing) {
   const editButton = row.querySelector('.edit-ce-button');
   const updateButton = row.querySelector('.update-ce-button');
   const cancelButton = row.querySelector('.cancel-ce-button');
-  const deleteButton = row.querySelector('.delete-ce-button');
 
-  if (editButton && updateButton && cancelButton && deleteButton) {
+  if (editButton && updateButton && cancelButton) {
     if (editing) {
       editButton.classList.add('d-none');
-      deleteButton.classList.add('d-none');
       updateButton.classList.remove('d-none');
       cancelButton.classList.remove('d-none');
     } else {
       editButton.classList.remove('d-none');
-      deleteButton.classList.remove('d-none');
       updateButton.classList.add('d-none');
       cancelButton.classList.add('d-none');
     }
@@ -125,8 +167,14 @@ function deleteCOS(cosId, row) {
   fetch(`/delete_cos/${cosId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cos_id: cosId }) // Ensure the body contains the correct data
   })
-  .then(response => response.json())
+  .then(response => {
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+    return response.json();
+  })
   .then(data => {
     if (data.success) {
       row.remove();
@@ -134,26 +182,26 @@ function deleteCOS(cosId, row) {
       console.error('Error deleting COS:', data.error);
     }
   })
-  .catch(error => console.error('Error:', error));id
+  .catch(error => console.error('Error:', error));
 }
 
-function handleResponse(response) {
-  if (!response.ok) {
-    throw new Error('Network response was not ok');
-  }
-  return response.json();
-}
 
 function storeOriginalValues(row) {
   const cellsToStore = ['status-cell', 'ce-content-cell', 'ce-accountable-party-cell', 'ce-completion-date-cell'];
   row.dataset.originalValues = JSON.stringify(
     cellsToStore.reduce((values, cellClass) => {
       const cell = row.querySelector(`.${cellClass}`);
-      values[cellClass] = cell.textContent.trim();
+      // Add a check to ensure the cell is not null
+      if (cell) {
+        values[cellClass] = cell.textContent.trim();
+      } else {
+        console.error(`Cell with class ${cellClass} not found in the row.`);
+      }
       return values;
     }, {})
   );
 }
+
 
 function revertToOriginalValues(row) {
   const originalValues = JSON.parse(row.dataset.originalValues);
@@ -163,11 +211,12 @@ function revertToOriginalValues(row) {
   }
 }
 
-function revertRowFromEditMode(row, cos) {
-  row.querySelector('.status-cell').textContent = cos.status;
-  row.querySelector('.ce-content-cell').textContent = cos.content;
-  row.querySelector('.ce-accountable-party-cell').textContent = cos.accountable_party;
-  row.querySelector('.ce-completion-date-cell').textContent = cos.completion_date;
+function revertRowFromEditMode(row) {
+  const originalValues = JSON.parse(row.dataset.originalValues);
+  row.querySelector('.status-cell').innerHTML = `<span class="badge ${getBadgeClassFromStatus(originalValues['status-cell'])} status-pill">${originalValues['status-cell']}</span>`;
+  row.querySelector('.ce-content-cell').textContent = originalValues['ce-content-cell'];
+  row.querySelector('.ce-accountable-party-cell').textContent = originalValues['ce-accountable-party-cell'];
+  row.querySelector('.ce-completion-date-cell').textContent = originalValues['ce-completion-date-cell'];
 }
 
 document.addEventListener('DOMContentLoaded', () => {  
@@ -182,36 +231,92 @@ document.addEventListener('DOMContentLoaded', () => {
   });  
 });  
   
+document.addEventListener('DOMContentLoaded', () => {  
+  const phaseTables = document.querySelectorAll('.phase-table');  
+  phaseTables.forEach(table => {  
+    table.addEventListener('click', handlePhaseTableClick);  
+  });  
+});  
+  
 function handlePhaseTableClick(event) {  
   const target = event.target;  
+  // Ensure that you're getting the closest 'tr' element to the event target  
   const row = target.closest('tr');  
-  const cosId = row.dataset.cosId;  
+  if (!row) return; // If there's no row, exit the function
   
   if (target.matches('.edit-ce-button')) {  
+    toggleEditMode(row, true);  
     turnRowToEditMode(row);  
   } else if (target.matches('.update-ce-button')) {  
+    const cosId = row.dataset.ceId;  
     updateCOS(row, cosId);  
   } else if (target.matches('.cancel-ce-button')) {  
-    cancelEditMode(row);  
+    toggleEditMode(row, false);  
+    revertRowFromEditMode(row);  
   } else if (target.matches('.delete-ce-button')) {  
+    const cosId = row.dataset.ceId;  
     deleteCOS(cosId, row);  
   }  
 }  
   
-function turnRowToEditMode(row) {  
-  storeOriginalValues(row);  
-  const statusCell = row.querySelector('.status-cell');  
-  const ceContentCell = row.querySelector('.ce-content-cell');  
-  const accountablePartyCell = row.querySelector('.ce-accountable-party-cell');  
-  const completionDateCell = row.querySelector('.ce-completion-date-cell');  
-  
-  statusCell.innerHTML = createStatusDropdown(statusCell.textContent.trim());  
-  ceContentCell.innerHTML = `<input type="text" value="${ceContentCell.textContent.trim()}" class="form-control form-control-sm">`;  
-  accountablePartyCell.innerHTML = `<input type="text" value="${accountablePartyCell.textContent.trim()}" class="form-control form-control-sm">`;  
-  completionDateCell.innerHTML = `<input type="date" value="${completionDateCell.textContent.trim()}" class="form-control form-control-sm">`;  
-  
-  toggleButtonVisibility(row, true);  
-}  
+function turnRowToEditMode(row) {
+  if (!row) {
+    console.error('The provided row is null or undefined.');
+    return;
+  }
+
+  // Check if the row is already being edited
+  if (row.dataset.editing === "true") {
+    console.log('The row is already in edit mode.');
+    return;
+  }
+
+  // Retrieve the current values and elements
+  const statusSpan = row.querySelector('.status-cell span');
+  const contentCell = row.querySelector('.ce-content-cell');
+  const accountablePartyCell = row.querySelector('.ce-accountable-party-cell');
+  const completionDateCell = row.querySelector('.ce-completion-date-cell');
+
+  // Check if all elements are present and log specific errors if not
+  if (!statusSpan) {
+    console.error('The status span is missing in the row:', row);
+    return;
+  }
+  if (!contentCell) {
+    console.error('The content cell is missing in the row:', row);
+    return;
+  }
+  if (!accountablePartyCell) {
+    console.error('The accountable party cell is missing in the row:', row);
+    return;
+  }
+  if (!completionDateCell) {
+    console.error('The completion date cell is missing in the row:', row);
+    return;
+  }
+
+  // Store the current non-editable values
+  storeOriginalValues(row);
+
+  // Retrieve the current values or use default empty values
+  const currentStatus = statusSpan.textContent.trim() || 'Proposed';
+  const currentContent = contentCell.textContent.trim() || '';
+  const currentAccountableParty = accountablePartyCell.textContent.trim() || '';
+  const currentCompletionDate = completionDateCell.textContent.trim() || '';
+
+  // Replace the current values with input fields
+  row.querySelector('.status-cell').innerHTML = createStatusDropdown(currentStatus);
+  contentCell.innerHTML = `<input type="text" class="form-control form-control-sm" value="${currentContent}">`;
+  accountablePartyCell.innerHTML = `<input type="text" class="form-control form-control-sm" value="${currentAccountableParty}">`;
+  completionDateCell.innerHTML = `<input type="date" class="form-control form-control-sm" value="${currentCompletionDate}">`;
+
+  // Change button visibility and set editing state
+  toggleButtonVisibility(row, true);
+  row.dataset.editing = "true";
+}
+
+
+
     
 function cancelEditMode(row) {
   revertToOriginalValues(row);
@@ -225,6 +330,79 @@ function cancelEditMode(row) {
     const modal = new bootstrap.Modal(modalElement);
     modal.show();
   }
+
+ // Define the updateCOS function to be used when the "Update" button is clicked
+ function updateCOS(row, cosId) {
+  // Retrieve input values from the row
+  const contentInput = row.querySelector('.ce-content-cell input').value;
+  const statusSelect = row.querySelector('.status-cell select');
+  const statusInput = statusSelect.options[statusSelect.selectedIndex].value;
+  const accountablePartyInput = row.querySelector('.ce-accountable-party-cell input').value;
+  const completionDateInput = row.querySelector('.ce-completion-date-cell input').value;
+
+  // AJAX request to update the COS entry on the server
+  fetch(`/update_cos/${cosId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      cos_id: cosId,
+      content: contentInput,
+      status: statusInput,
+      accountable_party: accountablePartyInput,
+      completion_date: completionDateInput
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.cos) {
+      // Update the row to display the new values
+      updateRowWithNewValues(row, data.cos);
+      toggleEditMode(row, false);
+    } else {
+      alert('An error occurred while updating the entry.');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+  });
+}
+
+// Helper function to update the row with new values from the server response
+function updateRowWithNewValues(row, cos) {
+  row.querySelector('.status-cell').innerHTML = `<span class="badge ${getBadgeClassFromStatus(cos.status)} status-pill">${cos.status}</span>`;
+  row.querySelector('.ce-content-cell').textContent = cos.content;
+  row.querySelector('.ce-accountable-party-cell').textContent = cos.accountable_party;
+  row.querySelector('.ce-completion-date-cell').textContent = cos.completion_date;
+}
+
+// Helper function to get the appropriate badge class based on status
+function getBadgeClassFromStatus(status) {
+  switch (status) {
+    case 'Proposed': return 'badge-secondary';
+    case 'In Progress': return 'badge-warning';
+    case 'Completed': return 'badge-success';
+    case 'Rejected': return 'badge-danger';
+    default: return 'badge-secondary';
+  }
+}
+
+// Helper function to toggle button visibility
+function toggleButtonVisibility(row, editing) {
+  const editButton = row.querySelector('.edit-ce-button');
+  const updateButton = row.querySelector('.update-ce-button');
+  const cancelButton = row.querySelector('.cancel-ce-button');
+  if (editing) {
+    editButton.classList.add('d-none');
+    updateButton.classList.remove('d-none');
+    cancelButton.classList.remove('d-none');
+  } else {
+    editButton.classList.remove('d-none');
+    updateButton.classList.add('d-none');
+    cancelButton.classList.add('d-none');
+  }
+}
 
   function createCEModalContent(ceData) {
     return `
@@ -294,15 +472,10 @@ function handleUpdate(row) {
   // Retrieve input values from the row
   const cosId = row.dataset.ceId;
   const contentInput = row.querySelector('.ce-content-cell input').value;
-  const statusSelect = row.querySelector('.status-cell select').value;
+  const statusSelect = row.querySelector('.status-cell select');
+  const statusInput = statusSelect.options[statusSelect.selectedIndex].value;
   const accountablePartyInput = row.querySelector('.ce-accountable-party-cell input').value;
   const completionDateInput = row.querySelector('.ce-completion-date-cell input').value;
-
-  // Perform validation if necessary
-  if (!contentInput || !statusSelect || !accountablePartyInput || !completionDateInput) {
-    alert('Please fill in all fields.');
-    return;
-  }
 
   // AJAX request to update the COS entry on the server
   fetch(`/update_cos/${cosId}`, {
@@ -312,7 +485,7 @@ function handleUpdate(row) {
     },
     body: JSON.stringify({
       content: contentInput,
-      status: statusSelect,
+      status: statusInput,
       accountable_party: accountablePartyInput,
       completion_date: completionDateInput
     })
@@ -321,7 +494,8 @@ function handleUpdate(row) {
   .then(data => {
     if (data.success) {
       // Update the row to display the new values
-      row.querySelector('.status-cell').innerHTML = `<span class="badge ${getBadgeClassFromStatus(statusSelect)} status-pill">${statusSelect}</span>`;
+      const badgeClass = getBadgeClassFromStatus(statusInput);
+      row.querySelector('.status-cell').innerHTML = `<span class="badge ${badgeClass} rounded-pill">${statusInput}</span>`;
       row.querySelector('.ce-content-cell').textContent = contentInput;
       row.querySelector('.ce-accountable-party-cell').textContent = accountablePartyInput;
       row.querySelector('.ce-completion-date-cell').textContent = completionDateInput;
@@ -353,7 +527,7 @@ function handleCancel(row) {
 
 function getBadgeClassFromStatus(status) {
   switch (status) {
-    case 'Proposed': return 'badge-primary';
+    case 'Proposed': return 'badge-secondary';
     case 'In Progress': return 'badge-warning';
     case 'Completed': return 'badge-success';
     case 'Rejected': return 'badge-danger';
@@ -363,16 +537,13 @@ function getBadgeClassFromStatus(status) {
 
 // The storeOriginalValues function is used to store the original data before editing
 function storeOriginalValues(row) {
-  const statusPill = row.querySelector('.status-cell .status-pill');
-  const content = row.querySelector('.ce-content-cell').textContent;
-  const accountableParty = row.querySelector('.ce-accountable-party-cell').textContent;
-  const completionDate = row.querySelector('.ce-completion-date-cell').textContent;
-
-  // Store the original values in a data attribute on the row
-  row.dataset.originalValues = JSON.stringify({
-    status: statusPill.textContent.trim(),
-    content: content,
-    accountable_party: accountableParty,
-    completion_date: completionDate
-  });
+  const cellsToStore = ['status-cell', 'ce-content-cell', 'ce-accountable-party-cell', 'ce-completion-date-cell'];
+  row.dataset.originalValues = JSON.stringify(
+    cellsToStore.reduce((values, cellClass) => {
+      const cell = row.querySelector(`.${cellClass} span, .${cellClass}`);
+      values[cellClass] = cell.textContent.trim();
+      return values;
+    }, {})
+  );
 }
+

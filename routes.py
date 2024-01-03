@@ -1,8 +1,10 @@
 import os  
 import json
 import openai
-from app import app  
+from app import app
+from datetime import datetime  
 from dotenv import load_dotenv  
+from werkzeug.exceptions import BadRequest  
 from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data  
 from flask import Blueprint, render_template, request, flash, redirect, url_for, session, jsonify 
 from markupsafe import Markup  
@@ -10,21 +12,21 @@ from speculate import create_cos, get_cos_by_id, update_cos_by_id, delete_cos_by
 from sqlalchemy import Column, Integer, String, Date, ForeignKey  
 from sqlalchemy.orm import relationship  
 from sqlalchemy.ext.declarative import declarative_base  
-   
+
 # Load environment variables  
 load_dotenv()  
 azure_openai_key = os.environ["AZURE_OPENAI_API_KEY"]  
 azure_openai_endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]  
 deployment_name = os.environ["AZURE_DEPLOYMENT_NAME"]  
-  
+
 # Initialize Azure OpenAI client  
 openai.api_key = azure_openai_key  
 openai.api_base = azure_openai_endpoint  
 openai.api_type = 'azure'  # Necessary for using the OpenAI library with Azure OpenAI  
 openai.api_version = '2023-07-01'  # Latest / target version of the API  
-  
+
 Base = declarative_base()   
-  
+
 routes_bp = Blueprint('routes_bp', __name__)  
 class COS(Base):  
     __tablename__ = "cos"  
@@ -154,19 +156,44 @@ def create_cos(ssol_id, content, accountable_party, completion_date):
     session.commit()
     return cos.id
 
-@app.route('/update_cos', methods=['POST'])
-def update_cos():
-    cos_id = request.form.get('cos_id')
-    content = request.form.get('content')
-    status = request.form.get('status')
-    accountable_party = request.form.get('accountable_party')
-    completion_date = request.form.get('completion_date')
+@app.route('/update_cos/<string:cos_id>', methods=['POST'])  
+def update_cos(cos_id):
+    try:
+        data = request.get_json()
+        if not data:
+            raise BadRequest('No JSON payload received')
 
-    update_cos_by_id(cos_id, {'content': content, 'status': status, 
-                              'accountable_party': accountable_party, 
-                              'completion_date': completion_date})
-    cos = get_cos_by_id(cos_id)
-    return jsonify(cos=cos)
+        content = data.get('content')
+        status = data.get('status')
+        accountable_party = data.get('accountable_party')
+        completion_date = data.get('completion_date')
+
+        # Convert the completion_date to a datetime object if it's not None
+        if completion_date:
+            completion_date = datetime.strptime(completion_date, '%Y-%m-%d').date()
+
+        # Assuming update_cos_by_id and get_cos_by_id are defined elsewhere and work correctly
+        updated = update_cos_by_id(cos_id, {
+            'content': content,
+            'status': status,
+            'accountable_party': accountable_party,
+            'completion_date': completion_date
+        })
+
+        if not updated:
+            raise ValueError('Failed to update COS')
+
+        cos = get_cos_by_id(cos_id)
+        if not cos:
+            raise ValueError('COS not found after update')
+
+        return jsonify(cos=cos)
+    except BadRequest as e:
+        return jsonify(error=str(e)), 400
+    except ValueError as e:
+        return jsonify(error=str(e)), 500
+    except Exception as e:
+        return jsonify(error='An unexpected error occurred'), 500
 
 @app.route('/delete_cos', methods=['POST'])
 def delete_cos():
