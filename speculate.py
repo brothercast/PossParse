@@ -1,12 +1,13 @@
 import re
 import os
 import json
-from sqlalchemy import Column, Integer, String, Date, ForeignKey, create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
 from ce_nodes import NODES
 from flask import render_template, jsonify
 from utilities import generate_chat_response
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy import Column, Integer, String, Date, ForeignKey, create_engine
+
 
 Base = declarative_base()
 
@@ -35,10 +36,9 @@ class COS(Base):
     accountable_party = Column(String)
     completion_date = Column(Date)
 
-    ssol_id = Column(Integer, ForeignKey("ssol.id"))
-    ssol = relationship("SSOL", back_populates="cos")
-
-    conditional_elements = relationship("CE", back_populates="cos")
+    ssol_id = Column(Integer, ForeignKey("ssol.id"))  
+    ssol = relationship("SSOL", back_populates="cos")  
+    conditional_elements = relationship("CE", back_populates="cos")  
 
 
 class CE(Base):
@@ -178,11 +178,26 @@ def get_cos_by_id(cos_id):
 
 
 def update_cos_by_id(cos_id, updated_data):
-    cos = session.query(COS).filter_by(id=cos_id).first()
-    for key, value in updated_data.items():
-        setattr(cos, key, value)
-    session.commit()
-
+    try:
+        cos = session.query(COS).filter_by(id=cos_id).first()
+        
+        # Check if a COS with the provided ID was found
+        if cos is None:
+            return False  # Indicate that the update failed due to a non-existent COS ID
+        
+        # Update the COS attributes
+        for key, value in updated_data.items():
+            setattr(cos, key, value)
+        
+        # Commit the changes to the database
+        session.commit()
+        
+        return True  # Indicate that the update was successful
+    except Exception as e:
+        # You could log the exception here if needed
+        print(f"An error occurred while updating COS with ID {cos_id}: {e}")
+        session.rollback()  # Rollback the session to avoid any half-executed transactions
+        return False  # Indicate that the update failed due to an exception
 
 def delete_cos_by_id(cos_id):
     cos = session.query(COS).filter_by(id=cos_id).first()
@@ -253,14 +268,10 @@ def analyze_cos(cos_content):
 
     return parsed_ce_list
 
-def get_badge_class_from_status(status):
-    if status == "In Progress":
-        return "badge-warning"
-    elif status == "Completed":
-        return "badge-success"
-    elif status == "Rejected":
-        return "badge-danger"
-    elif status == "Proposed":
-        return "badge-primary"
-    else:
-        return "badge-info"
+def get_badge_class_from_status(status):  
+    return {  
+        'Proposed': 'badge-secondary',  
+        'In Progress': 'badge-warning',  
+        'Completed': 'badge-success',  
+        'Rejected': 'badge-danger'  
+    }.get(status, 'badge-secondary')  # Default to 'badge-secondary' if status is not found  

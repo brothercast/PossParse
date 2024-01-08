@@ -38,11 +38,18 @@ function toggleEditMode(row, editing) {
   }
 }
 
-function turnRowToEditMode(row) {
-  if (!row) {
-    console.error('The provided row is null or undefined.');
-    return;
-  }
+function turnRowToEditMode(row) {  
+  if (!row) {  
+    console.error('The provided row is null or undefined.');  
+    return;  
+  }  
+  
+  // Check if the row is already being edited  
+  if (row.dataset.editing === "true") {  
+    const cosId = row.dataset.ceId;  // Retrieve the COS_ID from the data attribute of the row  
+    console.log(`COS with ID ${cosId} is in Edit Mode.`);  
+    return;  
+  } 
 
   // Retrieve the current values and elements
   const statusSpan = row.querySelector('.status-cell span');
@@ -238,38 +245,40 @@ document.addEventListener('DOMContentLoaded', () => {
   });  
 });  
   
-function handlePhaseTableClick(event) {  
-  const target = event.target;  
-  // Ensure that you're getting the closest 'tr' element to the event target  
-  const row = target.closest('tr');  
-  if (!row) return; // If there's no row, exit the function
-  
-  if (target.matches('.edit-ce-button')) {  
-    toggleEditMode(row, true);  
-    turnRowToEditMode(row);  
-  } else if (target.matches('.update-ce-button')) {  
-    const cosId = row.dataset.ceId;  
-    updateCOS(row, cosId);  
-  } else if (target.matches('.cancel-ce-button')) {  
-    toggleEditMode(row, false);  
-    revertRowFromEditMode(row);  
-  } else if (target.matches('.delete-ce-button')) {  
-    const cosId = row.dataset.ceId;  
-    deleteCOS(cosId, row);  
-  }  
-}  
-  
-function turnRowToEditMode(row) {
-  if (!row) {
-    console.error('The provided row is null or undefined.');
-    return;
-  }
+function handlePhaseTableClick(event) {
+  const target = event.target;
+  const row = target.closest('tr');
 
-  // Check if the row is already being edited
-  if (row.dataset.editing === "true") {
-    console.log('The row is already in edit mode.');
-    return;
+  if (!row) return;
+
+  if (target.matches('.edit-ce-button')) {
+    toggleEditMode(row, true);
+    turnRowToEditMode(row);
+  } else if (target.matches('.update-ce-button')) {
+    const cosId = row.dataset.ceId;
+    updateCOS(row, cosId);
+  } else if (target.matches('.cancel-ce-button')) {
+    toggleEditMode(row, false);
+    revertRowFromEditMode(row);
+  } else if (target.matches('.delete-ce-button')) {
+    const cosId = row.dataset.ceId;
+    deleteCOS(cosId, row);
   }
+}
+
+  
+function turnRowToEditMode(row) {  
+  if (!row) {  
+    console.error('The provided row is null or undefined.');  
+    return;  
+  }  
+  
+  // Check if the row is already being edited  
+  if (row.dataset.editing === "true") {  
+    const cosId = row.dataset.ceId;  // Retrieve the COS_ID from the data attribute of the row  
+    console.log(`COS with ID ${cosId} is in Edit Mode.`);  
+    return;  
+  } 
 
   // Retrieve the current values and elements
   const statusSpan = row.querySelector('.status-cell span');
@@ -333,41 +342,75 @@ function cancelEditMode(row) {
 
  // Define the updateCOS function to be used when the "Update" button is clicked
  function updateCOS(row, cosId) {
-  // Retrieve input values from the row
   const contentInput = row.querySelector('.ce-content-cell input').value;
   const statusSelect = row.querySelector('.status-cell select');
   const statusInput = statusSelect.options[statusSelect.selectedIndex].value;
   const accountablePartyInput = row.querySelector('.ce-accountable-party-cell input').value;
   const completionDateInput = row.querySelector('.ce-completion-date-cell input').value;
 
-  // AJAX request to update the COS entry on the server
+  // Perform client-side validation if needed
+  if (!contentInput || !statusInput || !accountablePartyInput || !completionDateInput) {
+    // Handle validation errors and provide feedback to the user
+    console.error('Input validation failed. Please check the input values.');
+    return;
+  }
+
   fetch(`/update_cos/${cosId}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      cos_id: cosId,
       content: contentInput,
       status: statusInput,
       accountable_party: accountablePartyInput,
       completion_date: completionDateInput
     })
   })
-  .then(response => response.json())
+  .then(response => {
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+    return response.json();
+  })
   .then(data => {
-    if (data.cos) {
-      // Update the row to display the new values
-      updateRowWithNewValues(row, data.cos);
-      toggleEditMode(row, false);
+    if (data.success) {
+      // Handle the successful update
+      console.log('COS updated successfully:', data.message);
+      // Optionally, update the UI to reflect the new state of the COS entry
     } else {
-      alert('An error occurred while updating the entry.');
+      // Handle the update failure
+      console.error('Failed to update COS:', data.error);
+      // Optionally, provide feedback to the user about the failure
     }
   })
   .catch(error => {
-    console.error('Error:', error);
+    // Handle the error
+    console.error('An error occurred during the COS update:', error);
+    // Optionally, provide feedback to the user about the error
   });
 }
+
+
+// Helper function to update the row with new values from the server response
+function updateRowWithNewValues(row, cos) {
+  row.querySelector('.status-cell').innerHTML = `<span class="badge ${getBadgeClassFromStatus(cos.status)} status-pill">${cos.status}</span>`;
+  row.querySelector('.ce-content-cell').textContent = cos.content;
+  row.querySelector('.ce-accountable-party-cell').textContent = cos.accountable_party;
+  row.querySelector('.ce-completion-date-cell').textContent = cos.completion_date;
+}
+
+// Helper function to get the appropriate badge class based on status
+function getBadgeClassFromStatus(status) {
+  switch (status) {
+    case 'Proposed': return 'badge-secondary';
+    case 'In Progress': return 'badge-warning';
+    case 'Completed': return 'badge-success';
+    case 'Rejected': return 'badge-danger';
+    default: return 'badge-secondary';
+  }
+}
+
 
 // Helper function to update the row with new values from the server response
 function updateRowWithNewValues(row, cos) {

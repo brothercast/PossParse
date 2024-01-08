@@ -59,23 +59,24 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {% for ce in ce_list %}
-                      <tr class="ce-row" data-ce-id="{{ ce.id }}" data-editing="false">
-                        <td class="status-cell">
-                          <span class="badge {{ ce.status | get_badge_class_from_status }} status-pill">{{ ce.status }}</span>
-                        </td>
-                        <td class="ce-content-cell">{{ ce.content }}</td>
-                        <td class="ce-accountable-party-cell">{{ ce.accountable_party }}</td>
-                        <td class="ce-completion-date-cell">{{ ce.completion_date }}</td>
-                        <td>
-                          <button class="btn btn-sm btn-primary edit-ce-button">Edit</button>
-                          <button class="btn btn-sm btn-success update-ce-button d-none">Update</button>
-                          <button class="btn btn-sm btn-secondary cancel-ce-button d-none">Cancel</button>
-                          <button class="btn btn-sm btn-danger delete-ce-button">Delete</button>
-                          <button class="btn btn-sm btn-info analyze-ce-button">Analyze</button> <!-- Added Analyze button -->
-                        </td>
-                      </tr>                
-                      {% endfor %}
+                      {% for ce in ce_list %}  
+                        <tr class="ce-row" data-ce-id="{{ ce.id }}" data-editing="false">  
+                          <td class="status-cell"> 
+                            <span class="badge badge-pill {{ ce.status | get_badge_class_from_status }}">{{ ce.status }}</span>  
+                          </td>  
+                          <td class="ce-content-cell">{{ ce.content }}</td>  
+                          <td class="ce-accountable-party-cell">{{ ce.accountable_party }}</td>  
+                          <td class="ce-completion-date-cell">{{ ce.completion_date }}</td>  
+                          <td>
+                            <button class="btn btn-sm btn-primary edit-ce-button">Edit</button>
+                            <button class="btn btn-sm btn-success update-ce-button d-none">Update</button>
+                            <button class="btn btn-sm btn-secondary cancel-ce-button d-none">Cancel</button>
+                            <button class="btn btn-sm btn-danger delete-ce-button">Delete</button>
+                            <button class="btn btn-sm btn-info analyze-ce-button">Analyze</button>
+                          </td>
+                        </tr>                
+                        {% endfor %}
+
                     </tbody>                    
                   </table>
                   <button class="btn btn-success btn-sm add-ce" data-bs-toggle="modal" data-bs-target="#addCEModal" data-phase="{{ phase_name }}">Add Condition of Satisfaction</button>

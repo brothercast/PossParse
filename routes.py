@@ -1,13 +1,16 @@
 import os  
 import json
 import openai
+from app import db
 from app import app
+from markupsafe import Markup  
 from datetime import datetime  
-from dotenv import load_dotenv  
+from dotenv import load_dotenv
+from models import SSOL, COS, CE    
 from werkzeug.exceptions import BadRequest  
 from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data  
 from flask import Blueprint, render_template, request, flash, redirect, url_for, session, jsonify 
-from markupsafe import Markup  
+
 from speculate import create_cos, get_cos_by_id, update_cos_by_id, delete_cos_by_id, get_badge_class_from_status, get_ce_by_id, analyze_cos, extract_conditional_elements
 from sqlalchemy import Column, Integer, String, Date, ForeignKey  
 from sqlalchemy.orm import relationship  
@@ -25,22 +28,7 @@ openai.api_base = azure_openai_endpoint
 openai.api_type = 'azure'  # Necessary for using the OpenAI library with Azure OpenAI  
 openai.api_version = '2023-07-01'  # Latest / target version of the API  
 
-Base = declarative_base()   
-
 routes_bp = Blueprint('routes_bp', __name__)  
-class COS(Base):  
-    __tablename__ = "cos"  
-    id = Column(Integer, primary_key=True)
-    content = Column(String)
-    status = Column(String)
-    accountable_party = Column(String)
-    completion_date = Column(Date)
-
-    ssol_id = Column(Integer, ForeignKey("ssol.id"))
-    ssol = relationship("SSOL", back_populates="cos")
-
-    conditional_elements = relationship("CE", back_populates="cos")
-
 
 @app.route('/')
 def index():
@@ -143,18 +131,25 @@ def outcome():
         flash("An error occurred while processing your request. Please try again.", "error")
         return redirect(url_for('goal_selection'))
 
-@app.route('/create_cos', methods=['POST'])
-def create_cos(ssol_id, content, accountable_party, completion_date):
-    cos = COS(
-        content=content,
-        status="Proposed",
-        accountable_party=accountable_party,
-        completion_date=completion_date,
-        ssol_id=ssol_id,
-    )
-    session.add(cos)
-    session.commit()
-    return cos.id
+@routes_bp.route('/create_cos', methods=['POST'])    
+def create_cos():  
+    content = request.form.get('content')  
+    status = request.form.get('status', 'Proposed')  
+    accountable_party = request.form.get('accountable_party')  
+    ssol_id = request.form.get('ssol_id')  
+    completion_date = request.form.get('completion_date')  
+  
+    try:  
+        completion_date = datetime.strptime(completion_date, '%Y-%m-%d').date() if completion_date else None  
+        new_cos = COS(content=content, status=status, accountable_party=accountable_party, completion_date=completion_date, ssol_id=ssol_id)  
+        db.session.add(new_cos)  
+        db.session.commit()  
+        flash('COS created successfully', 'success')  
+    except Exception as e:  
+        db.session.rollback()  
+        flash(str(e), 'error')  
+      
+    return redirect(url_for('routes_bp.get_ssol', ssol_id=ssol_id))  
 
 @app.route('/update_cos/<string:cos_id>', methods=['POST'])  
 def update_cos(cos_id):
@@ -231,7 +226,7 @@ def analyze_ce_type():
 def index():
     return render_template('index.html')
 
-@app.route('/analyze_cos/<string:cos_id>', methods=['GET'])    
+@app.route('/analyze_cos/<string:cos_id>', methods=['GET'])      
 def analyze_cos_route(cos_id):  
     # Retrieve the COS by its ID  
     cos = get_cos_by_id(cos_id)  
@@ -245,8 +240,8 @@ def analyze_cos_route(cos_id):
     # Extract conditional elements from the analyzed data  
     conditional_elements = extract_conditional_elements(analyzed_data)  
     # Return the analyzed data as JSON  
-    return jsonify(analyzed_cos=conditional_elements)  
-    return jsonify(analyzed_cos=analyzed_data)
+    return jsonify(analyzed_cos=conditional_elements)   
+    #return jsonify(analyzed_cos=analyzed_data)
 
 """ def analyze_cos_content(cos_content):
     # Use GPT-3.5 to analyze the COS content and extract conditional elements
