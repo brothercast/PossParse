@@ -1,5 +1,7 @@
+import uuid
 from app import db
 from datetime import datetime
+from sqlalchemy.dialects.postgresql import UUID
 
 class SSOL(db.Model):
     __tablename__ = 'ssol'
@@ -13,7 +15,7 @@ class SSOL(db.Model):
 
 class COS(db.Model):
     __tablename__ = 'cos'
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     content = db.Column(db.String, nullable=False)
     status = db.Column(db.String(50), nullable=False)
     accountable_party = db.Column(db.String(255), nullable=True)
@@ -28,11 +30,11 @@ class COS(db.Model):
 
 class CE(db.Model):
     __tablename__ = 'ce'
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     content = db.Column(db.String, nullable=False)
     condition_type = db.Column(db.String(50), nullable=True)
     is_satisfied = db.Column(db.Boolean, default=False)
     
-    # Foreign key linking back to COS
-    cos_id = db.Column(db.Integer, db.ForeignKey('cos.id'), nullable=False)
+    # Foreign key linking back to COS, now expecting a UUID
+    cos_id = db.Column(UUID(as_uuid=True), db.ForeignKey('cos.id'), nullable=False)
     cos = db.relationship('COS', back_populates='conditional_elements')

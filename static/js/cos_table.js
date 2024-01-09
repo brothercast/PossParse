@@ -342,52 +342,39 @@ function cancelEditMode(row) {
 
  // Define the updateCOS function to be used when the "Update" button is clicked
  function updateCOS(row, cosId) {
+  // Get values from the row's input fields
   const contentInput = row.querySelector('.ce-content-cell input').value;
   const statusSelect = row.querySelector('.status-cell select');
   const statusInput = statusSelect.options[statusSelect.selectedIndex].value;
   const accountablePartyInput = row.querySelector('.ce-accountable-party-cell input').value;
   const completionDateInput = row.querySelector('.ce-completion-date-cell input').value;
 
-  // Perform client-side validation if needed
-  if (!contentInput || !statusInput || !accountablePartyInput || !completionDateInput) {
-    // Handle validation errors and provide feedback to the user
-    console.error('Input validation failed. Please check the input values.');
-    return;
-  }
-
+  // Make an AJAX POST request to the server with the updated COS data
   fetch(`/update_cos/${cosId}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      content: contentInput,
-      status: statusInput,
-      accountable_party: accountablePartyInput,
-      completion_date: completionDateInput
-    })
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+          content: contentInput,
+          status: statusInput,
+          accountable_party: accountablePartyInput,
+          completion_date: completionDateInput
+      })
   })
   .then(response => {
-    if (!response.ok) {
-      throw new Error('Network response was not ok');
-    }
-    return response.json();
+      if (!response.ok) {
+          throw new Error('Network response was not ok');
+      }
+      return response.json();
   })
   .then(data => {
-    if (data.success) {
-      // Handle the successful update
-      console.log('COS updated successfully:', data.message);
-      // Optionally, update the UI to reflect the new state of the COS entry
-    } else {
-      // Handle the update failure
-      console.error('Failed to update COS:', data.error);
-      // Optionally, provide feedback to the user about the failure
-    }
+      // Handle the response data
+      console.log('COS updated successfully:', data);
+      // Update the UI to reflect the changes
   })
   .catch(error => {
-    // Handle the error
-    console.error('An error occurred during the COS update:', error);
-    // Optionally, provide feedback to the user about the error
+      console.error('Error:', error);
   });
 }
 
