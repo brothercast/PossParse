@@ -1,13 +1,15 @@
 import re
 import os
 import json
+from app import db
+from uuid import UUID 
 from ce_nodes import NODES
-from flask import render_template, jsonify
+from flask import render_template, jsonify, current_app
 from utilities import generate_chat_response
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy import Column, Integer, String, Date, ForeignKey, create_engine
-
 
 Base = declarative_base()
 
@@ -129,14 +131,12 @@ def get_ce_type(ce_content):
     else:
         return ""
     
-    
 # CRUD operations for SSOL
 def create_ssol(goal, summary):
     ssol = SSOL(goal=goal, summary=summary)
     session.add(ssol)
     session.commit()
     return ssol.id
-
 
 def get_ssol_by_id(ssol_id):
     ssol = session.query(SSOL).filter_by(id=ssol_id).first()
@@ -175,29 +175,27 @@ def get_cos_by_id(cos_id):
     cos = session.query(COS).filter_by(id=str(cos_id)).first()
     return cos
 
-
-
-def update_cos_by_id(cos_id, updated_data):
-    try:
-        cos = session.query(COS).filter_by(id=cos_id).first()
-        
-        # Check if a COS with the provided ID was found
-        if cos is None:
-            return False  # Indicate that the update failed due to a non-existent COS ID
-        
-        # Update the COS attributes
-        for key, value in updated_data.items():
-            setattr(cos, key, value)
-        
-        # Commit the changes to the database
-        session.commit()
-        
-        return True  # Indicate that the update was successful
-    except Exception as e:
-        # You could log the exception here if needed
-        print(f"An error occurred while updating COS with ID {cos_id}: {e}")
-        session.rollback()  # Rollback the session to avoid any half-executed transactions
-        return False  # Indicate that the update failed due to an exception
+ 
+def update_cos_by_id(cos_id, updated_data):    
+    try:  
+        # If the id field is a UUID, ensure you're comparing the right types  
+        if isinstance(cos_id, str):  
+            cos_id = UUID(cos_id)  
+          
+        cos = db.session.query(COS).filter_by(id=cos_id).first()  
+            
+        if cos is None:  
+            return False  # COS with the provided ID does not exist  
+            
+        for key, value in updated_data.items():  
+            setattr(cos, key, value)  
+            
+        db.session.commit()  
+        return True  # Update was successful  
+    except SQLAlchemyError as e:  
+        current_app.logger.error(f"An error occurred while updating COS with ID {cos_id}: {e}")  
+        db.session.rollback()  
+        return None
 
 def delete_cos_by_id(cos_id):
     cos = session.query(COS).filter_by(id=cos_id).first()
