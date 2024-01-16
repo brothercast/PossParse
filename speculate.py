@@ -185,17 +185,23 @@ def update_cos_by_id(cos_id, updated_data):
         cos = db.session.query(COS).filter_by(id=cos_id).first()  
             
         if cos is None:  
-            return False  # COS with the provided ID does not exist  
+            return None, "COS with the provided ID does not exist"  # COS not found
             
+        # Update the COS entry with the new data
         for key, value in updated_data.items():  
             setattr(cos, key, value)  
             
+        # Commit the changes to the database
         db.session.commit()  
-        return True  # Update was successful  
+        
+        # Return the updated COS data using the to_dict method
+        return cos.to_dict(), None  # Update was successful, return updated data
     except SQLAlchemyError as e:  
+        # Log the error and rollback in case of exception
         current_app.logger.error(f"An error occurred while updating COS with ID {cos_id}: {e}")  
         db.session.rollback()  
-        return None
+        return None, str(e)  # Return None and error message
+
 
 def delete_cos_by_id(cos_id):
     cos = session.query(COS).filter_by(id=cos_id).first()
