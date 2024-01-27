@@ -7,11 +7,10 @@ import uuid
 import openai
 import warnings  
 from PIL import Image  
-from flask import current_app 
+from flask import current_app, flash 
 from dotenv import load_dotenv
 from openai import AzureOpenAI
-from azure.ai.textanalytics import TextAnalyticsClient  
-from azure.core.credentials import AzureKeyCredential    
+  
 from stability_sdk import client as stability_client  
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation  
 
@@ -90,52 +89,59 @@ def generate_chat_response(messages, role, task, temperature=0.75, retries=3, ba
     # Raise the last exception if all retries fail
     raise last_exception
 
-def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None):
-    outcome_data = {}
-
-    if method == 'POST':
-        user_input = request.form['user_text'].strip()
-    else:
-        user_input = request.args.get('user_text', '').strip()
-
-    outcome_data['user_input'] = user_input
-    outcome_data['selected_goal'] = selected_goal
-    outcome_data['domain_icon'], outcome_data['domain'] = domain_icon, domain
-
-    # Generate a high-level summary and format it using HTML
-    messages = [
-        {"role": "system", "content": "Assuming it is possible to fulfill any outcome and working backwards, generate a high-level summary of everything required for the goal as fulfilled by some point in the future. Include existing legal, scientific, logistic, or other barriers that need to be addressed for completion."},
-        {"role": "user", "content": f"Generate a high-level summary for the goal: '{selected_goal}'. Please format the summary using HTML tags, such as <br> for line breaks."}
-    ]
-    outcome_data['ssol_summary'] = generate_chat_response(messages, role='Outcome Generation', task='Generate High-Level Summary')
-
-    # Generate the structured solution with Conditions of Satisfaction for each phase
-    structured_solution = generate_structured_solution(selected_goal)
-    outcome_data['structured_solution'] = structured_solution
-
-    # Generate an image using the Stable Diffusion API
-    image_prompt = f"A visually stunning futuristic illustration depicting '{selected_goal}' as a fulfilled goal, Mary Blair 1962, isometric"
-    generated_image = generate_image(image_prompt, selected_goal)
-    if generated_image:
-        unique_filename = f"generated_image_{uuid.uuid4().hex}.png"
-        # Ensure the path uses forward slashes
-        image_path = os.path.join('static', 'images', unique_filename).replace('\\', '/')
-        # Save the image at the correct path using os.sep for the current operating system's path separator
-        generated_image.save(os.path.join(os.path.dirname(os.path.abspath(__file__)), image_path.replace('/', os.sep)))
-        outcome_data['generated_image_path'] = image_path  # Store the web-friendly path
-    else:
-        outcome_data['generated_image_path'] = 'static/images/sspec_default.png'  # Placeholder image if generation fails
-
-    # Parse the high-level summary and extract the HTML formatted summary only
-    high_level_summary_response = generate_chat_response(
-        messages, role='Outcome Generation', task='Generate High-Level Summary')
-    # Assuming the response is a JSON string containing HTML in the 'summary' key
-    try:
-        summary_data = json.loads(high_level_summary_response)
-        outcome_data['ssol_summary'] = summary_data['summary']  # Extract the HTML formatted summary
-    except json.JSONDecodeError:
-        outcome_data['ssol_summary'] = "<p>Error parsing summary data.</p>"
-
+def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None, ssol_id=None):    
+    outcome_data = {}    
+    
+    if method == 'POST':    
+        user_input = request.form['user_text'].strip()    
+    else:    
+        user_input = request.args.get('user_text', '').strip()    
+    
+    outcome_data['user_input'] = user_input    
+    outcome_data['selected_goal'] = selected_goal    
+    outcome_data['domain_icon'], outcome_data['domain'] = domain_icon, domain 
+  
+    # Generate a high-level summary and format it using HTML  
+    messages = [  
+        {"role": "system", "content": "Assuming it is possible to fulfill any outcome and working backwards, generate a high-level summary of everything required for the goal as fulfilled by some point in the future. Include existing legal, scientific, logistic, or other barriers that need to be addressed for completion."},  
+        {"role": "user", "content": f"Generate a high-level summary for the goal: '{selected_goal}'. Please format the summary using HTML tags, such as <br> for line breaks."}  
+    ]  
+    response_content = generate_chat_response(messages, role='Outcome Generation', task='Generate High-Level Summary')  
+  
+    try:    
+        response_data = json.loads(response_content)    
+        outcome_data['ssol_summary'] = response_data['summary']    
+    except (json.JSONDecodeError, KeyError) as e:    
+        current_app.logger.error(f"Error in generate_outcome_data: {e}")  
+        outcome_data['ssol_summary'] = "<p>An error occurred while processing the summary data.</p>"    
+    
+    try:  
+        structured_solution = generate_structured_solution(selected_goal, ssol_id)  
+          
+        # Validate the structured solution contains the required phases  
+        if not all(phase in structured_solution for phase in ['discovery', 'engagement', 'action', 'completion', 'legacy']):  
+            raise ValueError("Structured solution is missing required phases.")  
+          
+        outcome_data['structured_solution'] = structured_solution  
+    except (ValueError, json.JSONDecodeError) as e:  
+        current_app.logger.error(f"Error in generate_structured_solution: {e}")  
+        outcome_data['structured_solution'] = {'error': "An error occurred while generating the structured solution."}  
+      
+    # Generate the image  
+    try:  
+        image_prompt = f"A visually stunning futuristic isometric illustration depicting '{selected_goal}' as a fulfilled goal by Mary Blair, 1959"  
+        generated_image = generate_image(image_prompt, selected_goal)    
+        if generated_image:    
+            unique_filename = f"generated_image_{uuid.uuid4().hex}.png"    
+            image_path = os.path.join('static', 'images', unique_filename).replace('\\', '/')    
+            generated_image.save(os.path.join(current_app.root_path, image_path.replace('/', os.sep)))    
+            outcome_data['generated_image_path'] = image_path  
+        else:    
+            raise ValueError("Failed to generate image.")  
+    except Exception as e:  
+        current_app.logger.error(f"Error in generate_image: {e}")  
+        outcome_data['generated_image_path'] = 'static/images/sspec_default.png'  
+    
     return outcome_data
 
 
@@ -230,7 +236,7 @@ def is_goal_compliant(selected_goal):
 
 def get_domain_icon_and_name(goal_domain):  
     messages = [  
-        {"role": "system", "content": "You are an AI that suggests a domain and FontAwesome 6 free icon class based on the goal domain. Output only the domain and icon class in JSON format."},  
+        {"role": "system", "content": "You are an AI that suggests a domain and FontAwesome 6 Solid (fas) class icon based on the goal domain. Output only the domain and icon class in JSON format."},  
         {"role": "user", "content": f"What is the best domain and corresponding FontAwesome icon class for the goal related to '{goal_domain}'?"}  
     ]  
     response_content = generate_chat_response(messages, role='Domain and Icon', task='Fetch Domain and free FontAwesome 6 Icon', temperature=0.37)  
@@ -324,46 +330,42 @@ def generate_image(prompt, goal_title, seed=None, width=512, height=512):
     return Image.open(placeholder_image_path)
 
 
-def generate_structured_solution(selected_goal):
-    messages = [
-        {"role": "system", "content": "You are an ethics-bound AI that speculates specific conditions of satisfaction needed to complete a given goal across these phases: Discovery, Engagement, Action, Completion, and Legacy, based on first principles. For each phase, please speculate a set of specific, measurable Conditions of Satisfaction (COS) in the past tense, which when met, ensure or indicate project completion. Ensure that the COS are specific to the goal and follow a logical progression through the phases. Provide the response in JSON format, with each phase as a key and its COS as an array of strings. For example: {'discovery': ['COS 1', 'COS 2'], 'engagement': ['COS 1', 'COS 2'], ...}."},
-        {"role": "user", "content": f"Generate a Structured Solution which fulfills the following goal: '{selected_goal}'. Provide between 2 to 5 specific, measurable Conditions of Satisfaction (COS) for each phase: Discovery, Engagement, Action, Completion, and Legacy, in JSON format."}
-    ]
-
-    structured_solution = {
-        'goal': selected_goal,
-        'phases': {
-            'discovery': [],
-            'engagement': [],
-            'action': [],
-            'completion': [],
-            'legacy': []
-        }
-    }
-
-    response_text = generate_chat_response(messages, role='Structured Solution Generation', task='Generate Structured Solution')
-
-    cleaned_response_text = response_text.replace('\n', ' ').replace('\r', '').strip()
-
-    json_match = re.search(r'\{.*\}', cleaned_response_text)
-    if json_match:
-        json_data = json_match.group(0)
-    else:
-        raise ValueError("Failed to extract JSON data from the response.")
-
-    try:
-        response_json = json.loads(json_data)
-    except (json.JSONDecodeError, ValueError) as e:
-        print(f"Error in parsing JSON data: {e}")
-        response_json = {
-            'discovery': ['Default COS 1', 'Default COS 2'],
-            'engagement': ['Default COS 1', 'Default COS 2'],
-            'action': ['Default COS 1', 'Default COS 2'],
-            'completion': ['Default COS 1', 'Default COS 2'],
-            'legacy': ['Default COS 1', 'Default COS 2']
-        }
-
-    for phase_key, cos_list in response_json.items():
-        structured_solution['phases'][phase_key] = [{'id': str(uuid.uuid4()), 'content': cos, 'status': 'Proposed'} for cos in cos_list]
-
-    return structured_solution
+def generate_structured_solution(selected_goal, ssol_id):  
+    messages = [  
+        {"role": "system", "content": "You are an ethics-bound AI that speculates specific conditions of satisfaction needed to complete a given goal across these phases: Discovery, Engagement, Action, Completion, and Legacy, based on first principles. For each phase, please speculate a set of specific, measurable Conditions of Satisfaction (COS) in the past tense, which when met, ensure or indicate project completion. Ensure that the COS are specific to the goal and follow a logical progression through the phases. Provide the response in JSON format, with each phase as a key and its COS as an array of strings. For example: {'discovery': ['COS 1', 'COS 2'], 'engagement': ['COS 1', 'COS 2'], ...}."},  
+        {"role": "user", "content": f"Generate a Structured Solution which fulfills the following goal: '{selected_goal}'. Provide between 2 to 5 specific, measurable Conditions of Satisfaction (COS) for each phase: Discovery, Engagement, Action, Completion, and Legacy, in JSON format."}  
+    ]  
+  
+    response_text = generate_chat_response(messages, role='Structured Solution Generation', task='Generate Structured Solution')  
+    cleaned_response_text = response_text.replace('\n', ' ').replace('\r', '').strip()  
+    json_match = re.search(r'\{.*\}', cleaned_response_text)  
+  
+    if not json_match:  
+        raise ValueError("Failed to extract JSON data from the response.")  
+  
+    json_data = json_match.group(0)  
+    try:  
+        response_json = json.loads(json_data)  
+    except (json.JSONDecodeError, ValueError) as e:  
+        print(f"Error in parsing JSON data: {e}")  
+        # If JSON parsing fails, you might want to handle it in a specific way, such as re-prompting the user or providing a default response.  
+        raise  
+  
+    structured_solution = {  
+        'goal': selected_goal,  
+        'phases': {}  
+    }  
+  
+    # Build the structured solution using the provided SSOL ID  
+    for phase_key, cos_list in response_json.items():  
+        structured_solution['phases'][phase_key] = [  
+            {  
+                'id': str(uuid.uuid4()),  # This is a unique identifier for the COS itself  
+                'content': cos,  
+                'status': 'Proposed',  
+                'ssol_id': ssol_id  # Associate the COS with the SSOL instance using the provided ssol_id  
+            }  
+            for cos in cos_list  
+        ]  
+  
+    return structured_solution  

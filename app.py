@@ -14,6 +14,8 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Optionally to suppress warning
+app.config['SQLALCHEMY_ECHO'] = True
+
 
 # Initialize SQLAlchemy with the Flask app
 db = SQLAlchemy(app)
@@ -30,9 +32,8 @@ app.jinja_env.filters['get_badge_class_from_status'] = get_badge_class_from_stat
 # Import models - it's important that this comes after initializing db and before running migrate
 from models import SSOL, COS, CE
 
-# Import and register the routes
+# Import the routes
 from routes import routes_bp
-app.register_blueprint(routes_bp) 
 
 if __name__ == '__main__':
     app.run(debug=True)  # Set debug to True for development purposes

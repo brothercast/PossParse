@@ -1,6 +1,7 @@
 import re
 import os
 import json
+import logging
 from app import db
 from uuid import UUID 
 from ce_nodes import NODES
@@ -204,9 +205,20 @@ def update_cos_by_id(cos_id, updated_data):
 
 
 def delete_cos_by_id(cos_id):
-    cos = session.query(COS).filter_by(id=cos_id).first()
-    session.delete(cos)
-    session.commit()
+    try:
+        cos = COS.query.get(str(cos_id))
+        if cos:
+            db.session.delete(cos)
+            db.session.commit()
+            logging.info(f"COS with ID {cos_id} has been deleted.")
+            return True
+        else:
+            logging.warning(f"COS with ID {cos_id} not found.")
+            return False
+    except Exception as e:
+        logging.error(f"Error deleting COS with ID {cos_id}: {e}", exc_info=True)
+        return False
+
 
 
 # CRUD operations for CE

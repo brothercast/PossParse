@@ -2,35 +2,38 @@ document.addEventListener('DOMContentLoaded', () => {
   const phaseTables = document.querySelectorAll('.phase-table');
   phaseTables.forEach(table => {
     table.addEventListener('click', handlePhaseTableClick);
-    console.log('Event listeners added to phase tables for handling clicks.');
   });
 });
 
-function handlePhaseTableClick(event) {
-  const target = event.target;
-  const row = target.closest('tr');
-  if (!row) {
-    console.log('Click event occurred outside of a table row.');
-    return;
-  }
+function handlePhaseTableClick(event) {  
+  const target = event.target;  
+  const row = target.closest('tr');  
+  if (!row) {  
+    console.log('Click event occurred outside of a table row.');  
+    return;  
+  }  
+  
+  // Retrieve the SSOL ID from a data attribute on the table or another parent element  
+  const ssolId = row.closest('[data-ssol-id]').dataset.ssolId;  
+  
+  const cosId = row.dataset.ceId;  
+  
+  if (target.matches('.edit-ce-button')) {  
+    console.log(`Entering edit mode for COS ID: ${cosId}`);  
+    toggleEditMode(row, true);  
+    turnRowToEditMode(row);  
+  } else if (target.matches('.update-ce-button')) {  
+    console.log(`Updating COS ID: ${cosId}`);  
+    handleUpdate(row, cosId, ssolId); // Pass the SSOL ID to the update handler  
+  } else if (target.matches('.cancel-ce-button')) {  
+    console.log(`Cancelling edit mode for COS ID: ${cosId}`);  
+    cancelEditMode(row);  
+  } else if (target.matches('.delete-ce-button')) {  
+    console.log(`Deleting COS ID: ${cosId}`);  
+    deleteCOS(cosId, row);  
+  }  
+}  
 
-  const cosId = row.dataset.ceId;
-
-  if (target.matches('.edit-ce-button')) {
-    console.log(`Entering edit mode for COS ID: ${cosId}`);
-    toggleEditMode(row, true);
-    turnRowToEditMode(row);
-  } else if (target.matches('.update-ce-button')) {
-    console.log(`Updating COS ID: ${cosId}`);
-    handleUpdate(row, cosId);
-  } else if (target.matches('.cancel-ce-button')) {
-    console.log(`Cancelling edit mode for COS ID: ${cosId}`);
-    cancelEditMode(row);
-  } else if (target.matches('.delete-ce-button')) {
-    console.log(`Deleting COS ID: ${cosId}`);
-    deleteCOS(cosId, row);
-  }
-}
 
 function toggleEditMode(row, editing) {
   const editButton = row.querySelector('.edit-ce-button');
@@ -56,7 +59,6 @@ function toggleEditMode(row, editing) {
 
 function turnRowToEditMode(row) {
   storeOriginalValues(row);
-
   const currentStatus = row.querySelector('.status-cell span').textContent.trim() || 'Proposed';
   const currentContent = row.querySelector('.ce-content-cell').textContent.trim() || '';
   const currentAccountableParty = row.querySelector('.ce-accountable-party-cell').textContent.trim() || '';
@@ -70,45 +72,64 @@ function turnRowToEditMode(row) {
   row.querySelector('.ce-completion-date-cell').innerHTML = `<input type="date" class="form-control form-control-sm" value="${currentCompletionDate}">`;
 }
 
-function handleUpdate(row, cosId) {
+function handleUpdate(row, cosId, ssolId) {
+  // Retrieve values from the form inputs
   const contentInput = row.querySelector('.ce-content-cell input').value;
   const statusSelect = row.querySelector('.status-cell select');
   const statusInput = statusSelect.options[statusSelect.selectedIndex].value;
   const accountablePartyInput = row.querySelector('.ce-accountable-party-cell input').value;
   const completionDateInput = row.querySelector('.ce-completion-date-cell input').value;
 
-  console.log(`Sending update request for COS ID: ${cosId} with new values: Status: ${statusInput}, Content: ${contentInput}, Accountable Party: ${accountablePartyInput}, Completion Date: ${completionDateInput}`);
+  // Check if the ssolId is valid
+  if (!ssolId) {
+    console.error('SSOL ID is missing or invalid.');
+    alert('SSOL ID is missing or invalid. Please try again.');
+    return;
+  }
 
+  // Create the payload with the updated COS data
+  const payload = {
+    content: contentInput,
+    status: statusInput,
+    accountable_party: accountablePartyInput,
+    completion_date: completionDateInput,
+    ssol_id: ssolId
+  };
+
+  // Send the POST request to the server with the updated data
   fetch(`/update_cos/${cosId}`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest'
     },
-    body: JSON.stringify({
-      content: contentInput,
-      status: statusInput,
-      accountable_party: accountablePartyInput,
-      completion_date: completionDateInput
-    })
+    body: JSON.stringify(payload)
   })
   .then(response => {
     if (!response.ok) {
-      throw new Error(`Network response was not ok for COS ID: ${cosId}`);
+      // If the server responds with an error, throw it to be caught in the catch block
+      return response.json().then(errorData => {
+        throw new Error(`Server responded with ${response.status}: ${JSON.stringify(errorData)}`);
+      });
     }
     return response.json();
   })
   .then(data => {
     if (data.success) {
-      console.log(`COS ID: ${cosId} updated successfully.`);
+      // Update the table row with the new values
       updateRowWithNewValues(row, data.cos);
+      // Exit edit mode
       toggleEditMode(row, false);
     } else {
-      console.error(`Error updating COS ID: ${cosId}:`, data.error);
-      alert('An error occurred while updating the entry.');
+      // If the server indicates failure, alert the user
+      throw new Error(data.error || 'An error occurred while updating the entry.');
     }
   })
   .catch(error => {
-    console.error(`Error updating COS ID: ${cosId}:`, error);
+    // Log the error and alert the user
+    console.error('Error updating COS:', error);
+    alert(`An error occurred while updating the entry: ${error.message}`);
   });
 }
 
@@ -174,28 +195,17 @@ function revertToOriginalValues(row) {
 }
 
 function updateRowWithNewValues(row, cos) {
-  // Log the received cos object for debugging
-  console.log('Received COS data:', cos);
-
-  if (!cos) {
+  if (!cos || Object.keys(cos).length === 0) {
     console.error('No COS data provided to update the row.');
     return;
   }
 
-  // Update the status with a fallback in case cos.status is undefined or null
-  const statusBadgeHtml = `<span class="badge ${getBadgeClassFromStatus(cos.status || 'Proposed')} status-pill">${cos.status || 'Proposed'}</span>`;
-  row.querySelector('.status-cell').innerHTML = statusBadgeHtml;
-
-  // Update the content with a fallback for empty or undefined values
-  row.querySelector('.ce-content-cell').textContent = cos.content || 'No content provided';
-
-  // Update the accountable party with a fallback for empty or undefined values
-  row.querySelector('.ce-accountable-party-cell').textContent = cos.accountable_party || 'No accountable party provided';
-
-  // Update the completion date with a fallback for empty or undefined values
-  row.querySelector('.ce-completion-date-cell').textContent = cos.completion_date || 'No completion date provided';
+  // Update the row with the new values from the COS object
+  row.querySelector('.status-cell').innerHTML = `<span class="badge ${getBadgeClassFromStatus(cos.status)} status-pill">${cos.status}</span>`;
+  row.querySelector('.ce-content-cell').textContent = cos.content;
+  row.querySelector('.ce-accountable-party-cell').textContent = cos.accountable_party;
+  row.querySelector('.ce-completion-date-cell').textContent = cos.completion_date;
 }
-
 
 function getBadgeClassFromStatus(status) {
   switch (status) {
