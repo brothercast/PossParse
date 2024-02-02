@@ -1,31 +1,31 @@
-{% extends 'base.html' %}  
-  
-{% block content %}  
-  <div class="container">  
-    <div class="row outcome-header">  
-      <div class="col-md-4 text-center">  
-        {% if generated_image_path %}    
-          <img src="/{{ generated_image_path }}" alt="Generated Image" class="rounded mb-3 generated-image" style="width: 100%; max-width: 300px;">    
-        {% endif %}     
-        <h2>Domain</h2>  
-        <i class="{{ domain_icon }} fa-3x mb-3"></i>  
-        <p class="domain domain-text text-center">{{ domain | title }}</p>  
-        <h2>Fulfilled Goal</h2>  
-        <p><strong>{{ ssol.goal | safe }}</strong></p>  
-      </div>  
-      <div class="col-md-8">  
-        <div>  
-          <h1>Preliminary Structured Solution</h1>  
-          <p>{{ ssol_summary | safe }}</p>  
-        </div>  
-      </div>  
-    </div>  
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container">
+    <div class="row outcome-header">
+      <div class="col-md-4 text-center">
+        {% if ssol.generated_image_path %}  
+          <img src="{{ url_for('static', filename=ssol.generated_image_path) }}" alt="Generated Image" class="rounded mb-3 generated-image" style="width: 100%; max-width: 300px;">  
+          {% endif %}  
+          <h2>Domain</h2>  
+          <i class="{{ ssol.domain_icon }} fa-3x mb-3"></i>  
+          <p class="domain domain-text text-center">{{ ssol.domain | title }}</p>  
+          <h2>Fulfilled Goal</h2>  
+          <p><strong>{{ ssol.selected_goal | safe }}</strong></p>  
+      </div>
+      <div class="col-md-8">
+        <div>
+          <h1>Preliminary Structured Solution</h1>
+          <p>{{ ssol_summary | safe }}</p>
+        </div>
+      </div>
+    </div>
   
     <div class="row">  
       <h1>Phases & Conditional Elements</h1>  
       <div class="col">  
         <div class="accordion mt-4" id="phase-accordion">  
-        {% for phase_name, ce_list in ssol.phases.items() %}  
+         {% for phase_name, ce_list in structured_solution.items() %} 
           <div class="accordion-item">  
             <h2 class="accordion-header phase-colors" id="heading-{{ phase_name }}">  
               <button  

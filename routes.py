@@ -1,11 +1,12 @@
 import os
 import json
+import uuid
 import logging
 from app import app, db
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 import openai
-from flask import Flask, Blueprint, render_template, request, flash, redirect, url_for, jsonify
+from flask import Flask, Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app
 from werkzeug.exceptions import BadRequest
 from models import SSOL, COS, CE
 from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data, generate_structured_solution
@@ -13,7 +14,6 @@ from speculate import get_badge_class_from_status, get_cos_by_id, delete_cos_by_
 from datetime import datetime
 from dotenv import load_dotenv
 from speculate import create_cos, get_cos_by_id, update_cos_by_id, delete_cos_by_id, get_badge_class_from_status, get_ce_by_id, analyze_cos, extract_conditional_elements  
-
 
 # Load environment variables
 load_dotenv()
@@ -66,7 +66,6 @@ def goal_selection():
             flash("An error occurred while processing your request. Please try again.", "error")
     return redirect(url_for('index'))
 
-
 @routes_bp.route('/outcome', methods=['GET', 'POST'])  
 def outcome():  
     if request.method == 'POST':  
@@ -91,25 +90,27 @@ def outcome():
             # Generate outcome data with the SSOL instance's ID  
             outcome_data = generate_outcome_data(request, 'POST', selected_goal, domain, domain_icon, ssol_id)  
   
-            # Ensure that outcome_data contains the necessary keys  
-            if 'phases' not in outcome_data:  
-                raise ValueError("Failed to generate phases for SSOL.")  
-  
             # Render the outcome template with all necessary data  
-            return render_template('outcome.html', ssol_id=ssol_id, ssol=outcome_data)  
+            return render_template('outcome.html',  
+                ssol=ssol_instance,  # Pass the entire SSOL instance  
+                ssol_summary=outcome_data['ssol_summary'],  
+                structured_solution=outcome_data['phases'],  # Pass structured_solution separately  
+                generated_image_path=outcome_data['generated_image_path'],  
+                domain_icon=domain_icon,  
+                domain=domain,  
+                selected_goal=selected_goal  
+            )  
   
         except Exception as e:  
-            # Rollback in case of exception  
+            # Roll back in case of exception  
             db.session.rollback()  
-            app.logger.error(f"Error processing outcome: {e}", exc_info=True)  
+            current_app.logger.error(f"Error processing outcome: {e}", exc_info=True)  
             flash("An error occurred while processing your request. Please try again.", "error")  
             return redirect(url_for('routes_bp.index'))  
   
     # Redirect to the index page if not a POST request  
     flash("Invalid request method.", "error")  
     return redirect(url_for('routes_bp.index'))  
-
-
 
 
 @routes_bp.route('/update_cos/<uuid:cos_id>', methods=['POST'])
