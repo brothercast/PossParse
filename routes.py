@@ -36,7 +36,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Optionally to suppress w
 logging.basicConfig(level=logging.INFO) 
 
 # In-memory store  
+ssol_store = {} 
 cos_store = {} 
+ce_store = {}
 
 # Register the custom Jinja filter function
 app.jinja_env.filters['get_badge_class_from_status'] = get_badge_class_from_status
@@ -82,31 +84,23 @@ def outcome():
   
         try:  
             # Retrieve or create an SSOL instance and get the id  
-            ssol_instance = SSOL.query.filter_by(title=selected_goal).first()  
+            ssol_instance = next((ssol for ssol in ssol_store.values() if ssol['title'] == selected_goal), None)  
             if not ssol_instance:  
-                ssol_instance = SSOL(title=selected_goal)  
-                db.session.add(ssol_instance)  
-                db.session.commit()  
+                ssol_id = len(ssol_store) + 1  
+                ssol_instance = {'id': ssol_id, 'title': selected_goal, 'domain': domain, 'domain_icon': domain_icon}  
+                ssol_store[ssol_id] = ssol_instance  
   
-            ssol_id = ssol_instance.id  
+            ssol_id = ssol_instance['id']  
   
             # Generate outcome data with the SSOL instance's ID  
             outcome_data = generate_outcome_data(request, 'POST', selected_goal, domain, domain_icon, ssol_id)  
   
-            # Render the outcome template with all necessary data  
+            # Pass the outcome_data dictionary to the template with the correct structure  
             return render_template('outcome.html',  
-                ssol=ssol_instance,  # Pass the entire SSOL instance  
-                ssol_summary=outcome_data['ssol_summary'],  
-                structured_solution=outcome_data['phases'],  # Pass structured_solution separately  
-                generated_image_path=outcome_data['generated_image_path'],  
-                domain_icon=domain_icon,  
-                domain=domain,  
-                selected_goal=selected_goal  
-            )  
+                        ssol=outcome_data,  
+                        structured_solution=outcome_data['phases']) 
   
         except Exception as e:  
-            # Roll back in case of exception  
-            db.session.rollback()  
             current_app.logger.error(f"Error processing outcome: {e}", exc_info=True)  
             flash("An error occurred while processing your request. Please try again.", "error")  
             return redirect(url_for('routes_bp.index'))  

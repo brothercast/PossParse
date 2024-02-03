@@ -1,9 +1,9 @@
 import re
 import os
 import json
+import uuid
 import logging
 from app import db
-from uuid import UUID 
 from ce_nodes import NODES
 from flask import render_template, jsonify, current_app
 from utilities import generate_chat_response
