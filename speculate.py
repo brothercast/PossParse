@@ -12,6 +12,14 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy import Column, Integer, String, Date, ForeignKey, create_engine
 
+# In-memory data stores  
+ssol_store = {}  
+cos_store = {}  
+ce_store = {}  
+  
+# Flag to toggle database usage  
+USE_DATABASE = False  # Set to True when you want to use the database  
+
 Base = declarative_base()
 
 # Database Configuration
@@ -29,7 +37,6 @@ class SSOL(Base):
 
     cos = relationship("COS", back_populates="ssol")
 
-
 class COS(Base):
     __tablename__ = "cos"
 
@@ -43,7 +50,6 @@ class COS(Base):
     ssol = relationship("SSOL", back_populates="cos")  
     conditional_elements = relationship("CE", back_populates="cos")  
 
-
 class CE(Base):
     __tablename__ = "ce"
 
@@ -56,17 +62,41 @@ class CE(Base):
     cos_id = Column(Integer, ForeignKey("cos.id"))
     cos = relationship("COS", back_populates="conditional_elements")
 
+def create_cos(ssol_id, content, status, accountable_party=None, completion_date=None):  
+    if USE_DATABASE:  
+        # Database operation  
+        new_cos = COS(  
+            ssol_id=ssol_id,  
+            content=content,  
+            status=status,  
+            accountable_party=accountable_party,  
+            completion_date=completion_date  
+        )  
+        session.add(new_cos)  
+        session.commit()  
+        return new_cos.id  # Return the ID of the newly created COS  
+    else:  
+        # In-memory operation  
+        # Generate a new UUID for the COS  
+        cos_id = str(uuid.uuid4())  
+        new_cos = {  
+            'id': cos_id,  
+            'ssol_id': ssol_id,  
+            'content': content,  
+            'status': status,  
+            'accountable_party': accountable_party,  
+            'completion_date': completion_date  
+        }  
+        cos_store[cos_id] = new_cos  
+        return cos_id
 
-# Helper function to extract conditional elements from GPT-3.5's response
-def extract_conditional_elements(response):
-    try:
-        response_json = json.loads(response)
-        conditional_elements = response_json.get("conditional_elements", [])
-        return conditional_elements
-    except json.JSONDecodeError as e:
-        print(f"Error in extracting conditional elements: {e}")
-        return []
-
+def get_cos_by_id(cos_id):  
+    if USE_DATABASE:  
+        # Database operation  
+        return session.query(COS).filter_by(id=cos_id).first()  
+    else:  
+        # In-memory operation  
+        return cos_store.get(cos_id)  
 
 # Function to analyze COS and identify potential conditional elements
 def analyze_cos(cos_content):
@@ -88,6 +118,54 @@ def analyze_cos(cos_content):
         parsed_ce_list.append({"content": ce_content, "ce_type": ce_type})
 
     return parsed_ce_list
+
+def update_cos_by_id(cos_id, updated_data):  
+    if USE_DATABASE:  
+        # Database operation  
+        cos = session.query(COS).filter_by(id=cos_id).first()  
+        if cos:  
+            for key, value in updated_data.items():  
+                setattr(cos, key, value)  
+            session.commit()  
+            return True  # COS was updated successfully  
+        else:  
+            return False  # COS did not exist  
+    else:  
+        # In-memory operation  
+        cos = cos_store.get(cos_id)  
+        if cos:  
+            cos.update(updated_data)  
+            return True  # COS was updated successfully  
+        else:  
+            return False  # COS did not exist in the store 
+
+def delete_cos_by_id(cos_id):  
+    if USE_DATABASE:  
+        # Database operation  
+        cos = session.query(COS).filter_by(id=cos_id).first()  
+        if cos:  
+            session.delete(cos)  
+            session.commit()  
+            return True  # COS was deleted successfully  
+        else:  
+            return False  # COS did not exist  
+    else:  
+        # In-memory operation  
+        if cos_id in cos_store:  
+            del cos_store[cos_id]  
+            return True  # COS was deleted successfully  
+        else:  
+            return False  # COS did not exist in the store  
+
+# Helper function to extract conditional elements from GPT-3.5's response
+def extract_conditional_elements(response):
+    try:
+        response_json = json.loads(response)
+        conditional_elements = response_json.get("conditional_elements", [])
+        return conditional_elements
+    except json.JSONDecodeError as e:
+        print(f"Error in extracting conditional elements: {e}")
+        return []
 
 def analyze_ce_type(request):
     try:
@@ -133,135 +211,115 @@ def get_ce_type(ce_content):
         return ""
     
 # CRUD operations for SSOL
-def create_ssol(goal, summary):
-    ssol = SSOL(goal=goal, summary=summary)
-    session.add(ssol)
-    session.commit()
-    return ssol.id
+def create_ssol(goal, summary):  
+    global ssol_store  
+    if USE_DATABASE:
+        ssol = SSOL(goal=goal, summary=summary)
+        session.add(ssol)
+        session.commit()
+        return ssol.id
+    else:  
+        ssol_id = len(ssol_store) + 1  
+        ssol_store[ssol_id] = {'id': ssol_id, 'goal': goal, 'summary': summary}  
+        return ssol_id
 
-def get_ssol_by_id(ssol_id):
-    ssol = session.query(SSOL).filter_by(id=ssol_id).first()
-    return ssol
-
-
-def update_ssol_by_id(ssol_id, updated_data):
-    ssol = session.query(SSOL).filter_by(id=ssol_id).first()
-    for key, value in updated_data.items():
-        setattr(ssol, key, value)
-    session.commit()
-
-
-def delete_ssol_by_id(ssol_id):
-    ssol = session.query(SSOL).filter_by(id=ssol_id).first()
-    session.delete(ssol)
-    session.commit()
-
-
-# CRUD operations for COS
-def create_cos(ssol_id, content, status, accountable_party, completion_date):
-    cos = COS(
-        content=content,
-        status=status,
-        accountable_party=accountable_party,
-        completion_date=completion_date,
-        ssol_id=ssol_id,
-    )
-    session.add(cos)
-    session.commit()
-    return cos.id
-
-
-def get_cos_by_id(cos_id):
-    # Ensure cos_id is treated as a string
-    cos = session.query(COS).filter_by(id=str(cos_id)).first()
-    return cos
-
- 
-def update_cos_by_id(cos_id, updated_data):    
-    try:  
-        # If the id field is a UUID, ensure you're comparing the right types  
-        if isinstance(cos_id, str):  
-            cos_id = UUID(cos_id)  
-          
-        cos = db.session.query(COS).filter_by(id=cos_id).first()  
-            
-        if cos is None:  
-            return None, "COS with the provided ID does not exist"  # COS not found
-            
-        # Update the COS entry with the new data
+def get_ssol_by_id(ssol_id):  
+    if USE_DATABASE:  
+        return session.query(SSOL).filter_by(id=ssol_id).first()  
+    else:  
+        return ssol_store.get(ssol_id)  
+  
+def update_ssol_by_id(ssol_id, updated_data):  
+    if USE_DATABASE:  
+        ssol = session.query(SSOL).filter_by(id=ssol_id).first()  
         for key, value in updated_data.items():  
-            setattr(cos, key, value)  
-            
-        # Commit the changes to the database
-        db.session.commit()  
-        
-        # Return the updated COS data using the to_dict method
-        return cos.to_dict(), None  # Update was successful, return updated data
-    except SQLAlchemyError as e:  
-        # Log the error and rollback in case of exception
-        current_app.logger.error(f"An error occurred while updating COS with ID {cos_id}: {e}")  
-        db.session.rollback()  
-        return None, str(e)  # Return None and error message
+            setattr(ssol, key, value)  
+        session.commit()  
+    else:  
+        ssol = ssol_store.get(ssol_id)  
+        if ssol:  
+            ssol.update(updated_data)  
+  
+def delete_ssol_by_id(ssol_id):  
+    if USE_DATABASE:  
+        ssol = session.query(SSOL).filter_by(id=ssol_id).first()  
+        session.delete(ssol)  
+        session.commit()  
+    else:  
+        ssol = ssol_store.pop(ssol_id, None)  
+        return bool(ssol)  # Returns True if an SSOL was deleted, False otherwise 
 
 
-def delete_cos_by_id(cos_id):
-    try:
-        cos = COS.query.get(str(cos_id))
-        if cos:
-            db.session.delete(cos)
-            db.session.commit()
-            logging.info(f"COS with ID {cos_id} has been deleted.")
-            return True
-        else:
-            logging.warning(f"COS with ID {cos_id} not found.")
-            return False
-    except Exception as e:
-        logging.error(f"Error deleting COS with ID {cos_id}: {e}", exc_info=True)
-        return False
-
-
-
-# CRUD operations for CE
-def create_ce(cos_id, content, status, accountable_party, completion_date):
-    ce = CE(
-        content=content,
-        status=status,
-        accountable_party=accountable_party,
-        completion_date=completion_date,
-        cos_id=cos_id,
-    )
-    session.add(ce)
-    session.commit()
-    return ce.id
-
-
-def get_ce_by_id(ce_id):
-    ce = session.query(CE).filter_by(id=ce_id).first()
-    return ce
-
-
-def update_ce_by_id(ce_id, updated_data):
-    ce = session.query(CE).filter_by(id=ce_id).first()
-    for key, value in updated_data.items():
-        setattr(ce, key, value)
-    session.commit()
-
-
-def delete_ce_by_id(ce_id):
-    ce = session.query(CE).filter_by(id=ce_id).first()
-    session.delete(ce)
-    session.commit()
-
-
-# Function to generate the appropriate card based on the CE type
-def generate_card(ce_type, ce_id):
-    if ce_type in NODES:
-        node = NODES[ce_type]
-        template = render_template(
-            node["flask_template"], ce_id=ce_id
-        )
-        return template
-    else:
+def create_ce(cos_id, content, status, accountable_party, completion_date):  
+    if USE_DATABASE:  
+        ce = CE(  
+            content=content,  
+            status=status,  
+            accountable_party=accountable_party,  
+            completion_date=completion_date,  
+            cos_id=cos_id,  
+        )  
+        session.add(ce)  
+        session.commit()  
+        return ce.id  
+    else:  
+        ce_id = str(uuid.uuid4())  # Generate a unique UUID for the CE  
+        ce_store[ce_id] = {  
+            'id': ce_id,  
+            'content': content,  
+            'status': status,  
+            'accountable_party': accountable_party,  
+            'completion_date': completion_date,  
+            'cos_id': cos_id  
+        }  
+        return ce_id  
+  
+def get_ce_by_id(ce_id):  
+    if USE_DATABASE:  
+        ce = session.query(CE).filter_by(id=ce_id).first()  
+        return ce  
+    else:  
+        return ce_store.get(ce_id)  
+  
+def update_ce_by_id(ce_id, updated_data):  
+    if USE_DATABASE:  
+        ce = session.query(CE).filter_by(id=ce_id).first()  
+        for key, value in updated_data.items():  
+            setattr(ce, key, value)  
+        session.commit()  
+    else:  
+        ce = ce_store.get(ce_id)  
+        if ce:  
+            ce.update(updated_data)  
+  
+def delete_ce_by_id(ce_id):  
+    if USE_DATABASE:  
+        ce = session.query(CE).filter_by(id=ce_id).first()  
+        session.delete(ce)  
+        session.commit()  
+    else:  
+        if ce_id in ce_store:  
+            del ce_store[ce_id]  
+            return True  # CE was deleted successfully  
+        return False  # CE did not exist in the store  
+  
+# Function to generate the appropriate card based on the CE type  
+def generate_card(ce_type, ce_id):  
+    if ce_type in NODES:  
+        node = NODES[ce_type]  
+        # If using a database, render a template with data fetched from the database  
+        if USE_DATABASE:  
+            template = render_template(  
+                node["flask_template"], ce_id=ce_id  
+            )  
+        else:  
+            # If using the in-memory store, pass the CE data directly to the template  
+            ce_data = ce_store.get(ce_id)  
+            template = render_template(  
+                node["flask_template"], ce=ce_data  
+            )  
+        return template  
+    else:  
         return ""
     
 def analyze_cos(cos_content):

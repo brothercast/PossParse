@@ -89,7 +89,7 @@ def generate_chat_response(messages, role, task, temperature=0.75, retries=3, ba
     # Raise the last exception if all retries fail
     raise last_exception
 
-def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None, ssol_id=None):      
+def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None):      
     outcome_data = {}  
       
     if method == 'POST':      
@@ -338,7 +338,7 @@ def generate_image(prompt, goal_title, seed=None, width=512, height=512):
     placeholder_image_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "images", "sspec_default.png")
     return Image.open(placeholder_image_path)
  
-def generate_structured_solution(selected_goal, ssol_id=None):  
+def generate_structured_solution(selected_goal):  
     messages = [  
         {"role": "system", "content": "You are an ethics-bound AI that determines conditions of satisfaction needed to complete a given goal across these phases: Discovery, Engagement, Action, Completion, and Legacy, based on first principles. For each phase, please speculate a set of specific, measurable Conditions of Satisfaction (COS) in the past tense, which when met, ensure or indicate project completion. Ensure that the COS are specific to the goal and follow a logical progression through the phases. Provide the response in JSON format, with each phase as a key and its COS as an array of strings. For example: {'discovery': ['COS 1', 'COS 2'], 'engagement': ['COS 1', 'COS 2'], ...}."},  
         {"role": "user", "content": f"Generate a Structured Solution which fulfills the following goal: '{selected_goal}'. Provide between 2 to 5 specific, measurable Conditions of Satisfaction (COS) for each phase: Discovery, Engagement, Action, Completion, and Legacy, in JSON format."}  
@@ -365,7 +365,6 @@ def generate_structured_solution(selected_goal, ssol_id=None):
                     'id': str(uuid.uuid4()),  
                     'content': cos,  
                     'status': 'Proposed',  
-                    'ssol_id': ssol_id  
                 }  
                 for cos in response_json[phase]  
             ]  

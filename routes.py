@@ -9,7 +9,7 @@ import openai
 from flask import Flask, Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app
 from werkzeug.exceptions import BadRequest
 from models import SSOL, COS, CE
-from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data, generate_structured_solution
+from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data, generate_structured_solution, get_cos_by_guid
 from speculate import get_badge_class_from_status, get_cos_by_id, delete_cos_by_id, extract_conditional_elements, update_cos_by_id
 from datetime import datetime
 from dotenv import load_dotenv
@@ -25,7 +25,7 @@ deployment_name = os.environ["AZURE_DEPLOYMENT_NAME"]
 openai.api_key = azure_openai_key
 openai.api_base = azure_openai_endpoint
 openai.api_type = 'azure'  # Necessary for using the OpenAI library with Azure OpenAI
-openai.api_version = '2023-07-01'  # Latest / target version of the API
+openai.api_version = '2023-12-01'  # Latest / target version of the API
 
 # Set the secret key and database URI from the environment variables
 app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key')
@@ -34,6 +34,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Optionally to suppress w
 
 # Configure logging  
 logging.basicConfig(level=logging.INFO) 
+
+# In-memory store  
+cos_store = {} 
 
 # Register the custom Jinja filter function
 app.jinja_env.filters['get_badge_class_from_status'] = get_badge_class_from_status
@@ -112,63 +115,46 @@ def outcome():
     flash("Invalid request method.", "error")  
     return redirect(url_for('routes_bp.index'))  
 
-
-@routes_bp.route('/update_cos/<uuid:cos_id>', methods=['POST'])
-def update_cos_route(cos_id):
-    try:
-        data = request.get_json()
-        if not data:
-            raise BadRequest('No JSON payload received')
-
-        # Log the received data for debugging purposes
-        logging.info(f"Received data for COS ID {cos_id}: {data}")
-
-        # Check if ssol_id is provided in the payload
-        ssol_id = data.get('ssol_id')
-        if not ssol_id:
-            raise BadRequest('ssol_id must be provided to create or update a COS.')
-
-        # Find the COS instance by ID
-        cos = COS.query.get(str(cos_id))
-        if not cos:
-            # If the COS does not exist, create a new COS instance
-            cos = COS(id=cos_id, ssol_id=ssol_id, **data)
-            db.session.add(cos)
-            flash('A new COS has been created as it did not exist.', 'info')
-        else:
-            # Update the existing COS instance with the new data
-            cos.content = data.get('content', cos.content)
-            cos.status = data.get('status', cos.status)
-            cos.accountable_party = data.get('accountable_party', cos.accountable_party)
-            # Parse the completion_date to ensure it's in the correct format
-            completion_date = data.get('completion_date')
-            if completion_date:
-                try:
-                    completion_date = datetime.strptime(completion_date, '%Y-%m-%d').date()
-                except ValueError:
-                    raise BadRequest('completion_date must be in YYYY-MM-DD format.')
-            cos.completion_date = completion_date
-
-        # Commit the changes to the database
-        db.session.commit()
-
-        # Log the successful update or creation
-        logging.info(f"COS ID {cos_id} has been {'updated' if cos in db.session else 'created'} successfully.")
-
-        # Return the updated or created COS data
-        cos_dict = cos.to_dict() if cos else {}
-        return jsonify(success=True, cos=cos_dict), 200
-
-    except BadRequest as e:
-        # Log the bad request error
-        logging.warning(f"BadRequest: {e}")
-        flash('No data received to update the COS.', 'error')
-        return jsonify(error=str(e)), 400
-    except Exception as e:
-        # Log any other exceptions that occur
-        logging.error(f"Unexpected error occurred: {e}", exc_info=True)
-        flash('An unexpected error occurred while updating the COS.', 'error')
-        return jsonify(error=str(e)), 500
+@routes_bp.route('/update_cos/<uuid:cos_id>', methods=['POST'])  
+def update_cos_route(cos_id):  
+    try:  
+        data = request.get_json()  
+        if not data:  
+            raise BadRequest('No JSON payload received')  
+  
+        # Log the received data for debugging purposes  
+        logging.info(f"Received data for COS ID {cos_id}: {data}")  
+  
+        # Check if ssol_id is provided in the payload  
+        ssol_id = data.get('ssol_id')  
+        if not ssol_id:  
+            raise BadRequest('ssol_id must be provided to create or update a COS.')  
+  
+        # Update the existing COS instance with the new data  
+        if str(cos_id) in cos_store:  
+            cos_store[str(cos_id)].update(data)  
+            flash('COS has been updated successfully.', 'info')  
+        else:  
+            # Create a new COS instance  
+            cos_store[str(cos_id)] = data  
+            flash('A new COS has been created.', 'info')  
+  
+        # Log the successful update or creation  
+        logging.info(f"COS ID {cos_id} has been {'updated' if str(cos_id) in cos_store else 'created'} successfully.")  
+  
+        # Return the updated or created COS data  
+        return jsonify(success=True, cos=cos_store[str(cos_id)]), 200  
+  
+    except BadRequest as e:  
+        # Log the bad request error  
+        logging.warning(f"BadRequest: {e}")  
+        flash('No data received to update the COS.', 'error')  
+        return jsonify(error=str(e)), 400  
+    except Exception as e:  
+        # Log any other exceptions that occur  
+        logging.error(f"Unexpected error occurred: {e}", exc_info=True)  
+        flash('An unexpected error occurred while updating the COS.', 'error')  
+        return jsonify(error=str(e)), 500 
 
 @routes_bp.route('/delete_cos', methods=['POST'])
 def delete_cos_route():

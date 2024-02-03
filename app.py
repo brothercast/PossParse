@@ -16,12 +16,14 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Optionally to suppress warning
 app.config['SQLALCHEMY_ECHO'] = True
 
+# In-memory data store for COS  
+cos_store = {}  
 
 # Initialize SQLAlchemy with the Flask app
 db = SQLAlchemy(app)
 
 # Initialize Flask-Migrate with the Flask app and SQLAlchemy DB
-migrate = Migrate(app, db)
+migrate = Migrate(app, db=db)
 
 # Import the functions from speculate after db has been initialized to avoid circular imports
 from speculate import get_badge_class_from_status
