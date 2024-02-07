@@ -87,81 +87,59 @@ def generate_chat_response(messages, role, task, temperature=0.75, retries=3, ba
     # Raise the last exception if all retries fail
     raise last_exception
 
-def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None, ssol_id=None):          
-    outcome_data = {}        
-            
-    if method == 'POST':            
-        user_input = request.form.get('user_text', '').strip()            
-    else:            
-        user_input = request.args.get('user_text', '').strip()            
-            
-    outcome_data['user_input'] = user_input            
-    outcome_data['selected_goal'] = selected_goal            
-    outcome_data['domain_icon'] = domain_icon            
-    outcome_data['domain'] = domain            
-    outcome_data['ssol_id'] = ssol_id        
-          
-    # Generate the high-level summary      
-    messages = [      
-        {"role": "system", "content": "Assuming it is possible to fulfill any outcome and working backwards, generate a high-level summary of everything required for the goal as a fulfilled by some point in the future, including any existing legal, scientific, logistic or other barriers which needed to be addressed for completion."},          
-        {"role": "user", "content": f"Generate a high-level summary for the goal: '{selected_goal}'. Please format the summary using HTML tags, such as &lt;br&gt; for line breaks."}          
-    ]      
-    try:  
-        response_content = generate_chat_response(messages, role='Structured Solution Generation', task='Generate Structured Solution')  
-        response_json = json.loads(response_content)  
+def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None, ssol_id=None):    
+    # Initialize outcome_data with default keys and values    
+    outcome_data = {    
+        'user_input': '',    
+        'selected_goal': selected_goal,    
+        'domain_icon': domain_icon,    
+        'domain': domain,    
+        'ssol_id': ssol_id,    
+        'ssol_summary': "An error occurred while processing the summary data.",    
+        'phases': {},    
+        'generated_image_path': 'images/sspec_default.png'    
+    }    
     
-        # Convert phase names to lowercase and create the 'phases' key in the outcome_data dictionary  
-        outcome_data['phases'] = {  
-            phase_name.lower(): response_json.get(phase_name, [])  
-            for phase_name in response_json.keys()  # Use the keys from the response  
-        }  
-    except (json.JSONDecodeError, KeyError) as e:  
-        current_app.logger.error(f"Error in generate_outcome_data (structured solution): {e}")  
-        outcome_data['phases'] = {}  # Set to an empty dictionary to prevent template errors  
-      
-    # Debug print statement for the high-level summary  
-    print("SSOL Summary:", outcome_data['ssol_summary'])  
-  
-    # Generate the structured solution      
-    messages = [      
-        {"role": "system", "content": "You are an ethics-bound AI that determines conditions of satisfaction needed to complete a given goal across these phases: Discovery, Engagement, Action, Completion, and Legacy, based on first principles. For each phase, please speculate a set of specific, measurable Conditions of Satisfaction (COS) in the past tense, which when met, ensure or indicate project completion. Ensure that the COS are specific to the goal and follow a logical progression through the phases. Provide the response in JSON format, with each phase as a key and its COS as an array of strings."},        
-        {"role": "user", "content": f"Generate a Structured Solution which fulfills the following goal: '{selected_goal}'. Provide between 2 to 5 specific, measurable Conditions of Satisfaction (COS) for each phase: Discovery, Engagement, Action, Completion, and Legacy, in JSON format."}        
-    ]      
-    try:      
-        response_content = generate_chat_response(messages, role='Structured Solution Generation', task='Generate Structured Solution')          
-        response_json = json.loads(response_content)      
-      
-        # Convert phase names to lowercase and create the 'phases' key in the outcome_data dictionary      
-        outcome_data['phases'] = {      
-            phase_name.lower(): response_json.get(phase_name, [])    
-            for phase_name in response_json.keys()  # Use the keys from the response  
-        }      
-    except (json.JSONDecodeError, KeyError) as e:      
-        current_app.logger.error(f"Error in generate_outcome_data (structured solution): {e}")      
-        outcome_data['phases'] = {}  # Set to an empty dictionary to prevent template errors    
-  
-    # Debug print statement for the structured solution  
-    print("Structured Solution Phases:", outcome_data['phases'])  
-      
-    # Generate an image using Stability AI      
-    try:      
-        image_prompt = f"A visually stunning futuristic illustration depicting '{selected_goal}' as a fulfilled goal, Mary Blair 1958, isometric view"      
-        generated_image = generate_image(image_prompt, selected_goal)      
-        if generated_image:      
-            unique_filename = f"generated_image_{uuid.uuid4().hex}.png"      
-            image_path = os.path.join('static', 'images', unique_filename)      
-            generated_image.save(os.path.join(current_app.root_path, image_path))      
-            outcome_data['generated_image_path'] = image_path      
-        else:      
-            outcome_data['generated_image_path'] = 'static/images/sspec_default.png'      
-    except Exception as e:      
-        current_app.logger.error(f"Error generating image: {e}")      
-        outcome_data['generated_image_path'] = 'static/images/sspec_default.png'      
-  
-    # Debug print statement for the generated image path  
-    print("Generated Image Path:", outcome_data['generated_image_path'])  
-      
-    return outcome_data       
+    # Generate the high-level summary    
+    messages = [    
+        {"role": "system", "content": "Assuming it is possible to fulfill any outcome and working backwards, generate a high-level summary of everything required for the goal as a fulfilled by some point in the future, including any existing legal, scientific, logistic or other barriers which needed to be addressed for completion."},    
+        {"role": "user", "content": f"Generate a high-level summary for the goal: '{selected_goal}'. Please format the summary using HTML tags, such as &lt;br&gt; for line breaks."}    
+    ]    
+    try:    
+        response_content = generate_chat_response(messages, role='Outcome Generation', task='Generate High-Level Summary')    
+        response_data = json.loads(response_content)    
+        outcome_data['ssol_summary'] = response_data.get('summary', "Summary not available.")    
+    except Exception as e:    
+        current_app.logger.error(f"Error in generate_outcome_data (summary): {e}", exc_info=True)    
+    
+    # Generate the structured solution    
+    messages = [    
+        {"role": "system", "content": "You are an ethics-bound AI that determines conditions of satisfaction needed to complete a given goal across these phases: Discovery, Engagement, Action, Completion, and Legacy, based on first principles. For each phase, please speculate a set of specific, measurable Conditions of Satisfaction (COS) in the past tense, which when met, ensure or indicate project completion. Ensure that the COS are specific to the goal and follow a logical progression through the phases. Provide the response in JSON format, with each phase as a key and its COS as an array of strings."},    
+        {"role": "user", "content": f"Generate a Structured Solution which fulfills the following goal: '{selected_goal}'. Provide between 2 to 5 specific, measurable Conditions of Satisfaction (COS) for each phase: Discovery, Engagement, Action, Completion, and Legacy, in JSON format."}    
+    ]    
+    try:    
+        response_content = generate_chat_response(messages, role='Structured Solution Generation', task='Generate Structured Solution')    
+        response_json = json.loads(response_content)    
+        outcome_data['phases'] = {    
+            'discovery': response_json.get('Discovery', []),    
+            'engagement': response_json.get('Engagement', []),    
+            'action': response_json.get('Action', []),    
+            'completion': response_json.get('Completion', []),    
+            'legacy': response_json.get('Legacy', [])    
+        }    
+    except Exception as e:    
+        current_app.logger.error(f"Error in generate_outcome_data (structured solution): {e}", exc_info=True)    
+    
+    # Generate an image using Stability AI    
+    try:    
+        image_prompt = f"A visually stunning futuristic illustration depicting '{selected_goal}' as a fulfilled goal."    
+        web_image_path = generate_image(image_prompt, selected_goal)  # This function call will handle image generation and saving  
+        outcome_data['generated_image_path'] = web_image_path  # Assign the returned path to the outcome data  
+    except Exception as e:    
+        current_app.logger.error(f"Error generating image: {e}", exc_info=True)    
+        outcome_data['generated_image_path'] = 'images/sspec_default.png'  # Fallback to the default image if there was an error  
+    
+    return outcome_data      
 
 def analyze_user_input(text):
     messages = [
@@ -306,46 +284,53 @@ def sanitize_filename(filename):
     filename = re.sub(r'[\s]+', '_', filename)  # Replace spaces with underscores  
     return filename[:255]  # Truncate long filenames  
   
-# Load environment variables
-load_dotenv()
-stability_api_key = os.getenv("STABILITY_KEY")
-
-def generate_image(prompt, goal_title, seed=None, width=512, height=512):    
-    if not azure_oai_key or not stability_api_key:    
-        raise ValueError("API keys are not provided for Azure OpenAI or Stability SDK.")   
+def generate_image(prompt, goal_title, seed=None, width=512, height=512):      
+    if not azure_oai_key or not stability_api_key:      
+        raise ValueError("API keys are not provided for Azure OpenAI or Stability SDK.")     
     
-    stability_api = stability_client.StabilityInference(  
-        key=stability_api_key,  
-        verbose=True,  
-        #engine="stable-diffusion-xl-beta-v2-2-2",
-        engine="stable-diffusion-xl-1024-v1-0",  
-    )  
-
-    try:
-        answers = stability_api.generate(
-            prompt=prompt,
-            seed=seed,
-            steps=30,
-            cfg_scale=8.0,
-            width=width,
-            height=height,
-            samples=1,
-            sampler=generation.SAMPLER_K_DPMPP_2M,
-        )
-
-        for resp in answers:
-            for artifact in resp.artifacts:
-                if artifact.finish_reason == generation.FILTER:
-                    warnings.warn("Your request activated the API's safety filters and could not be processed. Please modify the prompt and try again.")
-                if artifact.type == generation.ARTIFACT_IMAGE:
-                    img = Image.open(io.BytesIO(artifact.binary))
-                    return img  # Return the image object
-    except Exception as e:
-        print(f"Error in generate_image: {e}")
-
-    # If an error occurs or the image is not generated, use the placeholder image
-    placeholder_image_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "images", "sspec_default.png")
-    return Image.open(placeholder_image_path)
+    stability_api = stability_client.StabilityInference(    
+        key=stability_api_key,    
+        verbose=True,    
+        engine="stable-diffusion-xl-beta-v2-2-2",    
+    )    
+  
+    # Generate a unique filename for the image  
+    unique_filename = f"generated_image_{uuid.uuid4().hex}.png"  
+      
+    # Ensure the 'static/images' directory exists within your Flask app structure  
+    static_folder = current_app.static_folder  
+    image_folder = os.path.join(static_folder, 'images')  
+    os.makedirs(image_folder, exist_ok=True)  # Create the folder if it does not exist  
+    image_file_path = os.path.join(image_folder, unique_filename)  # Full path for saving the file  
+  
+    try:  
+        answers = stability_api.generate(  
+            prompt=prompt,  
+            seed=seed,  
+            steps=30,  
+            cfg_scale=8.0,  
+            width=width,  
+            height=height,  
+            samples=1,  
+            sampler=generation.SAMPLER_K_DPMPP_2M,  
+        )  
+  
+        for resp in answers:  
+            for artifact in resp.artifacts:  
+                if artifact.finish_reason == generation.FILTER:  
+                    warnings.warn("Your request activated the API's safety filters and could not be processed. Please modify the prompt and try again.")  
+                if artifact.type == generation.ARTIFACT_IMAGE:  
+                    img = Image.open(io.BytesIO(artifact.binary))  
+                    img.save(image_file_path)  # Save the image using the correct directory and filename  
+                    # Convert the path to URL-friendly format  
+                    web_path = os.path.join('images', unique_filename).replace("\\", "/")  
+                    return web_path  
+    except Exception as e:  
+        print(f"Error in generate_image: {e}")  
+  
+    # If an error occurs or the image is not generated, use a placeholder image  
+    placeholder_image_path = os.path.join('images', 'sspec_default.png').replace("\\", "/")  
+    return placeholder_image_path
  
 def generate_structured_solution(selected_goal):  
     messages = [  

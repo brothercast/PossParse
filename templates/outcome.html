@@ -5,7 +5,7 @@
     <div class="row outcome-header">
       <div class="col-md-4 text-center">
         {% if ssol.generated_image_path %}  
-          <img src="{{ url_for('static', filename=ssol.generated_image_path) }}" alt="Generated Image" class="rounded mb-3 generated-image" style="width: 100%; max-width: 300px;">  
+        <img src="{{ url_for('static', filename=ssol.generated_image_path) }}" alt="Generated Image" class="rounded mb-3 generated-image" style="width: 100%; max-width: 300px;">  
           {% endif %}  
           <h2>Domain</h2>  
           <i class="{{ ssol.domain_icon }} fa-3x mb-3"></i>  
@@ -16,7 +16,7 @@
       <div class="col-md-8">
         <div>
           <h1>Preliminary Structured Solution</h1>
-          <p>{{ ssol_summary | safe }}</p>
+          <p>{{ ssol.ssol_summary | safe }}</p>
         </div>
       </div>
     </div>
