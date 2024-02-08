@@ -100,6 +100,13 @@ def generate_outcome_data(request, method, selected_goal=None, domain=None, doma
         'generated_image_path': 'images/sspec_default.png'    
     }    
     
+    if method == 'POST':    
+        user_input = request.form.get('user_text', '').strip()    
+    else:    
+        user_input = request.args.get('user_text', '').strip()    
+    
+    outcome_data['user_input'] = user_input    
+    
     # Generate the high-level summary    
     messages = [    
         {"role": "system", "content": "Assuming it is possible to fulfill any outcome and working backwards, generate a high-level summary of everything required for the goal as a fulfilled by some point in the future, including any existing legal, scientific, logistic or other barriers which needed to be addressed for completion."},    
@@ -121,11 +128,11 @@ def generate_outcome_data(request, method, selected_goal=None, domain=None, doma
         response_content = generate_chat_response(messages, role='Structured Solution Generation', task='Generate Structured Solution')    
         response_json = json.loads(response_content)    
         outcome_data['phases'] = {    
-            'discovery': response_json.get('Discovery', []),    
-            'engagement': response_json.get('Engagement', []),    
-            'action': response_json.get('Action', []),    
-            'completion': response_json.get('Completion', []),    
-            'legacy': response_json.get('Legacy', [])    
+            'discovery': [{'content': cos, 'status': 'Proposed'} for cos in response_json.get('Discovery', [])],    
+            'engagement': [{'content': cos, 'status': 'Proposed'} for cos in response_json.get('Engagement', [])],    
+            'action': [{'content': cos, 'status': 'Proposed'} for cos in response_json.get('Action', [])],    
+            'completion': [{'content': cos, 'status': 'Proposed'} for cos in response_json.get('Completion', [])],    
+            'legacy': [{'content': cos, 'status': 'Proposed'} for cos in response_json.get('Legacy', [])]    
         }    
     except Exception as e:    
         current_app.logger.error(f"Error in generate_outcome_data (structured solution): {e}", exc_info=True)    
@@ -133,11 +140,11 @@ def generate_outcome_data(request, method, selected_goal=None, domain=None, doma
     # Generate an image using Stability AI    
     try:    
         image_prompt = f"A visually stunning futuristic illustration depicting '{selected_goal}' as a fulfilled goal."    
-        web_image_path = generate_image(image_prompt, selected_goal)  # This function call will handle image generation and saving  
-        outcome_data['generated_image_path'] = web_image_path  # Assign the returned path to the outcome data  
+        web_image_path = generate_image(image_prompt, selected_goal)    
+        outcome_data['generated_image_path'] = web_image_path    
     except Exception as e:    
         current_app.logger.error(f"Error generating image: {e}", exc_info=True)    
-        outcome_data['generated_image_path'] = 'images/sspec_default.png'  # Fallback to the default image if there was an error  
+        outcome_data['generated_image_path'] = 'images/sspec_default.png'    
     
     return outcome_data      
 

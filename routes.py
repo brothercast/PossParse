@@ -96,6 +96,7 @@ def outcome():
             outcome_data = generate_outcome_data(request, 'POST', selected_goal, domain, domain_icon, ssol_id)  
   
             # Pass the outcome_data dictionary to the template with the correct structure  
+            app.logger.info(f"Structured Solution Data: {outcome_data['phases']}")  
             return render_template('outcome.html',  
                         ssol=outcome_data,  
                         structured_solution=outcome_data['phases']) 
