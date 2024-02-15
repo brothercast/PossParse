@@ -318,52 +318,45 @@ body:before {
   /* Add more colors if needed */
 }
 
-.status-indicator .badge {
-  text-transform: uppercase;
-  text-shadow: 1px 1px 0px #000000;
-}
+.status-cell.rounded-pill {      
+  display: inline-block; /* or other display property as needed */  
+  padding: .25em .6em; /* Adjust padding as needed */  
+  color: #fff !important;
+  margin-top: 8px;
+  margin-right: 8px;   
+  text-transform: uppercase; /* Converts text to uppercase */      
+  text-shadow: 1px 1px 0px #000000;      
+  font-size: 0.65em; /* Scale down the font size to 75% */  
+  border-radius: 10px; /* Adjust for rounded corners */  
+} 
+ 
 
 .badge-primary,
 .badge-primary:not(.dropdown-toggle).dropdown-item:focus,
 .badge-primary:not(.dropdown-toggle).dropdown-item:hover {
   color: #fff;
 
-/* Badge styles */
-.badge {
-  display: inline-block;
-  padding: 0.25em 0.4em;
-  font-size: 75%;
-  font-weight: 700;
-  line-height: 1;
-  text-align: center;
-  white-space: nowrap;
-  vertical-align: baseline;
-  border-radius: 0.25rem;
-  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out,
-              border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-  text-transform: uppercase; 
-}
+/* Specific badge colors */    
+.status-indicator .bg-secondary {    
+  color: #fff;    
+  background-color: #618cb1;    
+}    
+    
+.status-indicator .bg-warning {    
+  color: #212529;    
+  background-color: #ffc107;    
+}    
+    
+.status-indicator .bg-success {    
+  color: #fff;    
+  background-color: #28a745;    
+}    
+    
+.status-indicator .bg-danger {    
+  color: #fff;    
+  background-color: #dc3545;    
+}    
 
-/* Specific badge colors */
-.badge-secondary {
-  color: #fff;
-  background-color: #6c757d;
-}
-
-.badge-warning {
-  color: #212529;
-  background-color: #ffc107;
-}
-
-.badge-success {
-  color: #fff;
-  background-color: #28a745;
-}
-
-.badge-danger {
-  color: #fff;
-  background-color: #dc3545;
-}
 
 /* Card Layout */
 .card-container {

@@ -4,22 +4,22 @@ import json
 import uuid
 import logging
 from app import db
+from uuid import UUID
 from ce_nodes import NODES
-from flask import render_template, jsonify, current_app
-from utilities import generate_chat_response
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.declarative import declarative_base
+from utilities import generate_chat_response
 from sqlalchemy.orm import relationship, sessionmaker
+from flask import render_template, jsonify, current_app
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, Date, ForeignKey, create_engine
 
 # In-memory data stores  
 ssol_store = {}  
 cos_store = {}  
 ce_store = {}  
-  
+
 # Flag to toggle database usage  
 USE_DATABASE = False  # Set to True when you want to use the database  
-
 Base = declarative_base()
 
 # Database Configuration
@@ -63,32 +63,18 @@ class CE(Base):
     cos = relationship("COS", back_populates="conditional_elements")
 
 def create_cos(ssol_id, content, status, accountable_party=None, completion_date=None):  
-    if USE_DATABASE:  
-        # Database operation  
-        new_cos = COS(  
-            ssol_id=ssol_id,  
-            content=content,  
-            status=status,  
-            accountable_party=accountable_party,  
-            completion_date=completion_date  
-        )  
-        session.add(new_cos)  
-        session.commit()  
-        return new_cos.id  # Return the ID of the newly created COS  
-    else:  
-        # In-memory operation  
-        # Generate a new UUID for the COS  
-        cos_id = str(uuid.uuid4())  
-        new_cos = {  
-            'id': cos_id,  
-            'ssol_id': ssol_id,  
-            'content': content,  
-            'status': status,  
-            'accountable_party': accountable_party,  
-            'completion_date': completion_date  
-        }  
-        cos_store[cos_id] = new_cos  
-        return cos_id
+    cos_id = str(uuid.uuid4())  
+    new_cos = {  
+        'id': cos_id,  
+        'ssol_id': ssol_id,  
+        'content': content,  
+        'status': status,  
+        'accountable_party': accountable_party,  
+        'completion_date': completion_date  
+    }  
+    cos_store[cos_id] = new_cos  
+    current_app.logger.info(f"COS created with ID {cos_id} and stored in memory.")  
+    return cos_id  
 
 def get_cos_by_id(cos_id):  
     if USE_DATABASE:  
@@ -119,43 +105,60 @@ def analyze_cos(cos_content):
 
     return parsed_ce_list
 
-def update_cos_by_id(cos_id, updated_data):  
-    if USE_DATABASE:  
-        # Database operation  
-        cos = session.query(COS).filter_by(id=cos_id).first()  
-        if cos:  
+def update_cos_by_id(cos_id, updated_data):    
+    try:  
+        if USE_DATABASE:  
+            # Convert string cos_id to UUID object for database operations  
+            cos_id = UUID(cos_id)  
+            # Retrieve the COS entry from the database  
+            cos = db.session.query(COS).filter_by(id=cos_id).first()  
+            if not cos:  
+                return False  # COS not found in the database  
+            # Update the COS entry with the new data  
             for key, value in updated_data.items():  
                 setattr(cos, key, value)  
-            session.commit()  
-            return True  # COS was updated successfully  
+            # Commit changes to the database  
+            db.session.commit()  
         else:  
-            return False  # COS did not exist  
-    else:  
-        # In-memory operation  
-        cos = cos_store.get(cos_id)  
-        if cos:  
+            # Ensure cos_id is a string for in-memory store operations  
+            cos_id = str(cos_id)  
+            # Retrieve the COS entry from the in-memory store  
+            cos = cos_store.get(cos_id)  
+            if not cos:  
+                return False  # COS not found in the in-memory store  
+            # Update the COS entry with the new data  
             cos.update(updated_data)  
-            return True  # COS was updated successfully  
-        else:  
-            return False  # COS did not exist in the store 
+            cos_store[cos_id] = cos  # Save the updated COS back to the store  
+  
+        return True  # Update was successful  
+  
+    except SQLAlchemyError as e:  
+        # Handle database-related errors  
+        current_app.logger.error(f"Database error during COS update: {e}")  
+        db.session.rollback()  
+        return False  
+    except Exception as e:  
+        # Handle any other exceptions that may occur  
+        current_app.logger.error(f"Unexpected error during COS update: {e}")  
+        return False
 
-def delete_cos_by_id(cos_id):  
-    if USE_DATABASE:  
-        # Database operation  
-        cos = session.query(COS).filter_by(id=cos_id).first()  
-        if cos:  
-            session.delete(cos)  
-            session.commit()  
-            return True  # COS was deleted successfully  
-        else:  
-            return False  # COS did not exist  
-    else:  
-        # In-memory operation  
-        if cos_id in cos_store:  
-            del cos_store[cos_id]  
-            return True  # COS was deleted successfully  
-        else:  
-            return False  # COS did not exist in the store  
+def delete_cos_by_id(cos_id, ssol_id=None):    
+    if USE_DATABASE:    
+        # Database operation    
+        cos = session.query(COS).filter_by(id=cos_id).first()    
+        if cos and (ssol_id is None or cos.ssol_id == ssol_id):    
+            session.delete(cos)    
+            session.commit()    
+            return True  # COS was deleted successfully    
+        else:    
+            return False  # COS did not exist or did not match the provided SSOL_ID    
+    else:    
+        # In-memory operation    
+        cos = cos_store.get(cos_id)    
+        if cos and (ssol_id is None or cos['ssol_id'] == ssol_id):    
+            del cos_store[cos_id]    
+            return True  # COS was deleted successfully    
+        return False  # COS did not exist or did not match the provided SSOL_ID 
 
 # Helper function to extract conditional elements from GPT-3.5's response
 def extract_conditional_elements(response):
@@ -342,10 +345,14 @@ def analyze_cos(cos_content):
 
     return parsed_ce_list
 
-def get_badge_class_from_status(status):  
-    return {  
-        'Proposed': 'badge-secondary',  
-        'In Progress': 'badge-warning',  
-        'Completed': 'badge-success',  
-        'Rejected': 'badge-danger'  
-    }.get(status, 'badge-secondary')  # Default to 'badge-secondary' if status is not found  
+def get_badge_class_from_status(status):    
+    return {    
+        'Proposed': 'bg-secondary',    
+        'In Progress': 'bg-warning text-dark',  # Added text-dark for better contrast  
+        'Completed': 'bg-success',    
+        'Rejected': 'bg-danger'    
+    }.get(status, 'bg-secondary')  # Default to 'bg-secondary' if status is not found 
+ 
+    # Ensure database or in-memory store is initialized based on USE_DATABASE flag  
+def initialize_data_store():  
+    Base.metadata.create_all(_engine) if USE_DATABASE else None  

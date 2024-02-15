@@ -1,13 +1,13 @@
 import os
 import json
-import uuid
+import openai
 import logging
+from uuid import UUID
 from app import app, db
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
-import openai
 from flask import Flask, Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app
-from werkzeug.exceptions import BadRequest
+from werkzeug.exceptions import BadRequest, NotFound
 from models import SSOL, COS, CE
 from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data, generate_structured_solution, get_cos_by_guid
 from speculate import get_badge_class_from_status, get_cos_by_id, delete_cos_by_id, extract_conditional_elements, update_cos_by_id
@@ -71,35 +71,26 @@ def goal_selection():
             flash("An error occurred while processing your request. Please try again.", "error")
     return redirect(url_for('index'))
 
-@routes_bp.route('/outcome', methods=['GET', 'POST'])  
-def outcome():  
-    if request.method == 'POST':  
-        selected_goal = request.form.get('selected_goal', '').strip()  
-        domain = request.form.get('domain', '').strip()  
+@routes_bp.route('/outcome', methods=['GET', 'POST'])    
+def outcome():    
+    if request.method == 'POST':    
+        selected_goal = request.form.get('selected_goal', '').strip()    
+        domain = request.form.get('domain', '').strip()    
         domain_icon = request.form.get('domain_icon', '').strip()  
   
         if not selected_goal:  
             flash("No goal selected. Please select a goal to proceed.", "error")  
             return redirect(url_for('routes_bp.index'))  
   
-        try:  
-            # Retrieve or create an SSOL instance and get the id  
-            ssol_instance = next((ssol for ssol in ssol_store.values() if ssol['title'] == selected_goal), None)  
-            if not ssol_instance:  
-                ssol_id = len(ssol_store) + 1  
-                ssol_instance = {'id': ssol_id, 'title': selected_goal, 'domain': domain, 'domain_icon': domain_icon}  
-                ssol_store[ssol_id] = ssol_instance  
-  
-            ssol_id = ssol_instance['id']  
-  
-            # Generate outcome data with the SSOL instance's ID  
-            outcome_data = generate_outcome_data(request, 'POST', selected_goal, domain, domain_icon, ssol_id)  
-  
+        try:    
+            # Call generate_outcome_data with the correct number of arguments  
+            outcome_data = generate_outcome_data(request, 'POST', selected_goal, domain, domain_icon)
+            
             # Pass the outcome_data dictionary to the template with the correct structure  
-            app.logger.info(f"Structured Solution Data: {outcome_data['phases']}")  
             return render_template('outcome.html',  
-                        ssol=outcome_data,  
-                        structured_solution=outcome_data['phases']) 
+                    ssol=outcome_data,  
+                    structured_solution=outcome_data['phases'],  
+                    ssol_id=outcome_data['ssol_id'])  
   
         except Exception as e:  
             current_app.logger.error(f"Error processing outcome: {e}", exc_info=True)  
@@ -108,58 +99,52 @@ def outcome():
   
     # Redirect to the index page if not a POST request  
     flash("Invalid request method.", "error")  
-    return redirect(url_for('routes_bp.index'))  
+    return redirect(url_for('routes_bp.index'))
 
-@routes_bp.route('/update_cos/<uuid:cos_id>', methods=['POST'])  
-def update_cos_route(cos_id):  
+
+@routes_bp.route('/update_cos/<uuid:cos_id>', methods=['POST'])      
+def update_cos_route(cos_id):      
+    try:      
+        data = request.get_json()      
+        if not data:      
+            raise BadRequest('No JSON payload received')      
+      
+        # Attempt to update the COS using the provided ID and data    
+        updated = update_cos_by_id(cos_id, data)      
+        if not updated:      
+            # If the update failed (e.g., COS not found), return a 404 response      
+            current_app.logger.warning(f"COS with ID {cos_id} not found.")      
+            return jsonify(error=f"COS with ID {cos_id} not found"), 404      
+          
+        # If the update was successful, return a 200 response      
+        return jsonify(success=True), 200      
+      
+    except BadRequest as e:      
+        current_app.logger.warning(f"BadRequest: {e}")      
+        return jsonify(error=str(e)), 400      
+    except Exception as e:      
+        current_app.logger.error(f"Unexpected error occurred: {e}", exc_info=True)      
+        return jsonify(error=str(e)), 500  
+
+    
+@routes_bp.route('/delete_cos/<uuid:cos_id>', methods=['DELETE'])  # Changed method to DELETE for semantics  
+def delete_cos_route(cos_id):  
     try:  
-        data = request.get_json()  
-        if not data:  
-            raise BadRequest('No JSON payload received')  
+        # Convert string cos_id to UUID  
+        cos_id = UUID(cos_id)  
   
-        # Log the received data for debugging purposes  
-        logging.info(f"Received data for COS ID {cos_id}: {data}")  
-  
-        # Check if ssol_id is provided in the payload  
-        ssol_id = data.get('ssol_id')  
-        if not ssol_id:  
-            raise BadRequest('ssol_id must be provided to create or update a COS.')  
-  
-        # Update the existing COS instance with the new data  
-        if str(cos_id) in cos_store:  
-            cos_store[str(cos_id)].update(data)  
-            flash('COS has been updated successfully.', 'info')  
+        if delete_cos_by_id(cos_id):  
+            flash('COS has been successfully deleted.', 'success')  
+            return jsonify(success=True), 200  
         else:  
-            # Create a new COS instance  
-            cos_store[str(cos_id)] = data  
-            flash('A new COS has been created.', 'info')  
+            raise NotFound('Condition of Satisfaction could not be found or deleted.')  
   
-        # Log the successful update or creation  
-        logging.info(f"COS ID {cos_id} has been {'updated' if str(cos_id) in cos_store else 'created'} successfully.")  
-  
-        # Return the updated or created COS data  
-        return jsonify(success=True, cos=cos_store[str(cos_id)]), 200  
-  
-    except BadRequest as e:  
-        # Log the bad request error  
-        logging.warning(f"BadRequest: {e}")  
-        flash('No data received to update the COS.', 'error')  
-        return jsonify(error=str(e)), 400  
+    except NotFound as e:  
+        logging.warning(f"NotFound: {e}")  
+        return jsonify(success=False, error=str(e)), 404  
     except Exception as e:  
-        # Log any other exceptions that occur  
         logging.error(f"Unexpected error occurred: {e}", exc_info=True)  
-        flash('An unexpected error occurred while updating the COS.', 'error')  
-        return jsonify(error=str(e)), 500 
-
-@routes_bp.route('/delete_cos', methods=['POST'])
-def delete_cos_route():
-    cos_id = request.form.get('cos_id')
-    if delete_cos_by_id(cos_id):
-        flash('COS has been successfully deleted.', 'success')
-        return jsonify(success=True)
-    else:
-        flash('COS could not be found or deleted.', 'error')
-        return jsonify(success=False, error="COS not found or could not be deleted"), 404
+        return jsonify(success=False, error=str(e)), 500  
 
 
 @routes_bp.route('/get_ce_by_id', methods=['GET'])
