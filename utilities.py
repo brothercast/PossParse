@@ -5,7 +5,8 @@ import json
 import time
 import uuid
 import warnings  
-from PIL import Image  
+from PIL import Image
+from app import ssol_store, cos_store, ce_store  
 from flask import current_app, flash 
 from dotenv import load_dotenv
 from openai import AzureOpenAI
@@ -53,10 +54,6 @@ class Logger:
         
         print(formatted_message)
 
-# In-memory store for SSOL, COS, CE  
-ssol_store = {}   
-cos_store = {}   
-ce_store = {}  
 
 def generate_chat_response(messages, role, task, temperature=0.75, retries=3, backoff_factor=2):
     last_exception = None
@@ -92,20 +89,18 @@ def generate_chat_response(messages, role, task, temperature=0.75, retries=3, ba
     # Raise the last exception if all retries fail
     raise last_exception
  
-def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None):  
-    global cos_store, ssol_store
-  
-    # Initialize outcome_data with default keys and values  
-    outcome_data = {  
-        'user_input': '',  
-        'selected_goal': selected_goal,  
-        'domain_icon': domain_icon,  
-        'domain': domain,  
-        'ssol_id': None,  
-        'ssol_summary': "An error occurred while processing the summary data.",  
-        'phases': {},  
-        'generated_image_path': 'images/sspec_default.png'  
-    }  
+def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None):    
+    # Initialize outcome_data with default keys and values    
+    outcome_data = {    
+        'user_input': '',    
+        'selected_goal': selected_goal,    
+        'domain_icon': domain_icon,    
+        'domain': domain,    
+        'ssol_id': None,    
+        'ssol_summary': "An error occurred while processing the summary data.",    
+        'phases': {},    
+        'generated_image_path': 'images/sspec_default.png'    
+    }   
   
     if method == 'POST':  
         user_input = request.form.get('user_text', '').strip()  
@@ -126,7 +121,7 @@ def generate_outcome_data(request, method, selected_goal=None, domain=None, doma
     # Generate the high-level summary      
     messages = [      
         {"role": "system", "content": "Assuming it is possible to fulfill any outcome and working backwards, generate a high-level summary of everything required for the goal as a fulfilled by some point in the future, including any existing legal, scientific, logistic or other barriers which needed to be addressed for completion."},      
-        {"role": "user", "content": f"Generate a high-level summary for the goal: '{selected_goal}'. Please format the summary using HTML tags, such as &lt;br&gt; for line breaks."}      
+        {"role": "user", "content": f"Generate a high-level, elegantly-formatted summary for the goal: '{selected_goal}'. Please format the summary using HTML tags, such as <br> for line breaks and ordered lists."}      
     ]      
     try:      
         response_content = generate_chat_response(messages, role='Outcome Generation', task='Generate High-Level Summary')      

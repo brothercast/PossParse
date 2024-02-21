@@ -102,28 +102,23 @@ def outcome():
     return redirect(url_for('routes_bp.index'))
 
 
-@routes_bp.route('/update_cos/<uuid:cos_id>', methods=['POST'])      
-def update_cos_route(cos_id):      
-    try:      
-        data = request.get_json()      
-        if not data:      
-            raise BadRequest('No JSON payload received')      
-      
-        # Attempt to update the COS using the provided ID and data    
-        updated = update_cos_by_id(cos_id, data)      
-        if not updated:      
-            # If the update failed (e.g., COS not found), return a 404 response      
-            current_app.logger.warning(f"COS with ID {cos_id} not found.")      
-            return jsonify(error=f"COS with ID {cos_id} not found"), 404      
-          
-        # If the update was successful, return a 200 response      
-        return jsonify(success=True), 200      
-      
-    except BadRequest as e:      
-        current_app.logger.warning(f"BadRequest: {e}")      
-        return jsonify(error=str(e)), 400      
-    except Exception as e:      
-        current_app.logger.error(f"Unexpected error occurred: {e}", exc_info=True)      
+@routes_bp.route('/update_cos/<uuid:cos_id>', methods=['PUT'])    
+def update_cos_route(cos_id):    
+    try:    
+        data = request.get_json()    
+        if not data:    
+            raise BadRequest('No JSON payload received')    
+            
+        update_result = update_cos_by_id(cos_id, data)    
+        if update_result['success']:    
+            # The updated COS should be included in the response  
+            return jsonify(success=True, cos=update_result['cos']), 200    
+        else:    
+            return jsonify(success=False, error=update_result.get('message', 'An error occurred')), 404    
+            
+    except BadRequest as e:    
+        return jsonify(error=str(e)), 400    
+    except Exception as e:    
         return jsonify(error=str(e)), 500  
 
     

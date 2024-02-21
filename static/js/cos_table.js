@@ -18,17 +18,17 @@ function handlePhaseTableClick(event) {
   } else if (target.matches('.update-cos-button')) {  
     handleUpdate(row, cosId, ssolId);  
   } else if (target.matches('.cancel-cos-button')) {  
-    cancelEditMode(row);   
+    cancelEditMode(row);  
   } else if (target.matches('.delete-cos-button')) {  
     deleteCOS(cosId, row);  
   }  
-} 
+}  
   
 function toggleEditMode(row, editing) {  
   const editButton = row.querySelector('.edit-cos-button');  
   const updateButton = row.querySelector('.update-cos-button');  
   const cancelButton = row.querySelector('.cancel-cos-button');  
-    
+  
   if (editing) {  
     editButton.classList.add('d-none');  
     updateButton.classList.remove('d-none');  
@@ -38,75 +38,36 @@ function toggleEditMode(row, editing) {
     updateButton.classList.add('d-none');  
     cancelButton.classList.add('d-none');  
   }  
-}   
+}  
   
 function turnRowToEditMode(row) {  
-  // Store the original values of the row to enable cancellation  
   storeOriginalValues(row);  
   
-  // Get the current status from the badge in the cell, if it exists  
-  const statusBadge = row.querySelector('.status-cell .badge');  
-  const currentStatus = statusBadge ? statusBadge.textContent.trim() : '';  
-  
-  // The content cell contains the COS content that needs to be replaced with an input field  
-  const contentCell = row.querySelector('.cos-content-cell');  
-  const currentContent = contentCell ? contentCell.textContent.trim() : '';  
-  
-  // The accountable party cell contains the name of the party that needs to be replaced with an input field  
-  const accountablePartyCell = row.querySelector('.cos-accountable-party-cell');  
-  const currentAccountableParty = accountablePartyCell ? accountablePartyCell.textContent.trim() : '';  
-  
-  // The completion date cell contains the date that needs to be replaced with a date input field  
-  const completionDateCell = row.querySelector('.cos-completion-date-cell');  
-  const currentCompletionDate = completionDateCell ? completionDateCell.textContent.trim() : '';  
-  
-  // Replace the entire content of the status cell with a dropdown  
   const statusCell = row.querySelector('.status-cell');  
-  if (statusCell) {  
-    statusCell.innerHTML = createStatusDropdown(currentStatus);  
-  }  
+  const contentCell = row.querySelector('.cos-content-cell');  
+  const accountablePartyCell = row.querySelector('.cos-accountable-party-cell');  
+  const completionDateCell = row.querySelector('.cos-completion-date-cell');  
   
-  // Replace the content of the COS cell with an input field for editing  
-  if (contentCell) {  
-    contentCell.innerHTML = `<input type="text" class="form-control form-control-sm" value="${currentContent}">`;  
-  }  
+  const currentStatus = statusCell.textContent.trim();  
+  const currentContent = contentCell.textContent.trim();  
+  const currentAccountableParty = accountablePartyCell.textContent.trim();  
+  const currentCompletionDate = completionDateCell.textContent.trim();  
   
-  // Replace the content of the accountable party cell with an input field for editing  
-  if (accountablePartyCell) {  
-    accountablePartyCell.innerHTML = `<input type="text" class="form-control form-control-sm" value="${currentAccountableParty}">`;  
-  }  
+  statusCell.innerHTML = createStatusDropdown(currentStatus);  
+  contentCell.innerHTML = `<input type="text" class="form-control form-control-sm" value="${currentContent}">`;  
+  accountablePartyCell.innerHTML = `<input type="text" class="form-control form-control-sm" value="${currentAccountableParty}">`;  
+  completionDateCell.innerHTML = `<input type="date" class="form-control form-control-sm" value="${currentCompletionDate}">`;  
   
-  // Replace the content of the completion date cell with a date input for editing  
-  if (completionDateCell) {  
-    completionDateCell.innerHTML = `<input type="date" class="form-control form-control-sm" value="${currentCompletionDate}">`;  
-  }  
-  
-  // Change the row to edit mode by toggling the visibility of buttons  
   toggleEditMode(row, true);  
 }  
-
   
 function handleUpdate(row, cosId, ssolId) {  
-  // Retrieve values from the form inputs  
   const contentInput = row.querySelector('.cos-content-cell input').value;  
   const statusSelect = row.querySelector('.status-cell select');  
   const statusInput = statusSelect.options[statusSelect.selectedIndex].value;  
   const accountablePartyInput = row.querySelector('.cos-accountable-party-cell input').value;  
   const completionDateInput = row.querySelector('.cos-completion-date-cell input').value;  
   
-  // Check if the cosId and ssolId are valid  
-  if (!cosId) {  
-    console.error('COS ID is missing or invalid.');  
-    alert('COS ID is missing or invalid. Please try again.');  
-    return;  
-  }  
-  if (!ssolId) {  
-    console.error('SSOL ID is missing or invalid.');  
-    alert('SSOL ID is missing or invalid. Please try again.');  
-    return;  
-  }  
-  
-  // Create the payload with the updated COS data  
   const payload = {  
     content: contentInput,  
     status: statusInput,  
@@ -115,9 +76,10 @@ function handleUpdate(row, cosId, ssolId) {
     ssol_id: ssolId  
   };  
   
-  // Send the POST request to the server with the updated data  
+  console.log(`Sending update for COS ID: ${cosId}`, payload); // Added log  
+  
   fetch(`/update_cos/${cosId}`, {  
-    method: 'POST',  
+    method: 'PUT',  
     headers: {  
       'Content-Type': 'application/json',  
       'Accept': 'application/json',  
@@ -127,7 +89,6 @@ function handleUpdate(row, cosId, ssolId) {
   })  
   .then(response => {  
     if (!response.ok) {  
-      // If the server responds with an error, throw it to be caught in the catch block  
       return response.json().then(errorData => {  
         throw new Error(`Server responded with ${response.status}: ${JSON.stringify(errorData)}`);  
       });  
@@ -135,42 +96,38 @@ function handleUpdate(row, cosId, ssolId) {
     return response.json();  
   })  
   .then(data => {  
+    console.log(`Received response for COS ID: ${cosId}`, data); // Added log  
     if (data.success) {  
-      // Update the table row with the new values  
+      console.log(`Updating row with new values for COS ID: ${cosId}`); // Added log  
       updateRowWithNewValues(row, data.cos);  
-      // Exit edit mode  
       toggleEditMode(row, false);  
     } else {  
-      // If the server indicates failure, alert the user  
       throw new Error(data.error || 'An error occurred while updating the entry.');  
     }  
   })  
   .catch(error => {  
-    // Log the error and alert the user  
-    console.error('Error updating COS:', error);  
+    console.error(`Error updating COS ID: ${cosId}:`, error); // Updated log  
     alert(`An error occurred while updating the entry: ${error.message}`);  
   });  
 }  
-
   
 function createStatusDropdown(selectedStatus) {  
   const statuses = ['Proposed', 'In Progress', 'Completed', 'Rejected'];  
-  let optionsHTML = statuses.map(status =>  
-    `<option value="${status}"${status === selectedStatus ? ' selected' : ''}>${status}</option>`  
-  ).join('');  
-  
-  return `<select class="form-select form-select-sm">${optionsHTML}</select>`;  
+  return `<select class="form-select form-select-sm">${statuses.map(status => `<option value="${status}"${status === selectedStatus ? ' selected' : ''}>${status}</option>`).join('')}</select>`;  
 }  
   
+function cancelEditMode(row) {  
+  revertToOriginalValues(row);  
+  toggleEditMode(row, false);  
+}  
   
 function deleteCOS(cosId, row) {  
   fetch(`/delete_cos/${cosId}`, {  
-    method: 'POST',  
+    method: 'DELETE', // Corrected to use DELETE method  
     headers: {  
       'Content-Type': 'application/json',  
       'Accept': 'application/json'  
-    },  
-    body: JSON.stringify({ cos_id: cosId })  
+    }  
   })  
   .then(response => response.json())  
   .then(data => {  
@@ -190,41 +147,44 @@ function storeOriginalValues(row) {
   const contentCell = row.querySelector('.cos-content-cell');  
   const accountablePartyCell = row.querySelector('.cos-accountable-party-cell');  
   const completionDateCell = row.querySelector('.cos-completion-date-cell');  
-    
+  
   row.dataset.originalValues = JSON.stringify({  
-    status: statusCell.innerHTML,  
-    content: contentCell.innerHTML,  
-    accountableParty: accountablePartyCell.innerHTML,  
-    completionDate: completionDateCell.innerHTML  
+    status: statusCell.textContent.trim(),  
+    content: contentCell.textContent.trim(),  
+    accountableParty: accountablePartyCell.textContent.trim(),  
+    completionDate: completionDateCell.textContent.trim()  
   });  
 }  
   
 function revertToOriginalValues(row) {  
   const originalValues = JSON.parse(row.dataset.originalValues);  
-  for (const cellClass in originalValues) {  
-    const cell = row.querySelector(`.${cellClass}`);  
-    if (cellClass === 'status-cell') {  
-      cell.innerHTML = `<span class="badge badge-pill ${getBadgeClassFromStatus(originalValues[cellClass])}">${originalValues[cellClass]}</span>`;  
-    } else {  
-      cell.textContent = originalValues[cellClass];  
-    }  
-  }  
+  row.querySelector('.status-cell').innerHTML = `<span class="badge badge-pill ${getBadgeClassFromStatus(originalValues.status)}">${originalValues.status}</span>`;  
+  row.querySelector('.cos-content-cell').textContent = originalValues.content;  
+  row.querySelector('.cos-accountable-party-cell').textContent = originalValues.accountableParty;  
+  row.querySelector('.cos-completion-date-cell').textContent = originalValues.completionDate;  
 }  
   
 function updateRowWithNewValues(row, cos) {  
-  row.querySelector('.status-cell').innerHTML = `<span class="badge badge-pill ${getBadgeClassFromStatus(cos.status)}">${cos.status}</span>`;  
-  row.querySelector('.cos-content-cell').textContent = cos.content;  
-  row.querySelector('.cos-accountable-party-cell').textContent = cos.accountable_party || '';  
-  row.querySelector('.cos-completion-date-cell').textContent = cos.completion_date || '';  
-}  
-  
-function getBadgeClassFromStatus(status) {    
-  switch (status) {    
-    case 'Proposed': return 'bg-secondary';    
-    case 'In Progress': return 'bg-warning';    
-    case 'Completed': return 'bg-success';    
-    case 'Rejected': return 'bg-danger';    
-    default: return 'bg-secondary';    
-  }    
+  // Check if the cos object and its properties are defined  
+  if (cos && cos.status && cos.content) {  
+    row.querySelector('.status-cell').innerHTML = `<span class="badge badge-pill ${getBadgeClassFromStatus(cos.status)}">${cos.status}</span>`;  
+    row.querySelector('.cos-content-cell').textContent = cos.content;  
+    row.querySelector('.cos-accountable-party-cell').textContent = cos.accountable_party || '';  
+    row.querySelector('.cos-completion-date-cell').textContent = cos.completion_date || '';  
+  } else {  
+    // If cos or any required property is undefined, log an error or handle appropriately  
+    console.error('Error: COS data is undefined or missing required properties', cos);  
+    alert('An error occurred while updating the entry. Please try again.');  
+  }  
 }  
 
+  
+function getBadgeClassFromStatus(status) {  
+  switch (status) {  
+    case 'Proposed': return 'bg-secondary';  
+    case 'In Progress': return 'bg-warning';  
+    case 'Completed': return 'bg-success';  
+    case 'Rejected': return 'bg-danger';  
+    default: return 'bg-secondary';  
+  }  
+}  

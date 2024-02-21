@@ -3,20 +3,15 @@ import os
 import json
 import uuid
 import logging
-from app import db
 from uuid import UUID
 from ce_nodes import NODES
 from sqlalchemy.exc import SQLAlchemyError
 from utilities import generate_chat_response
+from app import ssol_store, cos_store, ce_store ,db
 from sqlalchemy.orm import relationship, sessionmaker
 from flask import render_template, jsonify, current_app
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, Date, ForeignKey, create_engine
-
-# In-memory data stores  
-ssol_store = {}  
-cos_store = {}  
-ce_store = {}  
 
 # Flag to toggle database usage  
 USE_DATABASE = False  # Set to True when you want to use the database  
@@ -62,8 +57,15 @@ class CE(Base):
     cos_id = Column(Integer, ForeignKey("cos.id"))
     cos = relationship("COS", back_populates="conditional_elements")
 
+logging.basicConfig(level=logging.DEBUG)  
+
 def create_cos(ssol_id, content, status, accountable_party=None, completion_date=None):  
+    global cos_store  # Ensure we're using the global cos_store  
+    
+    # Generate a new UUID for the COS ID  
     cos_id = str(uuid.uuid4())  
+    
+    # Create a new COS dictionary  
     new_cos = {  
         'id': cos_id,  
         'ssol_id': ssol_id,  
@@ -72,8 +74,17 @@ def create_cos(ssol_id, content, status, accountable_party=None, completion_date
         'accountable_party': accountable_party,  
         'completion_date': completion_date  
     }  
+    
+    # Store the new COS in cos_store  
     cos_store[cos_id] = new_cos  
-    current_app.logger.info(f"COS created with ID {cos_id} and stored in memory.")  
+    
+    # Log the creation of the new COS  
+    current_app.logger.info(f"COS created with ID {cos_id} and content: '{content}' stored in memory.")  
+    
+    # Optionally, log the entire cos_store to verify its contents  
+    current_app.logger.debug(f"Current state of cos_store: {cos_store}")  
+    
+    # Return the new COS ID  
     return cos_id  
 
 def get_cos_by_id(cos_id):  
@@ -105,42 +116,42 @@ def analyze_cos(cos_content):
 
     return parsed_ce_list
 
-def update_cos_by_id(cos_id, updated_data):    
-    try:  
+def update_cos_by_id(cos_id, updated_data):        
+    try:        
+        # If using database, convert UUID to string for query  
+        cos_id_str = str(cos_id) if isinstance(cos_id, UUID) else cos_id    
+            
+        # Update the COS entry with new data  
         if USE_DATABASE:  
-            # Convert string cos_id to UUID object for database operations  
-            cos_id = UUID(cos_id)  
-            # Retrieve the COS entry from the database  
-            cos = db.session.query(COS).filter_by(id=cos_id).first()  
-            if not cos:  
-                return False  # COS not found in the database  
-            # Update the COS entry with the new data  
-            for key, value in updated_data.items():  
-                setattr(cos, key, value)  
-            # Commit changes to the database  
-            db.session.commit()  
+            # Database operation  
+            cos = session.query(COS).filter_by(id=cos_id).first()  
+            if cos:  
+                for key, value in updated_data.items():  
+                    setattr(cos, key, value)  
+                session.commit()  
+                return {'success': True, 'cos': cos.to_dict()}  # Return the updated COS for client-side use  
+            else:  
+                return {'success': False, 'message': f"COS with ID {cos_id_str} not found."}  
         else:  
-            # Ensure cos_id is a string for in-memory store operations  
-            cos_id = str(cos_id)  
-            # Retrieve the COS entry from the in-memory store  
-            cos = cos_store.get(cos_id)  
+            # In-memory operation  
+            cos = cos_store.get(cos_id_str)  # Attempt to retrieve the COS entry  
             if not cos:  
-                return False  # COS not found in the in-memory store  
-            # Update the COS entry with the new data  
-            cos.update(updated_data)  
-            cos_store[cos_id] = cos  # Save the updated COS back to the store  
-  
-        return True  # Update was successful  
-  
-    except SQLAlchemyError as e:  
-        # Handle database-related errors  
-        current_app.logger.error(f"Database error during COS update: {e}")  
-        db.session.rollback()  
-        return False  
-    except Exception as e:  
-        # Handle any other exceptions that may occur  
-        current_app.logger.error(f"Unexpected error during COS update: {e}")  
-        return False
+                # COS not found, log a warning  
+                current_app.logger.warning(f"COS with ID {cos_id_str} not found in the in-memory store.")  
+                return {'success': False, 'message': f"COS with ID {cos_id_str} not found."}  
+              
+            for key, value in updated_data.items():  
+                cos[key] = value  
+            cos_store[cos_id_str] = cos  # Store the updated COS back in the store  
+                
+            # Log the successful update and return the updated COS  
+            current_app.logger.info(f"COS with ID {cos_id_str} successfully updated.")  
+            return {'success': True, 'cos': cos}  # Return the updated COS for client-side use  
+        
+    except Exception as e:        
+        # Log the error and return an error message  
+        current_app.logger.error(f"Unexpected error during COS update: {e}", exc_info=True)  
+        return {'success': False, 'message': f"Unexpected error occurred: {e}"}  
 
 def delete_cos_by_id(cos_id, ssol_id=None):    
     if USE_DATABASE:    

@@ -16,8 +16,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Optionally to suppress warning
 app.config['SQLALCHEMY_ECHO'] = True
 
-# In-memory data store for COS  
+# In-memory data stores  
+ssol_store = {}  
 cos_store = {}  
+ce_store = {}  
 
 # Initialize SQLAlchemy with the Flask app
 db = SQLAlchemy(app)
