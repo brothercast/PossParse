@@ -57,7 +57,7 @@ class CE(Base):
     cos_id = Column(Integer, ForeignKey("cos.id"))
     cos = relationship("COS", back_populates="conditional_elements")
 
-logging.basicConfig(level=logging.DEBUG)  
+logging.basicConfig(level=logging.WARNING)  
 
 def create_cos(ssol_id, content, status, accountable_party=None, completion_date=None):  
     global cos_store  # Ensure we're using the global cos_store  
@@ -87,34 +87,76 @@ def create_cos(ssol_id, content, status, accountable_party=None, completion_date
     # Return the new COS ID  
     return cos_id  
 
-def get_cos_by_id(cos_id):  
-    if USE_DATABASE:  
-        # Database operation  
-        return session.query(COS).filter_by(id=cos_id).first()  
-    else:  
-        # In-memory operation  
-        return cos_store.get(cos_id)  
+def get_cos_by_id(cos_id):      
+    try:    
+        # Check the data store for the COS with the given ID  
+        if USE_DATABASE:      
+            cos = session.query(COS).filter_by(id=cos_id).first()      
+        else:      
+            cos = cos_store.get(str(cos_id))  # Convert UUID to string for in-memory store    
+        if cos:    
+            logging.info(f"Found COS with ID {cos_id}")    
+        else:    
+            logging.warning(f"COS with ID {cos_id} not found.")    
+        return cos    
+    except Exception as e:    
+        logging.error(f"Error retrieving COS with ID {cos_id}: {e}")    
+        return None    
+ 
 
-# Function to analyze COS and identify potential conditional elements
-def analyze_cos(cos_content):
-    prompt = f"Given a condition of satisfaction '{cos_content}', identify potential conditional elements that can be further expanded upon. Each conditional element should be formatted as a dictionary with the 'content' key representing the element's content. The available node types are as follows: {', '.join(NODES.keys())}."
-    messages = [
-        {"role": "system", "content": "You are responsible for analyzing a condition of satisfaction (COS) and identifying potential conditional elements."},
-        {"role": "user", "content": prompt},
-    ]
-    response_text = generate_chat_response(messages, role='COS Analysis', task='Analyze COS', temperature=0.6)
+# Function to analyze COS and identify potential conditional elements  
+def analyze_cos(cos_content):    
+    # Define the prompt for the AI to identify conditional elements  
+    prompt = f"Given a condition of satisfaction '{cos_content}', identify potential conditional elements and their node types. The available node types are as follows: {', '.join(NODES.keys())}."    
+    messages = [    
+        {"role": "system", "content": "You are responsible for analyzing a condition of satisfaction (COS) and identifying potential conditional elements."},    
+        {"role": "user", "content": prompt},    
+    ]    
+    response_text = generate_chat_response(messages, role='COS Analysis', task='Analyze COS', temperature=0.6)    
+    
+    # Extract CE information from GPT-3.5 Turbo response    
+    ce_list = extract_conditional_elements(response_text)    
+    parsed_ce_list = []    
+  
+    # Parse and format each CE entry  
+    for ce_entry in ce_list:    
+        # Ensure that 'content' is treated as a string  
+        ce_content = ce_entry['content'] if isinstance(ce_entry.get('content'), str) else ''    
+        ce_type = ce_entry.get('node_type', 'Unknown')  # Use 'get' to provide a default value for 'node_type'  
+  
+        # Log the type and value of ce_content before stripping  
+        print(f"Before strip(): type(ce_content) = {type(ce_content)}, ce_content = {ce_content}")  
+  
+        # Perform the strip operation with a type check  
+        ce_content_stripped = ce_content.strip() if isinstance(ce_content, str) else ''   
+  
+        # Generate a new UUID for the CE ID  
+        ce_uuid = str(uuid.uuid4())    
+  
+        # Replace placeholders with UUIDs  
+        cos_content = cos_content.replace(ce_content_stripped, f'<span class="ce-pill" data-ce-id="{ce_uuid}">{ce_content_stripped}</span>')    
+  
+        parsed_ce_list.append({  
+            "id": ce_uuid,   
+            "content": ce_content_stripped,   
+            "ce_type": ce_type  
+        })  
+  
+    return {'content_with_ce': cos_content, 'ces': parsed_ce_list}  
 
-    # Extract CE information from GPT-3.5 Turbo response
-    ce_list = extract_conditional_elements(response_text)
-    parsed_ce_list = []
-
-    # Parse and format each CE entry
-    for ce_entry in ce_list:
-        ce_content = ce_entry.strip().capitalize()
-        ce_type = get_ce_type(ce_content)
-        parsed_ce_list.append({"content": ce_content, "ce_type": ce_type})
-
-    return parsed_ce_list
+def extract_conditional_elements(response_text):    
+    try:  
+        # Log the response text to debug it    
+        print(f"Response Text: {response_text}")  
+        response_data = json.loads(response_text)    
+        conditional_elements = response_data.get('conditional_elements', [])    
+        return conditional_elements    
+    except json.JSONDecodeError as e:    
+        print(f"Error in extracting conditional elements: {e}")    
+        # Log the problematic response text    
+        print(f"Response Text (Error): {response_text}")  
+        return []  
+  
 
 def update_cos_by_id(cos_id, updated_data):        
     try:        
@@ -336,25 +378,37 @@ def generate_card(ce_type, ce_id):
     else:  
         return ""
     
-def analyze_cos(cos_content):
-    messages = [
-        {"role": "system", "content": "You are responsible for analyzing a condition of satisfaction (COS) and identifying potential conditional elements."},
-        {"role": "user", "content": f"Given a condition of satisfaction '{cos_content}', identify potential conditional elements that can be further expanded upon. Each conditional element should be formatted as a dictionary with the 'content' key representing the element's content."},
-    ]
-    response_text = generate_chat_response(
-        messages, role='user', task='COS analysis and labeling', temperature=0.6
-    )
-
-    # Extract CE information from GPT-3.5 Turbo response
-    ce_list = extract_conditional_elements(response_text)
-    parsed_ce_list = []
-
-    # Parse and format each CE entry
-    for ce_entry in ce_list:
-        ce_content = ce_entry.strip().capitalize()
-        parsed_ce_list.append({"content": ce_content})
-
-    return parsed_ce_list
+# speculate.py  
+  
+# ... (other imports and code) ...  
+  
+# Function to analyze COS and identify potential conditional elements  
+def analyze_cos(cos_content):  
+    prompt = f"Given a condition of satisfaction '{cos_content}', identify potential conditional elements that can be further expanded upon. Each conditional element should be formatted as a dictionary with the 'content' key representing the element's content. The available node types are as follows: {', '.join(NODES.keys())}."  
+    messages = [  
+        {"role": "system", "content": "You are responsible for analyzing a condition of satisfaction (COS) and identifying potential conditional elements."},  
+        {"role": "user", "content": prompt},  
+    ]  
+    response_text = generate_chat_response(messages, role='COS Analysis', task='Analyze COS', temperature=0.6)  
+  
+    # Extract CE information from GPT-3.5 Turbo response  
+    ce_list = extract_conditional_elements(response_text)  
+    parsed_ce_list = []  
+  
+    # Parse and format each CE entry  
+    for ce_entry in ce_list:  
+        ce_content = ce_entry.strip().capitalize()  
+        ce_type = get_ce_type(ce_content)  
+          
+        # Generate a new UUID for the CE ID  
+        ce_uuid = str(uuid.uuid4())  
+          
+        # Replace placeholders with UUIDs  
+        cos_content = cos_content.replace(f"[CE]{ce_content}[/CE]", f'<span class="ce-pill" data-ce-id="{ce_uuid}">{ce_content}</span>')  
+          
+        parsed_ce_list.append({"id": ce_uuid, "content": ce_content, "ce_type": ce_type})  
+  
+    return {'content_with_ce': cos_content, 'ces': parsed_ce_list} 
 
 def get_badge_class_from_status(status):    
     return {    

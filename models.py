@@ -1,6 +1,7 @@
 import uuid  
 from app import db
 from datetime import datetime
+from speculate import get_badge_class_from_status
 from sqlalchemy.dialects.postgresql import UUID
 
 class SSOL(db.Model):
@@ -28,15 +29,15 @@ class COS(db.Model):
     # Relationship to CE  
     conditional_elements = db.relationship('CE', back_populates='cos', cascade="all, delete-orphan")  
   
-    def to_dict(self):  
-        return {  
-            'id': str(self.id),  # UUID to string for JSON serialization  
-            'content': self.content,  
-            'status': self.status,  
-            'accountable_party': self.accountable_party or '',  # or an empty string if None  
-            'completion_date': self.completion_date.strftime('%Y-%m-%d') if self.completion_date else '',  # or an empty string if None  
-            'ssol_id': self.ssol_id  
-            # 'conditional_elements': [ce.to_dict() for ce in self.conditional_elements]  # Uncomment if you need to serialize CE as well  
+    def to_dict(self):    
+        return {    
+            'id': str(self.id),  # UUID to string for JSON serialization    
+            'content': self.content,    
+            'status': self.status,    
+            'status_class': get_badge_class_from_status(self.status),  # Add status class to the dictionary  
+            'accountable_party': self.accountable_party or '',    
+            'completion_date': self.completion_date.strftime('%Y-%m-%d') if self.completion_date else '',    
+            'ssol_id': self.ssol_id    
         }  
 
 class CE(db.Model):
@@ -47,5 +48,5 @@ class CE(db.Model):
     is_satisfied = db.Column(db.Boolean, default=False)
     
     # Foreign key linking back to COS
-    cos_id = db.Column(db.Integer, db.ForeignKey('cos.id'), nullable=False)
-    cos = db.relationship('COS', back_populates='conditional_elements')
+    cos_id = db.Column(db.ForeignKey('cos.id'), nullable=False)  
+    cos = db.relationship('COS', back_populates='conditional_elements') 

@@ -1,115 +1,139 @@
-{% extends 'base.html' %}  
-  
+{% extends 'base.html' %}    
+    
 {% block content %}  
-  <div class="container">  
-    <div class="row outcome-header">  
-      <div class="col-md-4 text-center">  
-        {% if ssol.generated_image_path %}    
-        <img src="{{ url_for('static', filename=ssol.generated_image_path) }}" alt="Generated Image" class="rounded mb-3 generated-image" style="width: 100%; max-width: 300px;">    
-        {% endif %}    
-        <h2>Domain</h2>    
-        <i class="{{ ssol.domain_icon }} fa-3x mb-3"></i>    
-        <p class="domain domain-text text-center">{{ ssol.domain | title }}</p>    
-        <h2>Fulfilled Goal</h2>    
-        <p><strong>{{ ssol.selected_goal | safe }}</strong></p>    
+<div class="container">  
+  <div class="row outcome-header">  
+    <div class="col-md-4 text-center">  
+      {% if ssol.generated_image_path %}  
+      <img src="{{ url_for('static', filename=ssol.generated_image_path) }}" alt="Generated Image" class="rounded mb-3 generated-image" style="width: 100%; max-width: 300px;">  
+      {% endif %}  
+      <h2>Domain</h2>  
+      <i class="{{ ssol.domain_icon }} fa-3x mb-3"></i>  
+      <p class="domain domain-text text-center">{{ ssol.domain | title }}</p>  
+      <h2>Fulfilled Goal</h2>  
+      <p><strong>{{ ssol.selected_goal | safe }}</strong></p>  
+  
+      <!-- Save as PDF Button -->  
+      <div class="text-center mt-4">  
+        <a href="{{ url_for('routes_bp.save_as_pdf', ssol_id=ssol_id) }}" role="button" class="btn btn-info" title="Save as PDF">  
+          <i class="fas fa-download me-2"></i>PDF  
+        </a>  
       </div>  
-      <div class="col-md-8">  
-        <div>  
-          <h1>Preliminary Structured Solution</h1>  
-          <p>{{ ssol.ssol_summary | safe }}</p>  
-        </div>  
+  </div>    
+    <div class="col-md-8">  
+      <div>  
+        <h1>Preliminary Structured Solution</h1>  
+        <p id="ssol-summary">{{ ssol.ssol_summary | safe }}</p>  
       </div>  
     </div>  
+  </div>  
     
-    <div class="row">    
-      <h1>Phases & Conditions of Satisfaction</h1>    
-      <div class="col">    
-        <div class="accordion mt-4" id="phase-accordion">    
-          {% for phase_name, cos_list in structured_solution.items() %}   
-          <div class="accordion-item">    
-            <h2 class="accordion-header phase-colors" id="heading-{{ phase_name }}">    
-              <button    
-                class="accordion-button"    
-                type="button"    
-                data-bs-toggle="collapse"    
-                data-bs-target="#collapse-{{ phase_name }}"    
-                aria-expanded="true"    
-                aria-controls="collapse-{{ phase_name }}"    
-                style="background-color: var(--phase-{{ loop.index0 }});"    
-              >    
-                {{ phase_name | title }} PHASE    
-              </button>    
-            </h2>    
-            <div    
-              id="collapse-{{ phase_name }}"    
-              class="accordion-collapse collapse show"    
-              aria-labelledby="heading-{{ phase_name }}"    
-              data-bs-parent="#phase-accordion">    
-              <div class="accordion-body" data-ssol-id="{{ ssol_id }}" style="border: 2px solid var(--phase-{{ loop.index0 }});">     
-                {% if cos_list %}    
-                  <table class="table table-striped phase-table" id="{{ phase_name }}-table">    
-                    <thead>    
-                      <tr>    
-                        <th scope="col">Status</th>    
-                        <th scope="col">Condition of Satisfaction</th>    
-                        <th scope="col">Accountable Party</th>    
-                        <th scope="col">Completion Date</th>    
-                        <th scope="col">Actions</th>    
-                      </tr>    
-                    </thead>    
-                    <tbody>    
-                      {% for cos in cos_list %}  
-                          <tr class="cos-row" data-cos-id="{{ cos.id }}" data-editing="false">  
-                            <td class="status-cell {{ cos.status | get_badge_class_from_status }} rounded-pill">{{ cos.status | upper }}</td>   
-                            </td>      
-                          <td class="cos-content-cell">{{ cos.content }}</td>    
-                          <td class="cos-accountable-party-cell">{{ cos.accountable_party }}</td>    
-                          <td class="cos-completion-date-cell">{{ cos.completion_date }}</td>    
-                          <td>    
-                            <button class="btn btn-sm btn-primary edit-cos-button">Edit</button>    
-                            <button class="btn btn-sm btn-success update-cos-button d-none">Update</button>    
-                            <button class="btn btn-sm btn-secondary cancel-cos-button d-none">Cancel</button>    
-                            <button class="btn btn-sm btn-danger delete-cos-button">Delete</button>    
-                            <button class="btn btn-sm btn-info analyze-cos-button">Analyze</button>    
-                          </td>    
-                        </tr>    
-                      {% endfor %}    
-                    </tbody>    
-                  </table>    
-                  <button class="btn btn-success btn-sm add-cos" data-bs-toggle="modal" data-bs-target="#addCOSModal" data-phase="{{ phase_name }}">Add Condition of Satisfaction</button>    
-                {% else %}    
-                  <p>No Conditions of Satisfaction found for this phase.</p>    
-                {% endif %}    
-              </div>    
+  <div class="row">    
+    <h1>Phases & Conditions of Satisfaction</h1>    
+    <div class="col">    
+      <div class="accordion mt-4" id="phase-accordion">    
+        {% for phase_name, cos_list in structured_solution.items() %}    
+        <div class="accordion-item">    
+          <h2 class="accordion-header phase-colors" id="heading-{{ phase_name }}">    
+            <button    
+              class="accordion-button"    
+              type="button"    
+              data-bs-toggle="collapse"    
+              data-bs-target="#collapse-{{ phase_name }}"    
+              aria-expanded="true"    
+              aria-controls="collapse-{{ phase_name }}"    
+              style="background-color: var(--phase-{{ loop.index0 }});">    
+              {{ phase_name | title }} PHASE    
+            </button>    
+          </h2>    
+          <div    
+            id="collapse-{{ phase_name }}"    
+            class="accordion-collapse collapse show"    
+            aria-labelledby="heading-{{ phase_name }}"    
+            data-bs-parent="#phase-accordion">    
+            <div class="accordion-body" data-ssol-id="{{ ssol_id }}" style="border: 2px solid var(--phase-{{ loop.index0 }});">    
+              {% if cos_list %}    
+              <table class="table table-striped phase-table" id="{{ phase_name }}-table">    
+                <thead>    
+                  <tr>    
+                    <th scope="col">Status</th>    
+                    <th scope="col">Condition of Satisfaction</th>    
+                    <th scope="col">Accountable Party</th>    
+                    <th scope="col">Completion Date</th>    
+                    <th scope="col" class="text-end actions-header">Actions</th>    
+                  </tr>    
+                </thead>    
+                <tbody>    
+                  {% for cos in cos_list %}    
+                  <tr class="cos-row" data-cos-id="{{ cos.id }}" data-editing="false">    
+                    <td class="status-cell">    
+                      <span class="status-pill {{ cos.status | get_badge_class_from_status }}">{{ cos.status | upper }}</span>    
+                    </td>    
+                    <td class="cos-content-cell" id="cos-content-{{ cos.id }}">{{ cos.content }}</td>    
+                    <td class="cos-accountable-party-cell">{{ cos.accountable_party }}</td>    
+                    <td class="cos-completion-date-cell">{{ cos.completion_date }}</td>    
+                    <td class="text-end actions-cell">    
+                      <div class="cos-actions">    
+                        <button class="btn btn-sm btn-primary edit-cos-button">Edit</button>    
+                        <button class="btn btn-sm btn-success update-cos-button d-none">Update</button>    
+                        <button class="btn btn-sm btn-secondary cancel-cos-button d-none">Cancel</button>    
+                        <button class="btn btn-sm btn-danger delete-cos-button">Delete</button>    
+                        <button class="btn btn-sm btn-info analyze-cos-button" data-cos-id="{{ cos.id }}">Analyze</button>    
+                      </div>    
+                    </td>    
+                  </tr>    
+                  {% endfor %}    
+                </tbody>    
+              </table>    
+              <button class="btn btn-success btn-sm add-cos" data-bs-toggle="modal" data-bs-target="#addCOSModal" data-phase="{{ phase_name }}">Add Condition of Satisfaction</button>    
+              {% else %}    
+              <p>No Conditions of Satisfaction found for this phase.</p>    
+              {% endif %}    
             </div>    
           </div>    
+        </div>    
         {% endfor %}    
-        </div>    
       </div>    
     </div>    
-    
-    <!-- Add COS Modal -->    
-    <div class="modal fade" id="addCOSModal" tabindex="-1" aria-labelledby="addCOSModalLabel" aria-hidden="true">    
-      <div class="modal-dialog">    
-        <div class="modal-content">    
-          <div class="modal-header">    
-            <h5 class="modal-title" id="addCOSModalLabel">Add Condition of Satisfaction</h5>    
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>    
-          </div>    
-          <div class="modal-body">    
-            <form id="addCOSForm">    
-              <!-- Modal form content goes here -->    
-            </form>    
-          </div>    
-        </div>    
-      </div>    
-    </div>    
-    
   </div>    
+ <!-- Error Modal -->  
+<div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">  
+  <div class="modal-dialog">  
+    <div class="modal-content">  
+      <div class="modal-header">  
+        <h5 class="modal-title" id="errorModalLabel">Error</h5>  
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
+      </div>  
+      <div class="modal-body">  
+        <!-- Error message will be displayed here -->  
+        {{ error_message }}  
+      </div>  
+      <div class="modal-footer">  
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
+      </div>  
+    </div>  
+  </div>  
+</div>  
+ 
+<!-- Modal container for displaying CE details -->  
+  <div class="modal fade" id="ceModalContainer" tabindex="-1" aria-labelledby="ceModalLabel" aria-hidden="true">  
+    <div class="modal-dialog modal-dialog-centered modal-content">  
+      <!-- Modal content will be dynamically inserted here -->  
+    </div>  
+  </div> 
+    </div>    
 {% endblock %}    
     
 {% block scripts %}    
-  <script src="{{ url_for('static', filename='js/cos_table.js') }}"></script>    
-  <script src="{{ url_for('static', filename='js/ce_table.js') }}"></script>    
-  <script src="{{ url_for('static', filename='js/ce_cards.js') }}"></script>    
-{% endblock %}    
+<script src="{{ url_for('static', filename='js/cos_table.js') }}"></script>    
+<script src="{{ url_for('static', filename='js/ce_table.js') }}"></script>    
+<script src="{{ url_for('static', filename='js/ce_cards.js') }}"></script>    
+<script>  
+  // Additional JavaScript for CE handling  
+  document.addEventListener('DOMContentLoaded', () => {  
+    // Add event listeners to CE labels after they are rendered  
+    addEventListenersToCELabels();  
+  });  
+</script>  
+{% endblock %}   
+ 

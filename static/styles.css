@@ -318,45 +318,47 @@ body:before {
   /* Add more colors if needed */
 }
 
-.status-cell.rounded-pill {      
-  display: inline-block; /* or other display property as needed */  
+.status-pill {            
+  display: inline-block; /* or other display property as needed */        
+  color: #fff !important;      
+  text-align: center;    
+  text-transform: uppercase; /* Converts text to uppercase */            
+  font-size: 0.65em; /* Scale down the font size to 75% */        
+  text-shadow: 1px 1px 0px #000000;    
   padding: .25em .6em; /* Adjust padding as needed */  
-  color: #fff !important;
-  margin-top: 8px;
-  margin-right: 8px;   
-  text-transform: uppercase; /* Converts text to uppercase */      
-  text-shadow: 1px 1px 0px #000000;      
-  font-size: 0.65em; /* Scale down the font size to 75% */  
-  border-radius: 10px; /* Adjust for rounded corners */  
-} 
- 
+  border-radius: 10rem; /* Adjust for rounded corners */  
+  margin-top: 8px;    
+  margin-right: 8px;  
+}  
 
 .badge-primary,
 .badge-primary:not(.dropdown-toggle).dropdown-item:focus,
 .badge-primary:not(.dropdown-toggle).dropdown-item:hover {
   color: #fff;
 
-/* Specific badge colors */    
-.status-indicator .bg-secondary {    
-  color: #fff;    
-  background-color: #618cb1;    
-}    
-    
-.status-indicator .bg-warning {    
-  color: #212529;    
-  background-color: #ffc107;    
-}    
-    
-.status-indicator .bg-success {    
-  color: #fff;    
-  background-color: #28a745;    
-}    
-    
-.status-indicator .bg-danger {    
-  color: #fff;    
-  background-color: #dc3545;    
-}    
-
+  .bg-secondary {      
+    background-color: #618cb1;      
+  }      
+        
+  .bg-warning {      
+    color: #212529;      
+    background-color: #ffc107;      
+  }      
+        
+  .bg-success {      
+    background-color: #28a745;      
+  }      
+        
+  .bg-danger {      
+    background-color: #dc3545;      
+  }  
+  
+/* Custom styles for the actions column to prevent button wrapping */  
+.actions-header,  
+.actions-cell {  
+  white-space: nowrap;  
+  min-width: 240px; /* Adjust this value based on your button sizes */  
+}  
 
 /* Card Layout */
 .card-container {
@@ -381,6 +383,20 @@ body:before {
   justify-content: space-between;
   height: 100%;
 }
+
+.btn-danger {  
+  color: #fff;  
+  background-color: #dc3545;  
+  border-color: #dc3545;  
+}  
+.btn-danger:hover {  
+  color: #fff;  
+  background-color: #c82333;  
+  border-color: #bd2130;  
+}  
+.fas.fa-file-download {  
+  margin-right: 5px;  
+}  
 
 
 /* Text Wipe Effect */
@@ -432,7 +448,7 @@ body:before {
 }
 
 .generated-image {
-  border-radius: 25px;
+  border-radius: 50px;
 }
 
 .fade-in-text {
@@ -471,3 +487,4 @@ body:before {
 .ce-row[data-editing="true"] .cancel-ce-button {
   display: inline-block;
 }
+

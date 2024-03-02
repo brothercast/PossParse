@@ -1,28 +1,29 @@
-document.addEventListener('DOMContentLoaded', () => {  
+// Function to add event listeners to the phase table  
+function initializePhaseTableEventListeners() {  
   const phaseTables = document.querySelectorAll('.phase-table');  
   phaseTables.forEach(table => {  
-    table.addEventListener('click', handlePhaseTableClick);  
+      table.addEventListener('click', handlePhaseTableClick);  
   });  
-});  
-  
+}  
+
+// Handles clicks within the phase table  
 function handlePhaseTableClick(event) {  
   const target = event.target;  
   const row = target.closest('tr.cos-row');  
   if (!row) return;  
-  
-  const ssolId = row.closest('.accordion-body').dataset.ssolId;  
+
   const cosId = row.dataset.cosId;  
-  
+
   if (target.matches('.edit-cos-button')) {  
-    turnRowToEditMode(row);  
+      turnRowToEditMode(row);  
   } else if (target.matches('.update-cos-button')) {  
-    handleUpdate(row, cosId, ssolId);  
+      handleUpdate(row, cosId);  
   } else if (target.matches('.cancel-cos-button')) {  
-    cancelEditMode(row);  
+      cancelEditMode(row);  
   } else if (target.matches('.delete-cos-button')) {  
-    deleteCOS(cosId, row);  
+      deleteCOS(cosId, row);  
   }  
-}  
+}   
   
 function toggleEditMode(row, editing) {  
   const editButton = row.querySelector('.edit-cos-button');  
@@ -164,27 +165,216 @@ function revertToOriginalValues(row) {
   row.querySelector('.cos-completion-date-cell').textContent = originalValues.completionDate;  
 }  
   
-function updateRowWithNewValues(row, cos) {  
-  // Check if the cos object and its properties are defined  
-  if (cos && cos.status && cos.content) {  
-    row.querySelector('.status-cell').innerHTML = `<span class="badge badge-pill ${getBadgeClassFromStatus(cos.status)}">${cos.status}</span>`;  
-    row.querySelector('.cos-content-cell').textContent = cos.content;  
-    row.querySelector('.cos-accountable-party-cell').textContent = cos.accountable_party || '';  
-    row.querySelector('.cos-completion-date-cell').textContent = cos.completion_date || '';  
-  } else {  
-    // If cos or any required property is undefined, log an error or handle appropriately  
-    console.error('Error: COS data is undefined or missing required properties', cos);  
-    alert('An error occurred while updating the entry. Please try again.');  
+function updateRowWithNewValues(row, cos) {    
+  // Check if the cos object and its properties are defined    
+  if (cos && cos.status && cos.content) {    
+    row.querySelector('.status-cell').innerHTML = `<span class="status-pill ${getBadgeClassFromStatus(cos.status)}">${cos.status}</span>`;    
+    row.querySelector('.cos-content-cell').textContent = cos.content;    
+    row.querySelector('.cos-accountable-party-cell').textContent = cos.accountable_party || '';    
+    row.querySelector('.cos-completion-date-cell').textContent = cos.completion_date || '';    
+  } else {    
+    // If cos or any required property is undefined, log an error or handle appropriately    
+    console.error('Error: COS data is undefined or missing required properties', cos);    
+    alert('An error occurred while updating the entry. Please try again.');    
+  }    
+}    
+
+// cos_table.js  
+  
+// Function to add event listeners to the phase table  
+function initializePhaseTableEventListeners() {  
+  const phaseTables = document.querySelectorAll('.phase-table');  
+  phaseTables.forEach(table => {  
+      table.addEventListener('click', handlePhaseTableClick);  
+  });  
+}  
+
+// Handles clicks within the phase table  
+function handlePhaseTableClick(event) {  
+  const target = event.target;  
+  const row = target.closest('tr.cos-row');  
+  if (!row) return;  
+
+  const cosId = row.dataset.cosId;  
+
+  if (target.matches('.edit-cos-button')) {  
+      turnRowToEditMode(row);  
+  } else if (target.matches('.update-cos-button')) {  
+      handleUpdate(row, cosId);  
+  } else if (target.matches('.cancel-cos-button')) {  
+      cancelEditMode(row);  
+  } else if (target.matches('.delete-cos-button')) {  
+      deleteCOS(cosId, row);  
   }  
 }  
 
-  
-function getBadgeClassFromStatus(status) {  
-  switch (status) {  
-    case 'Proposed': return 'bg-secondary';  
-    case 'In Progress': return 'bg-warning';  
-    case 'Completed': return 'bg-success';  
-    case 'Rejected': return 'bg-danger';  
-    default: return 'bg-secondary';  
-  }  
+// Function to fetch and display analyzed COS content  
+function fetchAndDisplayAnalyzedCOS(cosId) {  
+  fetch(`/analyze_cos/${cosId}`)  
+      .then(response => response.json())  
+      .then(data => {  
+          if (data && data.content_with_ce) {  
+              const cosElement = document.querySelector(`#cos-${cosId}`);  
+              cosElement.innerHTML = data.content_with_ce;  
+              initializeCEPillEventListeners(); // Initialize event listeners for CE pills  
+          }  
+      })  
+      .catch(error => {  
+          console.error('Error fetching analyzed COS:', error);  
+      });  
 }  
+
+// Function to add event listeners to CE pills  
+function initializeCEPillEventListeners() {  
+  const cePills = document.querySelectorAll('.ce-pill');  
+  cePills.forEach(pill => {  
+      pill.addEventListener('click', handleCEPillClick);  
+  });  
+}  
+
+function handleCEPillClick(event) {  
+  const ceId = event.target.dataset.ceId;  
+  console.log(`CE Pill with ID ${ceId} clicked`);  
+
+  // Example logic to fetch CE details and display in a modal or another UI element  
+  fetch(`/get_ce_by_id/${ceId}`)  
+      .then(response => response.json())  
+      .then(data => {  
+          if (data && data.ce) {  
+              displayCEDetails(data.ce); // Function to display CE details  
+          } else {  
+              console.error('CE details not found or error in response:', data);  
+          }  
+      })  
+      .catch(error => {  
+          console.error('Error fetching CE details:', error);  
+      });  
+} 
+
+
+
+// Event listener to initialize phase table event listeners after DOM content is fully loaded  
+document.addEventListener('DOMContentLoaded', () => {  
+  initializePhaseTableEventListeners();  
+  document.querySelectorAll('.analyze-cos-button').forEach(button => {  
+      button.addEventListener('click', (event) => {  
+          const cosId = event.target.getAttribute('data-cos-id');  
+          if (cosId) {  
+              fetchAndDisplayAnalyzedCOS(cosId);  
+          }  
+      });  
+  });  
+});  
+
+// Function to add event listeners to CE pills  
+function initializeCEPillEventListeners() {  
+  const cePills = document.querySelectorAll('.ce-pill');  
+  cePills.forEach(pill => {  
+      pill.addEventListener('click', handleCEPillClick);  
+  });  
+} 
+
+// Event listener to initialize phase table event listeners after DOM content is fully loaded  
+document.addEventListener('DOMContentLoaded', () => {
+  initializePhaseTableEventListeners();
+  document.querySelectorAll('.analyze-cos-button').forEach(button => {
+    button.addEventListener('click', (event) => {
+      const cosId = event.target.getAttribute('data-cos-id');
+      if (cosId) {
+        fetchAndDisplayAnalyzedCOS(cosId);
+      }
+    });
+  });
+  
+  // Add event listener to the Analyze button  
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.analyze-cos-button').forEach(button => {
+      button.addEventListener('click', (event) => {
+        const cosId = event.target.getAttribute('data-cos-id');
+        if (cosId) {
+          fetchAndDisplayAnalyzedCOS(cosId);
+        }
+      });
+    });
+  });
+
+  function extractCosContentForEditing(cosContentCell) {
+    const badgeElements = cosContentCell.querySelectorAll('.badge');
+    badgeElements.forEach((badge) => {
+      const ceContent = badge.textContent;
+      // Replace the badge HTML with a placeholder or markup that includes the CE content  
+      badge.outerHTML = `[CE]${ceContent}[/CE]`;
+    });
+    return cosContentCell.innerHTML; // This now contains the editable content with [CE][/CE] placeholders  
+  }
+  
+  function getBadgeClassFromStatus(status) {
+    switch (status) {
+      case 'Proposed': return 'bg-secondary';
+      case 'In Progress': return 'bg-warning text-dark';
+      case 'Completed': return 'bg-success';
+      case 'Rejected': return 'bg-danger';
+      default: return 'bg-secondary';
+    }
+  }
+
+ 
+  document.addEventListener('DOMContentLoaded', () => {
+    // Get all COS content cells  
+    const cosContentCells = document.querySelectorAll('.cos-content-cell');
+  
+    // Loop over each cell and replace CE tags with pills  
+    cosContentCells.forEach(cell => {
+      const content = cell.textContent;
+      const newContent = replaceCETagsWithPills(content); // This is your existing JS function  
+      cell.innerHTML = newContent;
+    });
+  
+    // Now that the DOM has been updated, add event listeners to the new pill elements  
+    addEventListenersToCELabels();
+  });
+})
+
+// Function to save the content as PDF  
+function saveAsPDF(ssolId) {  
+  const htmlContent = document.documentElement.outerHTML; // Get the entire HTML content of the page  
+  fetch(`/save_as_pdf/${ssolId}`, {  
+    method: 'POST', // Using POST to send data  
+    headers: {  
+      'Content-Type': 'application/json'  
+    },  
+    body: JSON.stringify({ htmlContent: htmlContent })  
+  })  
+  .then(response => {  
+    if (!response.ok) {  
+      throw new Error(`Server responded with status ${response.status}`);  
+    }  
+    return response.blob();  
+  })  
+  .then(blob => {  
+    const url = window.URL.createObjectURL(blob);  
+    const a = document.createElement('a');  
+    a.style.display = 'none';  
+    a.href = url;  
+    a.download = `${ssolId}.pdf`;  
+    document.body.appendChild(a);  
+    a.click();  
+    window.URL.revokeObjectURL(url);  
+    document.body.removeChild(a);  
+  })  
+  .catch((error) => {  
+    console.error('Error:', error);  
+  });  
+}  
+  
+// Event listener to initialize after DOM content is fully loaded  
+document.addEventListener('DOMContentLoaded', function () {  
+  // Select the save button by ID  
+  const saveButton = document.getElementById('save-as-pdf-button') || document.getElementById('save-pdf');  
+  if (saveButton) {  
+    saveButton.addEventListener('click', function () {  
+      const ssolId = saveButton.dataset.ssolId; // Make sure data-ssol-id attribute is set on the button  
+      saveAsPDF(ssolId);  
+    });  
+  }  
+});  

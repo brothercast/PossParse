@@ -1,16 +1,18 @@
 import os
 import json
+import pdfkit  
 import openai
 import logging
-from uuid import UUID
 from app import app, db
+import uuid 
+from uuid import UUID
+from models import SSOL, COS, CE
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
-from flask import Flask, Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app
+from flask import Flask, Blueprint, render_template, request, flash, redirect, url_for, jsonify, make_response, current_app
 from werkzeug.exceptions import BadRequest, NotFound
-from models import SSOL, COS, CE
 from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data, generate_structured_solution, get_cos_by_guid
-from speculate import get_badge_class_from_status, get_cos_by_id, delete_cos_by_id, extract_conditional_elements, update_cos_by_id
+from speculate import get_badge_class_from_status, get_cos_by_id, delete_cos_by_id, extract_conditional_elements, update_cos_by_id, USE_DATABASE
 from datetime import datetime
 from dotenv import load_dotenv
 from speculate import create_cos, get_cos_by_id, update_cos_by_id, delete_cos_by_id, get_badge_class_from_status, get_ce_by_id, analyze_cos, extract_conditional_elements  
@@ -33,7 +35,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Optionally to suppress warning
 
 # Configure logging  
-logging.basicConfig(level=logging.INFO) 
+logging.basicConfig(level=logging.WARNING)   
 
 # In-memory store  
 ssol_store = {} 
@@ -101,6 +103,32 @@ def outcome():
     flash("Invalid request method.", "error")  
     return redirect(url_for('routes_bp.index'))
 
+@routes_bp.route('/save_as_pdf/<uuid:ssol_id>', methods=['POST'])  
+def save_as_pdf(ssol_id):   
+    try:    
+        data = request.get_json()    
+        html_content = data['htmlContent']    
+        if not html_content:    
+            raise ValueError("No HTML content provided.")    
+  
+        # Define options for pdfkit configuration  
+        options = {  
+            "enable-local-file-access": "",  # Allow local file access  
+        }  
+  
+        # Generate the PDF using pdfkit with additional options  
+        pdf = pdfkit.from_string(html_content, False, options=options)    
+    
+        response = make_response(pdf)    
+        response.headers['Content-Type'] = 'application/pdf'    
+        response.headers['Content-Disposition'] = f'attachment; filename={ssol_id}.pdf'    
+    
+        return response    
+    
+    except Exception as e:    
+        current_app.logger.error(f"Exception in save_as_pdf: {e}")    
+        return jsonify(success=False, error=str(e)), 500  
+
 
 @routes_bp.route('/update_cos/<uuid:cos_id>', methods=['PUT'])    
 def update_cos_route(cos_id):    
@@ -149,15 +177,38 @@ def get_ce_by_id_route():
     ce_data = ce.to_dict() if ce else None
     return jsonify(ce=ce_data) if ce_data else jsonify(error="CE not found"), 404
 
-@routes_bp.route('/analyze_cos/<uuid:cos_id>', methods=['GET'])
-def analyze_cos_route(cos_id):
-    cos = get_cos_by_id(cos_id)
-    if not cos:
-        return jsonify(analyzed_cos=[]), 404
-
-    analyzed_data = analyze_cos(cos.content)
-    conditional_elements = extract_conditional_elements(analyzed_data)
-    return jsonify(analyzed_cos=conditional_elements)
+@routes_bp.route('/analyze_cos/<uuid:cos_id>', methods=['GET'])        
+def analyze_cos_route(cos_id):        
+    cos = get_cos_by_id(cos_id)        
+    if not cos:        
+        logging.warning(f"analyze_cos_route: COS with ID {cos_id} not found.")      
+        return jsonify(analyzed_cos=[]), 404        
+  
+    try:      
+        analyzed_data = analyze_cos(cos['content'])       
+        conditional_elements = analyzed_data.get('ces', [])      
+        content_with_ce = analyzed_data.get('content_with_ce', '')  
+  
+        # If using a database, store the analyzed CEs in the database  
+        if USE_DATABASE:  
+            for ce in conditional_elements:  
+                new_ce = CE(content=ce['content'], cos_id=cos['id'])  
+                db.session.add(new_ce)  
+            db.session.commit()  
+            conditional_elements = [ce.to_dict() for ce in cos.conditional_elements]  # Convert CE objects to dictionaries  
+  
+        else:  
+            # If not using a database, store the analyzed CEs in an in-memory store  
+            for ce in conditional_elements:  
+                ce_id = str(uuid.uuid4())  # Generate a UUID for CE  
+                ce_store[ce_id] = {'id': ce_id, 'content': ce['content']}  
+            conditional_elements = list(ce_store.values())  # Get all CEs from in-memory store  
+  
+        return jsonify(analyzed_cos=conditional_elements, content_with_ce=content_with_ce)      
+    
+    except Exception as e:    
+        logging.error(f"Error analyzing COS with ID {cos_id}: {e}")    
+        return jsonify(error=str(e)), 500  
 
 # Register the Blueprint
 app.register_blueprint(routes_bp)

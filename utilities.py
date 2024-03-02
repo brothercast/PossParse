@@ -120,8 +120,8 @@ def generate_outcome_data(request, method, selected_goal=None, domain=None, doma
       
     # Generate the high-level summary      
     messages = [      
-        {"role": "system", "content": "Assuming it is possible to fulfill any outcome and working backwards, generate a high-level summary of everything required for the goal as a fulfilled by some point in the future, including any existing legal, scientific, logistic or other barriers which needed to be addressed for completion."},      
-        {"role": "user", "content": f"Generate a high-level, elegantly-formatted summary for the goal: '{selected_goal}'. Please format the summary using HTML tags, such as <br> for line breaks and ordered lists."}      
+        {"role": "system", "content": "Assuming it is possible to fulfill any outcome and working backwards, generate a high-level summary (key name: summary) of everything required for the goal as a fulfilled by some point in the future, including any existing legal, scientific, logistic or other barriers which needed to be addressed for completion."},      
+        {"role": "user", "content": f"Generate a high-level, elegantly-formatted summary for the goal: '{selected_goal}'. Please format the summary using Bootstrap safe HTML, including tags such as <br> for line breaks and ordered lists."}      
     ]      
     try:      
         response_content = generate_chat_response(messages, role='Outcome Generation', task='Generate High-Level Summary')      
