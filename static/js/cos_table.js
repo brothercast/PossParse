@@ -339,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function saveAsPDF(ssolId) {  
   const htmlContent = document.documentElement.outerHTML; // Get the entire HTML content of the page  
   fetch(`/save_as_pdf/${ssolId}`, {  
-    method: 'POST', // Using POST to send data  
+    method: 'POST',  
     headers: {  
       'Content-Type': 'application/json'  
     },  
@@ -363,17 +363,17 @@ function saveAsPDF(ssolId) {
     document.body.removeChild(a);  
   })  
   .catch((error) => {  
-    console.error('Error:', error);  
+    console.error('Error saving PDF:', error);  
   });  
 }  
   
 // Event listener to initialize after DOM content is fully loaded  
 document.addEventListener('DOMContentLoaded', function () {  
-  // Select the save button by ID  
-  const saveButton = document.getElementById('save-as-pdf-button') || document.getElementById('save-pdf');  
+  const saveButton = document.getElementById('save-as-pdf-button');  
   if (saveButton) {  
-    saveButton.addEventListener('click', function () {  
-      const ssolId = saveButton.dataset.ssolId; // Make sure data-ssol-id attribute is set on the button  
+    saveButton.addEventListener('click', function (event) {  
+      event.preventDefault(); // Prevent the default button click action  
+      const ssolId = saveButton.dataset.ssolId;  
       saveAsPDF(ssolId);  
     });  
   }  

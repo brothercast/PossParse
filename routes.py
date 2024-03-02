@@ -2,6 +2,7 @@ import os
 import json
 import pdfkit  
 import openai
+import requests
 import logging
 from app import app, db
 import uuid 
@@ -9,7 +10,7 @@ from uuid import UUID
 from models import SSOL, COS, CE
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
-from flask import Flask, Blueprint, render_template, request, flash, redirect, url_for, jsonify, make_response, current_app
+from flask import Flask, Blueprint, render_template, request, flash, redirect, url_for, jsonify, make_response, current_app, send_from_directory
 from werkzeug.exceptions import BadRequest, NotFound
 from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data, generate_structured_solution, get_cos_by_guid
 from speculate import get_badge_class_from_status, get_cos_by_id, delete_cos_by_id, extract_conditional_elements, update_cos_by_id, USE_DATABASE
@@ -102,34 +103,50 @@ def outcome():
     # Redirect to the index page if not a POST request  
     flash("Invalid request method.", "error")  
     return redirect(url_for('routes_bp.index'))
-
+ 
 @routes_bp.route('/save_as_pdf/<uuid:ssol_id>', methods=['POST'])  
-def save_as_pdf(ssol_id):   
-    try:    
-        data = request.get_json()    
-        html_content = data['htmlContent']    
-        if not html_content:    
-            raise ValueError("No HTML content provided.")    
+def save_as_pdf(ssol_id):  
+    try:  
+        data = request.get_json()  
+        html_content = data['htmlContent']  
+        if not html_content:  
+            raise ValueError("No HTML content provided.")  
+  
+        # Get the absolute path to the styles.css file  
+        css_file_path = os.path.join(current_app.root_path, current_app.static_folder, 'styles.css')  
+  
+        # Get the absolute URL to the generated image (assuming it's served via a static route)  
+        image_url = url_for('static', filename='path/to/generated_image.png', _external=True)  
+  
+        # Replace the relative paths in html_content with absolute paths  
+        html_content = html_content.replace('src="/static/', f'src="{url_for("static", filename="", _external=True)}')  
   
         # Define options for pdfkit configuration  
         options = {  
-            "enable-local-file-access": "",  # Allow local file access  
+            "page-size": "A4",  
+            "margin-top": "0.75in",  
+            "margin-right": "0.75in",  
+            "margin-bottom": "0.75in",  
+            "margin-left": "0.75in",  
+            "encoding": "UTF-8",  
+            "custom-header": [("Accept-Encoding", "gzip")],  
+            "no-outline": None,  
+            "enable-local-file-access": None,  # This allows pdfkit to access local files  
         }  
   
         # Generate the PDF using pdfkit with additional options  
-        pdf = pdfkit.from_string(html_content, False, options=options)    
-    
-        response = make_response(pdf)    
-        response.headers['Content-Type'] = 'application/pdf'    
-        response.headers['Content-Disposition'] = f'attachment; filename={ssol_id}.pdf'    
-    
-        return response    
-    
-    except Exception as e:    
-        current_app.logger.error(f"Exception in save_as_pdf: {e}")    
+        pdf = pdfkit.from_string(html_content, False, options=options, css=css_file_path)  
+  
+        response = make_response(pdf)  
+        response.headers['Content-Type'] = 'application/pdf'  
+        response.headers['Content-Disposition'] = f'attachment; filename="{ssol_id}.pdf"'  
+  
+        return response  
+  
+    except Exception as e:  
+        current_app.logger.error(f"Exception in save_as_pdf: {e}")  
         return jsonify(success=False, error=str(e)), 500  
-
-
+    
 @routes_bp.route('/update_cos/<uuid:cos_id>', methods=['PUT'])    
 def update_cos_route(cos_id):    
     try:    

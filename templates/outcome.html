@@ -13,12 +13,12 @@
       <h2>Fulfilled Goal</h2>  
       <p><strong>{{ ssol.selected_goal | safe }}</strong></p>  
   
-      <!-- Save as PDF Button -->  
-      <div class="text-center mt-4">  
-        <a href="{{ url_for('routes_bp.save_as_pdf', ssol_id=ssol_id) }}" role="button" class="btn btn-info" title="Save as PDF">  
-          <i class="fas fa-download me-2"></i>PDF  
-        </a>  
-      </div>  
+    <!-- Save as PDF Button -->  
+      <div class="text-center mt-4">    
+        <button id="save-as-pdf-button" data-ssol-id="{{ ssol_id }}" class="btn btn-info" title="Save as PDF">    
+          <i class="fas fa-download me-2"></i>PDF    
+        </button>    
+      </div> 
   </div>    
     <div class="col-md-8">  
       <div>  
