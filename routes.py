@@ -123,7 +123,7 @@ def save_as_pdf(ssol_id):
   
         # Define options for pdfkit configuration  
         options = {  
-            "page-size": "A4",  
+            "page-size": "Letter",  
             "margin-top": "0.75in",  
             "margin-right": "0.75in",  
             "margin-bottom": "0.75in",  
@@ -139,7 +139,7 @@ def save_as_pdf(ssol_id):
   
         response = make_response(pdf)  
         response.headers['Content-Type'] = 'application/pdf'  
-        response.headers['Content-Disposition'] = f'attachment; filename="{ssol_id}.pdf"'  
+        response.headers['Content-Disposition'] = f'attachment; filename="Structured Solution {ssol_id}.pdf"'  
   
         return response  
   
@@ -167,13 +167,13 @@ def update_cos_route(cos_id):
         return jsonify(error=str(e)), 500  
 
     
-@routes_bp.route('/delete_cos/<uuid:cos_id>', methods=['DELETE'])  # Changed method to DELETE for semantics  
+@routes_bp.route('/delete_cos/<uuid:cos_id>', methods=['DELETE'])  
 def delete_cos_route(cos_id):  
     try:  
-        # Convert string cos_id to UUID  
-        cos_id = UUID(cos_id)  
+        # Convert UUID object to string  
+        cos_id_str = str(cos_id)  
   
-        if delete_cos_by_id(cos_id):  
+        if delete_cos_by_id(cos_id_str):  
             flash('COS has been successfully deleted.', 'success')  
             return jsonify(success=True), 200  
         else:  
@@ -185,6 +185,7 @@ def delete_cos_route(cos_id):
     except Exception as e:  
         logging.error(f"Unexpected error occurred: {e}", exc_info=True)  
         return jsonify(success=False, error=str(e)), 500  
+
 
 
 @routes_bp.route('/get_ce_by_id', methods=['GET'])

@@ -1,3 +1,13 @@
+function getBadgeClassFromStatus(status) {
+  switch (status) {
+    case 'Proposed': return 'bg-info';
+    case 'In Progress': return 'bg-warning text-dark';
+    case 'Completed': return 'bg-success';
+    case 'Rejected': return 'bg-danger';
+    default: return 'bg-secondary';
+  }
+}
+
 // Function to add event listeners to the phase table  
 function initializePhaseTableEventListeners() {  
   const phaseTables = document.querySelectorAll('.phase-table');  
@@ -123,25 +133,32 @@ function cancelEditMode(row) {
 }  
   
 function deleteCOS(cosId, row) {  
-  fetch(`/delete_cos/${cosId}`, {  
-    method: 'DELETE', // Corrected to use DELETE method  
-    headers: {  
-      'Content-Type': 'application/json',  
-      'Accept': 'application/json'  
-    }  
-  })  
-  .then(response => response.json())  
-  .then(data => {  
-    if (data.success) {  
-      row.remove();  
-    } else {  
-      console.error('Error deleting COS:', data.error);  
-    }  
-  })  
-  .catch(error => {  
-    console.error('Error deleting COS:', error);  
-  });  
+  // Get the COS content to display in the confirmation dialog  
+  const cosContent = row.querySelector('.cos-content-cell').textContent;  
+  
+  // Display a confirmation dialog  
+  if (confirm(`Really delete Condition of Satisfaction "${cosContent}"?`)) {  
+    fetch(`/delete_cos/${cosId}`, {  
+      method: 'DELETE',  
+      headers: {  
+        'Content-Type': 'application/json',  
+        'Accept': 'application/json'  
+      }  
+    })  
+    .then(response => response.json())  
+    .then(data => {  
+      if (data.success) {  
+        row.remove();  
+      } else {  
+        console.error('Error deleting COS:', data.error);  
+      }  
+    })  
+    .catch(error => {  
+      console.error('Error deleting COS:', error);  
+    });  
+  }  
 }  
+
   
 function storeOriginalValues(row) {  
   const statusCell = row.querySelector('.status-cell');  
@@ -306,16 +323,6 @@ document.addEventListener('DOMContentLoaded', () => {
       badge.outerHTML = `[CE]${ceContent}[/CE]`;
     });
     return cosContentCell.innerHTML; // This now contains the editable content with [CE][/CE] placeholders  
-  }
-  
-  function getBadgeClassFromStatus(status) {
-    switch (status) {
-      case 'Proposed': return 'bg-secondary';
-      case 'In Progress': return 'bg-warning text-dark';
-      case 'Completed': return 'bg-success';
-      case 'Rejected': return 'bg-danger';
-      default: return 'bg-secondary';
-    }
   }
 
  
