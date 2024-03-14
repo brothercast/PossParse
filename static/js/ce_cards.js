@@ -1,15 +1,18 @@
-// This function replaces CE tags with interactive pills  
+// ce_cards.js  
+  
+// Function to replace CE tags with interactive Bootstrap pills  
 function replaceCETagsWithPills(content) {  
   // Define the pattern to match CE tags with their IDs  
-  const ceTagPattern = /<CE ID:([\w-]+)><\/CE>/g;  
-  // Replace each CE tag with a pill element  
-  return content.replace(ceTagPattern, (match, ceId) => {  
-    return `<span class="ce-pill badge bg-primary" data-ce-id="${ceId}">CE</span>`;  
+  const ceTagPattern = /<ce>(.*?)<\/ce>/gi; // Ensure global and case-insensitive flags are set  
+  // Replace each CE tag with a Bootstrap pill element  
+  return content.replace(ceTagPattern, (match, ceContent) => {  
+    const ceId = uuidv4(); // Generate a unique ID for each CE. You need to define the uuidv4 function or use a library that provides UUID generation.  
+    return `<span class="badge rounded-pill bg-secondary ce-pill" data-ce-id="${ceId}">${ceContent}</span>`;  
   });  
 }  
   
 // Function to add event listeners to CE pills  
-function addEventListenersToCELabels() {  
+function addEventListenersToCEPills() {  
   // Select all elements with the 'ce-pill' class  
   const cePills = document.querySelectorAll('.ce-pill');  
   // Add a click event listener to each pill  
@@ -17,240 +20,83 @@ function addEventListenersToCELabels() {
     pill.addEventListener('click', (event) => {  
       const ceId = event.target.dataset.ceId;  
       // Fetch and display the CE details when a pill is clicked  
-      fetch(`/get_ce_by_id?ce_id=${ceId}`)  
-        .then((response) => response.json())  
-        .then((data) => {  
-          if (data.ce) {  
-            showCEModal(data.ce);  
-          } else {  
-            console.error('CE data not found:', data);  
-          }  
-        })  
-        .catch((error) => {  
-          console.error('Error fetching CE data:', error);  
-        });  
+      fetchCEDetails(ceId);  
     });  
   });  
-}   
-  
-// This function should be called when the server returns analyzed COS content  
-function displayAnalyzedContent(content) {  
-  // Replace CE tags with interactive pills  
-  const updatedContentWithPills = replaceCETagsWithPills(content);  
-  // Select the container where the COS content should be displayed  
-  const cosContentContainer = document.getElementById('cos-content-container');  
-  // Check if the container exists  
-  if (cosContentContainer) {  
-    // Update the container's HTML with the new content containing pills  
-    cosContentContainer.innerHTML = updatedContentWithPills;  
-    // Add event listeners to the newly created pills  
-    addEventListenersToCEPills();  
-  } else {  
-    console.error('COS content container not found');  
-  }  
 }  
   
-// This function creates the content for the CE modal  
-function createCEModalContent(ceData) {  
-  const modalContent = document.createElement('div');  
-  modalContent.classList.add('modal-content');  
+// Function to fetch and display CE details  
+function fetchCEDetails(ceId) {  
+  fetch(`/get_ce_by_id?ce_id=${ceId}`)  
+    .then((response) => response.json())  
+    .then((data) => {  
+      if (data.ce) {  
+        showCEModal(data.ce);  
+      } else {  
+        console.error('CE data not found:', data);  
+      }  
+    })  
+    .catch((error) => {  
+      console.error('Error fetching CE data:', error);  
+    });  
+}  
   
-  // Create the modal header  
-  const modalHeader = document.createElement('div');  
-  modalHeader.classList.add('modal-header');  
-  modalHeader.innerHTML = `  
-    <h5 class="modal-title" id="ceModalLabel">Conditional Element Details</h5>  
-    <button type="button" class="close" data-dismiss="modal" aria-label="Close">  
-      <span aria-hidden="true">&times;</span>  
-    </button>  
+// Function to display the CE details in a modal using Bootstrap  
+function showCEModal(ceData) {  
+  // Get the modal elements  
+  const modalTitle = document.getElementById('ceModalTitle');  
+  const modalBody = document.getElementById('ceModalBody');  
+  
+  // Set the content  
+  modalTitle.textContent = 'Conditional Element Details';  
+  modalBody.innerHTML = `  
+    <p><strong>ID:</strong> ${ceData.id}</p>  
+    <p><strong>Content:</strong> ${ceData.content}</p>  
+    <p><strong>Type:</strong> ${ceData.node_type || 'Unknown'}</p>  
   `;  
   
-  // Create the modal body  
-  const modalBody = document.createElement('div');  
-  modalBody.classList.add('modal-body');  
-  
-  // Check if the necessary data is present  
-  if (ceData && ceData.content) {  
-    const ceContent = document.createElement('p');  
-    ceContent.textContent = `Content: ${ceData.content}`;  
-  
-    const ceType = document.createElement('p');  
-    ceType.textContent = `Type: ${ceData.condition_type || 'Not specified'}`;  
-  
-    modalBody.appendChild(ceContent);  
-    modalBody.appendChild(ceType);  
-  } else {  
-    // Display an error message if the data is missing  
-    modalBody.innerHTML = '<p>Error: Unable to load CE details.</p>';  
-  }  
-  
-  // Append the header and body to the modal content  
-  modalContent.appendChild(modalHeader);  
-  modalContent.appendChild(modalBody);  
-  
-  return modalContent.outerHTML; // Return the HTML string of the modal content  
+  // Show the modal using Bootstrap's modal method  
+  const bootstrapModal = new bootstrap.Modal(document.getElementById('ceModal'));  
+  bootstrapModal.show();  
 }  
   
-// This function displays the CE modal  
-function showCEModal(ceData) {
-  // Create the modal content dynamically based on the CE data  
-  const modalContent = document.createElement('div');
-  modalContent.classList.add('modal-content');
+// Function to fetch analyzed COS content and display it  
+function fetchAndDisplayAnalyzedCOS(cosId) {  
+  fetch(`/analyze_cos/${cosId}`)  
+    .then(response => response.json())  
+    .then(data => {  
+      if (data.content_with_ce) {  
+        const cosContentContainer = document.getElementById('cos-content-container');  
+        cosContentContainer.innerHTML = replaceCETagsWithPills(data.content_with_ce);  
+        addEventListenersToCEPills();  
+      }  
+    })  
+    .catch(error => console.error('Error fetching analyzed COS content:', error));  
+}  
   
-  // Create the modal header  
-  const modalHeader = document.createElement('div');
-  modalHeader.classList.add('modal-header');
-  modalHeader.innerHTML = `  
-    <h5 class="modal-title" id="ceModalLabel">Conditional Element Details</h5>  
-    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
-  `;
+// Generate a UUID for the CE. This is a placeholder function.  
+function uuidv4() {  
+  return 'xxxx-xxxx-4xxx-yxxx-xxxx-yyyy'.replace(/[xy]/g, function(c) {  
+    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);  
+    return v.toString(16);  
+  });  
+}  
   
-  // Create the modal body  
-  const modalBody = document.createElement('div');
-  modalBody.classList.add('modal-body');
-  modalBody.innerHTML = `  
-    <p><strong>Content:</strong> ${ceData.content}</p>  
-    <p><strong>Type:</strong> ${ceData.condition_type || 'Not specified'}</p>  
-    <p><strong>Status:</strong> ${ceData.is_satisfied ? 'Satisfied' : 'Not satisfied'}</p>  
-  `;
-  
-  // Create the modal footer  
-  const modalFooter = document.createElement('div');
-  modalFooter.classList.add('modal-footer');
-  modalFooter.innerHTML = `  
-    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
-  `;
-  
-  // Append header, body, and footer to the modal content  
-  modalContent.appendChild(modalHeader);
-  modalContent.appendChild(modalBody);
-  modalContent.appendChild(modalFooter);
-  
-  // Get the modal container element from the DOM  
-  const modalContainer = document.getElementById('ceModalContainer');
-  modalContainer.innerHTML = ''; // Clear any existing content  
-  modalContainer.appendChild(modalContent);
-  
-  const modalElement = new bootstrap.Modal(document.getElementById('ceModalContainer'));
-  modalElement.show();
-  
-  
-  // Add event listeners to CE pills  
-  document.addEventListener('DOMContentLoaded', () => {
-    const cePills = document.querySelectorAll('.ce-pill');
-    cePills.forEach((pill) => {
-      pill.addEventListener('click', (event) => {
-        const ceId = event.target.dataset.ceId;
-        // Fetch CE data from the server  
-        fetch(`/get_ce_by_id?ce_id=${ceId}`)
-          .then((response) => response.json())
-          .then((data) => {
-            if (data.ce) {
-              showCEModal(data.ce);
-            } else {
-              console.error('CE data not found:', data);
-            }
-          })
-          .catch((error) => {
-            console.error('Error fetching CE data:', error);
-          });
-      });
-    });
-  });
+// When the DOM is fully loaded, fetch and display the analyzed COS content  
+document.addEventListener('DOMContentLoaded', () => {  
+  const cosId = document.querySelector('[data-cos-id]').dataset.cosId; // Get the COS ID from a data attribute  
+  fetchAndDisplayAnalyzedCOS(cosId); // Call the function to fetch and display the content  
+});  
 
-  
-
-  // Function to add click event listeners to the CE pills  
-  function addEventListenersToCELabels() {
-    // Select all elements with the 'ce-pill' class  
-    const cePills = document.querySelectorAll('.ce-pill');
-    // Add a click event listener to each pill  
-    cePills.forEach((pill) => {
-      pill.addEventListener('click', (event) => {
-        const ceId = event.target.dataset.ceId;
-        // Fetch and display the CE details when a pill is clicked  
-        fetch(`/get_ce_by_id?ce_id=${ceId}`)
-          .then((response) => response.json())
-          .then((data) => {
-            if (data.ce) {
-              showCEModal(data.ce);
-            } else {
-              console.error('CE data not found:', data);
-            }
-          })
-          .catch((error) => {
-            console.error('Error fetching CE data:', error);
-          });
-      });
-    });
-
-  // Call the function to add event listeners once the DOM content is fully loaded  
-  document.addEventListener('DOMContentLoaded', addEventListenersToCELabels);  
-
-    // This function should be called when the server returns analyzed COS content  
-    function displayAnalyzedContent(content) {
-      // Replace CE tags with interactive pills  
-      const updatedContentWithPills = replaceCETagsWithPills(content);
-      // Select the container where the COS content should be displayed  
-      const cosContentContainer = document.getElementById('cos-content-container');
-      // Check if the container exists  
-      if (cosContentContainer) {
-        // Update the container's HTML with the new content containing pills  
-        cosContentContainer.innerHTML = updatedContentWithPills;
-        // Add event listeners to the newly created pills  
-        addEventListenersToCEPills();
-      } else {
-        console.error('COS content container not found');
-      }
-    }
-  
-   
-    // Add a click event listener to each pill  
-    cePills.forEach((pill) => {
-      pill.addEventListener('click', (event) => {
-        // Extract the CE ID from the data attribute of the clicked pill  
-        const ceId = event.target.dataset.ceId;
-        
-        // Fetch and display the CE details using the CE ID  
-        fetchCEDetails(ceId);
-      });
-    });
-  
-    // Function to fetch CE details from the server and display them  
-    function fetchCEDetails(ceId) {
-      // Make an AJAX call to the server to fetch CE details by CE ID  
-      fetch(`/get_ce_by_id?ce_id=${ceId}`)
-        .then((response) => response.json())
-        .then((data) => {
-          if (data.ce) {
-            // If CE details are found, display them (e.g., in a modal or a dedicated section)  
-            displayCEDetails(data.ce);
-          } else {
-            console.error('CE details not found:', data);
-          }
-        })
-        .catch((error) => {
-          console.error('Error fetching CE details:', error);
-        });
-    }
-  
-    // Function to display CE details (e.g., in a modal)  
-    function displayCEDetails(ceData) {
-      const ceDetailsModal = document.getElementById('ceDetailsModal');
-      const ceContentElement = ceDetailsModal.querySelector('.ce-content');
-      const ceTypeElement = ceDetailsModal.querySelector('.ce-type');
-    
-      // Populate the modal fields with CE data  
-      ceContentElement.textContent = ceData.content;
-      ceTypeElement.textContent = ceData.condition_type;
-    
-      // Show the modal (this will depend on how your modals are implemented)  
-      $('#ceDetailsModal').modal('show');
-    }
-  
-    // Call the function to add event listeners once the DOM content is fully loaded  
-    document.addEventListener('DOMContentLoaded', () => {
-      addEventListenersToCEPills();
-    });
-  }
-}
+function addEventListenersToCELabels() {  
+  // Select all elements with the 'ce-label' class (or any other class or selector used for CE labels)  
+  const ceLabels = document.querySelectorAll('.ce-label');  
+  // Add a click event listener to each label  
+  ceLabels.forEach((label) => {  
+    label.addEventListener('click', (event) => {  
+      const ceId = event.target.dataset.ceId;  
+      // Fetch and display the CE details when a label is clicked  
+      fetchCEDetails(ceId);  
+    });  
+  });  
+}  

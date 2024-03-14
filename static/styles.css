@@ -279,6 +279,10 @@ body:before {
   margin-top: 1em;
 }
 
+body > main > div > div.row.outcome-header {  
+  padding-top: 20px;  
+}  
+
 /* Phase accordion styling */
 .accordion-header {
   color: #ffffff;
@@ -336,7 +340,7 @@ body:before {
 .badge-primary:not(.dropdown-toggle).dropdown-item:hover {
   color: #fff;
 
-  .bg-secondary {      
+  .bg-info {      
     background-color: #618cb1;      
   }      
         

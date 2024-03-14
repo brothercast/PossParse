@@ -1,11 +1,12 @@
 import os
 import json
+import uuid
 import pdfkit  
 import openai
 import requests
 import logging
-from app import app, db
-import uuid 
+from bs4 import BeautifulSoup 
+from app import app, USE_DATABASE
 from uuid import UUID
 from models import SSOL, COS, CE
 from flask_migrate import Migrate
@@ -13,7 +14,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask import Flask, Blueprint, render_template, request, flash, redirect, url_for, jsonify, make_response, current_app, send_from_directory
 from werkzeug.exceptions import BadRequest, NotFound
 from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data, generate_structured_solution, get_cos_by_guid
-from speculate import get_badge_class_from_status, get_cos_by_id, delete_cos_by_id, extract_conditional_elements, update_cos_by_id, USE_DATABASE
+from speculate import get_badge_class_from_status, get_cos_by_id, delete_cos_by_id, extract_conditional_elements, update_cos_by_id
 from datetime import datetime
 from dotenv import load_dotenv
 from speculate import create_cos, get_cos_by_id, update_cos_by_id, delete_cos_by_id, get_badge_class_from_status, get_ce_by_id, analyze_cos, extract_conditional_elements  
@@ -48,9 +49,14 @@ app.jinja_env.filters['get_badge_class_from_status'] = get_badge_class_from_stat
 
 routes_bp = Blueprint('routes_bp', __name__)  
 
-@routes_bp.route('/')
-def index():
-    return render_template('input.html')
+@routes_bp.route('/favicon.ico')  
+def favicon():  
+    return send_from_directory(os.path.join(current_app.root_path, 'static'),  
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')   
+
+@routes_bp.route('/')  
+def index():  
+    return render_template('input.html')  
 
 @routes_bp.route('/about')
 def about():
@@ -147,24 +153,27 @@ def save_as_pdf(ssol_id):
         current_app.logger.error(f"Exception in save_as_pdf: {e}")  
         return jsonify(success=False, error=str(e)), 500  
     
-@routes_bp.route('/update_cos/<uuid:cos_id>', methods=['PUT'])    
-def update_cos_route(cos_id):    
-    try:    
-        data = request.get_json()    
-        if not data:    
-            raise BadRequest('No JSON payload received')    
-            
-        update_result = update_cos_by_id(cos_id, data)    
-        if update_result['success']:    
-            # The updated COS should be included in the response  
-            return jsonify(success=True, cos=update_result['cos']), 200    
-        else:    
-            return jsonify(success=False, error=update_result.get('message', 'An error occurred')), 404    
-            
-    except BadRequest as e:    
-        return jsonify(error=str(e)), 400    
-    except Exception as e:    
-        return jsonify(error=str(e)), 500  
+@routes_bp.route('/update_cos/<uuid:cos_id>', methods=['PUT'])  
+def update_cos_route(cos_id):  
+    try:  
+        data = request.get_json()  
+        if not data:  
+            raise BadRequest('No JSON payload received')  
+  
+        # Convert UUID to string for consistency  
+        cos_id_str = str(cos_id)  
+        update_result = update_cos_by_id(cos_id_str, data)  
+  
+        if update_result['success']:  
+            return jsonify(success=True, cos=update_result['cos']), 200  
+        else:  
+            return jsonify(success=False, error=update_result['message']), 404  
+  
+    except BadRequest as e:  
+        return jsonify(error=str(e)), 400  
+    except Exception as e:  
+        current_app.logger.error(f"Error updating COS with ID {cos_id}: {e}", exc_info=True)  
+        return jsonify(error="An unexpected error occurred while updating the COS."), 500  
 
     
 @routes_bp.route('/delete_cos/<uuid:cos_id>', methods=['DELETE'])  
@@ -186,8 +195,6 @@ def delete_cos_route(cos_id):
         logging.error(f"Unexpected error occurred: {e}", exc_info=True)  
         return jsonify(success=False, error=str(e)), 500  
 
-
-
 @routes_bp.route('/get_ce_by_id', methods=['GET'])
 def get_ce_by_id_route():
     ce_id = request.args.get('ce_id')
@@ -195,38 +202,49 @@ def get_ce_by_id_route():
     ce_data = ce.to_dict() if ce else None
     return jsonify(ce=ce_data) if ce_data else jsonify(error="CE not found"), 404
 
-@routes_bp.route('/analyze_cos/<uuid:cos_id>', methods=['GET'])        
-def analyze_cos_route(cos_id):        
-    cos = get_cos_by_id(cos_id)        
-    if not cos:        
-        logging.warning(f"analyze_cos_route: COS with ID {cos_id} not found.")      
-        return jsonify(analyzed_cos=[]), 404        
-  
-    try:      
-        analyzed_data = analyze_cos(cos['content'])       
-        conditional_elements = analyzed_data.get('ces', [])      
-        content_with_ce = analyzed_data.get('content_with_ce', '')  
-  
-        # If using a database, store the analyzed CEs in the database  
-        if USE_DATABASE:  
-            for ce in conditional_elements:  
-                new_ce = CE(content=ce['content'], cos_id=cos['id'])  
-                db.session.add(new_ce)  
-            db.session.commit()  
-            conditional_elements = [ce.to_dict() for ce in cos.conditional_elements]  # Convert CE objects to dictionaries  
-  
-        else:  
-            # If not using a database, store the analyzed CEs in an in-memory store  
-            for ce in conditional_elements:  
-                ce_id = str(uuid.uuid4())  # Generate a UUID for CE  
-                ce_store[ce_id] = {'id': ce_id, 'content': ce['content']}  
-            conditional_elements = list(ce_store.values())  # Get all CEs from in-memory store  
-  
-        return jsonify(analyzed_cos=conditional_elements, content_with_ce=content_with_ce)      
-    
-    except Exception as e:    
-        logging.error(f"Error analyzing COS with ID {cos_id}: {e}")    
-        return jsonify(error=str(e)), 500  
+@routes_bp.route('/analyze_cos/<string:cos_id>', methods=['GET'])
+def analyze_cos_route(cos_id):
+    try:
+        # Try to convert the cos_id string to a UUID
+        uuid_cos_id = uuid.UUID(cos_id)
 
-# Register the Blueprint
-app.register_blueprint(routes_bp)
+        # Convert UUID to string for consistency
+        cos_id_str = str(uuid_cos_id)
+
+        current_app.logger.debug(f"Starting analysis for COS with ID: {cos_id_str}")
+
+        # Perform the analysis by calling the helper function
+        analysis_result = analyze_cos_by_id(cos_id_str)
+
+        if not analysis_result['success']:
+            error_message = analysis_result['message']
+            current_app.logger.warning(f"Analysis failed for COS with ID {cos_id_str}. Reason: {error_message}")
+            return jsonify(error=error_message), 404 if error_message == "COS not found." else 500
+
+        current_app.logger.debug(f"Analysis complete for COS with ID: {cos_id_str}")
+        return jsonify(analysis_result), 200
+
+    except ValueError:
+        # If the cos_id is not a valid UUID, return an error response
+        current_app.logger.error(f"Invalid COS ID: {cos_id}")
+        return jsonify(error="Invalid COS ID"), 400
+
+    except Exception as e:
+        current_app.logger.error(f"Error analyzing COS with ID {cos_id}: {e}", exc_info=True)
+        return jsonify(error="An unexpected error occurred while analyzing the COS."), 500
+  
+def analyze_cos_by_id(cos_id_str):    
+    # Log the incoming request for analysis  
+    current_app.logger.info(f"Request received to analyze COS with ID: {cos_id_str}")    
+    
+    # Retrieve the COS from the data store  
+    cos = COS.query.get(cos_id_str) if USE_DATABASE else cos_store.get(cos_id_str)    
+    
+    if cos:    
+        current_app.logger.info(f"COS with ID {cos_id_str} found. Analyzing content.")    
+        # Call the analyze_cos function from utilities.py to perform the actual analysis  
+        return analyze_cos(cos.content if USE_DATABASE else cos['content'])    
+    
+    # Log a warning if the COS was not found and return an appropriate message  
+    current_app.logger.warning(f"COS with ID {cos_id_str} not found.")    
+    return {'success': False, 'message': "COS not found."}  

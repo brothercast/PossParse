@@ -4,161 +4,152 @@ import json
 import uuid
 import logging
 from uuid import UUID
+from bs4 import BeautifulSoup 
+from app import USE_DATABASE, db  
 from ce_nodes import NODES
+from models import session  
 from sqlalchemy.exc import SQLAlchemyError
 from utilities import generate_chat_response
-from app import ssol_store, cos_store, ce_store ,db
+from models import COS, CE, SSOL, COS_CE_Link  
+from store import ssol_store, cos_store, ce_store  
 from sqlalchemy.orm import relationship, sessionmaker
 from flask import render_template, jsonify, current_app
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, Date, ForeignKey, create_engine
 
-# Flag to toggle database usage  
-USE_DATABASE = False  # Set to True when you want to use the database  
-Base = declarative_base()
 
-# Database Configuration
-db_uri = os.environ.get("SQLALCHEMY_DATABASE_URI")
-_engine = create_engine(db_uri)
-Session = sessionmaker(bind=_engine)
-session = Session()
-
-class SSOL(Base):
-    __tablename__ = "ssol"
-
-    id = Column(Integer, primary_key=True)
-    goal = Column(String)
-    summary = Column(String)
-
-    cos = relationship("COS", back_populates="ssol")
-
-class COS(Base):
-    __tablename__ = "cos"
-
-    id = Column(Integer, primary_key=True)
-    content = Column(String)
-    status = Column(String)
-    accountable_party = Column(String)
-    completion_date = Column(Date)
-
-    ssol_id = Column(Integer, ForeignKey("ssol.id"))  
-    ssol = relationship("SSOL", back_populates="cos")  
-    conditional_elements = relationship("CE", back_populates="cos")  
-
-class CE(Base):
-    __tablename__ = "ce"
-
-    id = Column(Integer, primary_key=True)
-    content = Column(String)
-    status = Column(String)
-    accountable_party = Column(String)
-    completion_date = Column(Date)
-
-    cos_id = Column(Integer, ForeignKey("cos.id"))
-    cos = relationship("COS", back_populates="conditional_elements")
-
-logging.basicConfig(level=logging.WARNING)  
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s') 
 
 def create_cos(ssol_id, content, status, accountable_party=None, completion_date=None):  
-    global cos_store  # Ensure we're using the global cos_store  
-    
-    # Generate a new UUID for the COS ID  
-    cos_id = str(uuid.uuid4())  
-    
-    # Create a new COS dictionary  
-    new_cos = {  
-        'id': cos_id,  
-        'ssol_id': ssol_id,  
-        'content': content,  
-        'status': status,  
-        'accountable_party': accountable_party,  
-        'completion_date': completion_date  
-    }  
-    
-    # Store the new COS in cos_store  
-    cos_store[cos_id] = new_cos  
-    
-    # Log the creation of the new COS  
-    current_app.logger.info(f"COS created with ID {cos_id} and content: '{content}' stored in memory.")  
-    
-    # Optionally, log the entire cos_store to verify its contents  
-    current_app.logger.debug(f"Current state of cos_store: {cos_store}")  
-    
-    # Return the new COS ID  
-    return cos_id  
+    try:  
+        # Analyze the COS content to identify conditional elements  
+        analyzed_content = analyze_cos(content)  
+        content_with_ce = analyzed_content['content_with_ce']  
+  
+        if USE_DATABASE:  
+            # Create a new COS instance  
+            cos = COS(content=content_with_ce, status=status, accountable_party=accountable_party,  
+                      completion_date=completion_date, ssol_id=ssol_id)  
+            db.session.add(cos)  
+  
+            # Create and link CEs to the COS  
+            for ce_data in analyzed_content['ces']:  
+                ce = CE(content=ce_data['content'], node_type=ce_data['ce_type'])  
+                db.session.add(ce)  
+                cos.conditional_elements.append(ce)  
+  
+            # Commit the transaction to the database  
+            db.session.commit()  
+            logging.info(f"COS with ID {cos.id} created and committed to the database.")  
+            return cos.id  
+  
+        else:  
+            # Generate a unique ID for the in-memory COS  
+            cos_id = str(uuid.uuid4())  
+            cos = {'id': cos_id, 'content': content_with_ce, 'status': status, 'ssol_id': ssol_id}  
+            cos_store[cos_id] = cos  
+  
+            # Store each CE in the in-memory store  
+            for ce_data in analyzed_content['ces']:  
+                ce_id = str(uuid.uuid4())  
+                ce = {'id': ce_id, 'content': ce_data['content'], 'node_type': ce_data['ce_type']}  
+                ce_store[ce_id] = ce  
+                cos['conditional_elements'] = cos.get('conditional_elements', []) + [ce]  
+  
+            logging.info(f"COS with ID {cos_id} created in the in-memory store.")  
+            return cos_id  
+  
+    except Exception as e:  
+        logging.error(f"Error creating COS: {e}", exc_info=True)  
+        if USE_DATABASE:  
+            db.session.rollback()  # Rollback the session in case of an error when using the database  
+        raise  # Reraise the exception to allow the caller to handle it  
 
-def get_cos_by_id(cos_id):      
-    try:    
-        # Check the data store for the COS with the given ID  
-        if USE_DATABASE:      
-            cos = session.query(COS).filter_by(id=cos_id).first()      
-        else:      
-            cos = cos_store.get(str(cos_id))  # Convert UUID to string for in-memory store    
-        if cos:    
-            logging.info(f"Found COS with ID {cos_id}")    
-        else:    
-            logging.warning(f"COS with ID {cos_id} not found.")    
-        return cos    
-    except Exception as e:    
-        logging.error(f"Error retrieving COS with ID {cos_id}: {e}")    
-        return None    
+
+def get_cos_by_id(cos_id):  
+    from app import USE_DATABASE 
+    if USE_DATABASE:  
+        return COS.query.get(cos_id)  
+    else:  
+        return cos_store.get(str(cos_id))  
  
 
-# Function to analyze COS and identify potential conditional elements  
-def analyze_cos(cos_content):    
-    # Define the prompt for the AI to identify conditional elements  
-    prompt = f"Given a condition of satisfaction '{cos_content}', identify potential conditional elements and their node types. The available node types are as follows: {', '.join(NODES.keys())}."    
-    messages = [    
-        {"role": "system", "content": "You are responsible for analyzing a condition of satisfaction (COS) and identifying potential conditional elements."},    
-        {"role": "user", "content": prompt},    
+def analyze_cos(cos_content):      
+    # Define the prompt for the AI to identify conditional elements      
+    prompt = ("Identify the conditional elements within the following condition of satisfaction: '{}'. "  
+              "Format each conditional element with tags like so: <ce>element</ce>.").format(cos_content)  
+    messages = [      
+        {"role": "system", "content": ("You are an AI that identifies conditional elements within a text. "  
+                                       "Format each conditional element with tags like so: <ce>element</ce>.")},      
+        {"role": "user", "content": prompt},      
     ]    
-    response_text = generate_chat_response(messages, role='COS Analysis', task='Analyze COS', temperature=0.6)    
+  
+    try:      
+        # Log the attempt to analyze the COS content    
+        logging.debug("Analyzing COS content to identify conditional elements.")    
+  
+        # Send messages to the AI and get the response    
+        response_text = generate_chat_response(messages)    
+  
+        # Log the response received from the AI    
+        logging.debug("Received response from AI for COS analysis: {}".format(response_text))    
+  
+        # Extract conditional elements from the response text    
+        analysis_results = extract_conditional_elements(response_text, cos_content)    
+  
+        # Log the successful extraction of conditional elements    
+        logging.debug("Conditional elements extracted successfully.")    
+  
+        return analysis_results    
+  
+    except Exception as e:      
+        # Log the error and return a default structure with the original content and an empty list of CEs    
+        logging.error("Exception occurred during COS analysis: {}".format(e), exc_info=True)    
+        return {'content_with_ce': cos_content, 'ces': []}  
+  
+def extract_conditional_elements(response_text):  
+    from app import db
+    # Use regular expressions to find all occurrences of conditional elements.  
+    # The AI response should format them as: <ce>element</ce>  
+    matches = re.findall(r'<ce>(.*?)</ce>', response_text, re.IGNORECASE)  
+    ces = []  
+  
+    for match in matches:  
+        content = match.strip()  
+        # Check if this content already exists as a CE  
+        existing_ce = CE.query.filter_by(content=content).first()  
+        if existing_ce:  
+            # If it exists, use the existing CE's ID  
+            ces.append({'id': existing_ce.id, 'content': content})  
+        else:  
+            # If not, create a new CE and assign a new UUID  
+            ce_uuid = str(uuid.uuid4())  
+            # Create a new CE in the database  
+            new_ce = CE(id=ce_uuid, content=content)  
+            db.session.add(new_ce)  
+            db.session.commit()  
+            ces.append({'id': ce_uuid, 'content': content})  
+  
+    # Return a list of dictionaries, each containing the CE ID and content.  
+    return ces  
     
-    # Extract CE information from GPT-3.5 Turbo response    
-    ce_list = extract_conditional_elements(response_text)    
-    parsed_ce_list = []    
+def extract_conditional_elements(response_text, original_content):  
+    ces = []  
+    # Use regex or other methods provided by the AI service to extract CEs  
+    # Here we use a placeholder regex that looks for <ce> tags  
+    matches = re.findall(r'<ce>(.*?)</ce>', response_text, re.IGNORECASE)  
+    content_with_ce = original_content  
   
-    # Parse and format each CE entry  
-    for ce_entry in ce_list:    
-        # Ensure that 'content' is treated as a string  
-        ce_content = ce_entry['content'] if isinstance(ce_entry.get('content'), str) else ''    
-        ce_type = ce_entry.get('node_type', 'Unknown')  # Use 'get' to provide a default value for 'node_type'  
+    for match in matches:  
+        ce_content = match.strip()  
+        ce_uuid = str(uuid.uuid4())  
+        content_with_ce = content_with_ce.replace(ce_content, f'<span class="ce-pill" data-ce-id="{ce_uuid}">{ce_content}</span>')  
+        ces.append({'id': ce_uuid, 'content': ce_content, 'ce_type': 'Unknown'})  # You can replace 'Unknown' with actual logic to determine the CE type  
   
-        # Log the type and value of ce_content before stripping  
-        print(f"Before strip(): type(ce_content) = {type(ce_content)}, ce_content = {ce_content}")  
-  
-        # Perform the strip operation with a type check  
-        ce_content_stripped = ce_content.strip() if isinstance(ce_content, str) else ''   
-  
-        # Generate a new UUID for the CE ID  
-        ce_uuid = str(uuid.uuid4())    
-  
-        # Replace placeholders with UUIDs  
-        cos_content = cos_content.replace(ce_content_stripped, f'<span class="ce-pill" data-ce-id="{ce_uuid}">{ce_content_stripped}</span>')    
-  
-        parsed_ce_list.append({  
-            "id": ce_uuid,   
-            "content": ce_content_stripped,   
-            "ce_type": ce_type  
-        })  
-  
-    return {'content_with_ce': cos_content, 'ces': parsed_ce_list}  
-
-def extract_conditional_elements(response_text):    
-    try:  
-        # Log the response text to debug it    
-        print(f"Response Text: {response_text}")  
-        response_data = json.loads(response_text)    
-        conditional_elements = response_data.get('conditional_elements', [])    
-        return conditional_elements    
-    except json.JSONDecodeError as e:    
-        print(f"Error in extracting conditional elements: {e}")    
-        # Log the problematic response text    
-        print(f"Response Text (Error): {response_text}")  
-        return []  
-  
+    return {'content_with_ce': content_with_ce, 'ces': ces} 
 
 def update_cos_by_id(cos_id, updated_data):        
+    from app import db, USE_DATABASE 
     try:        
         # If using database, convert UUID to string for query  
         cos_id_str = str(cos_id) if isinstance(cos_id, UUID) else cos_id    
@@ -196,6 +187,7 @@ def update_cos_by_id(cos_id, updated_data):
         return {'success': False, 'message': f"Unexpected error occurred: {e}"}  
 
 def delete_cos_by_id(cos_id, ssol_id=None):    
+    from app import USE_DATABASE 
     if USE_DATABASE:    
         # Database operation    
         cos = session.query(COS).filter_by(id=cos_id).first()    
@@ -222,20 +214,6 @@ def extract_conditional_elements(response):
     except json.JSONDecodeError as e:
         print(f"Error in extracting conditional elements: {e}")
         return []
-
-def analyze_ce_type(request):
-    try:
-        ce_content = request.get_json()['ce_content']
-        ce_type = None
-
-        # Iterate through the ce_types in ce_nodes.py and check if it appears in the ce_content
-        for ce_type, values in NODES.items():
-            if ce_type in ce_content:
-                break
-        
-        return jsonify(ce_type=ce_type)
-    except Exception as e:
-        return jsonify(error=str(e))
 
 # Function to analyze the COS content and extract the CE type(s)
 def analyze_ce_type(request):
@@ -266,26 +244,28 @@ def get_ce_type(ce_content):
     else:
         return ""
     
-# CRUD operations for SSOL
+# CRUD operations for SSOL  
 def create_ssol(goal, summary):  
-    global ssol_store  
-    if USE_DATABASE:
-        ssol = SSOL(goal=goal, summary=summary)
-        session.add(ssol)
-        session.commit()
-        return ssol.id
+    from app import db, USE_DATABASE 
+    if USE_DATABASE:  
+        ssol = SSOL(goal=goal, summary=summary)  
+        db.session.add(ssol)  
+        db.session.commit()  
+        return ssol.id  
     else:  
-        ssol_id = len(ssol_store) + 1  
+        ssol_id = str(uuid.uuid4())  
         ssol_store[ssol_id] = {'id': ssol_id, 'goal': goal, 'summary': summary}  
-        return ssol_id
+        return ssol_id 
 
 def get_ssol_by_id(ssol_id):  
+    from app import db, USE_DATABASE 
     if USE_DATABASE:  
-        return session.query(SSOL).filter_by(id=ssol_id).first()  
+        return SSOL.query.get(ssol_id)  
     else:  
-        return ssol_store.get(ssol_id)  
+        return ssol_store.get(ssol_id) 
   
 def update_ssol_by_id(ssol_id, updated_data):  
+    from app import db, USE_DATABASE 
     if USE_DATABASE:  
         ssol = session.query(SSOL).filter_by(id=ssol_id).first()  
         for key, value in updated_data.items():  
@@ -297,6 +277,7 @@ def update_ssol_by_id(ssol_id, updated_data):
             ssol.update(updated_data)  
   
 def delete_ssol_by_id(ssol_id):  
+    from app import db, USE_DATABASE 
     if USE_DATABASE:  
         ssol = session.query(SSOL).filter_by(id=ssol_id).first()  
         session.delete(ssol)  
@@ -306,38 +287,27 @@ def delete_ssol_by_id(ssol_id):
         return bool(ssol)  # Returns True if an SSOL was deleted, False otherwise 
 
 
-def create_ce(cos_id, content, status, accountable_party, completion_date):  
+def create_ce(content, node_type):  
+    from app import db, USE_DATABASE 
     if USE_DATABASE:  
-        ce = CE(  
-            content=content,  
-            status=status,  
-            accountable_party=accountable_party,  
-            completion_date=completion_date,  
-            cos_id=cos_id,  
-        )  
-        session.add(ce)  
-        session.commit()  
+        ce = CE(content=content, node_type=node_type)  
+        db.session.add(ce)  
+        db.session.commit()  
         return ce.id  
     else:  
-        ce_id = str(uuid.uuid4())  # Generate a unique UUID for the CE  
-        ce_store[ce_id] = {  
-            'id': ce_id,  
-            'content': content,  
-            'status': status,  
-            'accountable_party': accountable_party,  
-            'completion_date': completion_date,  
-            'cos_id': cos_id  
-        }  
+        ce_id = str(uuid.uuid4())  
+        ce_store[ce_id] = {'id': ce_id, 'content': content, 'node_type': node_type}  
         return ce_id  
   
 def get_ce_by_id(ce_id):  
+    from app import USE_DATABASE 
     if USE_DATABASE:  
-        ce = session.query(CE).filter_by(id=ce_id).first()  
-        return ce  
+        return CE.query.get(ce_id)  
     else:  
-        return ce_store.get(ce_id)  
+        return ce_store.get(str(ce_id))  
   
 def update_ce_by_id(ce_id, updated_data):  
+    from app import USE_DATABASE 
     if USE_DATABASE:  
         ce = session.query(CE).filter_by(id=ce_id).first()  
         for key, value in updated_data.items():  
@@ -349,6 +319,7 @@ def update_ce_by_id(ce_id, updated_data):
             ce.update(updated_data)  
   
 def delete_ce_by_id(ce_id):  
+    from app import db, USE_DATABASE 
     if USE_DATABASE:  
         ce = session.query(CE).filter_by(id=ce_id).first()  
         session.delete(ce)  
@@ -361,6 +332,7 @@ def delete_ce_by_id(ce_id):
   
 # Function to generate the appropriate card based on the CE type  
 def generate_card(ce_type, ce_id):  
+    from app import db, USE_DATABASE 
     if ce_type in NODES:  
         node = NODES[ce_type]  
         # If using a database, render a template with data fetched from the database  
@@ -378,46 +350,82 @@ def generate_card(ce_type, ce_id):
     else:  
         return ""
     
-# speculate.py  
   
-# ... (other imports and code) ...  
-  
-# Function to analyze COS and identify potential conditional elements  
-def analyze_cos(cos_content):  
-    prompt = f"Given a condition of satisfaction '{cos_content}', identify potential conditional elements that can be further expanded upon. Each conditional element should be formatted as a dictionary with the 'content' key representing the element's content. The available node types are as follows: {', '.join(NODES.keys())}."  
-    messages = [  
-        {"role": "system", "content": "You are responsible for analyzing a condition of satisfaction (COS) and identifying potential conditional elements."},  
-        {"role": "user", "content": prompt},  
+def analyze_cos(cos_content):      
+    # Define the prompt for the AI to identify conditional elements      
+    prompt = f"Identify the conditional elements within the following condition of satisfaction: '{cos_content}'. Format each conditional element with tags like so: <ce>element</ce>."  
+    messages = [      
+        {"role": "system", "content": "You are an AI that identifies conditional elements within a text. Format each conditional element with tags like so: <ce>element</ce>."},      
+        {"role": "user", "content": prompt},      
     ]  
-    response_text = generate_chat_response(messages, role='COS Analysis', task='Analyze COS', temperature=0.6)  
   
-    # Extract CE information from GPT-3.5 Turbo response  
-    ce_list = extract_conditional_elements(response_text)  
-    parsed_ce_list = []  
+    try:      
+        # Log the attempt to analyze the COS content    
+        logging.debug("Analyzing COS content to identify conditional elements.")    
   
-    # Parse and format each CE entry  
-    for ce_entry in ce_list:  
-        ce_content = ce_entry.strip().capitalize()  
-        ce_type = get_ce_type(ce_content)  
-          
-        # Generate a new UUID for the CE ID  
-        ce_uuid = str(uuid.uuid4())  
-          
-        # Replace placeholders with UUIDs  
-        cos_content = cos_content.replace(f"[CE]{ce_content}[/CE]", f'<span class="ce-pill" data-ce-id="{ce_uuid}">{ce_content}</span>')  
-          
-        parsed_ce_list.append({"id": ce_uuid, "content": ce_content, "ce_type": ce_type})  
+        # Send messages to the AI and get the response    
+        response_text = generate_chat_response(messages)    
   
-    return {'content_with_ce': cos_content, 'ces': parsed_ce_list} 
+        # Log the response received from the AI    
+        logging.debug("Received response from AI for COS analysis: {}".format(response_text))    
+  
+        # Parse the HTML response if necessary (using BeautifulSoup or similar library)  
+        soup = BeautifulSoup(response_text, 'html.parser')  
+        # Extract the summary or the necessary information  
+        summary = soup.find('div', {'class': 'container'}).text if soup.find('div', {'class': 'container'}) else ''  
+  
+        # Assume the rest of the response contains structured data in JSON format within a <script> tag  
+        structured_data = json.loads(soup.find('script', type='application/json').text) if soup.find('script', type='application/json') else {}  
+  
+        # Combine the summary and structured data into the analysis results  
+        analysis_results = {  
+            'summary': summary,  
+            'structured_data': structured_data  
+        }  
+  
+        # Log the successful extraction of conditional elements    
+        logging.debug("Conditional elements extracted successfully.")    
+  
+        return analysis_results    
+  
+    except Exception as e:      
+        # Log the error and return a default structure with the original content and an empty list of CEs    
+        logging.error(f"Exception occurred during COS analysis: {e}", exc_info=True)    
+        return {'summary': cos_content, 'structured_data': {}
+        }
 
 def get_badge_class_from_status(status):    
     return {    
-        'Proposed': 'bg-secondary',    
+        'Proposed': 'bg-info',    
         'In Progress': 'bg-warning text-dark',  # Added text-dark for better contrast  
         'Completed': 'bg-success',    
         'Rejected': 'bg-danger'    
     }.get(status, 'bg-secondary')  # Default to 'bg-secondary' if status is not found 
  
     # Ensure database or in-memory store is initialized based on USE_DATABASE flag  
-def initialize_data_store():  
+def initialize_data_store():
+    from app import USE_DATABASE, Base, _engine   
     Base.metadata.create_all(_engine) if USE_DATABASE else None  
+
+def check_data_store_contents(data_store_type='in_memory'):  
+    if data_store_type == 'in_memory':  
+        try:  
+            # Print contents of the in-memory store  
+            for cos_id_str, cos_data in cos_store.items():  
+                logging.info(f"COS ID: {cos_id_str}, Data: {cos_data}")  
+        except NameError:  
+            logging.warning("In-memory store 'cos_store' not found.")  
+    elif data_store_type == 'database' and USE_DATABASE:  
+        try:  
+            # Query all entries in the COS table and print them  
+            cos_entries = COS.query.all()  
+            for entry in cos_entries:  
+                logging.info(f"COS ID: {entry.id}, Data: {entry}")  
+        except Exception as e:  
+            logging.error(f"Database query failed with error: {e}")  
+    else:  
+        logging.error(f"Unknown data store type: {data_store_type}") 
+
+        if __name__ == '__main__':  
+            logging.info("Checking initial data store contents...")  
+            check_data_store_contents('database' if USE_DATABASE else 'in_memory')  

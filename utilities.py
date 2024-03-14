@@ -6,7 +6,7 @@ import time
 import uuid
 import warnings  
 from PIL import Image
-from app import ssol_store, cos_store, ce_store  
+from store import ssol_store, cos_store, ce_store  
 from flask import current_app, flash 
 from dotenv import load_dotenv
 from openai import AzureOpenAI
@@ -25,7 +25,7 @@ stability_api_key = os.getenv("STABILITY_KEY")
 azure_openai_client = AzureOpenAI(  
     azure_endpoint=azure_oai_endpoint,  
     api_key=azure_oai_key,  
-    api_version="2023-12-01-preview"  
+    api_version="2024-02-15-preview"  
 )
 
 class Logger:
@@ -89,81 +89,88 @@ def generate_chat_response(messages, role, task, temperature=0.75, retries=3, ba
     # Raise the last exception if all retries fail
     raise last_exception
  
-def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None):    
-    # Initialize outcome_data with default keys and values    
-    outcome_data = {    
-        'user_input': '',    
-        'selected_goal': selected_goal,    
-        'domain_icon': domain_icon,    
-        'domain': domain,    
-        'ssol_id': None,    
-        'ssol_summary': "An error occurred while processing the summary data.",    
-        'phases': {},    
-        'generated_image_path': 'images/sspec_default.png'    
-    }   
-  
-    if method == 'POST':  
-        user_input = request.form.get('user_text', '').strip()  
-    else:  
-        user_input = request.args.get('user_text', '').strip()  
-  
-    outcome_data['user_input'] = user_input         
-        
-    # Generate or retrieve an SSOL instance and get the id      
-    ssol_instance = next((ssol for ssol in ssol_store.values() if ssol['title'] == selected_goal), None)      
-    if not ssol_instance:      
-        ssol_id = str(uuid.uuid4())  # Generate a unique SSOL ID using UUID      
-        ssol_instance = {'id': ssol_id, 'title': selected_goal, 'domain': domain, 'domain_icon': domain_icon}      
-        ssol_store[ssol_id] = ssol_instance      
-    ssol_id = ssol_instance['id']  # Retrieve the SSOL ID      
-    outcome_data['ssol_id'] = ssol_id   
-      
-    # Generate the high-level summary      
-    messages = [      
-        {"role": "system", "content": "Assuming it is possible to fulfill any outcome and working backwards, generate a high-level summary (key name: summary) of everything required for the goal as a fulfilled by some point in the future, including any existing legal, scientific, logistic or other barriers which needed to be addressed for completion."},      
-        {"role": "user", "content": f"Generate a high-level, elegantly-formatted summary for the goal: '{selected_goal}'. Please format the summary using Bootstrap safe HTML, including tags such as <br> for line breaks and ordered lists."}      
-    ]      
-    try:      
-        response_content = generate_chat_response(messages, role='Outcome Generation', task='Generate High-Level Summary')      
-        response_data = json.loads(response_content)      
-        outcome_data['ssol_summary'] = response_data.get('summary', "Summary not available.")      
-    except Exception as e:      
-        current_app.logger.error(f"Error in generate_outcome_data (summary): {e}", exc_info=True)      
-      
-    # Generate the structured solution      
-    messages = [      
-        {"role": "system", "content": "You are an ethics-bound AI that determines conditions of satisfaction needed to complete a given goal across these phases: Discovery, Engagement, Action, Completion, and Legacy, based on first principles. For each phase, please speculate a set of specific, measurable Conditions of Satisfaction (COS) in the past tense, which when met, ensure or indicate project completion. Ensure that the COS are specific to the goal and follow a logical progression through the phases. Provide the response in JSON format, with each phase as a key and its COS as an array of strings."},      
-        {"role": "user", "content": f"Generate a Structured Solution which fulfills the following goal: '{selected_goal}'. Provide between 2 to 5 specific, measurable Conditions of Satisfaction (COS) for each phase: Discovery, Engagement, Action, Completion, and Legacy, in JSON format."}      
-    ]      
-    try:      
-        response_content = generate_chat_response(messages, role='Structured Solution Generation', task='Generate Structured Solution')      
-        response_json = json.loads(response_content)      
-        outcome_data['phases'] = {  
-        'discovery': [{'id': (cos_id := str(uuid.uuid4())), 'content': cos, 'status': 'Proposed'} for cos in response_json.get('Discovery', [])],  
-        'engagement': [{'id': (cos_id := str(uuid.uuid4())), 'content': cos, 'status': 'Proposed'} for cos in response_json.get('Engagement', [])],  
-        'action': [{'id': (cos_id := str(uuid.uuid4())), 'content': cos, 'status': 'Proposed'} for cos in response_json.get('Action', [])],  
-        'completion': [{'id': (cos_id := str(uuid.uuid4())), 'content': cos, 'status': 'Proposed'} for cos in response_json.get('Completion', [])],  
-        'legacy': [{'id': (cos_id := str(uuid.uuid4())), 'content': cos, 'status': 'Proposed'} for cos in response_json.get('Legacy', [])],  
+def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None):      
+    # Initialize outcome_data with default keys and values      
+    outcome_data = {      
+        'user_input': '',      
+        'selected_goal': selected_goal,      
+        'domain_icon': domain_icon,      
+        'domain': domain,      
+        'ssol_id': None,      
+        'ssol_summary': "An error occurred while processing the summary data.",      
+        'phases': {},      
+        'generated_image_path': 'images/sspec_default.png'      
     }  
+      
+    if method == 'POST':    
+        user_input = request.form.get('user_text', '').strip()    
+    else:    
+        user_input = request.args.get('user_text', '').strip()  
+      
+    outcome_data['user_input'] = user_input  
+      
+    # Generate or retrieve an SSOL instance and get the id  
+    ssol_instance = next((ssol for ssol in ssol_store.values() if ssol['title'] == selected_goal), None)  
+    if not ssol_instance:  
+        ssol_id = str(uuid.uuid4())  # Generate a unique SSOL ID using UUID  
+        ssol_instance = {'id': ssol_id, 'title': selected_goal, 'domain': domain, 'domain_icon': domain_icon}  
+        ssol_store[ssol_id] = ssol_instance  
+    ssol_id = ssol_instance['id']  # Retrieve the SSOL ID  
+    outcome_data['ssol_id'] = ssol_id  
+      
+    # Generate the high-level summary  
+    messages = [  
+        {"role": "system", "content": "Assuming it is possible to fulfill any outcome and working backwards, generate a high-level summary (key name: summary) of everything required for the goal as fulfilled by some point in the future, including any existing legal, scientific, logistic or other barriers which needed to be addressed for completion."},  
+        {"role": "user", "content": f"Generate a high-level, elegantly-formatted summary for the goal: '{selected_goal}'. Please format the summary using Bootstrap safe HTML, including tags such as <br> for line breaks and ordered lists."}  
+    ]  
+    try:  
+        response_content = generate_chat_response(messages, role='Outcome Generation', task='Generate High-Level Summary')  
+        response_data = json.loads(response_content)  
+        outcome_data['ssol_summary'] = response_data.get('summary', "Summary not available.")  
+    except Exception as e:  
+        current_app.logger.error(f"Error in generate_outcome_data (summary): {e}", exc_info=True)  
+      
+    # Generate the structured solution  
+    messages = [  
+        {"role": "system", "content": "You are an ethics-bound AI that determines conditions of satisfaction needed to complete a given goal across these phases: Discovery, Engagement, Action, Completion, and Legacy, based on first principles. For each phase, please speculate a set of specific, measurable Conditions of Satisfaction (COS) in the past tense, which when met, ensure or indicate project completion. Ensure that the COS are specific to the goal and follow a logical progression through the phases. Additionally, identify any conditional elements within the COS and wrap them with <ce> tags. Provide the response in JSON format, with each phase as a key and its COS as an array of strings."},  
+        {"role": "user", "content": f"Generate a Structured Solution which fulfills the following goal: '{selected_goal}'. Provide between 2 to 5 specific, measurable Conditions of Satisfaction (COS) for each phase: Discovery, Engagement, Action, Completion, and Legacy, in JSON format. Include conditional elements wrapped in <ce> tags."}  
+    ]  
+    
+    try:  
+        from speculate import extract_conditional_elements  
+        response_content = generate_chat_response(messages, role='Structured Solution Generation', task='Generate Structured Solution')  
+        response_json = json.loads(response_content)  
+        outcome_data['phases'] = {}  
+        
+        for phase in ['Discovery', 'Engagement', 'Action', 'Completion', 'Legacy']:  
+            phase_cos_list = response_json.get(phase, [])  
+            cos_list_with_ce = []  
+            
+            for cos_content in phase_cos_list:  
+                cos_id = str(uuid.uuid4())  
+                # Extract and store conditional elements  
+                ces = extract_conditional_elements(cos_content)  
+                cos_list_with_ce.append({'id': cos_id, 'content': cos_content, 'status': 'Proposed', 'ces': ces})  
+                
+                # Add each COS to the cos_store  
+                cos_store[cos_id] = {'id': cos_id, 'content': cos_content, 'status': 'Proposed', 'ces': ces}  
+            
+            outcome_data['phases'][phase] = cos_list_with_ce  
+    
+    except Exception as e:  
+        current_app.logger.error(f"Error in generate_outcome_data (structured solution): {e}", exc_info=True)  
   
-        # Add each COS to the cos_store  
-        for phase, cos_list in outcome_data['phases'].items():  
-            for cos in cos_list:  
-                cos_store[cos['id']] = cos  
-      
-    except Exception as e:      
-        current_app.logger.error(f"Error in generate_outcome_data (structured solution): {e}", exc_info=True)      
-      
-    # Generate an image using Stability AI      
-    try:      
-        image_prompt = f"A visually stunning futuristic illustration depicting '{selected_goal}' as a fulfilled goal, isometric, Mary Blair, 1962"      
-        web_image_path = generate_image(image_prompt, selected_goal)      
-        outcome_data['generated_image_path'] = web_image_path      
-    except Exception as e:      
-        current_app.logger.error(f"Error generating image: {e}", exc_info=True)      
-        outcome_data['generated_image_path'] = 'images/sspec_default.png'      
+    # Generate an image using Stability AI  
+    try:  
+        image_prompt = f"A vibrant, visually stunning futuristic illustration depicting '{selected_goal}' as a fulfilled goal, isometric, Mary Blair, 1962"  
+        web_image_path = generate_image(image_prompt, selected_goal)  
+        outcome_data['generated_image_path'] = web_image_path  
+    except Exception as e:  
+        current_app.logger.error(f"Error generating image: {e}", exc_info=True)  
+        outcome_data['generated_image_path'] = 'images/sspec_default.png'  
       
     return outcome_data  
+
     
 
 def analyze_user_input(text):

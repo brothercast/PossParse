@@ -225,21 +225,30 @@ function handlePhaseTableClick(event) {
   }  
 }  
 
-// Function to fetch and display analyzed COS content  
+// Function to fetch and display analyzed COS for a given COS ID  
 function fetchAndDisplayAnalyzedCOS(cosId) {  
   fetch(`/analyze_cos/${cosId}`)  
-      .then(response => response.json())  
+      .then(handleResponse)  
       .then(data => {  
-          if (data && data.content_with_ce) {  
-              const cosElement = document.querySelector(`#cos-${cosId}`);  
-              cosElement.innerHTML = data.content_with_ce;  
-              initializeCEPillEventListeners(); // Initialize event listeners for CE pills  
-          }  
+          updateCOSContent(data.content_with_ce);  
       })  
       .catch(error => {  
-          console.error('Error fetching analyzed COS:', error);  
+          displayError(`Failed to analyze COS: ${error}`);  
       });  
 }  
+
+  
+// Event listener to fetch and display analyzed COS content after DOM content is fully loaded  
+document.addEventListener('DOMContentLoaded', () => {  
+  const analyzeButtons = document.querySelectorAll('.analyze-cos-button');  
+  analyzeButtons.forEach(button => {  
+    button.addEventListener('click', function () {  
+      const cosId = this.getAttribute('data-cos-id');  
+      fetchAndDisplayAnalyzedCOS(cosId);  
+    });  
+  });  
+});  
+
 
 // Function to add event listeners to CE pills  
 function initializeCEPillEventListeners() {  
