@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from app import app, USE_DATABASE
 from uuid import UUID
 from models import SSOL, COS, CE
+from store import ce_store, cos_store, ssol_store
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask import Flask, Blueprint, render_template, request, flash, redirect, url_for, jsonify, make_response, current_app, send_from_directory
@@ -38,11 +39,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Optionally to suppress w
 
 # Configure logging  
 logging.basicConfig(level=logging.WARNING)   
-
-# In-memory store  
-ssol_store = {} 
-cos_store = {} 
-ce_store = {}
 
 # Register the custom Jinja filter function
 app.jinja_env.filters['get_badge_class_from_status'] = get_badge_class_from_status
@@ -195,56 +191,42 @@ def delete_cos_route(cos_id):
         logging.error(f"Unexpected error occurred: {e}", exc_info=True)  
         return jsonify(success=False, error=str(e)), 500  
 
-@routes_bp.route('/get_ce_by_id', methods=['GET'])
-def get_ce_by_id_route():
-    ce_id = request.args.get('ce_id')
-    ce = get_ce_by_id(ce_id)
-    ce_data = ce.to_dict() if ce else None
-    return jsonify(ce=ce_data) if ce_data else jsonify(error="CE not found"), 404
+@routes_bp.route('/get_ce_by_id', methods=['GET'])  
+def get_ce_by_id_route():  
+    ce_id = request.args.get('ce_id')  
+    ce = get_ce_by_id(ce_id)  # Ensure this function is adapted to handle both DB and in-memory  
+    ce_data = ce.to_dict() if ce else None  
+    return jsonify(ce=ce_data) if ce_data else jsonify(error="CE not found"), 404  
 
-@routes_bp.route('/analyze_cos/<string:cos_id>', methods=['GET'])
-def analyze_cos_route(cos_id):
-    try:
-        # Try to convert the cos_id string to a UUID
-        uuid_cos_id = uuid.UUID(cos_id)
+@app.route('/analyze_cos/<string:cos_id>', methods=['GET'])  
+def analyze_cos_route(cos_id):  
+    logging.info(f"Analyzing COS with ID: {cos_id}")
+    try:  
+        analysis_result = analyze_cos_by_id(cos_id)  
+        if analysis_result['success']:  
+            return jsonify(analysis_result['analysis_results']), 200  
+        else:  
+            return jsonify({'error': analysis_result['message']}), 404  
+    except ValueError:  
+        return jsonify({'error': "Invalid COS ID"}), 400  
+    except Exception as e:  
+        return jsonify({'error': str(e)}), 500  
 
-        # Convert UUID to string for consistency
-        cos_id_str = str(uuid_cos_id)
-
-        current_app.logger.debug(f"Starting analysis for COS with ID: {cos_id_str}")
-
-        # Perform the analysis by calling the helper function
-        analysis_result = analyze_cos_by_id(cos_id_str)
-
-        if not analysis_result['success']:
-            error_message = analysis_result['message']
-            current_app.logger.warning(f"Analysis failed for COS with ID {cos_id_str}. Reason: {error_message}")
-            return jsonify(error=error_message), 404 if error_message == "COS not found." else 500
-
-        current_app.logger.debug(f"Analysis complete for COS with ID: {cos_id_str}")
-        return jsonify(analysis_result), 200
-
-    except ValueError:
-        # If the cos_id is not a valid UUID, return an error response
-        current_app.logger.error(f"Invalid COS ID: {cos_id}")
-        return jsonify(error="Invalid COS ID"), 400
-
-    except Exception as e:
-        current_app.logger.error(f"Error analyzing COS with ID {cos_id}: {e}", exc_info=True)
-        return jsonify(error="An unexpected error occurred while analyzing the COS."), 500
-  
-def analyze_cos_by_id(cos_id_str):    
-    # Log the incoming request for analysis  
-    current_app.logger.info(f"Request received to analyze COS with ID: {cos_id_str}")    
-    
-    # Retrieve the COS from the data store  
-    cos = COS.query.get(cos_id_str) if USE_DATABASE else cos_store.get(cos_id_str)    
-    
-    if cos:    
-        current_app.logger.info(f"COS with ID {cos_id_str} found. Analyzing content.")    
-        # Call the analyze_cos function from utilities.py to perform the actual analysis  
-        return analyze_cos(cos.content if USE_DATABASE else cos['content'])    
-    
-    # Log a warning if the COS was not found and return an appropriate message  
-    current_app.logger.warning(f"COS with ID {cos_id_str} not found.")    
-    return {'success': False, 'message': "COS not found."}  
+def analyze_cos_by_id(cos_id_str):      
+    try:  
+        # Attempt to retrieve the COS from the database or in-memory store  
+        cos = COS.query.get(cos_id_str) if USE_DATABASE else cos_store.get(cos_id_str)  
+          
+        if not cos:  
+            # COS not found, return a consistent error response  
+            return {'success': False, 'message': "COS not found."}  
+          
+        # Assuming analyze_cos performs the actual analysis and returns results  
+        analysis_results = analyze_cos(cos.content if USE_DATABASE else cos['content'])  
+          
+        # Return structured response indicating success and including the analysis results  
+        return {'success': True, 'analysis_results': analysis_results}  
+      
+    except Exception as e:  
+        # Catch any unexpected errors and return a structured error response  
+        return {'success': False, 'message': f"An unexpected error occurred: {str(e)}"}  

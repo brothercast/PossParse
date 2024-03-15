@@ -100,3 +100,16 @@ function addEventListenersToCELabels() {
     });  
   });  
 }  
+
+document.querySelectorAll('.ce-pill').forEach(pill => {  
+  pill.addEventListener('click', event => {  
+    const ceId = event.target.dataset.ceId;  
+    fetch(`/get_ce_details/${ceId}`)  
+      .then(response => response.json())  
+      .then(data => {  
+        if (data.ce) {  
+          showCEDetailsModal(data.ce);  
+        }  
+      });  
+  });  
+});  

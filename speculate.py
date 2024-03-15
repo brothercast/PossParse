@@ -72,67 +72,53 @@ def get_cos_by_id(cos_id):
         return COS.query.get(cos_id)  
     else:  
         return cos_store.get(str(cos_id))  
- 
-
-def analyze_cos(cos_content):      
-    # Define the prompt for the AI to identify conditional elements      
-    prompt = ("Identify the conditional elements within the following condition of satisfaction: '{}'. "  
-              "Format each conditional element with tags like so: <ce>element</ce>.").format(cos_content)  
-    messages = [      
-        {"role": "system", "content": ("You are an AI that identifies conditional elements within a text. "  
-                                       "Format each conditional element with tags like so: <ce>element</ce>.")},      
-        {"role": "user", "content": prompt},      
-    ]    
-  
-    try:      
-        # Log the attempt to analyze the COS content    
-        logging.debug("Analyzing COS content to identify conditional elements.")    
-  
-        # Send messages to the AI and get the response    
-        response_text = generate_chat_response(messages)    
-  
-        # Log the response received from the AI    
-        logging.debug("Received response from AI for COS analysis: {}".format(response_text))    
-  
-        # Extract conditional elements from the response text    
-        analysis_results = extract_conditional_elements(response_text, cos_content)    
-  
-        # Log the successful extraction of conditional elements    
-        logging.debug("Conditional elements extracted successfully.")    
-  
-        return analysis_results    
-  
-    except Exception as e:      
-        # Log the error and return a default structure with the original content and an empty list of CEs    
-        logging.error("Exception occurred during COS analysis: {}".format(e), exc_info=True)    
-        return {'content_with_ce': cos_content, 'ces': []}  
-  
-def extract_conditional_elements(response_text):  
-    from app import db
-    # Use regular expressions to find all occurrences of conditional elements.  
-    # The AI response should format them as: <ce>element</ce>  
-    matches = re.findall(r'<ce>(.*?)</ce>', response_text, re.IGNORECASE)  
-    ces = []  
-  
-    for match in matches:  
-        content = match.strip()  
-        # Check if this content already exists as a CE  
-        existing_ce = CE.query.filter_by(content=content).first()  
-        if existing_ce:  
-            # If it exists, use the existing CE's ID  
-            ces.append({'id': existing_ce.id, 'content': content})  
-        else:  
-            # If not, create a new CE and assign a new UUID  
-            ce_uuid = str(uuid.uuid4())  
-            # Create a new CE in the database  
-            new_ce = CE(id=ce_uuid, content=content)  
-            db.session.add(new_ce)  
-            db.session.commit()  
-            ces.append({'id': ce_uuid, 'content': content})  
-  
-    # Return a list of dictionaries, each containing the CE ID and content.  
-    return ces  
     
+def analyze_cos(cos_content):  
+    # Define the prompt for the AI to identify conditional elements        
+    prompt = (  
+        "Analyze the following condition of satisfaction (COS) and identify any conditional elements (CEs). "  
+        "Return a JSON object with the COS text and an array of CEs, each with its text and type."  
+        "\nCOS: '{}'"  
+        "\nExpected response format:"  
+        "{{"  
+        "  'COS': 'The full text of the COS',"  
+        "  'CEs': ["  
+        "    {{'text': 'A conditional element', 'type': 'The type of CE'}},"  
+        "    {{'text': 'Another conditional element', 'type': 'Another type of CE'}}"  
+        "  ]"  
+        "}}"  
+    ).format(cos_content)  
+      
+    messages = [  
+        {"role": "system", "content": "Return a JSON object with the analyzed COS and CEs."},  
+        {"role": "user", "content": prompt},  
+    ]  
+      
+    try:  
+        # Send messages to the AI and get the response      
+        response_text = generate_chat_response(messages)  
+        response_json = json.loads(response_text)  
+          
+        # Extract the COS and CEs from the response  
+        cos_text = response_json.get("COS", cos_content)  
+        ces = response_json.get("CEs", [])  
+          
+        # Process the CEs, such as storing them in the database  
+        stored_ces = []  
+        for ce in ces:  
+            new_ce = CE(content=ce["text"], node_type=ce["type"])  
+            db.session.add(new_ce)  
+            stored_ces.append(new_ce)  
+        db.session.commit()  
+          
+        return {'COS': cos_text, 'CEs': [ce.to_dict() for ce in stored_ces]}  
+          
+    except Exception as e:  
+        logging.error(f"Exception occurred during COS analysis: {e}", exc_info=True)  
+        db.session.rollback()  
+        return {'COS': cos_content, 'CEs': []}  
+  
+
 def extract_conditional_elements(response_text, original_content):  
     ces = []  
     # Use regex or other methods provided by the AI service to extract CEs  
@@ -351,48 +337,36 @@ def generate_card(ce_type, ce_id):
         return ""
     
   
-def analyze_cos(cos_content):      
-    # Define the prompt for the AI to identify conditional elements      
-    prompt = f"Identify the conditional elements within the following condition of satisfaction: '{cos_content}'. Format each conditional element with tags like so: <ce>element</ce>."  
-    messages = [      
-        {"role": "system", "content": "You are an AI that identifies conditional elements within a text. Format each conditional element with tags like so: <ce>element</ce>."},      
-        {"role": "user", "content": prompt},      
-    ]  
-  
-    try:      
-        # Log the attempt to analyze the COS content    
-        logging.debug("Analyzing COS content to identify conditional elements.")    
-  
-        # Send messages to the AI and get the response    
-        response_text = generate_chat_response(messages)    
-  
-        # Log the response received from the AI    
-        logging.debug("Received response from AI for COS analysis: {}".format(response_text))    
-  
-        # Parse the HTML response if necessary (using BeautifulSoup or similar library)  
-        soup = BeautifulSoup(response_text, 'html.parser')  
-        # Extract the summary or the necessary information  
-        summary = soup.find('div', {'class': 'container'}).text if soup.find('div', {'class': 'container'}) else ''  
-  
-        # Assume the rest of the response contains structured data in JSON format within a <script> tag  
-        structured_data = json.loads(soup.find('script', type='application/json').text) if soup.find('script', type='application/json') else {}  
-  
-        # Combine the summary and structured data into the analysis results  
-        analysis_results = {  
-            'summary': summary,  
-            'structured_data': structured_data  
+def analyze_cos(cos_content):  
+    # Define the pattern to match conditional elements within brackets  
+    ce_pattern = r"\[(.*?)\]"  
+      
+    try:  
+        # Extract all conditional elements from the COS content  
+        ces = re.findall(ce_pattern, cos_content)  
+          
+        # Remove the conditional elements from the original COS content  
+        # This step might be optional depending on whether you want to keep the CE markers in the COS text  
+        cos_content_cleaned = re.sub(ce_pattern, "", cos_content).strip()  
+          
+        # Prepare the structured data based on the extracted CEs  
+        structured_data = {  
+            'cos_content': cos_content_cleaned,  
+            'conditional_elements': [{'content': ce} for ce in ces]  
         }  
+          
+        # Log the successful extraction of conditional elements  
+        logging.debug("Conditional elements extracted successfully: {}".format(structured_data))  
+          
+        return structured_data  
   
-        # Log the successful extraction of conditional elements    
-        logging.debug("Conditional elements extracted successfully.")    
-  
-        return analysis_results    
-  
-    except Exception as e:      
-        # Log the error and return a default structure with the original content and an empty list of CEs    
-        logging.error(f"Exception occurred during COS analysis: {e}", exc_info=True)    
-        return {'summary': cos_content, 'structured_data': {}
-        }
+    except Exception as e:  
+        # Log the error and return a simplified structure with the original content  
+        logging.error(f"Exception occurred during COS analysis: {e}", exc_info=True)  
+        return {  
+            'cos_content': cos_content,  
+            'conditional_elements': []  
+        }  
 
 def get_badge_class_from_status(status):    
     return {    
