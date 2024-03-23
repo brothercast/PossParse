@@ -161,3 +161,4 @@ cython_debug/
 venv.ps1
 sspec_prompt.ps1
 SSPEC_template.txt
+SSPEC_template_v1_20240319.txt

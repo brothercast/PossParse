@@ -119,20 +119,28 @@ def analyze_cos(cos_content):
         return {'COS': cos_content, 'CEs': []}  
   
 
-def extract_conditional_elements(response_text, original_content):  
-    ces = []  
-    # Use regex or other methods provided by the AI service to extract CEs  
-    # Here we use a placeholder regex that looks for <ce> tags  
-    matches = re.findall(r'<ce>(.*?)</ce>', response_text, re.IGNORECASE)  
-    content_with_ce = original_content  
+import html  
   
-    for match in matches:  
-        ce_content = match.strip()  
-        ce_uuid = str(uuid.uuid4())  
-        content_with_ce = content_with_ce.replace(ce_content, f'<span class="ce-pill" data-ce-id="{ce_uuid}">{ce_content}</span>')  
-        ces.append({'id': ce_uuid, 'content': ce_content, 'ce_type': 'Unknown'})  # You can replace 'Unknown' with actual logic to determine the CE type  
+def extract_conditional_elements(response_text, original_content):    
+    ces = []    
+    try:  
+        # Use regex to extract CEs from response_text  
+        matches = re.findall(r'<ce>(.*?)</ce>', response_text, re.IGNORECASE)  
+        content_with_ce = original_content    
   
-    return {'content_with_ce': content_with_ce, 'ces': ces} 
+        for match in matches:    
+            ce_content = html.escape(match.strip())  # Escape HTML special characters  
+            ce_uuid = str(uuid.uuid4())    
+            # Replace only the first occurrence of the matched CE content  
+            content_with_ce = re.sub(rf'<ce>\s*{re.escape(match.strip())}\s*</ce>', f'<span class="ce-pill" data-ce-id="{ce_uuid}">{ce_content}</span>', content_with_ce, count=1)  
+            ces.append({'id': ce_uuid, 'content': ce_content, 'ce_type': 'Unknown'})  
+    
+        return {'content_with_ce': content_with_ce, 'ces': ces}  
+    except Exception as e:  
+        # Handle any errors that occur during the extraction process  
+        logging.error(f"Error extracting conditional elements: {e}", exc_info=True)  
+        return {'content_with_ce': original_content, 'ces': []}  
+
 
 def update_cos_by_id(cos_id, updated_data):        
     from app import db, USE_DATABASE 
@@ -191,15 +199,6 @@ def delete_cos_by_id(cos_id, ssol_id=None):
             return True  # COS was deleted successfully    
         return False  # COS did not exist or did not match the provided SSOL_ID 
 
-# Helper function to extract conditional elements from GPT-3.5's response
-def extract_conditional_elements(response):
-    try:
-        response_json = json.loads(response)
-        conditional_elements = response_json.get("conditional_elements", [])
-        return conditional_elements
-    except json.JSONDecodeError as e:
-        print(f"Error in extracting conditional elements: {e}")
-        return []
 
 # Function to analyze the COS content and extract the CE type(s)
 def analyze_ce_type(request):
@@ -335,38 +334,47 @@ def generate_card(ce_type, ce_id):
         return template  
     else:  
         return ""
-    
+
+def parse_ai_response_and_generate_html(ai_response):  
+    # Initialize an empty array to hold HTML strings for each COS  
+    cos_html_list = []  
   
-def analyze_cos(cos_content):  
-    # Define the pattern to match conditional elements within brackets  
-    ce_pattern = r"\[(.*?)\]"  
-      
+    for phase, details in ai_response.items():  
+        cos_html = ""  
+        for cos in details.get("Conditions_of_Satisfaction", []):  
+            # Replace CEs in the COS string with HTML pills  
+            for ce in details.get("Conditional_Elements", []):  
+                ce_html = f'<span class="badge rounded-pill bg-info ce-pill" data-ce-id="{ce["id"]}" data-ce-type="{ce["type"]}">{ce["content"]}</span>'  
+                cos = cos.replace(ce["content"], ce_html)  
+            cos_html += f'<p>{cos}</p>'  
+          
+        cos_html_list.append({phase: cos_html})  
+  
+    return cos_html_list  
+  
+def analyze_cos(cos_content):    
     try:  
-        # Extract all conditional elements from the COS content  
-        ces = re.findall(ce_pattern, cos_content)  
+        # Assume cos_content is the JSON response from the AI  
+        # Let's parse the JSON into a Python dictionary  
+        cos_json = json.loads(cos_content)  
           
-        # Remove the conditional elements from the original COS content  
-        # This step might be optional depending on whether you want to keep the CE markers in the COS text  
-        cos_content_cleaned = re.sub(ce_pattern, "", cos_content).strip()  
+        # Use the parse_ai_response_and_generate_html function  
+        # to convert the AI response into HTML  
+        structured_solution_html = parse_ai_response_and_generate_html(cos_json)  
           
-        # Prepare the structured data based on the extracted CEs  
-        structured_data = {  
-            'cos_content': cos_content_cleaned,  
-            'conditional_elements': [{'content': ce} for ce in ces]  
-        }  
-          
-        # Log the successful extraction of conditional elements  
-        logging.debug("Conditional elements extracted successfully: {}".format(structured_data))  
-          
-        return structured_data  
+        # Return the structured HTML content  
+        return structured_solution_html  
   
-    except Exception as e:  
-        # Log the error and return a simplified structure with the original content  
+    except json.JSONDecodeError as e:  
+        # If there's an error parsing the JSON, log it  
+        logging.error(f"JSON decode error during COS analysis: {e}", exc_info=True)  
+        return None  
+  
+    except Exception as e:    
+        # If there's a different error, log it  
         logging.error(f"Exception occurred during COS analysis: {e}", exc_info=True)  
-        return {  
-            'cos_content': cos_content,  
-            'conditional_elements': []  
-        }  
+        return None  
+
 
 def get_badge_class_from_status(status):    
     return {    

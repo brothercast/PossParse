@@ -72,7 +72,7 @@ def generate_chat_response(messages, role, task, temperature=0.75, retries=3, ba
                 response_format={"type": "json_object"},
                 messages=messages_with_json,
                 temperature=temperature,
-                max_tokens=350
+                max_tokens=1100
             )
             response_content = response.choices[0].message.content
             Logger.log_message(f"SSPEC Response ({role} - {task}): {response_content}", 'debug')
@@ -89,87 +89,129 @@ def generate_chat_response(messages, role, task, temperature=0.75, retries=3, ba
     # Raise the last exception if all retries fail
     raise last_exception
    
-def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None):  
-    # Initialize outcome_data with default keys and values  
-    outcome_data = {  
-        'user_input': '',  
-        'selected_goal': selected_goal,  
-        'domain_icon': domain_icon,  
-        'domain': domain,  
-        'ssol_id': None,  
-        'ssol_summary': "An error occurred while processing the summary data.",  
-        'phases': {},  
-        'generated_image_path': 'images/sspec_default.png'  
-    }  
-  
-    if method == 'POST':  
-        user_input = request.form.get('user_text', '').strip()  
-    else:  
-        user_input = request.args.get('user_text', '').strip()  
-  
-    outcome_data['user_input'] = user_input  
-  
-    # Generate or retrieve an SSOL instance and get the id  
-    ssol_instance = next((ssol for ssol in ssol_store.values() if ssol['title'] == selected_goal), None)  
-    if not ssol_instance:  
-        ssol_id = str(uuid.uuid4())  # Generate a unique SSOL ID using UUID  
-        ssol_instance = {'id': ssol_id, 'title': selected_goal, 'domain': domain, 'domain_icon': domain_icon}  
-        ssol_store[ssol_id] = ssol_instance  
-    ssol_id = ssol_instance['id']  # Retrieve the SSOL ID  
-    outcome_data['ssol_id'] = ssol_id  
-  
-    # Generate the high-level summary  
-    summary_messages = [  
-        {"role": "system", "content": "Assuming it is possible to fulfill any outcome and working backwards, generate a high-level summary (key name: summary) of everything required for the goal as fulfilled by some point in the future, including any existing legal, scientific, logistic or other barriers which needed to be addressed for completion."},  
-        {"role": "user", "content": f"Generate a high-level, elegantly-formatted summary for the goal: '{selected_goal}'. Please format the summary using Bootstrap safe HTML, including tags such as <br> for line breaks and ordered lists."}  
-    ]  
-    try:  
-        summary_response_content = generate_chat_response(summary_messages, role='Outcome Generation', task='Generate High-Level Summary')  
-        summary_response_data = json.loads(summary_response_content)  
-        outcome_data['ssol_summary'] = summary_response_data.get('summary', "Summary not available.")  
-    except Exception as e:  
-        current_app.logger.error(f"Error in generate_outcome_data (summary): {e}", exc_info=True)  
-  
-    # Generate the structured solution  
-    structured_solution_messages = [  
-        {"role": "system", "content": "You are an ethics-bound AI that determines conditions of satisfaction needed to complete a given goal across these phases: Discovery, Engagement, Action, Completion, and Legacy, based on first principles. For each phase, please speculate a set of specific, measurable Conditions of Satisfaction (COS) in the past tense, which when met, ensure or indicate project completion. Ensure that the COS are specific to the goal and follow a logical progression through the phases. Additionally, identify any conditional elements within the COS and wrap them with <ce> tags. Provide the response in JSON format, with each phase as a key and its COS as an array of strings."},  
-        {"role": "user", "content": f"Generate a Structured Solution which fulfills the following goal: '{selected_goal}'. Provide between 2 to 5 specific, measurable Conditions of Satisfaction (COS) for each phase: Discovery, Engagement, Action, Completion, and Legacy, in JSON format. Include conditional elements wrapped in <ce> tags."}  
-    ]  
-    try:  
-        structured_solution_response_content = generate_chat_response(structured_solution_messages, role='Structured Solution Generation', task='Generate Structured Solution')  
-        structured_solution_response_json = json.loads(structured_solution_response_content)  
-        outcome_data['phases'] = {}  
-  
-        for phase in ['Discovery', 'Engagement', 'Action', 'Completion', 'Legacy']:  
-            phase_cos_list = structured_solution_response_json.get(phase, [])  
-            cos_list_with_ce = []  
-  
-            for cos_content in phase_cos_list: 
-                from speculate import extract_conditional_elements 
-                cos_id = str(uuid.uuid4())  
-                # Extract and store conditional elements  
-                ces = extract_conditional_elements(cos_content)  
-                cos_list_with_ce.append({'id': cos_id, 'content': cos_content, 'status': 'Proposed', 'ces': ces})  
-  
-                # Add each COS to the cos_store  
-                cos_store[cos_id] = {'id': cos_id, 'content': cos_content, 'status': 'Proposed', 'ces': ces}  
-  
-            outcome_data['phases'][phase] = cos_list_with_ce  
-  
-    except Exception as e:  
-        current_app.logger.error(f"Error in generate_outcome_data (structured solution): {e}", exc_info=True)  
-  
-    # Generate an image using Stability AI  
-    try:  
-        image_prompt = f"A vibrant, visually stunning futuristic illustration depicting '{selected_goal}' as a fulfilled goal, isometric, Mary Blair, 1962"  
-        web_image_path = generate_image(image_prompt, selected_goal)  
-        outcome_data['generated_image_path'] = web_image_path  
-    except Exception as e:  
-        current_app.logger.error(f"Error generating image: {e}", exc_info=True)  
-        outcome_data['generated_image_path'] = 'images/sspec_default.png'  
-  
-    return outcome_data  
+def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None):    
+    # Initialize outcome_data with default keys and values    
+    outcome_data = {    
+        'user_input': '',    
+        'selected_goal': selected_goal,    
+        'domain_icon': domain_icon,    
+        'domain': domain,    
+        'ssol_id': None,    
+        'ssol_summary': "An error occurred while processing the summary data.",    
+        'phases': {},    
+        'generated_image_path': 'images/sspec_default.png'    
+    }    
     
+    if method == 'POST':    
+        user_input = request.form.get('user_text', '').strip()    
+    else:    
+        user_input = request.args.get('user_text', '').strip()    
+    
+    outcome_data['user_input'] = user_input    
+    
+    # Generate or retrieve an SSOL instance and get the id    
+    ssol_instance = next((ssol for ssol in ssol_store.values() if ssol['title'] == selected_goal), None)    
+    if not ssol_instance:    
+        ssol_id = str(uuid.uuid4())    
+        ssol_instance = {'id': ssol_id, 'title': selected_goal, 'domain': domain, 'domain_icon': domain_icon}    
+        ssol_store[ssol_id] = ssol_instance    
+    ssol_id = ssol_instance['id']    
+    outcome_data['ssol_id'] = ssol_id    
+    
+    # Generate the high-level summary    
+    summary_messages  = [  
+        {"role": "system", "content": "Assuming it is possible to fulfill any outcome and working backwards, generate a high-level summary (key name: summary) of everything required for the goal as fulfilled by some point in the future, including any existing legal, scientific, logistic or other barriers which needed to be addressed for completion."},  
+        {"role": "user", "content": f"Generate a high-level, elegantly html-formatted summary for the goal: '{selected_goal}'. Format the summary using Bootstrap safe HTML, including tags such as <br> for line breaks and ordered lists."}  
+    ]  
+    try:    
+        summary_response_content = generate_chat_response(summary_messages, role='Outcome Generation', task='Generate High-Level Summary')    
+        summary_response_data = json.loads(summary_response_content)    
+        outcome_data['ssol_summary'] = summary_response_data.get('summary', "Summary not available.")    
+    except Exception as e:    
+        current_app.logger.error(f"Error in generate_outcome_data (summary): {e}", exc_info=True)    
+    
+    # Generate the structured solution    
+    structured_solution_messages = [  
+    {  
+        "role": "system",  
+        "content": (  
+            "You are an ethics-bound AI tasked with planning a project in phases. "  
+            "Generate specific, measurable Conditions of Satisfaction (COS) for each phase: "  
+            "Discovery, Engagement, Action, Completion, and Legacy. "  
+            "Each COS should include Conditional Elements (CEs) that may affect the COS and denote them with <ce> tags. "  
+            "Provide a brief explanation for each COS's importance and how it contributes to the overall goal. "  
+            "Format your response in JSON with each phase as a key and an array of COS, including any CEs."  
+        )  
+    },  
+    {  
+        "role": "user",  
+        "content": (  
+            f"Generate a Structured Solution for the project '{selected_goal}'. "  
+            "For each phase (Discovery, Engagement, Action, Completion, Legacy), provide 2 to 5 COS. "  
+            "For each COS, identify and label relevant CEs with unique IDs and their corresponding types from CE_nodes.py, using <ce> tags. "  
+            "Provide a brief explanation for each COS's importance and how it contributes to the overall goal. "  
+            "Format your response as a JSON object with each phase as a key and an array of COS objects. "  
+            "Each COS object should include the COS text, a unique ID, a status, and an array of CEs. "  
+            "Each CE should be a JSON object with 'id', 'content', and 'type' keys. "  
+            "Here is an example for the Discovery phase: "  
+            "{"  
+            "  'Discovery': ["  
+            "    {"  
+            "      'id': 'COS-001',"  
+            "      'content': '<ce id=\"CE-001\" type=\"Research\">Research</ce> the feasibility of creating a <ce id=\"CE-002\" type=\"Objective\">giant robotic crab monster</ce>',"  
+            "      'status': 'Proposed',"  
+            "      'explanation': 'Understanding the technical and practical aspects of creating a robotic crab monster is essential for project planning.',"  
+            "      'ces': ["  
+            "        {'id': 'CE-001', 'content': 'Research', 'type': 'Research'},"  
+            "        {'id': 'CE-002', 'content': 'giant robotic crab monster', 'type': 'Objective'}"  
+            "      ]"  
+            "    },"  
+            "    {"  
+            "      'id': 'COS-002',"  
+            "      'content': 'Identify potential <ce id=\"CE-003\" type=\"Risk\">environmental impacts</ce> and how to mitigate them',"  
+            "      'status': 'Proposed',"  
+            "      'explanation': 'Assessing environmental risks early on will help in developing sustainable practices.',"  
+            "      'ces': ["  
+            "        {'id': 'CE-003', 'content': 'environmental impacts', 'type': 'Risk'}"  
+            "      ]"  
+            "    }"  
+            "  ]"  
+            "}"  
+        )  
+    }  
+]  
+
+    try:    
+        structured_solution_response_content = generate_chat_response(structured_solution_messages, role='Structured Solution Generation', task='Generate Structured Solution')    
+        structured_solution_response_json = json.loads(structured_solution_response_content)    
+        outcome_data['phases'] = {}    
+    
+        for phase in ['Discovery', 'Engagement', 'Action', 'Completion', 'Legacy']:    
+            phase_cos_list = structured_solution_response_json.get(phase, {}).get('COS', [])    
+            cos_list_with_ce = []    
+    
+            for cos_content in phase_cos_list: 
+                from speculate import extract_conditional_elements   
+                cos_id = str(uuid.uuid4())    
+                ces = extract_conditional_elements(cos_content) if 'CEs' in structured_solution_response_json.get(phase, {}) else []    
+                cos_list_with_ce.append({'id': cos_id, 'content': cos_content, 'status': 'Proposed', 'ces': ces})    
+                cos_store[cos_id] = {'id': cos_id, 'content': cos_content, 'status': 'Proposed', 'ces': ces}    
+    
+            outcome_data['phases'][phase] = cos_list_with_ce    
+    
+    except Exception as e:    
+        current_app.logger.error(f"Error in generate_outcome_data (structured solution): {e}", exc_info=True)    
+    
+    # Generate an image using Stability AI    
+    try:    
+        image_prompt = f"A vibrant, visually stunning futuristic illustration depicting '{selected_goal}' as a fulfilled goal, isometric, Mary Blair, 1962"    
+        web_image_path = generate_image(image_prompt, selected_goal)    
+        outcome_data['generated_image_path'] = web_image_path    
+    except Exception as e:    
+        current_app.logger.error(f"Error generating image: {e}", exc_info=True)    
+        outcome_data['generated_image_path'] = 'images/sspec_default.png'    
+    
+    return outcome_data  
 
 def analyze_user_input(text):
     messages = [
@@ -362,55 +404,76 @@ def generate_image(prompt, goal_title, seed=None, width=512, height=512):
     placeholder_image_path = os.path.join('images', 'sspec_default.png').replace("\\", "/")  
     return placeholder_image_path
   
-def generate_structured_solution(selected_goal):  
+def generate_structured_solution(selected_goal):    
+    structured_solution = {}  
     system_message = {  
-        "role": "system",  
-        "content": (  
-            "You are an advanced AI tasked with generating a structured solution for a specified goal. "  
-            "Please include any Conditional Elements (CEs) related to each Condition of Satisfaction (COS) within brackets. "  
-            "Your response should be organized into phases: Discovery, Engagement, Action, Completion, and Legacy."  
-        )  
-    }  
+    "role": "system",  
+    "content": (  
+        "You are an AI that generates a structured solution for a project. "  
+        "For each phase of the project, generate Conditions of Satisfaction (COS) with embedded Conditional Elements (CEs). "  
+        "Use <ce> tags to denote CEs within the COS text. "  
+        "Return a JSON object with phases as keys and lists of COS objects as values. "  
+        "Each COS object should include the COS text with embedded CEs, a unique ID, and a status. "  
+        "Each CE should be represented within the COS text and also listed as a JSON object with 'id', 'content', and 'type' keys. "  
+        "The 'id' should be a unique identifier, the 'content' should describe the CE, and the 'type' should categorize the CE. "  
+        "The status for each COS should be set to 'Proposed'."  
+    )  
+}  
   
-    user_message = {  
-        "role": "user",  
-        "content": f"Generate a Structured Solution that fulfills the following goal: '{selected_goal}'."  
-    }  
-  
-    messages = [system_message, user_message]  
-  
-    response_text = generate_chat_response(messages, role='Structured Solution Generation', task='Generate Structured Solution')  
-  
-    try:  
-        response_json = json.loads(response_text)  
-        structured_solution = {'goal': selected_goal, 'phases': {}}  
-  
-        # Extract and structure CEs from the COS descriptions  
-        for phase, cos_list in response_json.items():  
-            structured_solution['phases'][phase] = []  
-            for cos in cos_list:  
-                # Extract CEs denoted in brackets and generate UUIDs for each  
-                cos_description, extracted_ces = cos, []  
-                matches = re.findall(r"\[(.*?)\]", cos)  
-                for match in matches:  
-                    ce_id = str(uuid.uuid4())  # Optionally: classify_ce(match) to determine CE type  
-                    extracted_ces.append({'id': ce_id, 'content': match})  
-                    # Replace the matched text with a marker for the CE (e.g., the CE ID or a placeholder)  
-                    cos_description = cos_description.replace(f'[{match}]', f'{{CE:{ce_id}}}', 1)  
-  
-                cos_id = str(uuid.uuid4())  
-                structured_solution['phases'][phase].append({  
-                    'id': cos_id,  
-                    'content': cos_description,  
-                    'status': 'Proposed',  
-                    'ces': extracted_ces  
-                })  
-  
-        return structured_solution  
-  
-    except json.JSONDecodeError as e:  
-        current_app.logger.error(f"Error in parsing JSON data: {e}")  
-        raise ValueError("Failed to parse JSON data from the response.")  
-    except KeyError as e:  
-        current_app.logger.error(f"Key error in AI response: {e}")  
-        raise ValueError(f"AI response is missing expected key: {e}")  
+user_message = {  
+    "role": "user",  
+    "content": (  
+        f"Generate a Structured Solution for the project '{selected_goal}'. "  
+        "For each phase (Discovery, Engagement, Action, Completion, Legacy), provide 2 to 5 COS. "  
+        "Within each COS text, identify and label relevant keywords as CEs using <ce> tags. "  
+        "Assign each CE a unique ID and a type that best describes its role or category in the context of the COS. "  
+        "Provide a brief explanation for each COS's importance and how it contributes to the overall goal. "  
+        "Format your response as a JSON object with each phase as a key and an array of COS objects. "  
+        "Ensure that the status for each COS is 'Proposed'."  
+    )  
+}  
+
+      
+    messages = [system_message, user_message]      
+      
+    try:      
+        response_text = generate_chat_response(      
+            messages,       
+            role='Structured Solution Generation',       
+            task='Generate Structured Solution',       
+            temperature=0.75,       
+            retries=3,       
+            backoff_factor=2      
+        )      
+          
+        # Check if the response is complete and valid JSON before parsing  
+        if response_text and response_text.strip().endswith('}'):  
+            response_json = json.loads(response_text)      
+        else:  
+            raise ValueError("Incomplete JSON response received from AI.")  
+          
+        # Iterate over the phases and extract the COS and CEs directly from the list  
+        structured_solution['phases'] = {  
+            phase: [  
+                {  
+                    'id': cos.get('id', str(uuid.uuid4())),  # Use existing ID or generate a new one  
+                    'status': 'Proposed',  # Set the status to "Proposed" directly  
+                    'cos_text': cos['text'],  # Use the 'text' key from the AI's response  
+                    'ces': cos.get('CEs', [])  # Use the 'CEs' key from the AI's response or default to an empty list  
+                }  
+                for cos in response_json.get(phase, [])  
+            ]  
+            for phase in ['Discovery', 'Engagement', 'Action', 'Completion', 'Legacy']  
+        }  
+              
+        return structured_solution  # Return the correctly structured solution    
+      
+    except json.JSONDecodeError as e:      
+        current_app.logger.error(f"Error parsing JSON response: {e}", exc_info=True)      
+        raise ValueError("Failed to parse JSON response.")      
+    except ValueError as e:  
+        current_app.logger.error(f"Error in generating structured solution: {e}", exc_info=True)      
+        raise  
+    except Exception as e:      
+        current_app.logger.error(f"Unexpected error in generating structured solution: {e}", exc_info=True)      
+        raise ValueError("Failed to generate structured solution.")
