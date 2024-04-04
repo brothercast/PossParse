@@ -14,7 +14,7 @@ from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask import Flask, Blueprint, render_template, request, flash, redirect, url_for, jsonify, make_response, current_app, send_from_directory
 from werkzeug.exceptions import BadRequest, NotFound
-from utilities import generate_goal, get_domain_icon_and_name, generate_structured_solution, generate_structured_solution
+from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data
 from speculate import get_badge_class_from_status, get_cos_by_id, delete_cos_by_id, update_cos_by_id, parse_ai_response_and_generate_html
 from datetime import datetime
 from dotenv import load_dotenv
@@ -79,41 +79,25 @@ def goal_selection():
 @routes_bp.route('/outcome', methods=['GET', 'POST'])  
 def outcome():  
     if request.method == 'POST':  
+        logging.info(f"Form data received: {request.form}")  
         selected_goal = request.form.get('selected_goal', '').strip()  
         domain = request.form.get('domain', '').strip()  
         domain_icon = request.form.get('domain_icon', '').strip()  
   
-        try:  
-            ai_response_raw = generate_structured_solution(selected_goal)  
-            current_app.logger.debug(f"AI Response before processing: {ai_response_raw}")  
-    
-            if ai_response_raw is None:  
-                current_app.logger.error(f"AI response is None after calling generate_structured_solution.")  
-                raise ValueError("The AI response is None.")  
-    
-            if 'phases' not in ai_response_raw:  
-                current_app.logger.error(f"Invalid AI response structure. Response: {ai_response_raw}")  
-                raise ValueError("Invalid AI response structure.")  
-    
-            current_app.logger.debug(f"AI Response after validation: {ai_response_raw}")  
-    
-            return render_template('outcome.html',  
-                                selected_goal=selected_goal,  
-                                domain=domain,  
-                                domain_icon=domain_icon,  
-                                ssol=ai_response_raw)  
-        except ValueError as e:  
-            current_app.logger.error(f"Error processing outcome: {e}", exc_info=True)  
-            flash(str(e), "error")   
-  
-        except Exception as e:  
-            current_app.logger.error(f"Unexpected error processing outcome: {e}", exc_info=True)  
-            flash("An unexpected error occurred while processing your request.", "error")  
-  
-        return redirect(url_for('routes_bp.index'))  
+        # Generate the outcome data and render the outcome page  
+        try:      
+            outcome_data = generate_outcome_data(request, 'POST', selected_goal, domain, domain_icon)  
+            # Use the returned 'outcome_data' to render the template  
+            return render_template('outcome.html', ssol=outcome_data)      
+        except Exception as e:    
+            app.logger.error(f"An error occurred while generating the outcome data: {e}")  
+            flash("An error occurred while generating the outcome data. Please try again.", "error")  
+            return redirect(url_for('routes_bp.index'))  
   
     flash("Invalid request method.", "error")  
     return redirect(url_for('routes_bp.index'))  
+
+
  
 @routes_bp.route('/save_as_pdf/<uuid:ssol_id>', methods=['POST'])  
 def save_as_pdf(ssol_id):  

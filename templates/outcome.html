@@ -1,58 +1,62 @@
-{% extends 'base.html' %}      
-      
-{% block content %}    
-<div class="container">    
-  <div class="row outcome-header">    
-    <div class="col-md-4 text-center">    
-      {% if ssol.generated_image_path %}    
-        <img src="{{ url_for('static', filename=ssol.generated_image_path) }}" alt="Generated Image" class="rounded mb-3 generated-image" style="width: 100%; max-width: 300px;">    
-      {% endif %}    
-      <h2>Domain</h2>    
-      <i class="{{ ssol.domain_icon }} fa-3x mb-3"></i>    
-      <p class="domain domain-text text-center">{{ ssol.domain | title }}</p>    
-      <h2>Fulfilled Goal</h2>    
-      <p><strong>{{ ssol.selected_goal | safe }}</strong></p>    
-    </div>      
+{% extends 'base.html' %}    
+    
+{% block content %}  
+<div class="container">  
+  <div class="row outcome-header">  
+    <div class="col-md-4 text-center">  
+      {% if ssol.generated_image_path %}  
+      <img src="{{ url_for('static', filename=ssol.generated_image_path) }}" alt="Generated Image" class="rounded mb-3 generated-image" style="width: 100%; max-width: 300px;">  
+      {% endif %}  
+      <h2>Domain</h2>  
+      <i class="{{ ssol.domain_icon }} fa-3x mb-3"></i>  
+      <p class="domain domain-text text-center">{{ ssol.domain | title }}</p>  
+      <h2>Fulfilled Goal</h2>  
+      <p><strong>{{ ssol.selected_goal | safe }}</strong></p>  
+      <div class="text-center mt-4">    
+        <button id="save-as-pdf-button" data-ssol-id="{{ ssol_id }}" class="btn btn-info" title="Save as PDF">    
+          <i class="fas fa-download me-2"></i>PDF    
+        </button>    
+      </div> 
+  </div>       
     <div class="col-md-8">    
       <h1>Preliminary Structured Solution</h1>    
       <p id="ssol-summary">{{ ssol.ssol_summary | safe }}</p>    
     </div>    
   </div>    
   
-  <div class="row">    
-    <h1>Phases & Conditions of Satisfaction</h1>    
-    <div class="col">    
-      <div class="accordion mt-4" id="phase-accordion">    
-        {% for phase, cos_list in ssol.phases.items() %}    
-        <div class="accordion-item">    
-          <h2 class="accordion-header" id="heading-{{ phase }}">    
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ phase }}" aria-expanded="false" aria-controls="collapse-{{ phase }}">    
-              {{ phase | title }}    
-            </button>    
-          </h2>    
-          <div id="collapse-{{ phase }}" class="accordion-collapse collapse" aria-labelledby="heading-{{ phase }}" data-bs-parent="#phase-accordion">    
+  <div class="row">      
+    <h1>Phases & Conditions of Satisfaction</h1>      
+    <div class="col" id="cos-content-container">     
+      <div class="accordion mt-4" id="phase-accordion">      
+        {% for phase, cos_list in ssol.phases.items() %}      
+        <div class="accordion-item">      
+          <h2 class="accordion-header" id="heading-{{ phase | replace(' ', '_') }}">      
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ phase | replace(' ', '_') }}" aria-expanded="false" aria-controls="collapse-{{ phase | replace(' ', '_') }}">      
+              {{ phase | title }}      
+            </button>      
+          </h2>      
+          <div id="collapse-{{ phase | replace(' ', '_') }}" class="accordion-collapse collapse" aria-labelledby="heading-{{ phase | replace(' ', '_') }}" data-bs-parent="#phase-accordion">      
             <div class="accordion-body">    
               {% for cos in cos_list %}    
-              <div class="cos-item">    
-                <p>{{ cos.content }}</p>    
-                <div>    
-                  {% for ce in cos.conditional_elements %}    
-                  <span class="badge rounded-pill bg-info" title="{{ ce.type }}">    
-                    {{ ce.content }}    
-                  </span>    
-                  {% endfor %}    
-                </div>    
-              </div>    
-              {% endfor %}    
-            </div>    
-          </div>    
-        </div>    
-        {% endfor %}    
-      </div>    
-    </div>    
-  </div>    
-</div>    
-  
+                <div class="cos-item">    
+                  <p>{{ cos.content | safe }}</p>    
+                  <div>    
+                    {% for ce in cos.ces %}    
+                    <span class="badge rounded-pill bg-info" title="{{ ce.type }}">    
+                      {{ ce.content }}   
+                    </span>     
+                    {% endfor %}      
+                  </div>      
+                </div>      
+              {% endfor %}      
+            </div>      
+          </div>      
+        </div>      
+        {% endfor %}      
+      </div>      
+    </div>      
+  </div>      
+</div>      
 <!-- Error Modal -->    
 <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">    
   <div class="modal-dialog">    
@@ -87,15 +91,16 @@
 </div>    
 {% endblock %}      
       
-{% block scripts %}        
-<script src="{{ url_for('static', filename='js/cos_table.js') }}"></script>        
-<script src="{{ url_for('static', filename='js/ce_table.js') }}"></script>        
-<script src="{{ url_for('static', filename='js/ce_cards.js') }}"></script>        
-<script>    
-  document.addEventListener('DOMContentLoaded', () => {    
-    // Initialize event listeners for COS table handling and CE cards/pills    
-    initializePhaseTableEventListeners();    
-    addEventListenersToCELabels();    
-  });    
-</script>     
+{% block scripts %}          
+<script src="{{ url_for('static', filename='js/cos_table.js') }}"></script>          
+<script src="{{ url_for('static', filename='js/ce_table.js') }}"></script>          
+<script src="{{ url_for('static', filename='js/ce_cards.js') }}"></script>          
+<script>      
+  document.addEventListener('DOMContentLoaded', () => {      
+    // Initialize event listeners for COS table handling  
+    initializePhaseTableEventListeners();      
+    // Removed addEventListenersToCELabels call  
+  });      
+</script>       
 {% endblock %}  
+

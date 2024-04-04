@@ -1,5 +1,6 @@
 import re
 import os
+import html
 import json
 import uuid
 import logging
@@ -9,7 +10,7 @@ from app import USE_DATABASE, db
 from ce_nodes import NODES
 from models import session  
 from sqlalchemy.exc import SQLAlchemyError
-from utilities import generate_chat_response
+from utilities import generate_chat_response, parse_ai_response_and_generate_html
 from models import COS, CE, SSOL, COS_CE_Link  
 from store import ssol_store, cos_store, ce_store  
 from sqlalchemy.orm import relationship, sessionmaker
@@ -118,8 +119,6 @@ def analyze_cos(cos_content):
         db.session.rollback()  
         return {'COS': cos_content, 'CEs': []}  
   
-
-import html  
   
 def extract_conditional_elements(response_text, original_content):    
     ces = []    
@@ -335,22 +334,6 @@ def generate_card(ce_type, ce_id):
     else:  
         return ""
 
-def parse_ai_response_and_generate_html(ai_response):  
-    # Initialize an empty array to hold HTML strings for each COS  
-    cos_html_list = []  
-  
-    for phase, details in ai_response.items():  
-        cos_html = ""  
-        for cos in details.get("Conditions_of_Satisfaction", []):  
-            # Replace CEs in the COS string with HTML pills  
-            for ce in details.get("Conditional_Elements", []):  
-                ce_html = f'<span class="badge rounded-pill bg-info ce-pill" data-ce-id="{ce["id"]}" data-ce-type="{ce["type"]}">{ce["content"]}</span>'  
-                cos = cos.replace(ce["content"], ce_html)  
-            cos_html += f'<p>{cos}</p>'  
-          
-        cos_html_list.append({phase: cos_html})  
-  
-    return cos_html_list  
   
 def analyze_cos(cos_content):    
     try:  
