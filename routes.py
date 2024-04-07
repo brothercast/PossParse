@@ -76,25 +76,27 @@ def goal_selection():
             flash("An error occurred while processing your request. Please try again.", "error")
     return redirect(url_for('index'))
 
-@routes_bp.route('/outcome', methods=['GET', 'POST'])  
-def outcome():  
-    if request.method == 'POST':  
-        logging.info(f"Form data received: {request.form}")  
-        selected_goal = request.form.get('selected_goal', '').strip()  
-        domain = request.form.get('domain', '').strip()  
-        domain_icon = request.form.get('domain_icon', '').strip()  
-  
-        # Generate the outcome data and render the outcome page  
-        try:      
-            outcome_data = generate_outcome_data(request, 'POST', selected_goal, domain, domain_icon)  
-            # Use the returned 'outcome_data' to render the template  
-            return render_template('outcome.html', ssol=outcome_data)      
-        except Exception as e:    
-            app.logger.error(f"An error occurred while generating the outcome data: {e}")  
-            flash("An error occurred while generating the outcome data. Please try again.", "error")  
-            return redirect(url_for('routes_bp.index'))  
-  
-    flash("Invalid request method.", "error")  
+@routes_bp.route('/outcome', methods=['GET', 'POST'])    
+def outcome():    
+    if request.method == 'POST':    
+        logging.info(f"Form data received: {request.form}")    
+        selected_goal = request.form.get('selected_goal', '').strip()    
+        domain = request.form.get('domain', '').strip()    
+        domain_icon = request.form.get('domain_icon', '').strip()    
+    
+        try:        
+            outcome_data = generate_outcome_data(request, 'POST', selected_goal, domain, domain_icon)    
+            # Debugging: Log the type and content of outcome_data  
+            logging.info(f"Type of outcome_data: {type(outcome_data)}")  
+            logging.info(f"Content of outcome_data: {outcome_data}")  
+            return render_template('outcome.html', ssol=outcome_data) 
+
+        except Exception as e:      
+            app.logger.error(f"An error occurred while generating the outcome data: {e}")    
+            flash("An error occurred while generating the outcome data. Please try again.", "error")    
+            return redirect(url_for('routes_bp.index'))    
+    
+    flash("Invalid request method.", "error")    
     return redirect(url_for('routes_bp.index'))  
 
 
