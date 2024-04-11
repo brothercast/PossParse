@@ -335,6 +335,17 @@ body > main > div > div.row.outcome-header {
   margin-right: 8px;  
 }  
 
+.ce-pill {  
+  display: inline-block; /* or other display property as needed */  
+  color: #fff !important;  
+  text-align: center;  
+  text-shadow: 1px 1px 0px #000000;  
+  padding: .25em .6em; /* Adjust padding as needed */  
+  font-size: 0.85em; 
+  border-radius: 10rem; /* Adjust for rounded corners */  
+  /* Additional styles specific to CE pills if needed */  
+}  
+
 .badge-primary,
 .badge-primary:not(.dropdown-toggle).dropdown-item:focus,
 .badge-primary:not(.dropdown-toggle).dropdown-item:hover {

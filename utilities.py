@@ -77,7 +77,7 @@ def generate_chat_response(messages, role, task, temperature=0.75, retries=3, ba
                 response_format={"type": "json_object"},
                 messages=messages_with_json,
                 temperature=temperature,
-                max_tokens=1500
+                max_tokens=1800
             )
             response_content = response.choices[0].message.content
             Logger.log_message(f"SSPEC Response ({role} - {task}): {response_content}", 'debug')
@@ -186,29 +186,36 @@ def generate_outcome_data(request, method, selected_goal=None, domain=None, doma
   
     # Generate the structured solution          
     structured_solution_messages = [  
-  {"role": "system", "content": "You are a helpful assistant. Generate detailed Conditions of Satisfaction (COS) and Conditional Elements (CE) for a project, including specific attributes for each CE." },        
-  {"role": "user", "content": (f"Generate a detailed Structured Solution for the project '{selected_goal}'. "          
-    "For each phase (Discovery, Engagement, Action, Completion, Legacy), provide 2 to 5 Conditions of Satisfaction (COS). "          
-    "For each COS, identify and label 1-3 relevant Conditional Elements (CE) with unique IDs. Delve into specifics such as resources, legislation, research, stakeholders, timelines, and any other critical elements that need to be captured and tracked. "          
-    "Assign the most specific type from CE_nodes.py to each CE, using <ce> tags. "          
-    "Consider potential interdependencies and the impact on other phases or aspects of the project. "          
-    "Format your response as a JSON object with each phase as a key and an array of COS objects. "          
-    "Each COS object should include the COS text, a unique ID, a status (Proposed), and an array of detailed CEs. "          
-    "Each CE should be a JSON object with 'id', 'content', 'status', and 'type' keys, along with any additional properties that convey the full scope and details of the CE. "              "Here is an example for the Discovery phase: "
-            "'Discovery': ["
-            "    {"
-            "      'id': 'COS-001',"
-            "      'content': '<ce id=\"CE-001\" type=\"Research\">In-depth research</ce> into the feasibility of creating a <ce id=\"CE-002\" type=\"Objective\">giant robotic crab monster</ce> considering <ce id=\"CE-004\" type=\"Legislation\">relevant legislation</ce> and <ce id=\"CE-005\" type=\"Stakeholder\">key stakeholders</ce> interests.',"
-            "      'type': 'Proposed',"
-            "      'ces': ["
-            "        {'id': 'CE-001', 'content': 'In-depth research into advanced robotics and AI', 'type': 'Research'}"
-            "        {'id': 'CE-002', 'content': 'giant robotic crab monster', 'type': 'Objective'}"
-            "        {'id': 'CE-004', 'content': 'compliance with international robotics regulations', 'type': 'Legislation'}"
-            "        {'id': 'CE-005', 'content': 'alignment with stakeholder interests', 'type': 'Stakeholder'}"
-            "      ]"
-            "    }"
-            "]"          
-    ")}"        
+    {  
+        "role": "system",  
+        "content": "You are a helpful assistant. Generate detailed Conditions of Satisfaction (COS) and multiple Conditional Elements (CE) for each COS of a project, including specific attributes for each CE."  
+    },  
+    {  
+        "role": "user",  
+        "content": (  
+            f"Generate a concise Structured Solution for the project '{selected_goal}'. "  
+            "For each phase (Discovery, Engagement, Action, Completion, Legacy), provide 2 to 5 targeted Conditions of Satisfaction (COS). "  
+            "For each COS, identify and list 2 to 4 specific and succinct Conditional Elements (CE) with unique IDs. "  
+            "Focus on essential contributors such as resources, legislation, research, stakeholders, and timelines. "  
+            "Select the most specific type from CE_nodes.py for each CE, denoted with <ce> tags. "  
+            "Account for interdependencies and their impacts across project phases. "  
+            "Format your response as a JSON object with each phase as a key and an array of COS objects as values. "  
+            "Each COS object should include brief COS text, a unique ID, a status (Proposed), and an array of CEs. "  
+            "Each CE should be a JSON object with 'id', 'content' (2-4 sentences), 'status', 'type', and additional details as needed. "  
+        
+            "Here is an example for the Discovery phase: "  
+            "'Discovery': ["  
+            "    {"  
+            "      'id': 'COS-001',"  
+            "      'content': '<ce id=\"CE-001\" type=\"Research\">Market research</ce> to assess <ce id=\"CE-002\" type=\"Demand\">consumer interest</ce> in a <ce id=\"CE-003\" type=\"Product\">new product</ce>.' ,"  
+            "      'status': 'Proposed',"  
+            "      'ces': ["  
+            "        {'id': 'CE-001', 'content': 'Conduct market analysis', 'status': 'Proposed', 'type': 'Research'},"  
+            "        {'id': 'CE-002', 'content': 'Evaluate consumer demand', 'status': 'Proposed', 'type': 'Demand'},"  
+            "        {'id': 'CE-003', 'content': 'Define product concept', 'status': 'Proposed', 'type': 'Product'}"  
+            "      ]"  
+            "    }"  
+            "]"         
   )}
   ]                   
 
@@ -231,7 +238,7 @@ def generate_outcome_data(request, method, selected_goal=None, domain=None, doma
   
     # Generate an image using Stability AI          
     try:  
-        image_prompt = f"A visually stunning futuristic illustration depicting '{selected_goal}' as a fulfilled goal, isometric, Mary Blair, 1962"  
+        image_prompt = f"A colorful, visually stunning retro-futuristic diorama depicting '{selected_goal}' as a fulfilled goal, Mary Blair, 1962, photo-realistic, isometric, tiltshift "  
         web_image_path = generate_image(image_prompt, selected_goal)  
         outcome_data['generated_image_path'] = web_image_path  
     except Exception as e:  
@@ -452,7 +459,7 @@ def generate_structured_solution(selected_goal):
         "role": "user",        
         "content": (      
             f"Generate a Structured Solution for the project '{selected_goal}'. "    
-            "For each phase (Discovery, Engagement, Action, Completion, Legacy), provide 2 to 5 COS. "    
+            "For each phase (Discovery, Engagement, Action, Completion, Legacy), provide 2 to 5 specific and succinct COS. "    
             "Within each COS text, identify and label relevant keywords as CEs using <ce> tags. "    
             "Assign each CE a unique ID and a type that best describes its role or category in the context of the COS. "    
             "Provide a brief explanation for each COS's importance and how it contributes to the overall goal. "    

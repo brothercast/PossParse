@@ -8,16 +8,14 @@ function replaceCETagsWithPills(content) {
   });  
 }  
   
-// Function to add event listeners to CE pills  
-function addEventListenersToCEPills() {  
-  const cePills = document.querySelectorAll('.ce-pill');  
-  cePills.forEach(pill => {  
-    pill.addEventListener('click', event => {  
-      const ceId = event.target.dataset.ceId;  
-      fetchCEDetails(ceId);  
-    });  
+// Call this function once the content is loaded into the DOM  
+document.addEventListener('DOMContentLoaded', () => {  
+  const cosContentCells = document.querySelectorAll('.cos-content-cell');  
+  cosContentCells.forEach(cell => {  
+    cell.innerHTML = replaceCETagsWithPills(cell.innerHTML);  
   });  
-}  
+});  
+
   
 // Function to fetch and display CE details  
 function fetchCEDetails(ceId) {  
