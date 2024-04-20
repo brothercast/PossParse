@@ -48,7 +48,14 @@ function showCEModal(ceData) {
     console.error('Modal body element not found');  
   }  
 }  
-  
+
+function addEventListenersToCEPills() {  
+  // Select all CE pills and add click event listeners  
+  document.querySelectorAll('.ce-pill').forEach(pill => {  
+    pill.addEventListener('click', handleCEPillClick);  
+  });  
+}  
+
 // Initialization function that encapsulates all the necessary initialization logic  
 function initialize() {  
   const cosContentContainers = document.querySelectorAll('.cos-content-container');  

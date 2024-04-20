@@ -89,7 +89,7 @@ def outcome():
             # Debugging: Log the type and content of outcome_data  
             logging.info(f"Type of outcome_data: {type(outcome_data)}")  
             logging.info(f"Content of outcome_data: {outcome_data}")  
-            return render_template('outcome.html', ssol=outcome_data) 
+            return render_template('outcome.html', ssol=outcome_data, ssol_id=outcome_data['ssol_id'])
 
         except Exception as e:      
             app.logger.error(f"An error occurred while generating the outcome data: {e}")    
@@ -186,12 +186,22 @@ def delete_cos_route(cos_id):
         logging.error(f"Unexpected error occurred: {e}", exc_info=True)  
         return jsonify(success=False, error=str(e)), 500  
 
-@routes_bp.route('/get_ce_by_id', methods=['GET'])  
+@app.route('/get_ce_by_id', methods=['GET'])  
 def get_ce_by_id_route():  
     ce_id = request.args.get('ce_id')  
-    ce = get_ce_by_id(ce_id)  # Ensure this function is adapted to handle both DB and in-memory  
-    ce_data = ce.to_dict() if ce else None  
-    return jsonify(ce=ce_data) if ce_data else jsonify(error="CE not found"), 404  
+    if not ce_id:  
+        return jsonify(error="CE ID is required"), 400  
+  
+    try:  
+        ce_id = UUID(ce_id)  # Validate that ce_id is a valid UUID  
+    except ValueError:  
+        return jsonify(error="Invalid CE ID format"), 400  
+  
+    ce = get_ce_by_id(ce_id)  # Ensure this function handles UUIDs  
+    if ce:  
+        return jsonify(ce=ce.to_dict())  
+    else:  
+        return jsonify(error="CE not found"), 404  
 
 @app.route('/analyze_cos/<string:cos_id>', methods=['GET'])  
 def analyze_cos_route(cos_id):  

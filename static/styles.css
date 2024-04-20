@@ -245,6 +245,16 @@ body:before {
   text-align: left;
 }
 
+  
+.generated-image {  
+  border-radius: 25px; /* More rounded corners */  
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5); /* Box shadow with desired opacity */  
+  position: relative; /* Position relative to enable absolute positioning of the pseudo-element */  
+  width: 100%;  
+  max-width: 300px;
+  background: radial-gradient(rgba(0, 0, 0, 0.6), black);  
+}  
+  
 .domain-icon-container {
   display: inline-flex;
   align-items: center;
@@ -329,7 +339,7 @@ body > main > div > div.row.outcome-header {
   text-transform: uppercase; /* Converts text to uppercase */            
   font-size: 0.65em; /* Scale down the font size to 75% */        
   text-shadow: 1px 1px 0px #000000;    
-  padding: .25em .6em; /* Adjust padding as needed */  
+  padding: .15em .6em; /* Adjust padding as needed */  
   border-radius: 10rem; /* Adjust for rounded corners */  
   margin-top: 8px;    
   margin-right: 8px;  

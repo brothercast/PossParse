@@ -214,19 +214,21 @@ def analyze_ce_type(request):
     except Exception as e:
         return jsonify(error=str(e))
 
-def get_ce_type(ce_content):
-    messages = [
-        {"role": "system", "content": "You are responsible for identifying the appropriate card type for the given conditional element."},
-        {"role": "user", "content": ce_content},
-    ]
-    response_text = generate_chat_response(messages, role='Conditional Element (CE) Node Type Identification', task='Identify CE Type', temperature=0.6)
+def get_ce_type(ce_content):  
+    messages = [  
+        {"role": "system", "content": "You are responsible for identifying the appropriate card type for the given conditional element."},  
+        {"role": "user", "content": ce_content},  
+    ]  
+    response_text = generate_chat_response(messages, role='Conditional Element (CE) Node Type Identification', task='Identify CE Type', temperature=0.6)  
+  
+    try:  
+        response_data = json.loads(response_text)  
+        ce_type = response_data.get('type', '')  # Assuming the key for the CE type in the response is 'type'  
+        return ce_type  
+    except json.JSONDecodeError:  
+        logging.error(f"Error parsing JSON response: {response_text}")  
+        return ""  
 
-    ce_type_match = re.search(r'\[CE\] (.*?)$', response_text)
-    if ce_type_match:
-        ce_type = ce_type_match.group(1).strip()
-        return ce_type
-    else:
-        return ""
     
 # CRUD operations for SSOL  
 def create_ssol(goal, summary):  

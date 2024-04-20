@@ -1,19 +1,23 @@
-// Function to handle the click event on CE pills
-function handleCEPillClick(event) {
-  const ceId = event.target.dataset.ceId;
-  fetch(`/get_ce_by_id?ce_id=${ceId}`)
-    .then((response) => response.json())
-    .then((data) => {
-      if (!data.error && data.ce.ce_type) {
-        showCEModal(data.ce);
-      } else {
-        analyzeCE(ceId, data.ce);
-      }
-    })
-    .catch((error) => {
-      console.log('Error:', error);
-    });
-}
+function handleCEPillClick(event) {  
+  const ceId = event.target.dataset.ceId;  // This should be a UUID from the backend  
+  fetch(`/get_ce_by_id?ce_id=${encodeURIComponent(ceId)}`)  
+    .then(response => {  
+      if (!response.ok) {  
+        throw new Error(`Server responded with status ${response.status}`);  
+      }  
+      return response.json();  
+    })  
+    .then(data => {  
+      if (data && data.ce) {  
+        showCEModal(data.ce);  
+      } else {  
+        throw new Error('CE data not found or error in response');  
+      }  
+    })  
+    .catch(error => {  
+      console.error('Error fetching CE data:', error);  
+    });  
+}  
 
 // Function to analyze the CE and get the CE type
 function analyzeCE(ceId, ceData) {

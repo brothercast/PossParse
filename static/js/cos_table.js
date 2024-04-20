@@ -65,7 +65,7 @@ function turnRowToEditMode(row) {
   const currentCompletionDate = completionDateCell.textContent.trim();  
   
   statusCell.innerHTML = createStatusDropdown(currentStatus);  
-  contentCell.innerHTML = `<input type="text" class="form-control form-control-sm" value="${currentContent}">`;  
+  contentCell.innerHTML = `<textarea class="form-control form-control-sm" rows="3">${currentContent}</textarea>`;  
   accountablePartyCell.innerHTML = `<input type="text" class="form-control form-control-sm" value="${currentAccountableParty}">`;  
   completionDateCell.innerHTML = `<input type="date" class="form-control form-control-sm" value="${currentCompletionDate}">`;  
   
@@ -73,7 +73,8 @@ function turnRowToEditMode(row) {
 }  
   
 function handleUpdate(row, cosId, ssolId) {  
-  const contentInput = row.querySelector('.cos-content-cell input').value;  
+  const contentInput = row.querySelector('.cos-content-cell input').value; 
+  const newContent = contentInput ? contentInput.value : '';
   const statusSelect = row.querySelector('.status-cell select');  
   const statusInput = statusSelect.options[statusSelect.selectedIndex].value;  
   const accountablePartyInput = row.querySelector('.cos-accountable-party-cell input').value;  
@@ -158,7 +159,6 @@ function deleteCOS(cosId, row) {
     });  
   }  
 }  
-
   
 function storeOriginalValues(row) {  
   const statusCell = row.querySelector('.status-cell');  
@@ -194,10 +194,7 @@ function updateRowWithNewValues(row, cos) {
     console.error('Error: COS data is undefined or missing required properties', cos);    
     alert('An error occurred while updating the entry. Please try again.');    
   }    
-}    
-
-// cos_table.js  
-  
+}      
 // Function to add event listeners to the phase table  
 function initializePhaseTableEventListeners() {  
   const phaseTables = document.querySelectorAll('.phase-table');  
@@ -259,7 +256,7 @@ function initializeCEPillEventListeners() {
 }  
 
 function handleCEPillClick(event) {  
-  const ceId = event.target.dataset.ceId;  
+  const ceId = event.target.dataset.ceId; 
   console.log(`CE Pill with ID ${ceId} clicked`);  
 
   // Example logic to fetch CE details and display in a modal or another UI element  

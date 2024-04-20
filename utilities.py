@@ -94,34 +94,41 @@ def generate_chat_response(messages, role, task, temperature=0.75, retries=3, ba
     # Raise the last exception if all retries fail
     raise last_exception
 
-def parse_ai_response_and_generate_html(response_json):    
-    structured_solution = {}    
-    # List of expected phases based on the AI prompt    
-    expected_phases = ["Discovery", "Engagement", "Action", "Completion", "Legacy"]    
-    for phase in expected_phases:    
-        if phase in response_json:    
-            structured_solution[phase] = []    
-            for cos in response_json[phase]:    
-                cos_html = cos['content']    
-                ces = []    
-                for ce in cos['ces']:    
-                    ce_content_escaped = html.escape(ce["content"])    
-                    ce_html = f'<span class="badge rounded-pill bg-info ce-pill" data-ce-id="{ce["id"]}" data-ce-type="{ce["type"]}">{ce_content_escaped}</span>'    
-                    cos_html = cos_html.replace(f'<ce id="{ce["id"]}" type="{ce["type"]}">{ce["content"]}</ce>', ce_html)    
-                    ces.append({    
-                        'id': ce['id'],    
-                        'content': ce_content_escaped,    
-                        'status': ce['status'],  # Include the status of the CE  
-                        'type': ce["type"]    
-                    })    
-                structured_solution[phase].append({    
-                    'id': cos['id'],    
-                    'content': cos_html,    
-                    'status': cos['status'],  # Include the status of the COS  
-                    'ces': ces    
-                })    
-    return structured_solution    
-  
+def parse_ai_response_and_generate_html(response_json):      
+    structured_solution = {}      
+    expected_phases = ["Discovery", "Engagement", "Action", "Completion", "Legacy"]      
+          
+    for phase in expected_phases:      
+        if phase in response_json:      
+            structured_solution[phase] = []      
+            for cos in response_json[phase]:      
+                cos_id = str(uuid.uuid4())      
+                cos_html = cos['content']      
+                ces = []      
+                      
+                for ce in cos['ces']:        
+                    ce_uuid = str(uuid.uuid4())  # Generate a UUID for each CE  
+                    # Correctly replace the placeholder with the generated UUID  
+                    ce_placeholder = f'<ce id="{ce["id"]}" type="{ce["type"]}">{ce["content"]}</ce>'  
+                    ce_html_with_uuid = f'<span class="badge rounded-pill bg-secondary ce-pill" data-ce-id="{ce_uuid}" data-ce-type="{ce["type"]}">{ce["content"]}</span>'  
+                    cos_html = re.sub(ce_placeholder, ce_html_with_uuid, cos_html, count=1)  
+                    ces.append({  
+                        'id': ce_uuid,  
+                        'content': ce["content"],  
+                        'status': 'Proposed',  
+                        'type': ce["type"]  
+                    })  
+                        
+                structured_solution[phase].append({  
+                    'id': cos_id,  
+                    'content': cos_html,  
+                    'status': 'Proposed',  
+                    'ces': ces  
+                })        
+            
+    return structured_solution  
+
+    
 
 def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None):        
     # Initialize outcome_data with default keys and values        
@@ -238,7 +245,7 @@ def generate_outcome_data(request, method, selected_goal=None, domain=None, doma
   
     # Generate an image using Stability AI          
     try:  
-        image_prompt = f"A colorful, visually stunning retro-futuristic diorama depicting '{selected_goal}' as a fulfilled goal, Mary Blair, 1962, photo-realistic, isometric, tiltshift "  
+        image_prompt = f"A colorful, visually stunning retro-futuristic physical diorama depicting '{selected_goal}' as a fulfilled goal, Mary Blair, 1962, photo-realistic, isometric, tiltshift "  
         web_image_path = generate_image(image_prompt, selected_goal)  
         outcome_data['generated_image_path'] = web_image_path  
     except Exception as e:  
