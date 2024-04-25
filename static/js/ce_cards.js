@@ -33,21 +33,67 @@ function fetchCEDetails(ceId) {
     });  
 }  
   
-// Function to display the CE details in a modal using Bootstrap  
+// Function to dynamically create and display the CE details in a modal using Bootstrap  
 function showCEModal(ceData) {  
-  const modalBody = document.getElementById('ceModalBody');  
-  if (modalBody) {  
-    modalBody.innerHTML = `  
-      <p><strong>ID:</strong> ${ceData.id}</p>  
-      <p><strong>Content:</strong> ${ceData.content}</p>  
-      <p><strong>Type:</strong> ${ceData.node_type || 'Unknown'}</p>  
-    `;  
-    const bootstrapModal = new bootstrap.Modal(document.getElementById('ceModal'));  
-    bootstrapModal.show();  
-  } else {  
-    console.error('Modal body element not found');  
-  }  
+  // Create the modal elements  
+  const modalDiv = document.createElement('div');  
+  modalDiv.classList.add('modal', 'fade');  
+  modalDiv.id = 'ceModal';  
+  modalDiv.setAttribute('tabindex', '-1');  
+  modalDiv.setAttribute('role', 'dialog');  
+  modalDiv.setAttribute('aria-labelledby', 'ceModalLabel');  
+  modalDiv.setAttribute('aria-hidden', 'true');  
+  
+  const modalDialogDiv = document.createElement('div');  
+  modalDialogDiv.classList.add('modal-dialog');  
+  modalDialogDiv.setAttribute('role', 'document');  
+  
+  const modalContentDiv = document.createElement('div');  
+  modalContentDiv.classList.add('modal-content');  
+  
+  const modalHeaderDiv = document.createElement('div');  
+  modalHeaderDiv.classList.add('modal-header');  
+  
+  const modalTitleH5 = document.createElement('h5');  
+  modalTitleH5.classList.add('modal-title');  
+  modalTitleH5.id = 'ceModalLabel';  
+  modalTitleH5.textContent = 'Conditional Element Details';  
+  
+  const closeButton = document.createElement('button');  
+  closeButton.classList.add('close');  
+  closeButton.setAttribute('type', 'button');  
+  closeButton.setAttribute('data-bs-dismiss', 'modal');  
+  closeButton.setAttribute('aria-label', 'Close');  
+  closeButton.innerHTML = '<span aria-hidden="true">&times;</span>';  
+  
+  modalHeaderDiv.appendChild(modalTitleH5);  
+  modalHeaderDiv.appendChild(closeButton);  
+  
+  const modalBodyDiv = document.createElement('div');  
+  modalBodyDiv.classList.add('modal-body');  
+  modalBodyDiv.innerHTML = `  
+    <p><strong>ID:</strong> ${ceData.id}</p>  
+    <p><strong>Content:</strong> ${ceData.content}</p>  
+    <p><strong>Type:</strong> ${ceData.node_type || 'Unknown'}</p>  
+  `;  
+  
+  modalContentDiv.appendChild(modalHeaderDiv);  
+  modalContentDiv.appendChild(modalBodyDiv);  
+  
+  modalDialogDiv.appendChild(modalContentDiv);  
+  modalDiv.appendChild(modalDialogDiv);  
+  
+  // Append the modal to the body and show it  
+  document.body.appendChild(modalDiv);  
+  const bootstrapModal = new bootstrap.Modal(modalDiv);  
+  bootstrapModal.show();  
+  
+  // Event listener to remove the modal from the DOM once it's closed  
+  modalDiv.addEventListener('hidden.bs.modal', function () {  
+    modalDiv.remove();  
+  });  
 }  
+
 
 function addEventListenersToCEPills() {  
   // Select all CE pills and add click event listeners  
