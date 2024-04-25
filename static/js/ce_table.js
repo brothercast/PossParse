@@ -1,6 +1,12 @@
 function handleCEPillClick(event) {  
-  const ceId = event.target.dataset.ceId;  // This should be a UUID from the backend  
-  fetch(`/get_ce_by_id?ce_id=${encodeURIComponent(ceId)}`)  
+  const ceId = event.target.dataset.ceId; // This should be a UUID from the backend  
+  if (!ceId) {  
+    console.error('CE ID not found on the clicked element');  
+    return;  
+  }  
+  
+  // Update the URL to match the corrected route format  
+  fetch(`/get_ce_by_id/${encodeURIComponent(ceId)}`)  
     .then(response => {  
       if (!response.ok) {  
         throw new Error(`Server responded with status ${response.status}`);  
@@ -18,6 +24,7 @@ function handleCEPillClick(event) {
       console.error('Error fetching CE data:', error);  
     });  
 }  
+
 
 // Function to analyze the CE and get the CE type
 function analyzeCE(ceId, ceData) {

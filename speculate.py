@@ -228,7 +228,6 @@ def get_ce_type(ce_content):
     except json.JSONDecodeError:  
         logging.error(f"Error parsing JSON response: {response_text}")  
         return ""  
-
     
 # CRUD operations for SSOL  
 def create_ssol(goal, summary):  
@@ -284,14 +283,29 @@ def create_ce(content, node_type):
         ce_id = str(uuid.uuid4())  
         ce_store[ce_id] = {'id': ce_id, 'content': content, 'node_type': node_type}  
         return ce_id  
+
+
+def get_ce_by_id(ce_id):      
+    from app import USE_DATABASE, db      
+    try:  
+        if USE_DATABASE:  
+            ce = CE.query.get(ce_id)  
+            if not ce:  
+                raise ValueError(f"CE with ID {ce_id} not found in the database.")  
+        else:  
+            ce = ce_store.get(str(ce_id))  
+            if not ce:  
+                raise ValueError(f"CE with ID {ce_id} not found in the in-memory store.")  
+          
+        return ce  
   
-def get_ce_by_id(ce_id):  
-    from app import USE_DATABASE 
-    if USE_DATABASE:  
-        return CE.query.get(ce_id)  
-    else:  
-        return ce_store.get(str(ce_id))  
-  
+    except ValueError as e:  
+        logging.error(f"Error retrieving CE by ID {ce_id}: {e}")  
+        raise e  
+    except Exception as e:  
+        logging.error(f"Unexpected error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
+        raise e  
+
 def update_ce_by_id(ce_id, updated_data):  
     from app import USE_DATABASE 
     if USE_DATABASE:  

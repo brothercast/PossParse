@@ -9,6 +9,7 @@ import logging
 from uuid import uuid4
 import warnings  
 from PIL import Image
+from bs4 import BeautifulSoup  
 from dotenv import load_dotenv
 from openai import AzureOpenAI
 from app import USE_DATABASE, db  
@@ -94,41 +95,55 @@ def generate_chat_response(messages, role, task, temperature=0.75, retries=3, ba
     # Raise the last exception if all retries fail
     raise last_exception
 
-def parse_ai_response_and_generate_html(response_json):      
-    structured_solution = {}      
-    expected_phases = ["Discovery", "Engagement", "Action", "Completion", "Legacy"]      
-          
-    for phase in expected_phases:      
-        if phase in response_json:      
-            structured_solution[phase] = []      
-            for cos in response_json[phase]:      
-                cos_id = str(uuid.uuid4())      
-                cos_html = cos['content']      
-                ces = []      
-                      
-                for ce in cos['ces']:        
-                    ce_uuid = str(uuid.uuid4())  # Generate a UUID for each CE  
-                    # Correctly replace the placeholder with the generated UUID  
-                    ce_placeholder = f'<ce id="{ce["id"]}" type="{ce["type"]}">{ce["content"]}</ce>'  
-                    ce_html_with_uuid = f'<span class="badge rounded-pill bg-secondary ce-pill" data-ce-id="{ce_uuid}" data-ce-type="{ce["type"]}">{ce["content"]}</span>'  
-                    cos_html = re.sub(ce_placeholder, ce_html_with_uuid, cos_html, count=1)  
-                    ces.append({  
-                        'id': ce_uuid,  
-                        'content': ce["content"],  
-                        'status': 'Proposed',  
-                        'type': ce["type"]  
-                    })  
-                        
-                structured_solution[phase].append({  
-                    'id': cos_id,  
-                    'content': cos_html,  
+def parse_ai_response_and_generate_html(response_json):    
+    structured_solution = {}  
+    expected_phases = ["Discovery", "Engagement", "Action", "Completion", "Legacy"]    
+  
+    for phase in expected_phases:    
+        structured_solution[phase] = []  
+        for cos in response_json.get(phase, []):    
+            cos_id = str(uuid.uuid4())    
+            cos_html = cos['content']  
+            ces = []  
+  
+            soup = BeautifulSoup(cos_html, 'html.parser')    
+            for ce_tag in soup.find_all('ce'):  
+                ce_uuid = str(uuid.uuid4())  
+                new_tag = soup.new_tag('span', attrs={  
+                    'class': 'badge rounded-pill bg-secondary ce-pill',  
+                    'data-ce-id': ce_uuid,  
+                    'data-ce-type': ce_tag['type']  
+                })  
+                new_tag.string = ce_tag.string  
+                ce_tag.replace_with(new_tag)  
+  
+                ce_data = {  
+                    'id': ce_uuid,  
+                    'content': ce_tag.string,  
                     'status': 'Proposed',  
-                    'ces': ces  
-                })        
-            
+                    'type': ce_tag['type']  
+                }  
+                ces.append(ce_data)  
+  
+                # Store the CEs  
+                if USE_DATABASE:  
+                    ce_instance = CE(id=ce_uuid, content=ce_tag.string, node_type=ce_tag['type'])  
+                    db.session.add(ce_instance)  
+                else:  
+                    ce_store[ce_uuid] = ce_data  
+  
+            if USE_DATABASE:  
+                db.session.commit()  
+  
+            structured_solution[phase].append({  
+                'id': cos_id,  
+                'content': str(soup),  
+                'status': 'Proposed',  
+                'ces': ces  
+            })  
+  
     return structured_solution  
 
-    
 
 def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None):        
     # Initialize outcome_data with default keys and values        

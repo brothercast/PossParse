@@ -186,22 +186,20 @@ def delete_cos_route(cos_id):
         logging.error(f"Unexpected error occurred: {e}", exc_info=True)  
         return jsonify(success=False, error=str(e)), 500  
 
-@app.route('/get_ce_by_id', methods=['GET'])  
-def get_ce_by_id_route():  
-    ce_id = request.args.get('ce_id')  
-    if not ce_id:  
-        return jsonify(error="CE ID is required"), 400  
-  
+@routes_bp.route('/get_ce_by_id/<string:ce_id>', methods=['GET'])  
+def get_ce_by_id_route(ce_id):  
     try:  
-        ce_id = UUID(ce_id)  # Validate that ce_id is a valid UUID  
-    except ValueError:  
-        return jsonify(error="Invalid CE ID format"), 400  
-  
-    ce = get_ce_by_id(ce_id)  # Ensure this function handles UUIDs  
-    if ce:  
-        return jsonify(ce=ce.to_dict())  
-    else:  
-        return jsonify(error="CE not found"), 404  
+        ce = get_ce_by_id(ce_id)  
+        if ce:  
+            # Check if the CE is a model instance with a to_dict method or a plain dictionary  
+            ce_data = ce.to_dict() if hasattr(ce, 'to_dict') else ce  
+            return jsonify(ce=ce_data), 200  
+        else:  
+            return jsonify(error=f"CE with ID {ce_id} not found"), 404  
+    except Exception as e:  
+        current_app.logger.error(f"Error in get_ce_by_id_route: {e}", exc_info=True)  
+        return jsonify(error="Internal Server Error"), 500 
+
 
 @app.route('/analyze_cos/<string:cos_id>', methods=['GET'])  
 def analyze_cos_route(cos_id):  
