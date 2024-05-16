@@ -1,118 +1,215 @@
 // ce_cards.js  
   
-// Function to replace CE tags with interactive Bootstrap pills  
-function replaceCETagsWithPills(content) {  
-  const ceTagPattern = /<ce id="(.*?)" type="(.*?)">(.*?)<\/ce>/gi;  
-  return content.replace(ceTagPattern, (match, ceId, ceType, ceContent) => {  
-    return `<span class="badge rounded-pill bg-secondary ce-pill" data-ce-id="${ceId}" data-ce-type="${ceType}">${ceContent}</span>`;  
-  });  
-}  
+document.addEventListener('DOMContentLoaded', function () {  
+  initializeCETable();  
+});  
   
-// Call this function once the content is loaded into the DOM  
-document.addEventListener('DOMContentLoaded', () => {  
+function initializeCETable() {  
   const cosContentCells = document.querySelectorAll('.cos-content-cell');  
   cosContentCells.forEach(cell => {  
     cell.innerHTML = replaceCETagsWithPills(cell.innerHTML);  
+    cell.addEventListener('dblclick', enableInlineEditing);  
+    cell.addEventListener('blur', saveInlineEdit);  
+    cell.addEventListener('keypress', function (e) {  
+      if (e.key === 'Enter') {  
+        e.preventDefault(); // Prevent newline on Enter  
+        cell.blur();  
+      }  
+    });  
   });  
-});  
-
+}  
   
-// Function to fetch and display CE details  
-function fetchCEDetails(ceId) {  
-  fetch(`/get_ce_by_id?ce_id=${ceId}`)  
-    .then(response => response.json())  
+function replaceCETagsWithPills(content) {  
+  const ceTagPattern = /<ce id="(.*?)" type="(.*?)">(.*?)<\/ce>/gi;  
+  return content.replace(ceTagPattern, (match, ceId, ceType, ceContent) => {  
+    return `<span class="badge rounded-pill bg-secondary ce-pill" data-ce-id="${ceId}" data-ce-type="${ceType}" contenteditable="false">${ceContent}</span>`;  
+  });  
+}  
+  
+function enableInlineEditing(event) {  
+  const target = event.target;  
+  target.setAttribute('contenteditable', 'true');  
+  target.focus();  
+}  
+  
+function saveInlineEdit(event) {  
+  const target = event.target;  
+  target.removeAttribute('contenteditable');  
+  
+  const ceId = target.closest('tr').dataset.ceId;  
+  const updatedContent = target.textContent.trim();  
+  const formData = { content: updatedContent };  
+  
+  updateCE(ceId, formData, target);  
+}  
+  
+function updateCE(ceId, formData, element) {  
+  fetch(`/update_ce/${encodeURIComponent(ceId)}`, {  
+    method: 'PUT',  
+    headers: {  
+      'Content-Type': 'application/json'  
+    },  
+    body: JSON.stringify(formData)  
+  })  
+  .then(response => response.json())  
+  .then(data => {  
+    if (data.success) {  
+      displayFeedback("CE updated successfully", "success");  
+    } else {  
+      revertCEContent(element, formData.content);  
+      displayFeedback("Failed to save changes", "error");  
+    }  
+  })  
+  .catch(error => {  
+    revertCEContent(element, formData.content);  
+    displayFeedback(`Error: ${error.message}`, "error");  
+  });  
+}  
+  
+function revertCEContent(element, originalContent) {  
+  if (element) {  
+    element.textContent = originalContent;  
+  }  
+}  
+  
+function displayFeedback(message, type) {  
+  const feedbackElement = document.querySelector('#feedback');  
+  if (feedbackElement) {  
+    feedbackElement.textContent = message;  
+    feedbackElement.className = `feedback ${type}`;  
+    feedbackElement.style.display = 'block';  
+    setTimeout(() => {  
+      feedbackElement.style.display = 'none';  
+    }, 5000);  
+  }  
+}  
+  
+document.addEventListener('click', event => {  
+  if (event.target.matches('.ce-pill')) {  
+    const ceId = event.target.dataset.ceId;  
+    fetchCEData(ceId);  
+  }  
+});  
+  
+function fetchCEData(ceId) {  
+  fetch(`/get_ce_by_id/${encodeURIComponent(ceId)}`)  
+    .then(response => {  
+      if (!response.ok) {  
+        throw new Error(`HTTP error! status: ${response.status}`);  
+      }  
+      return response.json();  
+    })  
     .then(data => {  
       if (data.ce) {  
-        showCEModal(data.ce);  
+        console.log('Received CE data:', data.ce); // Log the received CE data  
+        createAndShowCEModal(data.ce);  
       } else {  
-        console.error('CE data not found:', data);  
+        throw new Error('CE data not found or error in response');  
       }  
     })  
     .catch(error => {  
       console.error('Error fetching CE data:', error);  
+      displayFeedback("Error fetching CE details", "error");  
+    });  
+} 
+  
+function createAndShowCEModal(ceData) {  
+  // Check if ceData and ceData.type are defined  
+  if (!ceData || typeof ceData.type === 'undefined') {  
+    console.error('CE data or type is undefined');  
+    displayFeedback("Error: CE data or type is undefined", "error");  
+    return;  
+  }  
+  
+  // Fetch the modal content from the server using the ceData.type  
+  fetch(`/get_ce_modal/${ceData.type}`)  
+    .then(response => {  
+      if (!response.ok) {  
+        throw new Error(`HTTP error! status: ${response.status}`);  
+      }  
+      return response.json();  
+    })  
+    .then(data => {  
+      if (data.modal_html) {  
+        // Inject the modal HTML into the DOM  
+        document.body.insertAdjacentHTML('beforeend', data.modal_html);  
+  
+        // Use Bootstrap's modal method to show the modal  
+        const modalId = `ceModal${ceData.type}`;  
+        $(`#${modalId}`).modal('show');  
+  
+        // Attach event listener for modal close to remove it from the DOM  
+        $(`#${modalId}`).on('hidden.bs.modal', function () {  
+          $(this).remove();  
+        });  
+      } else {  
+        throw new Error('Modal HTML content not found or error in response');  
+      }  
+    })  
+    .catch(error => {  
+      console.error('Error fetching modal content:', error);  
+      displayFeedback("Error fetching modal content", "error");  
     });  
 }  
   
-// Function to dynamically create and display the CE details in a modal using Bootstrap  
-function showCEModal(ceData) {  
-  // Create the modal elements  
-  const modalDiv = document.createElement('div');  
-  modalDiv.classList.add('modal', 'fade');  
-  modalDiv.id = 'ceModal';  
-  modalDiv.setAttribute('tabindex', '-1');  
-  modalDiv.setAttribute('role', 'dialog');  
-  modalDiv.setAttribute('aria-labelledby', 'ceModalLabel');  
-  modalDiv.setAttribute('aria-hidden', 'true');  
-  
-  const modalDialogDiv = document.createElement('div');  
-  modalDialogDiv.classList.add('modal-dialog');  
-  modalDialogDiv.setAttribute('role', 'document');  
-  
-  const modalContentDiv = document.createElement('div');  
-  modalContentDiv.classList.add('modal-content');  
-  
-  const modalHeaderDiv = document.createElement('div');  
-  modalHeaderDiv.classList.add('modal-header');  
-  
-  const modalTitleH5 = document.createElement('h5');  
-  modalTitleH5.classList.add('modal-title');  
-  modalTitleH5.id = 'ceModalLabel';  
-  modalTitleH5.textContent = 'Conditional Element Details';  
-  
-  const closeButton = document.createElement('button');  
-  closeButton.classList.add('close');  
-  closeButton.setAttribute('type', 'button');  
-  closeButton.setAttribute('data-bs-dismiss', 'modal');  
-  closeButton.setAttribute('aria-label', 'Close');  
-  closeButton.innerHTML = '<span aria-hidden="true">&times;</span>';  
-  
-  modalHeaderDiv.appendChild(modalTitleH5);  
-  modalHeaderDiv.appendChild(closeButton);  
-  
-  const modalBodyDiv = document.createElement('div');  
-  modalBodyDiv.classList.add('modal-body');  
-  modalBodyDiv.innerHTML = `  
-    <p><strong>ID:</strong> ${ceData.id}</p>  
-    <p><strong>Content:</strong> ${ceData.content}</p>  
-    <p><strong>Type:</strong> ${ceData.node_type || 'Unknown'}</p>  
+function generateDynamicForm(ceData) {  
+  return `  
+    <form id="ceForm" data-ce-id="${ceData.id}">  
+      <div class="form-group">  
+        <label for="ceContent">Content</label>  
+        <textarea class="form-control" id="ceContent" required>${ceData.content}</textarea>  
+      </div>  
+      <div class="form-group">  
+        <label for="ceType">Type</label>  
+        <select class="form-control" id="ceType" required>${generateSelectOptions(ceData.node_type)}</select>  
+      </div>  
+      <!-- Add additional fields as needed -->  
+    </form>  
   `;  
-  
-  modalContentDiv.appendChild(modalHeaderDiv);  
-  modalContentDiv.appendChild(modalBodyDiv);  
-  
-  modalDialogDiv.appendChild(modalContentDiv);  
-  modalDiv.appendChild(modalDialogDiv);  
-  
-  // Append the modal to the body and show it  
-  document.body.appendChild(modalDiv);  
-  const bootstrapModal = new bootstrap.Modal(modalDiv);  
-  bootstrapModal.show();  
-  
-  // Event listener to remove the modal from the DOM once it's closed  
-  modalDiv.addEventListener('hidden.bs.modal', function () {  
-    modalDiv.remove();  
-  });  
-}  
-
-
-function addEventListenersToCEPills() {  
-  // Select all CE pills and add click event listeners  
-  document.querySelectorAll('.ce-pill').forEach(pill => {  
-    pill.addEventListener('click', handleCEPillClick);  
-  });  
-}  
-
-// Initialization function that encapsulates all the necessary initialization logic  
-function initialize() {  
-  const cosContentContainers = document.querySelectorAll('.cos-content-container');  
-  cosContentContainers.forEach(container => {  
-    const contentWithCE = container.innerHTML;  
-    container.innerHTML = replaceCETagsWithPills(contentWithCE);  
-  });  
-  
-  // Add event listeners to the newly created CE pills  
-  addEventListenersToCEPills();  
 }  
   
-// When the DOM is fully loaded, execute the initialization function  
-document.addEventListener('DOMContentLoaded', initialize);  
+function generateSelectOptions(selectedType) {  
+  // Assuming NODES contains the types and descriptions  
+  return Object.entries(NODES).map(([type, { definition }]) => {  
+    return `<option value="${type}" ${type === selectedType ? "selected" : ""}>${definition}</option>`;  
+  }).join('');  
+}  
+  
+function collectFormData(formElement) {  
+  const formData = {};  
+  formElement.querySelectorAll('input, select, textarea').forEach(input => {  
+    formData[input.id] = input.value;  
+  });  
+  return formData;  
+}  
+  
+function saveCEData(ceId, formData) {  
+  fetch(`/update_ce/${encodeURIComponent(ceId)}`, {  
+    method: 'PUT',  
+    headers: {  
+      'Content-Type': 'application/json'  
+    },  
+    body: JSON.stringify(formData)  
+  })  
+  .then(response => response.json())  
+  .then(data => {  
+    if (data.success) {  
+      updateCERow(ceId, formData);  
+      $('#ceModal').modal('hide');  
+      displayFeedback("CE updated successfully", "success");  
+    } else {  
+      displayFeedback(data.error || 'An error occurred while updating the CE.', "error");  
+    }  
+  })  
+  .catch(error => {  
+    displayFeedback(`Error: ${error.message}`, "error");  
+  });  
+}  
+  
+function updateCERow(ceId, formData) {  
+  const cePill = document.querySelector(`.ce-pill[data-ce-id="${ceId}"]`);  
+  if (cePill) {  
+    cePill.textContent = formData['ceContent'];  
+    cePill.dataset.ceType = formData['ceType'];  
+  }  
+}  

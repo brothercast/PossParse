@@ -6,9 +6,12 @@ import openai
 import requests
 import logging
 from bs4 import BeautifulSoup 
+from ce_nodes import NODES
 from app import app, USE_DATABASE
 from uuid import UUID
+from ce_templates import generate_dynamic_modal
 from models import SSOL, COS, CE
+from ce_templates import get_ce_modal 
 from store import ce_store, cos_store, ssol_store
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -89,7 +92,7 @@ def outcome():
             # Debugging: Log the type and content of outcome_data  
             logging.info(f"Type of outcome_data: {type(outcome_data)}")  
             logging.info(f"Content of outcome_data: {outcome_data}")  
-            return render_template('outcome.html', ssol=outcome_data, ssol_id=outcome_data['ssol_id'])
+            return render_template('outcome.html', ssol=outcome_data, ssol_id=outcome_data['ssol_id'], nodes=NODES)
 
         except Exception as e:      
             app.logger.error(f"An error occurred while generating the outcome data: {e}")    
@@ -191,15 +194,26 @@ def get_ce_by_id_route(ce_id):
     try:  
         ce = get_ce_by_id(ce_id)  
         if ce:  
-            # Check if the CE is a model instance with a to_dict method or a plain dictionary  
-            ce_data = ce.to_dict() if hasattr(ce, 'to_dict') else ce  
-            return jsonify(ce=ce_data), 200  
+            # Check if CE is a model instance or a dictionary  
+            if isinstance(ce, dict):  
+                # When using in-memory store  
+                cos_id = ce.get('cos_id')  
+                cos_content = "Parent COS not found."  
+                if cos_id:  
+                    cos = get_cos_by_id(cos_id)  
+                    cos_content = cos['content'] if cos else cos_content  
+            else:  
+                # When using a database  
+                cos = get_cos_by_id(ce.cos_id) if ce.cos_id else None  
+                cos_content = cos.content if cos else "Parent COS not found."  
+              
+            ce_data = ce.to_dict() if not isinstance(ce, dict) else ce  
+            return jsonify(ce=ce_data, cos_content=cos_content), 200  
         else:  
             return jsonify(error=f"CE with ID {ce_id} not found"), 404  
     except Exception as e:  
         current_app.logger.error(f"Error in get_ce_by_id_route: {e}", exc_info=True)  
-        return jsonify(error="Internal Server Error"), 500 
-
+        return jsonify(error="Internal Server Error"), 500  
 
 @app.route('/analyze_cos/<string:cos_id>', methods=['GET'])  
 def analyze_cos_route(cos_id):  
@@ -233,3 +247,24 @@ def analyze_cos_by_id(cos_id_str):
     except Exception as e:  
         # Catch any unexpected errors and return a structured error response  
         return {'success': False, 'message': f"An unexpected error occurred: {str(e)}"}  
+
+@routes_bp.route('/get_ce_modal/<string:ce_type>', methods=['GET'])  
+def get_ce_modal_route(ce_type):  
+    try:  
+        modal_html = get_ce_modal(ce_type)  
+        return jsonify(modal_html=modal_html)  
+    except Exception as e:  
+        current_app.logger.error(f"Error in get_ce_modal_route: {e}", exc_info=True)  
+        return jsonify(error=str(e)), 500
+
+@routes_bp.route('/update_ce/<uuid:ce_id>', methods=['POST'])  
+def update_ce(ce_id):  
+    ce_data = request.get_json()  
+    try:  
+        ce = get_ce_by_id(ce_id)  
+        if not ce:  
+            raise NotFound('Conditional Element not found.')  
+        update_ce_by_id(ce_id, ce_data)  # Call the update function with new data  
+        return jsonify(success=True), 200  
+    except Exception as e:  
+        return jsonify(success=False, error=str(e)), 500 

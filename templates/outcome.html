@@ -110,32 +110,25 @@
   </div>    
 </div>    
   
-<!-- CE Modal (Bootstrap) -->    
-<div class="modal fade" id="ceModal" tabindex="-1" aria-labelledby="ceModalLabel" aria-hidden="true">    
-  <div class="modal-dialog">    
-    <div class="modal-content">    
-      <div class="modal-header">    
-        <h5 class="modal-title" id="ceModalLabel">Conditional Element Details</h5>    
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>    
-      </div>    
-      <div class="modal-body">    
-        <!-- CE details will be dynamically inserted here -->    
-      </div>    
-    </div>    
-  </div>    
-</div>    
+<!-- Placeholder for dynamic modals -->  
+<div id="dynamicModalContainer"></div>  
 {% endblock %}      
       
 {% block scripts %}          
 <script src="{{ url_for('static', filename='js/cos_table.js') }}"></script>          
 <script src="{{ url_for('static', filename='js/ce_table.js') }}"></script>          
-<script src="{{ url_for('static', filename='js/ce_cards.js') }}"></script>          
+<script src="{{ url_for('static', filename='js/ce_cards.js') }}"></script>
+          
 <script>      
   document.addEventListener('DOMContentLoaded', () => {      
     // Initialize event listeners for COS table handling  
     initializePhaseTableEventListeners();      
     // Removed addEventListenersToCELabels call  
   });      
-</script>       
+</script>      
+<script type="text/javascript">  
+  const NODES = {{ nodes|tojson }};  
+</script>  
+
 {% endblock %}  
 

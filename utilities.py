@@ -260,7 +260,7 @@ def generate_outcome_data(request, method, selected_goal=None, domain=None, doma
   
     # Generate an image using Stability AI          
     try:  
-        image_prompt = f"A colorful, visually stunning retro-futuristic physical diorama depicting '{selected_goal}' as a fulfilled goal, Mary Blair, 1962, photo-realistic, isometric, tiltshift "  
+        image_prompt = f"A colorful, visually stunning photograph of a retro-futuristic tableau depicting '{selected_goal}' as a fulfilled goal, Mary Blair, It's a Small World, 1962, photo-realistic, isometric, tiltshift "  
         web_image_path = generate_image(image_prompt, selected_goal)  
         outcome_data['generated_image_path'] = web_image_path  
     except Exception as e:  

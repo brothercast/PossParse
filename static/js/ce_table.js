@@ -1,21 +1,10 @@
 function handleCEPillClick(event) {  
-  const ceId = event.target.dataset.ceId; // This should be a UUID from the backend  
-  if (!ceId) {  
-    console.error('CE ID not found on the clicked element');  
-    return;  
-  }  
-  
-  // Update the URL to match the corrected route format  
+  const ceId = event.target.dataset.ceId;  
   fetch(`/get_ce_by_id/${encodeURIComponent(ceId)}`)  
-    .then(response => {  
-      if (!response.ok) {  
-        throw new Error(`Server responded with status ${response.status}`);  
-      }  
-      return response.json();  
-    })  
+    .then(response => response.json())  
     .then(data => {  
       if (data && data.ce) {  
-        showCEModal(data.ce);  
+        showCEModal(data.ce, data.cos_content); // Pass the parent COS content to the modal  
       } else {  
         throw new Error('CE data not found or error in response');  
       }  
@@ -24,6 +13,7 @@ function handleCEPillClick(event) {
       console.error('Error fetching CE data:', error);  
     });  
 }  
+
 
 
 // Function to analyze the CE and get the CE type
@@ -66,41 +56,46 @@ function updateCEwithAnalyzedCE(ceId, ceData, ceType) {
     });
 }
 
-// Function to create the CE modal content
-function createCEModalContent(ceData) {
-  const modalContent = document.createElement('div');
-  modalContent.classList.add('modal-content');
+// Function to create the CE modal content  
+function createCEModalContent(ceData, cosContent) {  
+  const modalContent = document.createElement('div');  
+  modalContent.classList.add('modal-content');  
+  
+  const modalHeader = document.createElement('div');  
+  modalHeader.classList.add('modal-header');  
+  modalHeader.innerHTML = `  
+    <h5 class="modal-title" id="ceModalLabel">Conditional Element Details</h5>  
+    <button type="button" class="close" data-dismiss="modal" aria-label="Close">  
+      <span aria-hidden="true">&times;</span>  
+    </button>  
+  `;  
+  
+  const modalBody = document.createElement('div');  
+  modalBody.classList.add('modal-body');  
+  
+  if (ceData && ceData.content && cosContent) {  
+    const cosContentElement = document.createElement('p');  
+    cosContentElement.innerHTML = `<strong>Parent COS:</strong> ${cosContent}`;  
+  
+    const ceContentElement = document.createElement('h2');  
+    ceContentElement.textContent = ceData.content;  
+  
+    const ceTypeElement = document.createElement('p');  
+    ceTypeElement.textContent = `CE Type: ${ceData.ce_type}`;  
+  
+    modalBody.appendChild(cosContentElement);  
+    modalBody.appendChild(ceContentElement);  
+    modalBody.appendChild(ceTypeElement);  
+  } else {  
+    modalBody.innerHTML = '<p>Error: Unable to load CE details.</p>';  
+  }  
+  
+  modalContent.appendChild(modalHeader);  
+  modalContent.appendChild(modalBody);  
+  
+  return modalContent;  
+}  
 
-  const modalHeader = document.createElement('div');
-  modalHeader.classList.add('modal-header');
-  modalHeader.innerHTML = `
-    <h5 class="modal-title" id="ceModalLabel">Conditional Element Details</h5>
-    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-      <span aria-hidden="true">&times;</span>
-    </button>
-  `;
-
-  const modalBody = document.createElement('div');
-  modalBody.classList.add('modal-body');
-
-  if (ceData && ceData.content) {
-    const ceContent = document.createElement('h2');
-    ceContent.textContent = ceData.content;
-
-    const ceType = document.createElement('p');
-    ceType.textContent = `CE Type: ${ceData.ce_type}`;
-
-    modalBody.appendChild(ceContent);
-    modalBody.appendChild(ceType);
-  } else {
-    modalBody.innerHTML = '<p>Error: Unable to load CE details.</p>';
-  }
-
-  modalContent.appendChild(modalHeader);
-  modalContent.appendChild(modalBody);
-
-  return modalContent;
-}
 
 // Function to display the CE modal
 function showCEModal(ceData) {
