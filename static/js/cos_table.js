@@ -73,8 +73,8 @@ function turnRowToEditMode(row) {
 }  
   
 function handleUpdate(row, cosId, ssolId) {  
-  const contentInput = row.querySelector('.cos-content-cell input').value; 
-  const newContent = contentInput ? contentInput.value : '';
+  const contentInput = row.querySelector('.cos-content-input');
+  const newContent = contentInput ? contentInput.value : ''; 
   const statusSelect = row.querySelector('.status-cell select');  
   const statusInput = statusSelect.options[statusSelect.selectedIndex].value;  
   const accountablePartyInput = row.querySelector('.cos-accountable-party-cell input').value;  

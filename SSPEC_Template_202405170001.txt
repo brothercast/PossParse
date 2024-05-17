@@ -1,6 +1,6 @@
 ╔════════════════════════════════╗
 ║ SSPEC PossPath Essential Files ║
-║ Date: 2024-05-16               ║
+║ Date: 2024-05-17               ║
 ║ Version: 0001                  ║
 ╚════════════════════════════════╝
 🌐Structured Speculation Possibility Pathfinder or "SSPEC PossPath" for short. Your task to develop the Flask Web App as an innovative tool for mass collaboration across divides. Essential app files:
@@ -25,7 +25,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask import Flask, Blueprint, render_template, request, flash, redirect, url_for, jsonify, make_response, current_app, send_from_directory
 from werkzeug.exceptions import BadRequest, NotFound
 from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data
-from speculate import get_badge_class_from_status, get_cos_by_id, delete_cos_by_id, update_cos_by_id, parse_ai_response_and_generate_html
+from speculate import get_badge_class_from_status, get_cos_by_id, delete_cos_by_id, update_ce_by_id, update_cos_by_id, parse_ai_response_and_generate_html
 from datetime import datetime
 from dotenv import load_dotenv
 from speculate import create_cos, get_cos_by_id, update_cos_by_id, delete_cos_by_id, get_badge_class_from_status, get_ce_by_id, analyze_cos, extract_conditional_elements  
@@ -268,13 +268,14 @@ def get_ce_modal_route(ce_type):
 def update_ce(ce_id):  
     ce_data = request.get_json()  
     try:  
-        ce = get_ce_by_id(ce_id)  
-        if not ce:  
-            raise NotFound('Conditional Element not found.')  
-        update_ce_by_id(ce_id, ce_data)  # Call the update function with new data  
-        return jsonify(success=True), 200  
+        success = update_ce_by_id(ce_id, ce_data)  # Call the update function with new data  
+        if success:  
+            return jsonify(success=True), 200  
+        else:  
+            return jsonify(success=False, error="Conditional Element not found."), 404  
     except Exception as e:  
-        return jsonify(success=False, error=str(e)), 500 
+        return jsonify(success=False, error=str(e)), 500  
+
 
 
 
@@ -817,68 +818,69 @@ def generate_structured_solution(selected_goal):
 
 
 🟩 goal_selection.html:
-{% extends 'base.html' %}
-
-{% block content %}
-<div class="container mt-4">
-  <h1>What is your Commitment?</h1>
-  <table class="table table-bordered">
-    <thead>
-      <tr>
-        <th>Your Input</th>
-        <th class="text-end">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td class="user-input">{{ user_input }}</td>
-        <td class="text-end">
-          <button type="button" class="btn btn-primary btn-sm edit-user-input">Edit</button>
-          <button type="button" class="btn btn-success btn-sm save-user-input d-none">Update</button>
-          <button type="button" class="btn btn-danger btn-sm cancel-user-input d-none">Cancel</button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-  <p>
-    Based on your input, we have speculated three high-level outcomes.
-    Please choose the one that is closest to your desired result, or click the "Speculate New Outcomes" button to generate a new set of possibilities.
-  </p>
-  <div class="row">
-    {% for goal in goals %}
-      <div class="col-md-4 mb-4">
-        <div class="card retro-futuristic-card text-center {% if not goal.compliant %}non-compliant{% endif %}">
-          <div class="card-body card-content">
-            <i class="{{ goal.icon }} fa-2x mb-3"></i>
-            <p class="domain domain-text">{{ goal.domain | title }}</p>
-            <h5 class="card-title" data-text="{{ goal.title }}">{{ goal.title | safe }}</h5>
-            {% if goal.compliant %}
-            <form action="/outcome" method="post" class="goal-selection-form">
-              <input type="hidden" name="selected_goal" value="{{ goal.title }}">
-              <input type="hidden" name="domain" value="{{ goal.domain }}">
-              <input type="hidden" name="domain_icon" value="{{ goal.icon }}">
-              <input type="hidden" name="user_text" value="{{ user_input }}">
-              <input type="hidden" name="ai_response" value="The AI response data">
-              <button type="submit" class="btn btn-primary">Select</button>
-            </form>
-            {% else %}
-            <button type="button" class="btn btn-danger" onclick="window.location.href='/';">Start Over</button>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-    {% endfor %}
-  </div>
-  <div class="text-center">
-    <button type="button" class="btn btn-outline-primary" id="generate-new-goals">
-      <span class="refresh-icon"><i class="fas fa-sync-alt"></i></span> Speculate New Outcomes</button>
-  </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script type="module" src="{{ url_for('static', filename='js/goal_selection.js') }}"></script>
-{% endblock %}
+{% extends 'base.html' %}  
+  
+{% block content %}  
+<div class="container mt-4">  
+  <h1>What is your Commitment?</h1>  
+  <table class="table table-bordered">  
+    <thead>  
+      <tr>  
+        <th>Your Input</th>  
+        <th class="text-end">Actions</th>  
+      </tr>  
+    </thead>  
+    <tbody>  
+      <tr>  
+        <td class="user-input">{{ user_input }}</td>  
+        <td class="text-end">  
+          <button type="button" class="btn btn-primary btn-sm edit-user-input">Edit</button>  
+          <button type="button" class="btn btn-success btn-sm save-user-input d-none">Update</button>  
+          <button type="button" class="btn btn-danger btn-sm cancel-user-input d-none">Cancel</button>  
+        </td>  
+      </tr>  
+    </tbody>  
+  </table>  
+  <p>  
+    Based on your input, we have speculated three high-level outcomes.  
+    Please choose the one that is closest to your desired result, or click the "Speculate New Outcomes" button to generate a new set of possibilities.  
+  </p>  
+  <!-- Add the class 'card-container' to the div below -->  
+  <div class="row card-container">  
+    {% for goal in goals %}  
+      <div class="col-md-4 mb-4">  
+        <div class="card retro-futuristic-card text-center {% if not goal.compliant %}non-compliant{% endif %}">  
+          <div class="card-body card-content">  
+            <i class="{{ goal.icon }} fa-2x mb-3"></i>  
+            <p class="domain domain-text">{{ goal.domain | title }}</p>  
+            <h5 class="card-title" data-text="{{ goal.title }}">{{ goal.title | safe }}</h5>  
+            {% if goal.compliant %}  
+            <form action="/outcome" method="post" class="goal-selection-form">  
+              <input type="hidden" name="selected_goal" value="{{ goal.title }}">  
+              <input type="hidden" name="domain" value="{{ goal.domain }}">  
+              <input type="hidden" name="domain_icon" value="{{ goal.icon }}">  
+              <input type="hidden" name="user_text" value="{{ user_input }}">  
+              <input type="hidden" name="ai_response" value="The AI response data">  
+              <button type="submit" class="btn btn-primary">Select</button>  
+            </form>  
+            {% else %}  
+            <button type="button" class="btn btn-danger" onclick="window.location.href='/';">Start Over</button>  
+            {% endif %}  
+          </div>  
+        </div>  
+      </div>  
+    {% endfor %}  
+  </div>  
+  <div class="text-center">  
+    <button type="button" class="btn btn-outline-primary" id="generate-new-goals">  
+      <span class="refresh-icon"><i class="fas fa-sync-alt"></i></span> Speculate New Outcomes</button>  
+  </div>  
+</div>  
+{% endblock %}  
+  
+{% block scripts %}  
+<script type="module" src="{{ url_for('static', filename='js/goal_selection.js') }}"></script>  
+{% endblock %}  
 
 
 
@@ -1096,8 +1098,8 @@ function turnRowToEditMode(row) {
 }  
   
 function handleUpdate(row, cosId, ssolId) {  
-  const contentInput = row.querySelector('.cos-content-cell input').value; 
-  const newContent = contentInput ? contentInput.value : '';
+  const contentInput = row.querySelector('.cos-content-input');
+  const newContent = contentInput ? contentInput.value : ''; 
   const statusSelect = row.querySelector('.status-cell select');  
   const statusInput = statusSelect.options[statusSelect.selectedIndex].value;  
   const accountablePartyInput = row.querySelector('.cos-accountable-party-cell input').value;  
@@ -1726,17 +1728,27 @@ def get_ce_by_id(ce_id):
         logging.error(f"Unexpected error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
         raise e  
 
-def update_ce_by_id(ce_id, updated_data):  
-    from app import USE_DATABASE 
+# Function to update CE by ID  
+def update_ce_by_id(ce_id, ce_data):  
+    # Check if using the database or in-memory storage  
     if USE_DATABASE:  
-        ce = session.query(CE).filter_by(id=ce_id).first()  
-        for key, value in updated_data.items():  
-            setattr(ce, key, value)  
-        session.commit()  
-    else:  
-        ce = ce_store.get(ce_id)  
+        # Update the database with the new data  
+        ce = CE.query.get(ce_id)  
         if ce:  
-            ce.update(updated_data)  
+            for key, value in ce_data.items():  
+                setattr(ce, key, value)  # Assuming the keys in ce_data match the CE model's columns  
+            db.session.commit()  
+            return True  
+        else:  
+            return False  
+    else:  
+        # Update the in-memory store with the new data  
+        # Assuming your in-memory store uses a dictionary with ce_id as the key  
+        if ce_id in ce_store:  
+            ce_store[ce_id].update(ce_data)  
+            return True  
+        else:  
+            return False 
   
 def delete_ce_by_id(ce_id):  
     from app import db, USE_DATABASE 
@@ -2440,7 +2452,38 @@ function fetchCEData(ceId) {
       displayFeedback("Error fetching CE details", "error");  
     });  
 } 
-  
+
+function openCEModal(ceId) {  
+  fetch(`/get_ce_by_id/${encodeURIComponent(ceId)}`)  
+      .then(response => response.json())  
+      .then(data => {  
+          if (data.ce) {  
+              // Populate the modal fields with current data  
+              const form = document.getElementById(`ceForm${ceId}`);  
+              for (const key in data.ce) {  
+                  if (form.elements[key]) {  
+                      form.elements[key].value = data.ce[key];  
+                  }  
+              }  
+              // Show the modal  
+              $(`#ceModal${ceId}`).modal('show');  
+          } else {  
+              throw new Error('CE data not found or error in response');  
+          }  
+      })  
+      .catch(error => {  
+          alert('Error fetching CE details: ' + error);  
+      });  
+}  
+document.addEventListener('DOMContentLoaded', function() {  
+  document.addEventListener('click', function(event) {  
+      if (event.target.matches('.ce-pill')) {  
+          const ceId = event.target.dataset.ceId;  
+          openCEModal(ceId);  
+      }  
+  });  
+});  
+
 function createAndShowCEModal(ceData) {  
   // Check if ceData and ceData.type are defined  
   if (!ceData || typeof ceData.type === 'undefined') {  
@@ -2541,6 +2584,40 @@ function updateCERow(ceId, formData) {
     cePill.dataset.ceType = formData['ceType'];  
   }  
 }  
+
+// Event listener for the "Save changes" button within the modal  
+document.addEventListener('DOMContentLoaded', function() {  
+  document.addEventListener('click', function(event) {  
+    // Check if the clicked element is the Save changes button  
+    if (event.target.matches('.btn-save-changes')) {  
+        const ceId = event.target.dataset.ceId;  // Retrieve CE ID stored in a data attribute  
+        const form = document.querySelector(`#ceForm${ceId}`);  // Make sure the form has the correct ID  
+        if (form) {  
+            const formData = new FormData(form);  
+            const data = {};  
+            formData.forEach((value, key) => data[key] = value);  
+  
+            fetch(`/update_ce/${encodeURIComponent(ceId)}`, {  // Make sure to use the correct CE ID  
+                method: 'POST',  
+                headers: {  
+                    'Content-Type': 'application/json'  
+                },  
+                body: JSON.stringify(data)  
+            })  
+            .then(response => response.json())  
+            .then(data => {  
+                // Handle the response data  
+            })  
+            .catch(error => {  
+                // Handle any errors  
+            });  
+        } else {  
+            console.error('Form not found');  
+        }  
+    }  
+
+  });  
+});  
 
 
 
@@ -2705,7 +2782,8 @@ BASE_MODAL_TEMPLATE = """
       </div>    
       <div class="modal-footer">    
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>    
-        <button type="button" class="btn btn-primary">Save changes</button>    
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal" id="saveChangesButton{{ ce_type }}">Save Changes</button>  
+    
       </div>    
     </div>    
   </div>    

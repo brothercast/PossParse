@@ -18,7 +18,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask import Flask, Blueprint, render_template, request, flash, redirect, url_for, jsonify, make_response, current_app, send_from_directory
 from werkzeug.exceptions import BadRequest, NotFound
 from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data
-from speculate import get_badge_class_from_status, get_cos_by_id, delete_cos_by_id, update_cos_by_id, parse_ai_response_and_generate_html
+from speculate import get_badge_class_from_status, get_cos_by_id, delete_cos_by_id, update_ce_by_id, update_cos_by_id, parse_ai_response_and_generate_html
 from datetime import datetime
 from dotenv import load_dotenv
 from speculate import create_cos, get_cos_by_id, update_cos_by_id, delete_cos_by_id, get_badge_class_from_status, get_ce_by_id, analyze_cos, extract_conditional_elements  
@@ -261,10 +261,11 @@ def get_ce_modal_route(ce_type):
 def update_ce(ce_id):  
     ce_data = request.get_json()  
     try:  
-        ce = get_ce_by_id(ce_id)  
-        if not ce:  
-            raise NotFound('Conditional Element not found.')  
-        update_ce_by_id(ce_id, ce_data)  # Call the update function with new data  
-        return jsonify(success=True), 200  
+        success = update_ce_by_id(ce_id, ce_data)  # Call the update function with new data  
+        if success:  
+            return jsonify(success=True), 200  
+        else:  
+            return jsonify(success=False, error="Conditional Element not found."), 404  
     except Exception as e:  
-        return jsonify(success=False, error=str(e)), 500 
+        return jsonify(success=False, error=str(e)), 500  
+

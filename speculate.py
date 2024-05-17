@@ -306,17 +306,27 @@ def get_ce_by_id(ce_id):
         logging.error(f"Unexpected error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
         raise e  
 
-def update_ce_by_id(ce_id, updated_data):  
-    from app import USE_DATABASE 
+# Function to update CE by ID  
+def update_ce_by_id(ce_id, ce_data):  
+    # Check if using the database or in-memory storage  
     if USE_DATABASE:  
-        ce = session.query(CE).filter_by(id=ce_id).first()  
-        for key, value in updated_data.items():  
-            setattr(ce, key, value)  
-        session.commit()  
-    else:  
-        ce = ce_store.get(ce_id)  
+        # Update the database with the new data  
+        ce = CE.query.get(ce_id)  
         if ce:  
-            ce.update(updated_data)  
+            for key, value in ce_data.items():  
+                setattr(ce, key, value)  # Assuming the keys in ce_data match the CE model's columns  
+            db.session.commit()  
+            return True  
+        else:  
+            return False  
+    else:  
+        # Update the in-memory store with the new data  
+        # Assuming your in-memory store uses a dictionary with ce_id as the key  
+        if ce_id in ce_store:  
+            ce_store[ce_id].update(ce_data)  
+            return True  
+        else:  
+            return False 
   
 def delete_ce_by_id(ce_id):  
     from app import db, USE_DATABASE 
