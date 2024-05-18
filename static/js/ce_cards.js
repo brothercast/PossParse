@@ -329,3 +329,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
   });  
 });  
+
+// Function to dynamically change the CE Type and update the modal  
+function changeCEType(ceType) {  
+  // Fetch the new modal content based on the selected CE Type  
+  fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`)  
+      .then(response => response.json())  
+      .then(data => {  
+          if (data.modal_html) {  
+              const modalContainer = document.querySelector('#dynamicModalContainer');  
+              modalContainer.innerHTML = data.modal_html;  
+          } else {  
+              throw new Error('Modal HTML content not found or error in response');  
+          }  
+      })  
+      .catch(error => {  
+          console.error('Error fetching modal content:', error);  
+      });  
+}  
+
+// Event listener for the CE Type dropdown change  
+document.addEventListener('change', event => {  
+  if (event.target.matches('.ce-type-dropdown')) {  
+      const ceType = event.target.value;  
+      changeCEType(ceType);  
+  }  
+});  
