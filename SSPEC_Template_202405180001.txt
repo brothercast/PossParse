@@ -1,6 +1,6 @@
 ╔════════════════════════════════╗
 ║ SSPEC PossPath Essential Files ║
-║ Date: 2024-05-17               ║
+║ Date: 2024-05-18               ║
 ║ Version: 0001                  ║
 ╚════════════════════════════════╝
 🌐Structured Speculation Possibility Pathfinder or "SSPEC PossPath" for short. Your task to develop the Flask Web App as an innovative tool for mass collaboration across divides. Essential app files:
@@ -16,12 +16,10 @@ from bs4 import BeautifulSoup
 from ce_nodes import NODES
 from app import app, USE_DATABASE
 from uuid import UUID
-from ce_templates import generate_dynamic_modal, generate_form_fields, BASE_MODAL_TEMPLATE
+from ce_templates import generate_dynamic_modal, generate_form_fields, BASE_MODAL_TEMPLATE, generate_ai_query
 from models import SSOL, COS, CE
 from ce_templates import get_ce_modal 
 from store import ce_store, cos_store, ssol_store
-from flask_migrate import Migrate
-from flask_sqlalchemy import SQLAlchemy
 from flask import Blueprint, render_template, render_template_string, request, flash, redirect, request, url_for, jsonify, make_response, current_app, send_from_directory
 from werkzeug.exceptions import BadRequest, NotFound
 from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data
@@ -284,6 +282,35 @@ def update_ce(ce_id):
         else:  
             return jsonify(success=False, error="Conditional Element not found."), 404  
     except Exception as e:  
+        return jsonify(success=False, error=str(e)), 500 
+
+@routes_bp.route('/ai-query-endpoint', methods=['POST'])  
+def ai_query_endpoint():  
+    try:  
+        # Parse the JSON payload from the request  
+        data = request.get_json()  
+        if not data:  
+            raise BadRequest('No JSON payload received.')  
+  
+        # Extract necessary information from the payload  
+        cos_text = data.get('cos_text')  
+        ce_id = data.get('ce_id')  
+        ce_type = data.get('ce_type')  
+        ssol_goal = data.get('ssol_goal')  
+  
+        # Check if all required data is present  
+        if not all([cos_text, ce_id, ce_type, ssol_goal]):  
+            raise BadRequest('Missing required fields in JSON payload.')  
+  
+        # Use the generate_ai_query function to get the AI response  
+        ai_response = generate_ai_query(cos_text, ce_id, ce_type, ssol_goal)  
+  
+        # Return the AI response as JSON  
+        return jsonify(ai_response=ai_response), 200  
+    except BadRequest as e:  
+        return jsonify(success=False, error=str(e)), 400  
+    except Exception as e:  
+        current_app.logger.error(f"Exception in AI query endpoint: {e}")  
         return jsonify(success=False, error=str(e)), 500  
 
 
@@ -2632,25 +2659,28 @@ document.addEventListener('click', event => {
   
 function fetchCEData(ceId) {  
   fetch(`/get_ce_by_id/${encodeURIComponent(ceId)}`)  
-    .then(response => {  
-      if (!response.ok) {  
-        throw new Error(`HTTP error! status: ${response.status}`);  
-      }  
-      return response.json();  
-    })  
+    .then(response => response.json())  
     .then(data => {  
       if (data.ce) {  
-        console.log('Received CE data:', data.ce); // Log the received CE data  
-        createAndShowCEModal(data.ce);  
+        // Fetch the parent COS content using the provided cos_id  
+        fetch(`/get_cos_by_id/${data.ce.cos_id}`)  
+          .then(cosResponse => cosResponse.json())  
+          .then(cosData => {  
+            if (cosData.cos) {  
+              // Now we have both the CE and COS data  
+              createAndShowCEModal(data.ce, cosData.cos.content);  
+            } else {  
+              throw new Error('COS data not found or error in response');  
+            }  
+          });  
       } else {  
         throw new Error('CE data not found or error in response');  
       }  
     })  
     .catch(error => {  
       console.error('Error fetching CE data:', error);  
-      displayFeedback("Error fetching CE details", "error");  
     });  
-} 
+}  
 
 function openCEModal(ceId) {  
   fetch(`/get_ce_by_id/${encodeURIComponent(ceId)}`)  
@@ -2895,6 +2925,59 @@ document.addEventListener('change', event => {
   }  
 });  
 
+// Handler for initiating speculation based on AI  
+async function speculate(button) {  
+  const ceType = button.closest('.modal').id.replace('ceModal', '');  
+  const cosText = ''; // Retrieve the COS text relevant for speculation  
+  const ssolGoal = ''; // Retrieve the SSOL goal relevant for speculation  
+  const ceId = ''; // Retrieve the CE ID relevant for speculation  
+    
+  try {  
+    // Use the generate_ai_query function to create the AI message  
+    // This function needs to be exposed to the frontend, possibly by setting it to window object in Flask  
+    const aiMessage = window.generate_ai_query(cosText, ceId, ceType, ssolGoal);  
+    
+    // Send the AI message to the Flask backend, which will handle AI service communication  
+    const aiResponse = await fetchAIResponse(aiMessage);  
+    
+    // Add the AI-generated content to the table in the modal  
+    const tableContainer = document.querySelector(`#tableContainer${ceType}`);  
+    const newRow = document.createElement('tr');  
+    newRow.innerHTML = `<td>${aiResponse}</td>`; // Adjust according to the actual AI response structure  
+    const table = tableContainer.querySelector('table tbody');  
+    table.appendChild(newRow);  
+  } catch (error) {  
+    // Handle errors  
+    console.error('Error speculating AI response:', error);  
+  }  
+}  
+  
+// Helper function to fetch AI response from Flask backend  
+async function fetchAIResponse(aiMessage) {  
+  // Set the correct endpoint URL for the Flask route handling AI requests  
+  const aiEndpoint = '/ai-query-endpoint';  
+  
+  const response = await fetch(aiEndpoint, {  
+    method: 'POST',  
+    headers: {  
+      'Content-Type': 'application/json'  
+    },  
+    body: JSON.stringify({ message: aiMessage })  
+  });  
+  
+  if (!response.ok) {  
+    throw new Error(`AI service responded with status ${response.status}`);  
+  }  
+  return await response.json(); // Assuming the Flask route returns a JSON response from AI  
+}  
+  
+// Event listener for the speculate button  
+document.addEventListener('click', event => {  
+  if (event.target.matches('.speculate-button')) {  
+    speculate(event.target);  
+  }  
+});  
+
 
 
 📆 models.py:
@@ -2958,7 +3041,8 @@ class CE(db.Model):
     content = db.Column(db.String, nullable=False)  
     node_type = db.Column(db.String(50), nullable=True)  
     details = db.Column(db.Text, nullable=True)  
-    cos = relationship('COS', secondary='cos_ce_link', back_populates='conditional_elements')  
+    cos = relationship('COS', secondary='cos_ce_link', back_populates='conditional_elements')
+    research_data = db.Column(db.JSON, nullable=True)  
   
     def to_dict(self):  
         return {  
@@ -3037,33 +3121,39 @@ ce_store = {}
 
 🧩 ce_templates.py:
 from flask import render_template, render_template_string 
+from utilities import generate_chat_response
 from ce_nodes import NODES  
   
 # Define a base template for the modal dialogs that will be populated dynamically  
 BASE_MODAL_TEMPLATE = """    
-<div class="modal fade" id="ceModal{{ ce_type }}" tabindex="-1" aria-labelledby="ceModalLabel{{ ce_type }}" aria-hidden="true">    
-  <div class="modal-dialog" role="document">    
-    <div class="modal-content">    
-      <div class="modal-header">    
-        <h5 class="modal-title" id="ceModalLabel{{ ce_type }}">    
-          <i class="{{ node_info['icon'] }}"></i>    
-          {{ node_info['definition'] }}    
-        </h5>    
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>    
-      </div>    
-      <div class="modal-body">    
-        <form id="ceForm{{ ce_type }}">    
-          {{ form_fields | safe }}    
-        </form>    
-      </div>    
-      <div class="modal-footer">    
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>    
-        <button type="button" class="btn btn-primary" data-bs-dismiss="modal" id="saveChangesButton{{ ce_type }}">Save Changes</button>  
-    
-      </div>    
-    </div>    
-  </div>    
-</div>    
+<div class="modal fade" id="ceModal{{ ce_type }}" tabindex="-1" aria-labelledby="ceModalLabel{{ ce_type }}" aria-hidden="true">  
+  <div class="modal-dialog" role="document">  
+    <div class="modal-content">  
+      <div class="modal-header">  
+        <h5 class="modal-title" id="ceModalLabel{{ ce_type }}">  
+          <i class="{{ node_info['icon'] }}"></i>  
+          {{ node_info['definition'] }}  
+        </h5>  
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
+      </div>  
+      <div class="modal-body">  
+        <form id="ceForm{{ ce_type }}">  
+          {{ form_fields | safe }}  
+        </form>  
+        <!-- Placeholder for dynamic table, if needed -->  
+        <div id="tableContainer{{ ce_type }}"></div>  
+      </div>  
+      <div class="modal-footer">  
+        <!-- Standardized action buttons -->  
+        <button type="button" class="btn btn-secondary action-button" data-action="close" data-bs-dismiss="modal">Close</button>  
+        <button type="button" class="btn btn-primary action-button" data-action="save" id="saveChangesButton{{ ce_type }}">Save Changes</button>  
+        <button type="button" class="btn btn-info action-button" data-action="speculate" id="speculateButton{{ ce_type }}">Speculate</button>  
+        <button type="button" class="btn btn-success action-button" data-action="addRow" id="addRowButton{{ ce_type }}">Add Row</button>  
+        <!-- Additional action buttons as needed -->  
+      </div>  
+    </div>  
+  </div>  
+</div>  
 """ 
   
 # Generate the form fields based on the CE type attributes  
@@ -3141,7 +3231,32 @@ def get_ce_modal(ce_type, ce_data, cos_phase):
     # Generate the dynamic modal for the CE type and COS phase  
     modal_html = generate_dynamic_modal(ce_type, ce_data, cos_phase)  
     return modal_html  
-  
+
+def generate_ai_query(cos_text, ce_id, ce_type, ssol_goal):  
+  # Compose a message that provides the AI with the hierarchy and context  
+  messages = [  
+      {  
+          "role": "system",  
+          "content": (  
+              "You are a helpful assistant. Generate contextually relevant data based on the SSOL goal, "  
+              "the parent COS text, and the specific CE ID and type provided. Use this information to generate "  
+              "detailed and specific insights or data that can assist in satisfying the COS and ultimately achieving the SSOL goal."  
+          )  
+      },  
+      {  
+          "role": "user",  
+          "content": (  
+              f"SSOL Goal: {ssol_goal}\n"  
+              f"COS Text: {cos_text}\n"  
+              f"CE ID: {ce_id}\n"  
+              f"CE Type: {ce_type}\n"  
+              f"Based on the SSOL goal and the context provided by the parent COS, "  
+              f"generate detailed and relevant data for the CE type '{ce_type}' that contributes towards meeting the COS and achieving the SSOL."  
+          )  
+      }  
+  ]  
+  # Perform the AI query and return the results  
+  return generate_chat_response(messages, role='AI Contextual Query', task=f'Generate Data for {ce_type}')  
 
 
 

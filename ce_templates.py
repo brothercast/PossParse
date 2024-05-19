@@ -1,31 +1,37 @@
 from flask import render_template, render_template_string 
+from utilities import generate_chat_response
 from ce_nodes import NODES  
   
 # Define a base template for the modal dialogs that will be populated dynamically  
 BASE_MODAL_TEMPLATE = """    
-<div class="modal fade" id="ceModal{{ ce_type }}" tabindex="-1" aria-labelledby="ceModalLabel{{ ce_type }}" aria-hidden="true">    
-  <div class="modal-dialog" role="document">    
-    <div class="modal-content">    
-      <div class="modal-header">    
-        <h5 class="modal-title" id="ceModalLabel{{ ce_type }}">    
-          <i class="{{ node_info['icon'] }}"></i>    
-          {{ node_info['definition'] }}    
-        </h5>    
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>    
-      </div>    
-      <div class="modal-body">    
-        <form id="ceForm{{ ce_type }}">    
-          {{ form_fields | safe }}    
-        </form>    
-      </div>    
-      <div class="modal-footer">    
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>    
-        <button type="button" class="btn btn-primary" data-bs-dismiss="modal" id="saveChangesButton{{ ce_type }}">Save Changes</button>  
-    
-      </div>    
-    </div>    
-  </div>    
-</div>    
+<div class="modal fade" id="ceModal{{ ce_type }}" tabindex="-1" aria-labelledby="ceModalLabel{{ ce_type }}" aria-hidden="true">  
+  <div class="modal-dialog" role="document">  
+    <div class="modal-content">  
+      <div class="modal-header">  
+        <h5 class="modal-title" id="ceModalLabel{{ ce_type }}">  
+          <i class="{{ node_info['icon'] }}"></i>  
+          {{ node_info['definition'] }}  
+        </h5>  
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
+      </div>  
+      <div class="modal-body">  
+        <form id="ceForm{{ ce_type }}">  
+          {{ form_fields | safe }}  
+        </form>  
+        <!-- Placeholder for dynamic table, if needed -->  
+        <div id="tableContainer{{ ce_type }}"></div>  
+      </div>  
+      <div class="modal-footer">  
+        <!-- Standardized action buttons -->  
+        <button type="button" class="btn btn-secondary action-button" data-action="close" data-bs-dismiss="modal">Close</button>  
+        <button type="button" class="btn btn-primary action-button" data-action="save" id="saveChangesButton{{ ce_type }}">Save Changes</button>  
+        <button type="button" class="btn btn-info action-button" data-action="speculate" id="speculateButton{{ ce_type }}">Speculate</button>  
+        <button type="button" class="btn btn-success action-button" data-action="addRow" id="addRowButton{{ ce_type }}">Add Row</button>  
+        <!-- Additional action buttons as needed -->  
+      </div>  
+    </div>  
+  </div>  
+</div>  
 """ 
   
 # Generate the form fields based on the CE type attributes  
@@ -81,19 +87,20 @@ def get_phase_color(phase):
     return phase_colors.get(phase, "#ffffff")
   
 # Main function to generate a dynamic modal template for a given CE type  
-def generate_dynamic_modal(ce_type, ce_data, cos_phase):  
-    node_info = NODES.get(ce_type, {})  
-    form_fields_html = generate_form_fields(ce_type, ce_data)  
-    phase_color = get_phase_color(cos_phase)  # Function to get the color based on the phase  
+def generate_dynamic_modal(ce_type, ce_data=None, cos_phase=None):  
+    if ce_data is None:  
+        ce_data = {'id': '', 'content': '', 'node_type': ce_type}  
+    if cos_phase is None:  
+        cos_phase = 'Default'  
   
-    # Render the dynamic modal with form fields and phase color  
-    modal_content = render_template(  
-        "ce_modal.html",  # Assuming you have a corresponding template file for modals  
+    node_info = NODES.get(ce_type, NODES['Default'])  
+  
+    modal_content = render_template_string(  
+        BASE_MODAL_TEMPLATE,  
         ce_type=ce_type,  
-        ce_data=ce_data,  
         node_info=node_info,  
-        form_fields=form_fields_html,  
-        phase_color=phase_color  
+        ce_data=ce_data,  
+        cos_phase=cos_phase  
     )  
     return modal_content   
     
@@ -103,4 +110,29 @@ def get_ce_modal(ce_type, ce_data, cos_phase):
     # Generate the dynamic modal for the CE type and COS phase  
     modal_html = generate_dynamic_modal(ce_type, ce_data, cos_phase)  
     return modal_html  
-  
+
+def generate_ai_query(cos_text, ce_id, ce_type, ssol_goal):  
+  # Compose a message that provides the AI with the hierarchy and context  
+  messages = [  
+      {  
+          "role": "system",  
+          "content": (  
+              "You are a helpful assistant. Generate contextually relevant data based on the Structured Solution (SSOL) goal, "  
+              "the parent Condition of Satisfaction (COS) text, and the specific Conditional Element Identifyer (CE ID) and type provided. Use this information to generate "  
+              "detailed and specific insights or data that can fulfill on satisfying the COS and ultimately achieving the SSOL goal."  
+          )  
+      },  
+      {  
+          "role": "user",  
+          "content": (  
+              f"SSOL Goal: {ssol_goal}\n"  
+              f"COS Text: {cos_text}\n"  
+              f"CE ID: {ce_id}\n"  
+              f"CE Type: {ce_type}\n"  
+              f"Based on the SSOL goal and the context provided by the parent COS, "  
+              f"generate detailed and relevant data for the CE type '{ce_type}' that contributes towards meeting the COS and achieving the SSOL."  
+          )  
+      }  
+  ]  
+  # Perform the AI query and return the results  
+  return generate_chat_response(messages, role='AI Contextual Query', task=f'Generate Data for {ce_type}')  

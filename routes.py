@@ -8,13 +8,11 @@ import logging
 from bs4 import BeautifulSoup 
 from ce_nodes import NODES
 from app import app, USE_DATABASE
-from uuid import UUID
-from ce_templates import generate_dynamic_modal, generate_form_fields, BASE_MODAL_TEMPLATE
+from uuid import uuid4  
+from ce_templates import generate_dynamic_modal, generate_form_fields, BASE_MODAL_TEMPLATE, generate_ai_query
 from models import SSOL, COS, CE
-from ce_templates import get_ce_modal 
+from ce_templates import generate_dynamic_modal, NODES  
 from store import ce_store, cos_store, ssol_store
-from flask_migrate import Migrate
-from flask_sqlalchemy import SQLAlchemy
 from flask import Blueprint, render_template, render_template_string, request, flash, redirect, request, url_for, jsonify, make_response, current_app, send_from_directory
 from werkzeug.exceptions import BadRequest, NotFound
 from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data
@@ -248,24 +246,20 @@ def analyze_cos_by_id(cos_id_str):
         # Catch any unexpected errors and return a structured error response  
         return {'success': False, 'message': f"An unexpected error occurred: {str(e)}"}  
 
-@app.route('/get_ce_modal/<string:ce_type>', methods=['GET'])  
-def get_ce_modal(ce_type):  
-    node = NODES.get(ce_type)  
-    if not node:  
-        return jsonify(error="CE type not found"), 404  
+@routes_bp.route('/get_ce_modal/<string:ce_type>', methods=['GET'])  
+def get_ce_modal_route(ce_type):  
+    try:  
+        # Here, you would fetch the actual CE data and COS phase using the `ce_type`  
+        # For demonstration purposes, I'm using placeholders:  
+        ce_data = {'id': str(uuid.uuid4()), 'content': 'Example content', 'node_type': ce_type}  
+        cos_phase = 'Example Phase'  # Placeholder for the actual COS phase  
   
-    modal_fields_html = ""  
-    for field in node.get("modal_config", {}).get("fields", []):  
-        modal_fields_html += generate_form_fields(  
-            field_type=field["type"],  
-            field_name=field["name"],  
-            placeholder=field.get("placeholder", "")  
-        )  
-  
-    # Render the modal using a base template with placeholders for dynamic content  
-    modal_html = render_template_string(BASE_MODAL_TEMPLATE, ce_type=ce_type, node_info=node, form_fields=modal_fields_html)  
-  
-    return jsonify(modal_html=modal_html) 
+        modal_html = generate_dynamic_modal(ce_type, ce_data, cos_phase)  
+        return jsonify({'modal_html': modal_html}), 200  
+    except Exception as e:  
+        current_app.logger.error(f"Error in get_ce_modal_route: {e}", exc_info=True)  
+        return jsonify({'error': "Internal Server Error"}), 500  
+
 
 @routes_bp.route('/update_ce/<uuid:ce_id>', methods=['POST'])  
 def update_ce(ce_id):  
@@ -277,5 +271,34 @@ def update_ce(ce_id):
         else:  
             return jsonify(success=False, error="Conditional Element not found."), 404  
     except Exception as e:  
+        return jsonify(success=False, error=str(e)), 500 
+
+@routes_bp.route('/ai-query-endpoint', methods=['POST'])  
+def ai_query_endpoint():  
+    try:  
+        # Parse the JSON payload from the request  
+        data = request.get_json()  
+        if not data:  
+            raise BadRequest('No JSON payload received.')  
+  
+        # Extract necessary information from the payload  
+        cos_text = data.get('cos_text')  
+        ce_id = data.get('ce_id')  
+        ce_type = data.get('ce_type')  
+        ssol_goal = data.get('ssol_goal')  
+  
+        # Check if all required data is present  
+        if not all([cos_text, ce_id, ce_type, ssol_goal]):  
+            raise BadRequest('Missing required fields in JSON payload.')  
+  
+        # Use the generate_ai_query function to get the AI response  
+        ai_response = generate_ai_query(cos_text, ce_id, ce_type, ssol_goal)  
+  
+        # Return the AI response as JSON  
+        return jsonify(ai_response=ai_response), 200  
+    except BadRequest as e:  
+        return jsonify(success=False, error=str(e)), 400  
+    except Exception as e:  
+        current_app.logger.error(f"Exception in AI query endpoint: {e}")  
         return jsonify(success=False, error=str(e)), 500  
 

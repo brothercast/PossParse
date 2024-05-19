@@ -1,4 +1,14 @@
 NODES = {
+    "Default": {  
+        "definition": "This node is a default research mode for undefined node types.",  
+        "icon": "fas fa-question-circle",  
+        "modal_config": {  
+            "fields": [  
+                {"type": "text", "name": "detail", "placeholder": "Detail"},  
+                # Add more generic fields as necessary  
+            ]  
+        }  
+    },  
     "Location": {
         "definition": "This node allows the user to specify a geographic region relevant to the Conditional Element.",
         "icon": "fas fa-map-marker-alt",

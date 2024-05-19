@@ -58,7 +58,8 @@ class CE(db.Model):
     content = db.Column(db.String, nullable=False)  
     node_type = db.Column(db.String(50), nullable=True)  
     details = db.Column(db.Text, nullable=True)  
-    cos = relationship('COS', secondary='cos_ce_link', back_populates='conditional_elements')  
+    cos = relationship('COS', secondary='cos_ce_link', back_populates='conditional_elements')
+    research_data = db.Column(db.JSON, nullable=True)  
   
     def to_dict(self):  
         return {  
