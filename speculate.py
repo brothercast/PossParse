@@ -285,8 +285,8 @@ def create_ce(content, node_type):
         return ce_id  
 
 
-def get_ce_by_id(ce_id):      
-    from app import USE_DATABASE, db      
+def get_ce_by_id(ce_id):  
+    from app import USE_DATABASE, db  
     try:  
         if USE_DATABASE:  
             ce = CE.query.get(ce_id)  
@@ -296,7 +296,7 @@ def get_ce_by_id(ce_id):
             ce = ce_store.get(str(ce_id))  
             if not ce:  
                 raise ValueError(f"CE with ID {ce_id} not found in the in-memory store.")  
-          
+  
         return ce  
   
     except ValueError as e:  
@@ -306,27 +306,25 @@ def get_ce_by_id(ce_id):
         logging.error(f"Unexpected error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
         raise e  
 
+
 # Function to update CE by ID  
 def update_ce_by_id(ce_id, ce_data):  
-    # Check if using the database or in-memory storage  
     if USE_DATABASE:  
-        # Update the database with the new data  
         ce = CE.query.get(ce_id)  
         if ce:  
             for key, value in ce_data.items():  
-                setattr(ce, key, value)  # Assuming the keys in ce_data match the CE model's columns  
+                setattr(ce, key, value)  
             db.session.commit()  
             return True  
         else:  
             return False  
     else:  
-        # Update the in-memory store with the new data  
-        # Assuming your in-memory store uses a dictionary with ce_id as the key  
         if ce_id in ce_store:  
             ce_store[ce_id].update(ce_data)  
             return True  
         else:  
-            return False 
+            return False  
+
   
 def delete_ce_by_id(ce_id):  
     from app import db, USE_DATABASE 

@@ -1,11 +1,11 @@
 import os  
+import uuid  
 from dotenv import load_dotenv  
 from flask_sqlalchemy import SQLAlchemy  
-from sqlalchemy import create_engine  
+from sqlalchemy import create_engine, Column, Integer, String, Text, ForeignKey, Date  
 from sqlalchemy.dialects.postgresql import UUID  
 from sqlalchemy.ext.declarative import declarative_base  
 from sqlalchemy.orm import scoped_session, sessionmaker, relationship  
-import uuid  
   
 load_dotenv()  
   
@@ -17,9 +17,9 @@ session = scoped_session(SessionLocal)
   
 class SSOL(db.Model):  
     __tablename__ = 'ssol'  
-    id = db.Column(db.Integer, primary_key=True)  
-    title = db.Column(db.String(255), nullable=False)  
-    description = db.Column(db.Text, nullable=True)  
+    id = Column(Integer, primary_key=True)  
+    title = Column(String(255), nullable=False)  
+    description = Column(Text, nullable=True)  
     cos = relationship('COS', back_populates='ssol')  
   
     def to_dict(self):  
@@ -32,12 +32,12 @@ class SSOL(db.Model):
   
 class COS(db.Model):  
     __tablename__ = 'cos'  
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)  
-    content = db.Column(db.String, nullable=False)  
-    status = db.Column(db.String(50), nullable=False)  
-    accountable_party = db.Column(db.String(255), nullable=True)  
-    completion_date = db.Column(db.Date, nullable=True)  
-    ssol_id = db.Column(db.Integer, db.ForeignKey('ssol.id'), nullable=False)  
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)  
+    content = Column(String, nullable=False)  
+    status = Column(String(50), nullable=False)  
+    accountable_party = Column(String(255), nullable=True)  
+    completion_date = Column(Date, nullable=True)  
+    ssol_id = Column(Integer, ForeignKey('ssol.id'), nullable=False)  
     ssol = relationship('SSOL', back_populates='cos')  
     conditional_elements = relationship('CE', secondary='cos_ce_link', backref='cos')  
   
@@ -54,24 +54,23 @@ class COS(db.Model):
   
 class CE(db.Model):  
     __tablename__ = 'ce'  
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)  
-    content = db.Column(db.String, nullable=False)  
-    node_type = db.Column(db.String(50), nullable=True)  
-    details = db.Column(db.Text, nullable=True)  
-    cos = relationship('COS', secondary='cos_ce_link', back_populates='conditional_elements')
-    research_data = db.Column(db.JSON, nullable=True)  
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)  
+    content = Column(String, nullable=False)  
+    node_type = Column(String(50), nullable=True)  # Ensure this field exists  
+    details = Column(Text, nullable=True)  
+    cos = relationship('COS', secondary='cos_ce_link', back_populates='conditional_elements')  
   
     def to_dict(self):  
         return {  
             'id': str(self.id),  
             'content': self.content,  
-            'node_type': self.node_type,  
+            'node_type': self.node_type, 
             'details': self.details  
         }  
   
 class COS_CE_Link(db.Model):  
     __tablename__ = 'cos_ce_link'  
-    cos_id = db.Column(UUID(as_uuid=True), db.ForeignKey('cos.id'), primary_key=True)  
-    ce_id = db.Column(UUID(as_uuid=True), db.ForeignKey('ce.id'), primary_key=True)  
+    cos_id = Column(UUID(as_uuid=True), ForeignKey('cos.id'), primary_key=True)  
+    ce_id = Column(UUID(as_uuid=True), ForeignKey('ce.id'), primary_key=True)  
   
 Base.metadata.create_all(_engine)  
