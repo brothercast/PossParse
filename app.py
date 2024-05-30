@@ -40,8 +40,8 @@ from routes import routes_bp
 app.register_blueprint(routes_bp)  
   
 if __name__ == '__main__':  
+    logging.basicConfig(level=logging.DEBUG)  # Set the logging level to DEBUG  
     logging.info("Checking initial data store contents...")  
-    # Import here to avoid circular imports  
     from speculate import check_data_store_contents  
     check_data_store_contents('database' if USE_DATABASE else 'in_memory')  
     app.run(debug=True)  

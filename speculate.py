@@ -273,16 +273,24 @@ def delete_ssol_by_id(ssol_id):
 
 
 def create_ce(content, node_type):  
-    from app import db, USE_DATABASE 
+    ce_id = str(uuid.uuid4())  
+    ce_data = {  
+        'id': ce_id,  
+        'content': content,  
+        'node_type': node_type  
+    }  
+  
     if USE_DATABASE:  
-        ce = CE(content=content, node_type=node_type)  
+        ce = CE(id=ce_id, content=content, node_type=node_type)  
         db.session.add(ce)  
         db.session.commit()  
-        return ce.id  
+        current_app.logger.debug(f"Created CE in database: {ce}")  
     else:  
-        ce_id = str(uuid.uuid4())  
-        ce_store[ce_id] = {'id': ce_id, 'content': content, 'node_type': node_type}  
-        return ce_id  
+        ce_store[ce_id] = ce_data  
+        current_app.logger.debug(f"Created CE in in-memory store: {ce_store[ce_id]}")  
+  
+    return ce_id  
+
 
 
 def get_ce_by_id(ce_id):  

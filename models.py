@@ -64,10 +64,11 @@ class CE(db.Model):
         return {  
             'id': str(self.id),  
             'content': self.content,  
-            'node_type': self.node_type, 
+            'node_type': self.node_type,  
             'details': self.details  
         }  
-  
+
+
 class COS_CE_Link(db.Model):  
     __tablename__ = 'cos_ce_link'  
     cos_id = Column(UUID(as_uuid=True), ForeignKey('cos.id'), primary_key=True)  
