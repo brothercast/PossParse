@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from ce_nodes import NODES  
 from app import app, USE_DATABASE  
 from uuid import uuid4  
-from ce_templates import generate_dynamic_modal, generate_ai_query  
+from ce_templates import generate_dynamic_modal, generate_ai_data
 from models import SSOL, COS, CE  
 from store import ce_store, cos_store, ssol_store  
 from flask import Blueprint, render_template, render_template_string, request, flash, redirect, url_for, jsonify, make_response, current_app, send_from_directory  
@@ -188,11 +188,27 @@ def get_ce_by_id_route(ce_id):
 @routes_bp.route('/get_ce_modal/<string:ce_type>', methods=['GET'])  
 def get_ce_modal_route(ce_type):  
     try:  
-        modal_html = generate_dynamic_modal(ce_type)  
+        # Fetch the actual CE data  
+        ce_data = fetch_ce_data(ce_type)  
+        if not ce_data:  
+            current_app.logger.warning(f"CE data for type '{ce_type}' not found. Falling back to Default node type.")  
+            ce_type = 'Default'  # Fall back to Default node type  
+            ce_data = fetch_ce_data(ce_type)  
+  
+        current_app.logger.debug(f"CE data fetched for type '{ce_type}': {ce_data}")  
+  
+        # Fetch the COS context (add logic to fetch the relevant COS context)  
+        cos_content = "Sample COS content"  # Replace with actual logic to get COS content  
+  
+        modal_html = generate_dynamic_modal(ce_type, ce_data, cos_content)  
         return jsonify(modal_html=modal_html)  
+    except NotFound as e:  
+        current_app.logger.error(f"NotFound in get_ce_modal_route: {e}", exc_info=True)  
+        return jsonify(error=str(e)), 404  
     except Exception as e:  
         current_app.logger.error(f"Error in get_ce_modal_route: {e}", exc_info=True)  
         return jsonify(error=str(e)), 500  
+ 
   
 @routes_bp.route('/analyze_cos/<string:cos_id>', methods=['GET'])  
 def analyze_cos_route(cos_id):  
@@ -246,7 +262,7 @@ def ai_query_endpoint():
         if not all([cos_text, ce_id, ce_type, ssol_goal]):  
             raise BadRequest('Missing required fields in JSON payload.')  
   
-        ai_response = generate_ai_query(cos_text, ce_id, ce_type, ssol_goal)  
+        ai_response = generate_ai_data()(cos_text, ce_id, ce_type, ssol_goal)  
         return jsonify(ai_response=ai_response), 200  
     except BadRequest as e:  
         return jsonify(success=False, error=str(e)), 400  
@@ -269,15 +285,23 @@ def fetch_ce_data(ce_type):
                 current_app.logger.debug(f"Fetched CE data from in-memory store for type '{ce_type}': {ce_data}")  
             else:  
                 current_app.logger.warning(f"CE data for type '{ce_type}' not found in the in-memory store.")  
-  
+
         if not ce_data:  
             current_app.logger.warning(f"CE data for type '{ce_type}' not found. Falling back to Default node type.")  
             ce_data = NODES.get('Default')  
-  
+            # Initialize ce_data with default values including an 'id'  
+            ce_data = {  
+                'id': 'default_id',  
+                'content': '',  
+                'node_type': 'Default',  
+                'details': ''  
+            }  
+
         return ce_data  
     except Exception as e:  
         current_app.logger.error(f"Error fetching CE data for type '{ce_type}': {e}", exc_info=True)  
         return None  
+
   
 # Debug routes for logging CE entries  
 @routes_bp.route('/debug/log_ce_entries', methods=['GET'])  

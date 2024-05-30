@@ -1,14 +1,30 @@
-NODES = {
+NODES = {  
     "Default": {  
         "definition": "This node is a default research mode for undefined node types.",  
         "icon": "fas fa-question-circle",  
         "modal_config": {  
             "fields": [  
                 {"type": "text", "name": "detail", "placeholder": "Detail"},  
-                # Add more generic fields as necessary  
-            ]  
+                {"type": "file", "name": "supporting_files", "placeholder": "Supporting Files"},  
+                {"type": "text", "name": "stakeholders", "placeholder": "Stakeholders"}  
+            ],  
+            "explanation": "Provide a detailed description of the node.",  
+            "ai_context": "Generate data relevant to the parent COS and provide suggestions."  
         }  
     },  
+    "Research": {  
+        "definition": "This node aggregates resources and research related to the Conditional Element.",  
+        "icon": "fas fa-flask",  
+        "modal_config": {  
+            "fields": [  
+                {"type": "text", "name": "research_title", "placeholder": "Research Title"},  
+                {"type": "textarea", "name": "research_summary", "placeholder": "Research Summary"},  
+                {"type": "text", "name": "researcher_name", "placeholder": "Researcher Name"}  
+            ],  
+            "explanation": "Capture relevant research aspects of the node.",  
+            "ai_context": "Retrieve data on preferred toasting levels from various sources."  
+        }  
+    }, 
     "Location": {
         "definition": "This node allows the user to specify a geographic region relevant to the Conditional Element.",
         "icon": "fas fa-map-marker-alt",
@@ -17,17 +33,6 @@ NODES = {
                 {"type": "text", "name": "region_name", "placeholder": "Region Name"},
                 {"type": "textarea", "name": "region_details", "placeholder": "Region Details"},
                 {"type": "text", "name": "coordinates", "placeholder": "Coordinates"}
-            ]
-        }
-    },
-    "Research": {
-        "definition": "This node aggregates resources and research related to the Conditional Element.",
-        "icon": "fas fa-flask",
-        "modal_config": {
-            "fields": [
-                {"type": "text", "name": "research_title", "placeholder": "Research Title"},
-                {"type": "textarea", "name": "research_summary", "placeholder": "Research Summary"},
-                {"type": "text", "name": "researcher_name", "placeholder": "Researcher Name"}
             ]
         }
     },

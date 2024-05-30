@@ -23,8 +23,6 @@ function setupEventListeners() {
       handleCEPillClick(event);  
     } else if (event.target.matches('.btn-save-changes')) {  
       handleSaveChanges(event);  
-    } else if (event.target.matches('.speculate-button')) {  
-      handleSpeculate(event);  
     }  
   });  
 }  
@@ -66,13 +64,11 @@ function displayCEModal(modalHtml, ceData) {
   
   modalContainer.innerHTML = modalHtml;  
   
-  // Ensure the ID is correctly set for the modal  
   const modalElement = modalContainer.querySelector('.modal');  
   if (modalElement) {  
     modalElement.id = `ceModal-${ceData.id}`;  
   }  
   
-  // Add a slight delay to ensure the modal is fully inserted into the DOM  
   setTimeout(() => {  
     const modalElement = modalContainer.querySelector(`#ceModal-${ceData.id}`);  
     if (modalElement) {  
@@ -143,6 +139,8 @@ function displayFeedback(message, type) {
     }, 5000);  
   }  
 }  
+
+
   
 function handleSpeculate(event) {  
   const button = event.target;  
