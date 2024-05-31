@@ -8,14 +8,16 @@ BASE_MODAL_TEMPLATE = """
 <div class="modal fade" id="ceModal{{ ce_data.id }}" tabindex="-1" aria-labelledby="ceModalLabel{{ ce_data.id }}" aria-hidden="true">  
   <div class="modal-dialog modal-lg" role="document">  
     <div class="modal-content">  
-      <div class="modal-header">  
-        <h5 class="modal-title" id="ceModalLabel{{ ce_data.id }}">  
-          <i class="{{ node_info['icon'] }}"></i>  
+      <div class="modal-header" style="background-color: var(--phase-{{ ce_data.phase_index }}); position: relative;">  
+        <div class="node-icon" style="position: absolute; top: -20px; left: 20px;">  
+          <i class="{{ node_info['icon'] }} fa-2x" style="background-color: white; border-radius: 5px; padding: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);"></i>  
+        </div>  
+        <h5 class="modal-title" id="ceModalLabel{{ ce_data.id }}" style="margin-left: 60px;">  
           {{ node_info['definition'] }}  
         </h5>  
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
       </div>  
-      <div class="modal-body">  
+      <div class="modal-body" style="box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);">  
         <h6>Parent COS: {{ cos_content }}</h6>  
         <p>{{ node_info['explanation'] }}</p>  
         <div class="ai-generated-data">  
@@ -34,6 +36,7 @@ BASE_MODAL_TEMPLATE = """
   </div>  
 </div>  
 """  
+
   
 def generate_form_field(field):  
     field_templates = {  
@@ -75,9 +78,19 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None):
         ce_data = {'id': 'unknown_ce_id'}  
     ce_id = ce_data.get('id', 'unknown_ce_id')  
     ssol_goal = "SSOL Goal Example"  # Replace with actual SSOL goal if available  
+  
+    # Generate AI data with COS analysis  
     ai_data = generate_ai_data(cos_content, ce_id, ce_type, ssol_goal)  
   
-    modal_content = render_template_string(BASE_MODAL_TEMPLATE, ce_type=ce_type, node_info=node_info, form_fields=form_fields, ce_data=ce_data, cos_content=cos_content, ai_data=ai_data)  
+    modal_content = render_template_string(  
+        BASE_MODAL_TEMPLATE,  
+        ce_type=ce_type,  
+        node_info=node_info,  
+        form_fields=form_fields,  
+        ce_data=ce_data,  
+        cos_content=cos_content,  
+        ai_data=ai_data  
+    )  
     return modal_content  
 
   

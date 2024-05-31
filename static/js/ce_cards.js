@@ -36,13 +36,14 @@ function handleCEPillClick(event) {
 function fetchCEDataAndDisplayModal(ceId, ceType) {  
   fetch(`/get_ce_by_id/${encodeURIComponent(ceId)}`)  
     .then(response => response.json())  
-    .then(ceData => {  
-      if (ceData && ceData.ce) {  
+    .then(data => {  
+      if (data && data.ce) {  
+        const ceData = data.ce;  
         fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`)  
           .then(response => response.json())  
           .then(modalData => {  
             if (modalData && modalData.modal_html) {  
-              displayCEModal(modalData.modal_html, ceData.ce);  
+              displayCEModal(modalData.modal_html, ceData, data.cos_content);  
             } else {  
               throw new Error('Modal HTML content not found or error in response');  
             }  
@@ -55,7 +56,7 @@ function fetchCEDataAndDisplayModal(ceId, ceType) {
     .catch(error => console.error('Error fetching CE details:', error));  
 }  
   
-function displayCEModal(modalHtml, ceData) {  
+function displayCEModal(modalHtml, ceData, cosContent) {  
   const modalContainer = document.getElementById('dynamicModalContainer');  
   if (!modalContainer) {  
     console.error('Modal container element not found in the DOM');  
@@ -67,6 +68,17 @@ function displayCEModal(modalHtml, ceData) {
   const modalElement = modalContainer.querySelector('.modal');  
   if (modalElement) {  
     modalElement.id = `ceModal-${ceData.id}`;  
+  }  
+  
+  // Update the modal with the CE data and COS content  
+  const modalTitle = modalContainer.querySelector('.modal-title');  
+  if (modalTitle) {  
+    modalTitle.innerHTML = `<i class="${ceData.icon}"></i> ${ceData.definition}`;  
+  }  
+  
+  const cosContentElement = modalContainer.querySelector('.ai-generated-data');  
+  if (cosContentElement) {  
+    cosContentElement.innerHTML = `<h6>Parent COS: ${cosContent}</h6><p>${ceData.ai_data}</p>`;  
   }  
   
   setTimeout(() => {  

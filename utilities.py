@@ -533,3 +533,5 @@ def generate_structured_solution(selected_goal):
     except Exception as e:      
         current_app.logger.error(f"Unexpected error in generating structured solution: {e}", exc_info=True)      
         raise ValueError("Failed to generate structured solution.")
+
+    

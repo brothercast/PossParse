@@ -426,3 +426,16 @@ def check_data_store_contents(data_store_type='in_memory'):
         if __name__ == '__main__':  
             logging.info("Checking initial data store contents...")  
             check_data_store_contents('database' if USE_DATABASE else 'in_memory')  
+
+def get_phase_index(cos):  
+    # Determine the phase index based on the COS content or other criteria  
+    phase_mapping = {  
+        'Discovery': 0,  
+        'Engagement': 1,  
+        'Action': 2,  
+        'Completion': 3,  
+        'Legacy': 4,  
+    }  
+    # Example logic to determine the phase index  
+    phase_name = cos.get('phase', 'SSPEC')  # Default to 'SSPEC Time Mapper' if phase not found  
+    return phase_mapping.get(phase_name, 0)  # Default to 0 if phase not found in mapping  

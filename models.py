@@ -56,7 +56,7 @@ class CE(db.Model):
     __tablename__ = 'ce'  
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)  
     content = Column(String, nullable=False)  
-    node_type = Column(String(50), nullable=True)  # Ensure this field exists  
+    node_type = Column(String(50), nullable=True)  
     details = Column(Text, nullable=True)  
     cos = relationship('COS', secondary='cos_ce_link', back_populates='conditional_elements')  
   
@@ -67,6 +67,7 @@ class CE(db.Model):
             'node_type': self.node_type,  
             'details': self.details  
         }  
+
 
 
 class COS_CE_Link(db.Model):  
