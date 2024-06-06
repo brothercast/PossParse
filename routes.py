@@ -10,12 +10,13 @@ from ce_nodes import NODES
 from app import app, USE_DATABASE  
 from uuid import uuid4  
 from ce_templates import generate_dynamic_modal, generate_ai_data
+from sqlalchemy.exc import SQLAlchemyError
 from models import SSOL, COS, CE  
 from store import ce_store, cos_store, ssol_store  
 from flask import Blueprint, render_template, render_template_string, request, flash, redirect, url_for, jsonify, make_response, current_app, send_from_directory  
 from werkzeug.exceptions import BadRequest, NotFound  
 from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data  
-from speculate import get_badge_class_from_status, delete_cos_by_id, update_ce_by_id, update_cos_by_id, get_ce_by_id, analyze_cos, get_cos_by_id, get_phase_index    
+from speculate import get_badge_class_from_status, delete_cos_by_id, update_ce_by_id, update_cos_by_id, get_ce_by_id, analyze_cos, get_cos_by_id, get_phase_index, get_ssol_by_id    
 from dotenv import load_dotenv  
   
 # Load environment variables  
@@ -165,29 +166,30 @@ def delete_cos_route(cos_id):
     except Exception as e:  
         logging.error(f"Unexpected error occurred: {e}", exc_info=True)  
         return jsonify(success=False, error=str(e)), 500  
-  
-@routes_bp.route('/get_ce_by_id/<string:ce_id>', methods=['GET'])  
-def get_ce_by_id_route(ce_id):  
+
+@routes_bp.route('/get_ce_modal/<string:ce_type>', methods=['POST'])  
+def get_ce_modal(ce_type):  
     try:  
-        ce = get_ce_by_id(ce_id)  
-        if ce:  
-            cos_id = ce.get('cos_id') if isinstance(ce, dict) else ce.cos_id  
-            cos_content = "Parent COS not found."  
-            phase_index = 0  # Default phase index  
-            if cos_id:  
-                cos = get_cos_by_id(cos_id)  
-                cos_content = cos['content'] if cos else cos_content  
-                # Determine the phase index based on the COS  
-                phase_index = get_phase_index(cos)  # Implement this function to return the correct phase index  
+        data = request.get_json()  
+        ce_id = data.get('ce_id')  
+        cos_content = data.get('cos_content')  
+        phase_name = data.get('phase_name')  
+        phase_index = data.get('phase_index')  
+        ssol_goal = data.get('ssol_goal')  # Ensure this is passed from the client-side  
   
-            ce_data = ce.to_dict() if not isinstance(ce, dict) else ce  
-            ce_data['phase_index'] = phase_index  # Include the phase index  
-            return jsonify(ce=ce_data, cos_content=cos_content), 200  
-        else:  
-            return jsonify(error=f"CE with ID {ce_id} not found"), 404  
+        # Fetch the CE data if necessary; for now, we assume ce_data is None  
+        ce_data = None  
+  
+        # Fetch AI generated data  
+        ai_generated_data = generate_ai_data(cos_content, ce_id, ce_type, ssol_goal)  
+  
+        modal_content = generate_dynamic_modal(ce_type, ce_data, cos_content, ai_generated_data, phase_name, phase_index)  
+        return jsonify(modal_html=modal_content)  
     except Exception as e:  
-        current_app.logger.error(f"Error in get_ce_by_id_route: {e}", exc_info=True)  
-        return jsonify(error="Internal Server Error"), 500  
+        current_app.logger.error(f"Error getting modal content for CE type {ce_type}: {e}", exc_info=True)  
+        return jsonify(error=f"Error: {e}"), 500  
+
+
 
 @routes_bp.route('/analyze_cos/<string:cos_id>', methods=['GET'])  
 def analyze_cos_route(cos_id):  
@@ -280,19 +282,7 @@ def fetch_ce_data(ce_type):
     except Exception as e:  
         current_app.logger.error(f"Error fetching CE data for type '{ce_type}': {e}", exc_info=True)  
         return None  
-
-# Add a route to get the modal content for a given CE type  
-@routes_bp.route('/get_ce_modal/<string:ce_type>', methods=['GET'])  
-def get_ce_modal(ce_type):  
-    try:  
-        ce_data = fetch_ce_data(ce_type)  # Fetch CE data based on type  
-        modal_content = generate_dynamic_modal(ce_type, ce_data)  # Generate modal content  
-        return jsonify(modal_html=modal_content), 200  
-    except Exception as e:  
-        current_app.logger.error(f"Error getting CE modal: {e}", exc_info=True)  
-        return jsonify(error=str(e)), 500  
-
-  
+ 
 # Debug routes for logging CE entries  
 @routes_bp.route('/debug/log_ce_entries', methods=['GET'])  
 def debug_log_ce_entries():  

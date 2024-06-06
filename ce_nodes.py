@@ -9,7 +9,7 @@ NODES = {
                 {"type": "text", "name": "stakeholders", "placeholder": "Stakeholders"}  
             ],  
             "explanation": "Provide a detailed description of the node.",  
-            "ai_context": "Generate data relevant to the parent COS and provide suggestions."  
+            "ai_context": "Provide general information and suggestions to help achieve the Condition of Satisfaction (COS)."  
         }  
     },  
     "Research": {  
@@ -22,20 +22,23 @@ NODES = {
                 {"type": "text", "name": "researcher_name", "placeholder": "Researcher Name"}  
             ],  
             "explanation": "Capture relevant research aspects of the node.",  
-            "ai_context": "Retrieve data on preferred toasting levels from various sources."  
+            "ai_context": "Provide detailed research information, studies, and academic resources relevant to the Condition of Satisfaction (COS)."  
+        }  
+    },  
+    "Location": {  
+        "definition": "This node allows the user to specify a geographic region relevant to the Conditional Element.",  
+        "icon": "fas fa-map-marker-alt",  
+        "modal_config": {  
+            "fields": [  
+                {"type": "text", "name": "region_name", "placeholder": "Region Name"},  
+                {"type": "textarea", "name": "region_details", "placeholder": "Region Details"},  
+                {"type": "text", "name": "coordinates", "placeholder": "Coordinates"}  
+            ],  
+            "explanation": "Provide geographic information, regional details, or specific location-related data relevant to the Condition of Satisfaction (COS).",  
+            "ai_context": "Provide geographic information, regional details, or specific location-related data relevant to the Condition of Satisfaction (COS)."  
         }  
     }, 
-    "Location": {
-        "definition": "This node allows the user to specify a geographic region relevant to the Conditional Element.",
-        "icon": "fas fa-map-marker-alt",
-        "modal_config": {
-            "fields": [
-                {"type": "text", "name": "region_name", "placeholder": "Region Name"},
-                {"type": "textarea", "name": "region_details", "placeholder": "Region Details"},
-                {"type": "text", "name": "coordinates", "placeholder": "Coordinates"}
-            ]
-        }
-    },
+    
     "Resource": {
         "definition": "This node provides a list of resources or assets related to the Conditional Element.",
         "icon": "fas fa-tools",

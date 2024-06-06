@@ -39,7 +39,7 @@ class COS(db.Model):
     completion_date = Column(Date, nullable=True)  
     ssol_id = Column(Integer, ForeignKey('ssol.id'), nullable=False)  
     ssol = relationship('SSOL', back_populates='cos')  
-    conditional_elements = relationship('CE', secondary='cos_ce_link', backref='cos')  
+    conditional_elements = relationship('CE', back_populates='cos')    
   
     def to_dict(self):  
         return {  
@@ -58,21 +58,21 @@ class CE(db.Model):
     content = Column(String, nullable=False)  
     node_type = Column(String(50), nullable=True)  
     details = Column(Text, nullable=True)  
-    cos = relationship('COS', secondary='cos_ce_link', back_populates='conditional_elements')  
+    cos_id = Column(UUID(as_uuid=True), ForeignKey('cos.id'), nullable=False)  # Add this line  
+    cos = relationship('COS', back_populates='conditional_elements')  
   
     def to_dict(self):  
         return {  
             'id': str(self.id),  
             'content': self.content,  
             'node_type': self.node_type,  
-            'details': self.details  
-        }  
-
-
-
+            'details': self.details,  
+            'cos_id': str(self.cos_id)  # Include the cos_id in the dictionary  
+        } 
+  
 class COS_CE_Link(db.Model):  
     __tablename__ = 'cos_ce_link'  
     cos_id = Column(UUID(as_uuid=True), ForeignKey('cos.id'), primary_key=True)  
-    ce_id = Column(UUID(as_uuid=True), ForeignKey('ce.id'), primary_key=True)  
-  
+    ce_id = Column(UUID(as_uuid=True), ForeignKey('ce.id'), primary_key=True) 
+      
 Base.metadata.create_all(_engine)  

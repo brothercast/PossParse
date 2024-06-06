@@ -30,20 +30,95 @@ function setupEventListeners() {
 function handleCEPillClick(event) {  
   const ceId = event.target.dataset.ceId;  
   const ceType = event.target.dataset.ceType || "Default";  
-  fetchCEDataAndDisplayModal(ceId, ceType);  
+  const cosContent = event.target.closest('tr').querySelector('.cos-content-cell').textContent.trim();  
+  const phaseElement = event.target.closest('.accordion-item');  
+  const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();  
+  const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement); // Calculate the phase index  
+  
+  fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {  
+    method: 'POST',  
+    headers: {  
+      'Content-Type': 'application/json'  
+    },  
+    body: JSON.stringify({  
+      ce_id: ceId,  
+      cos_content: cosContent,  
+      phase_name: phaseName,  
+      phase_index: phaseIndex,  
+      ssol_goal: document.querySelector('#ssol-goal').textContent.trim()  
+    })  
+  })  
+  .then(response => response.json())  
+  .then(data => {  
+    if (data && data.modal_html) {  
+      displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex);  
+    } else {  
+      throw new Error('Modal HTML content not found or error in response');  
+    }  
+  })  
+  .catch(error => console.error('Error fetching modal content:', error));  
 }  
   
-function fetchCEDataAndDisplayModal(ceId, ceType) {  
+function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseIndex) {  
+  const modalContainer = document.getElementById('dynamicModalContainer');  
+  if (!modalContainer) {  
+    console.error('Modal container element not found in the DOM');  
+    return;  
+  }  
+  
+  modalContainer.innerHTML = modalHtml;  
+  
+  // Update the modal with the CE data and COS content  
+  const modalElement = modalContainer.querySelector('.modal');  
+  if (modalElement) {  
+    modalElement.id = `ceModal-${ceId}`;  
+  }  
+  
+  const nodeInfo = NODES[ceType] || { icon: 'fas fa-question-circle', definition: 'Unknown CE Type', ai_context: 'N/A' };  
+  const formattedCeType = ceType ? ceType.replace(/_/g, ' ').replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); }) : 'Unknown';  
+  
+  const modalTitle = modalContainer.querySelector('.modal-title');  
+  if (modalTitle) {  
+    modalTitle.innerHTML = `  
+      <span class="node-icon me-2">  
+        <i class="${nodeInfo.icon}"></i>  
+      </span>  
+      <span class="modal-header-title">${formattedCeType}</span>  
+    `;  
+  }  
+  
+  const cosContentElement = modalContainer.querySelector('.ai-generated-data');  
+  if (cosContentElement) {  
+    cosContentElement.innerHTML = `  
+      <h6>Parent COS: ${cosContent}</h6>  
+      <p>${nodeInfo.ai_context}</p>  
+    `;  
+  }  
+  
+  setTimeout(() => {  
+    const modalElement = modalContainer.querySelector(`#ceModal-${ceId}`);  
+    if (modalElement) {  
+      $(`#${modalElement.id}`).modal('show');  
+    } else {  
+      console.error(`Modal element not found in the DOM for CE ID: ${ceId}`);  
+    }  
+  }, 100);  
+}  
+    
+function fetchCEDataAndDisplayModal(ceId, ceType, cosContent) {  
+  console.log(`Fetching CE data for ID: ${ceId} and Type: ${ceType}`);  
   fetch(`/get_ce_by_id/${encodeURIComponent(ceId)}`)  
     .then(response => response.json())  
     .then(data => {  
       if (data && data.ce) {  
         const ceData = data.ce;  
+        console.log(`Fetched CE data: ${JSON.stringify(ceData)}`);  
         fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`)  
           .then(response => response.json())  
           .then(modalData => {  
             if (modalData && modalData.modal_html) {  
-              displayCEModal(modalData.modal_html, ceData, data.cos_content);  
+              console.log(`Fetched Modal HTML: ${modalData.modal_html}`);  
+              displayCEModal(modalData.modal_html, ceData, cosContent);  
             } else {  
               throw new Error('Modal HTML content not found or error in response');  
             }  
@@ -55,42 +130,8 @@ function fetchCEDataAndDisplayModal(ceId, ceType) {
     })  
     .catch(error => console.error('Error fetching CE details:', error));  
 }  
-  
-function displayCEModal(modalHtml, ceData, cosContent) {  
-  const modalContainer = document.getElementById('dynamicModalContainer');  
-  if (!modalContainer) {  
-    console.error('Modal container element not found in the DOM');  
-    return;  
-  }  
-  
-  modalContainer.innerHTML = modalHtml;  
-  
-  const modalElement = modalContainer.querySelector('.modal');  
-  if (modalElement) {  
-    modalElement.id = `ceModal-${ceData.id}`;  
-  }  
-  
-  // Update the modal with the CE data and COS content  
-  const modalTitle = modalContainer.querySelector('.modal-title');  
-  if (modalTitle) {  
-    modalTitle.innerHTML = `<i class="${ceData.icon}"></i> ${ceData.definition}`;  
-  }  
-  
-  const cosContentElement = modalContainer.querySelector('.ai-generated-data');  
-  if (cosContentElement) {  
-    cosContentElement.innerHTML = `<h6>Parent COS: ${cosContent}</h6><p>${ceData.ai_data}</p>`;  
-  }  
-  
-  setTimeout(() => {  
-    const modalElement = modalContainer.querySelector(`#ceModal-${ceData.id}`);  
-    if (modalElement) {  
-      $(`#${modalElement.id}`).modal('show');  
-    } else {  
-      console.error(`Modal element not found in the DOM for CE ID: ${ceData.id}`);  
-    }  
-  }, 100);  
-}  
-  
+ 
+
 function handleSaveChanges(event) {  
   const ceId = event.target.dataset.ceId;  
   const form = document.querySelector(`form[data-ce-id="${ceId}"]`);  
@@ -151,33 +192,37 @@ function displayFeedback(message, type) {
     }, 5000);  
   }  
 }  
-
-
   
-function handleSpeculate(event) {  
-  const button = event.target;  
-  speculate(button);  
+function changeCEType(ceType) {  
+  fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`)  
+    .then(response => response.json())  
+    .then(data => {  
+      if (data.modal_html) {  
+        const modalContainer = document.querySelector('#dynamicModalContainer');  
+        modalContainer.innerHTML = data.modal_html;  
+      } else {  
+        throw new Error('Modal HTML content not found or error in response');  
+      }  
+    })  
+    .catch(error => {  
+      console.error('Error fetching modal content:', error);  
+    });  
 }  
   
-function speculate(button) {  
-  const ceType = button.closest('.modal').id.replace('ceModal-', '');  
+async function speculate(button) {  
+  const ceType = button.closest('.modal').id.replace('ceModal', '');  
   const cosText = ''; // Retrieve the COS text relevant for speculation  
   const ssolGoal = ''; // Retrieve the SSOL goal relevant for speculation  
   const ceId = ''; // Retrieve the CE ID relevant for speculation  
   
   try {  
-    const aiMessage = generate_ai_query(cosText, ceId, ceType, ssolGoal);  
-    fetchAIResponse(aiMessage)  
-      .then(aiResponse => {  
-        const tableContainer = document.querySelector(`#tableContainer${ceType}`);  
-        const newRow = document.createElement('tr');  
-        newRow.innerHTML = `<td>${aiResponse}</td>`;  
-        const table = tableContainer.querySelector('table tbody');  
-        table.appendChild(newRow);  
-      })  
-      .catch(error => {  
-        console.error('Error speculating AI response:', error);  
-      });  
+    const aiMessage = window.generate_ai_query(cosText, ceId, ceType, ssolGoal);  
+    const aiResponse = await fetchAIResponse(aiMessage);  
+    const tableContainer = document.querySelector(`#tableContainer${ceType}`);  
+    const newRow = document.createElement('tr');  
+    newRow.innerHTML = `<td>${aiResponse}</td>`;  
+    const table = tableContainer.querySelector('table tbody');  
+    table.appendChild(newRow);  
   } catch (error) {  
     console.error('Error speculating AI response:', error);  
   }  
@@ -197,6 +242,85 @@ async function fetchAIResponse(aiMessage) {
     throw new Error(`AI service responded with status ${response.status}`);  
   }  
   
-  const responseData = await response.json();  
-  return responseData;  
+  return await response.json();  
 }  
+  
+function createAndShowCEModal(ceData) {  
+  if (!ceData || typeof ceData.type === 'undefined') {  
+    console.error('CE data or type is undefined');  
+    displayFeedback("Error: CE data or type is undefined", "error");  
+    return;  
+  }  
+  
+  fetch(`/get_ce_modal/${encodeURIComponent(ceData.node_type)}`)  
+    .then(response => response.json())  
+    .then(data => {  
+      if (data.modal_html) {  
+        const modalContainer = document.getElementById('dynamicModalContainer');  
+        modalContainer.innerHTML = data.modal_html;  
+        $(`#ceModal${ceData.node_type}`).modal('show');  
+      } else {  
+        throw new Error('Modal HTML content not found or error in response');  
+      }  
+    })  
+    .catch(error => console.error('Error fetching modal content:', error));  
+}  
+  
+function generateDynamicForm(ceData) {  
+  return `  
+    <form id="ceForm" data-ce-id="${ceData.id}">  
+      <div class="form-group">  
+        <label for="ceContent">Content</label>  
+        <textarea class="form-control" id="ceContent" required>${ceData.content}</textarea>  
+      </div>  
+      <div class="form-group">  
+        <label for="ceType">Type</label>  
+        <select class="form-control" id="ceType" required>${generateSelectOptions(ceData.node_type)}</select>  
+      </div>  
+      <!-- Add additional fields as needed -->  
+    </form>  
+  `;  
+}  
+  
+function generateSelectOptions(selectedType) {  
+  return Object.entries(NODES).map(([type, { definition }]) => {  
+    return `<option value="${type}" ${type === selectedType ? "selected" : ""}>${definition}</option>`;  
+  }).join('');  
+}  
+  
+// Event listener for the "Save changes" button within the modal  
+document.addEventListener('DOMContentLoaded', function () {  
+  document.addEventListener('click', function (event) {  
+    if (event.target.matches('.btn-save-changes')) {  
+      const ceId = event.target.dataset.ceId;  
+      const form = document.querySelector(`#ceForm${ceId}`);  
+      if (form) {  
+        const formData = new FormData(form);  
+        const data = {};  
+        formData.forEach((value, key) => data[key] = value);  
+  
+        fetch(`/update_ce/${encodeURIComponent(ceId)}`, {  
+          method: 'PUT',  
+          headers: {  
+            'Content-Type': 'application/json'  
+          },  
+          body: JSON.stringify(data)  
+        })  
+          .then(response => response.json())  
+          .then(updateData => {  
+            if (updateData.success) {  
+              $(`#ceModal${ceId}`).modal('hide');  
+              displayFeedback("CE updated successfully", "success");  
+            } else {  
+              displayFeedback(updateData.error || 'An error occurred while updating the CE.', "error");  
+            }  
+          })  
+          .catch(updateError => {  
+            displayFeedback(`Error: ${updateError.message}`, "error");  
+          });  
+      } else {  
+        console.error('Form not found');  
+      }  
+    }  
+  });  
+});  

@@ -514,6 +514,16 @@ body > main > div > div.row.outcome-header {
 }
 
 /* Modal Custom Styling */  
+.modal-header-text {  
+  text-transform: uppercase;  
+  font-family: 'Unica One', sans-serif;  
+  font-weight: 500;  
+  font-size: 1em;  
+  text-shadow: 1px 1px 0px #000000;  
+  color: #ffffff;  
+}  
+
+
 .modal-content {  
   border-radius: 10px;  
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);  
@@ -545,4 +555,59 @@ body > main > div > div.row.outcome-header {
   background-color: var(--bs-primary);  
   border-color: var(--bs-primary);  
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);  
+}  
+
+.modal-header {  
+  position: relative;  
+  padding: 1rem;  
+}  
+  
+.modal-header .filled-box {  
+  position: absolute;  
+  top: 0;  
+  left: 0;  
+  right: 0;  
+  bottom: 0;  
+  background-color: var(--phase-color, #e91e63); /* Default color */  
+  z-index: -1;  
+}  
+  
+.modal-title {  
+  font-family: 'Unica One', sans-serif;  
+  font-weight: 500;  
+  text-transform: uppercase;  
+  text-shadow: 1px 1px 0px #000000;  
+  color: white;  
+}  
+  
+.node-icon {  
+  margin-right: 0.5rem;  
+}  
+  
+.phase-colors {  
+  --phase-0: #e91e63;  
+  --phase-1: #00bcd4;  
+  --phase-2: #9c27b0;  
+  --phase-3: #ffc107;  
+  --phase-4: #66bd0e;  
+}  
+  
+[data-phase-index="0"] .modal-header .filled-box {  
+  background-color: var(--phase-0);  
+}  
+  
+[data-phase-index="1"] .modal-header .filled-box {  
+  background-color: var(--phase-1);  
+}  
+  
+[data-phase-index="2"] .modal-header .filled-box {  
+  background-color: var(--phase-2);  
+}  
+  
+[data-phase-index="3"] .modal-header .filled-box {  
+  background-color: var(--phase-3);  
+}  
+  
+[data-phase-index="4"] .modal-header .filled-box {  
+  background-color: var(--phase-4);  
 }  

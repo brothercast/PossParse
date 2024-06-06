@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from app import USE_DATABASE, db  
 from ce_nodes import NODES
 from models import session  
+from sqlalchemy.inspection import inspect
 from sqlalchemy.exc import SQLAlchemyError
 from utilities import generate_chat_response, parse_ai_response_and_generate_html
 from models import COS, CE, SSOL, COS_CE_Link  
@@ -64,7 +65,7 @@ def create_cos(ssol_id, content, status, accountable_party=None, completion_date
         logging.error(f"Error creating COS: {e}", exc_info=True)  
         if USE_DATABASE:  
             db.session.rollback()  # Rollback the session in case of an error when using the database  
-        raise  # Reraise the exception to allow the caller to handle it  
+        raise 
 
 
 def get_cos_by_id(cos_id):  
@@ -272,16 +273,17 @@ def delete_ssol_by_id(ssol_id):
         return bool(ssol)  # Returns True if an SSOL was deleted, False otherwise 
 
 
-def create_ce(content, node_type):  
+def create_ce(content, node_type, cos_id):  
     ce_id = str(uuid.uuid4())  
     ce_data = {  
         'id': ce_id,  
         'content': content,  
-        'node_type': node_type  
+        'node_type': node_type,  
+        'cos_id': cos_id  
     }  
   
     if USE_DATABASE:  
-        ce = CE(id=ce_id, content=content, node_type=node_type)  
+        ce = CE(id=ce_id, content=content, node_type=node_type, cos_id=cos_id)  # Add cos_id here  
         db.session.add(ce)  
         db.session.commit()  
         current_app.logger.debug(f"Created CE in database: {ce}")  
@@ -292,28 +294,42 @@ def create_ce(content, node_type):
     return ce_id  
 
 
-
 def get_ce_by_id(ce_id):  
-    from app import USE_DATABASE, db  
     try:  
         if USE_DATABASE:  
-            ce = CE.query.get(ce_id)  
+            ce = session.query(CE).get(ce_id)  
             if not ce:  
                 raise ValueError(f"CE with ID {ce_id} not found in the database.")  
         else:  
-            ce = ce_store.get(str(ce_id))  
-            if not ce:  
+            ce_dict = ce_store.get(str(ce_id))  
+            if not ce_dict:  
                 raise ValueError(f"CE with ID {ce_id} not found in the in-memory store.")  
+              
+            # Filter out any invalid fields  
+            ce_fields = {c.name for c in CE.__table__.columns}  
+            ce_dict_filtered = {key: value for key, value in ce_dict.items() if key in ce_fields}  
+            ce = CE(**ce_dict_filtered)  # Convert filtered dict to CE object for compatibility  
   
         return ce  
   
     except ValueError as e:  
         logging.error(f"Error retrieving CE by ID {ce_id}: {e}")  
         raise e  
+    except SQLAlchemyError as e:  
+        logging.error(f"Database error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
+        raise e  
     except Exception as e:  
         logging.error(f"Unexpected error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
         raise e  
-
+    except ValueError as e:  
+        logging.error(f"Error retrieving CE by ID {ce_id}: {e}")  
+        raise e  
+    except SQLAlchemyError as e:  
+        logging.error(f"Database error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
+        raise e  
+    except Exception as e:  
+        logging.error(f"Unexpected error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
+        raise e  
 
 # Function to update CE by ID  
 def update_ce_by_id(ce_id, ce_data):  
