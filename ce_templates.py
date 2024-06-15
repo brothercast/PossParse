@@ -6,14 +6,14 @@ from ce_nodes import NODES
   
 # Define a base template for the modal dialogs that will be populated dynamically  
 BASE_MODAL_TEMPLATE = """  
-<div class="modal fade" id="ceModal{{ ce_type }}" tabindex="-1" aria-labelledby="ceModalLabel{{ ce_type }}" aria-hidden="true">  
+<div class="modal fade" id="ceModal{{ ce_id }}" tabindex="-1" aria-labelledby="ceModalLabel{{ ce_id }}" aria-hidden="true">  
   <div class="modal-dialog modal-lg" role="document">  
-    <div class="modal-content" data-phase-index="{{ phase_index }}">  
+    <div class="modal-content phase-{{ phase_index }}"> <!-- Add phase color class -->  
       <div class="modal-header">  
         <div class="filled-box"></div>  
-        <h5 class="modal-title" id="ceModalLabel{{ ce_type }}">  
-          <span class="node-icon me-2">  
-            <i class="{{ node_info['icon'] }}"></i>  
+        <h5 class="modal-title" id="ceModalLabel{{ ce_id }}">  
+          <span class="node-icon me-2" style="background-color: white;">  
+            <i class="{{ node_info['icon'] }}" style="color: var(--phase-{{ phase_index }});"></i>  
           </span>  
           <span class="modal-header-title">{{ node_name }}</span>  
         </h5>  
@@ -23,45 +23,44 @@ BASE_MODAL_TEMPLATE = """
         <p>{{ node_info['definition'] }}</p>  
         <h6>Parent COS: {{ cos_content }}</h6>  
         <p>{{ ai_generated_data | safe }}</p>  
-        <form id="ceForm{{ ce_type }}">  
+        <form id="ceForm{{ ce_id }}">  
           {{ form_fields | safe }}  
         </form>  
       </div>  
       <div class="modal-footer">  
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
-        <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="{{ ce_data.id }}">Save changes</button>  
+        <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="{{ ce_id }}">Save changes</button>  
       </div>  
     </div>  
   </div>  
 </div>  
 """  
-  
+
+
 def generate_form_field(field_type, field_name, field_value='', placeholder='', options=None):  
     field_templates = {  
-        'text': '<input type="text" class="form-control" name="{name}" value="{value}" placeholder="{placeholder}"/>',  
-        'number': '<input type="number" class="form-control" name="{name}" value="{value}" placeholder="{placeholder}"/>',  
-        'textarea': '<textarea class="form-control" name="{name}" placeholder="{placeholder}">{value}</textarea>',  
-        'email': '<input type="email" class="form-control" name="{name}" value="{value}" placeholder="{placeholder}"/>',  
-        'password': '<input type="password" class="form-control" name="{name}" placeholder="{placeholder}"/>',  
-        'date': '<input type="date" class="form-control" name="{name}" value="{value}"/>',  
-        'time': '<input type="time" class="form-control" name="{name}" value="{value}"/>',  
-        'datetime-local': '<input type="datetime-local" class="form-control" name="{name}" value="{value}"/>',  
-        'color': '<input type="color" class="form-control" name="{name}" value="{value}"/>',  
+        'text': '<div class="form-group"><label for="{name}">{label}</label><input type="text" class="form-control" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}"/></div>',  
+        'number': '<div class="form-group"><label for="{name}">{label}</label><input type="number" class="form-control" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}"/></div>',  
+        'textarea': '<div class="form-group"><label for="{name}">{label}</label><textarea class="form-control" id="{name}" name="{name}" placeholder="{placeholder}" rows="3">{value}</textarea></div>',  
+        'email': '<div class="form-group"><label for="{name}">{label}</label><input type="email" class="form-control" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}"/></div>',  
+        'password': '<div class="form-group"><label for="{name}">{label}</label><input type="password" class="form-control" id="{name}" name="{name}" placeholder="{placeholder}"/></div>',  
+        'date': '<div class="form-group"><label for="{name}">{label}</label><input type="date" class="form-control" id="{name}" name="{name}" value="{value}"/></div>',  
+        'time': '<div class="form-group"><label for="{name}">{label}</label><input type="time" class="form-control" id="{name}" name="{name}" value="{value}"/></div>',  
+        'datetime-local': '<div class="form-group"><label for="{name}">{label}</label><input type="datetime-local" class="form-control" id="{name}" name="{name}" value="{value}"/></div>',  
+        'color': '<div class="form-group"><label for="{name}">{label}</label><input type="color" class="form-control" id="{name}" name="{name}" value="{value}"/></div>',  
         'checkbox': '<div class="form-check"><input type="checkbox" class="form-check-input" id="{name}" name="{name}" value="{value}" {checked}/><label class="form-check-label" for="{name}">{placeholder}</label></div>',  
-        'radio': ''.join(f'<div class="form-check"><input type="radio" class="form-check-input" id="{opt_value}" name="{field_name}" value="{opt_value}" '  
-                         f'{"checked" if field_value and opt_value == field_value else ""}/><label class="form-check-label" for="{opt_value}">{opt_label}</label></div>'  
-                         for opt_value, opt_label in (options or {}).items()),  
-        'select': '<select class="form-control" name="{name}">' + ''.join(f'<option value="{opt_value}" '  
-                    f'{"selected" if field_value and opt_value == field_value else ""}>{opt_label}</option>'  
-                    for opt_value, opt_label in (options or {}).items()) + '</select>',  
+        'radio': '<div class="form-check"><input type="radio" class="form-check-input" id="{name}" name="{name}" value="{value}" {checked}/><label class="form-check-label" for="{name}">{placeholder}</label></div>',  
+        'select': '<div class="form-group"><label for="{name}">{label}</label><select class="form-control" id="{name}" name="{name}">{options}</select></div>',  
     }  
   
-    checked = 'checked' if field_value and (field_type in ['checkbox', 'radio']) else ''  
+    checked = 'checked' if field_value and field_type in ['checkbox', 'radio'] else ''  
+    label = field_name.replace('_', ' ').title()  # Generate a label from the field name  
   
     if field_type in ['radio', 'select']:  
-        return field_templates[field_type].format(name=field_name)  
+        options_html = ''.join(f'<option value="{opt_value}" {"selected" if field_value and opt_value == field_value else ""}>{opt_label}</option>' for opt_value, opt_label in (options or {}).items())  
+        return field_templates[field_type].format(name=field_name, label=label, value=field_value, placeholder=placeholder, options=options_html)  
     else:  
-        return field_templates[field_type].format(name=field_name, value=field_value, placeholder=placeholder, checked=checked)  
+        return field_templates[field_type].format(name=field_name, label=label, value=field_value, placeholder=placeholder, checked=checked) 
   
 def generate_form_fields(fields_config):  
     form_fields_html = ""  
@@ -77,13 +76,15 @@ def generate_form_fields(fields_config):
     return form_fields_html  
   
 def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated_data=None, phase_name=None, phase_index=None):  
-    # Debugging lines  
-    print(f"Phase Index: {phase_index}")  
-    print(f"AI Generated Data: {ai_generated_data}")  
-  
     node_info = NODES.get(ce_type, NODES['Default'])  
     fields_config = node_info.get('modal_config', {}).get('fields', [])  
-    form_fields = generate_form_fields(fields_config)  
+  
+    # Populate form fields with existing data if available  
+    form_fields = ""  
+    for field in fields_config:  
+        field_value = ce_data.get(field['name'], '') if ce_data else ''  
+        form_fields += generate_form_field(field['type'], field['name'], field_value, field.get('placeholder', ''), field.get('options', None))  
+  
     node_name = ce_type.replace('_', ' ').title()  # Convert node type to a readable format  
   
     modal_content = render_template_string(  
@@ -96,10 +97,14 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
         ai_generated_data=ai_generated_data or "No AI context provided.",  
         phase_name=phase_name,  
         phase_index=phase_index,  
-        node_name=node_name  
+        node_name=node_name,  
+        ce_id=ce_data.get('id', 'unknown_ce_id') if ce_data else 'unknown_ce_id'  # Ensure ce_id is passed correctly  
     )  
     return modal_content  
-  
+
+
+
+
 def get_ce_modal(ce_type):  
     modal_html = generate_dynamic_modal(ce_type)  
     return modal_html  

@@ -180,6 +180,11 @@ def get_ce_modal(ce_type):
         # Fetch the CE data if necessary; for now, we assume ce_data is None  
         ce_data = None  
   
+        if ce_id and ce_id != 'unknown_ce_id':  
+            ce_data = get_ce_by_id(ce_id)  # Fetch CE data by ID  
+            if ce_data:  
+                ce_data = ce_data.to_dict()  # Convert to dictionary if needed  
+  
         # Fetch AI generated data  
         ai_generated_data = generate_ai_data(cos_content, ce_id, ce_type, ssol_goal)  
   

@@ -35,21 +35,26 @@ function handleCEPillClick(event) {
   const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();  
   const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement); // Calculate the phase index  
   
+  const requestData = {  
+    ce_id: ceId,  
+    cos_content: cosContent,  
+    phase_name: phaseName,  
+    phase_index: phaseIndex,  // Ensure phase_index is included  
+    ssol_goal: document.querySelector('#ssol-goal').textContent.trim()  
+  };  
+  
+  console.log("Request data for CE modal:", requestData);  
+  
   fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {  
     method: 'POST',  
     headers: {  
       'Content-Type': 'application/json'  
     },  
-    body: JSON.stringify({  
-      ce_id: ceId,  
-      cos_content: cosContent,  
-      phase_name: phaseName,  
-      phase_index: phaseIndex,  
-      ssol_goal: document.querySelector('#ssol-goal').textContent.trim()  
-    })  
+    body: JSON.stringify(requestData)  
   })  
   .then(response => response.json())  
   .then(data => {  
+    console.log("Response data for CE modal:", data);  
     if (data && data.modal_html) {  
       displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex);  
     } else {  
@@ -58,6 +63,7 @@ function handleCEPillClick(event) {
   })  
   .catch(error => console.error('Error fetching modal content:', error));  
 }  
+
   
 function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseIndex) {  
   const modalContainer = document.getElementById('dynamicModalContainer');  
@@ -66,45 +72,55 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
     return;  
   }  
   
-  modalContainer.innerHTML = modalHtml;  
+  // Wrap the modal content correctly  
+  const wrappedModalHtml = `  
+    <div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">  
+      <div class="modal-dialog modal-lg" role="document">  
+        <div class="modal-content" data-phase-index="${phaseIndex}">  
+          <div class="modal-header">  
+            <div class="filled-box"></div>  
+            <h5 class="modal-title" id="ceModalLabel-${ceId}">  
+              <span class="node-icon me-2">  
+                <i class="${NODES[ceType].icon}"></i>  
+              </span>  
+              <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()}</span>  
+            </h5>  
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
+          </div>  
+          <div class="modal-body">  
+            <p>${NODES[ceType].definition}</p>  
+            <h6>Parent COS: ${cosContent}</h6>  
+            <p>No AI context provided.</p>  
+            <form id="ceForm-${ceId}">  
+              ${NODES[ceType].modal_config.fields.map(field => `  
+                <input type="${field.type}" class="form-control" name="${field.name}" value="" placeholder="${field.placeholder}">  
+              `).join('')}  
+            </form>  
+          </div>  
+          <div class="modal-footer">  
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
+            <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save changes</button>  
+          </div>  
+        </div>  
+      </div>  
+    </div>  
+  `;  
   
-  // Update the modal with the CE data and COS content  
-  const modalElement = modalContainer.querySelector('.modal');  
-  if (modalElement) {  
-    modalElement.id = `ceModal-${ceId}`;  
-  }  
-  
-  const nodeInfo = NODES[ceType] || { icon: 'fas fa-question-circle', definition: 'Unknown CE Type', ai_context: 'N/A' };  
-  const formattedCeType = ceType ? ceType.replace(/_/g, ' ').replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); }) : 'Unknown';  
-  
-  const modalTitle = modalContainer.querySelector('.modal-title');  
-  if (modalTitle) {  
-    modalTitle.innerHTML = `  
-      <span class="node-icon me-2">  
-        <i class="${nodeInfo.icon}"></i>  
-      </span>  
-      <span class="modal-header-title">${formattedCeType}</span>  
-    `;  
-  }  
-  
-  const cosContentElement = modalContainer.querySelector('.ai-generated-data');  
-  if (cosContentElement) {  
-    cosContentElement.innerHTML = `  
-      <h6>Parent COS: ${cosContent}</h6>  
-      <p>${nodeInfo.ai_context}</p>  
-    `;  
-  }  
+  console.log('Appending modal HTML to container:', wrappedModalHtml);  
+  modalContainer.innerHTML = wrappedModalHtml;  
   
   setTimeout(() => {  
     const modalElement = modalContainer.querySelector(`#ceModal-${ceId}`);  
     if (modalElement) {  
+      console.log(`Showing modal with ID: ceModal-${ceId}`);  
       $(`#${modalElement.id}`).modal('show');  
     } else {  
       console.error(`Modal element not found in the DOM for CE ID: ${ceId}`);  
     }  
   }, 100);  
 }  
-    
+
+ 
 function fetchCEDataAndDisplayModal(ceId, ceType, cosContent) {  
   console.log(`Fetching CE data for ID: ${ceId} and Type: ${ceType}`);  
   fetch(`/get_ce_by_id/${encodeURIComponent(ceId)}`)  

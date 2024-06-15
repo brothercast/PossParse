@@ -522,46 +522,41 @@ body > main > div > div.row.outcome-header {
   text-shadow: 1px 1px 0px #000000;  
   color: #ffffff;  
 }  
-
-
 .modal-content {  
   border-radius: 10px;  
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);  
+  border: 2px solid transparent; /* Default border to avoid collapse */  
 }  
-  
 .modal-header {  
   border-top-left-radius: 10px;  
   border-top-right-radius: 10px;  
+  position: relative;  
+  padding: 1rem;  
+  background-color: var(--phase-color, #e91e63); /* Default color */  
 }  
-  
 .node-icon {  
-  background-color: white;  
+  background-color: white; /* White background for the icon */  
   border-radius: 5px;  
   padding: 10px;  
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);  
+  margin-right: 0.5rem;  
 }  
-  
+.node-icon i {  
+  color: var(--phase-color, #e91e63); /* Color the icon itself according to the phase */  
+}  
 .modal-body {  
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);  
 }  
-  
 .btn-save-changes {  
   background-color: var(--bs-primary);  
   border-color: var(--bs-primary);  
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);  
 }  
-  
 .btn-save-changes:hover {  
   background-color: var(--bs-primary);  
   border-color: var(--bs-primary);  
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);  
 }  
-
-.modal-header {  
-  position: relative;  
-  padding: 1rem;  
-}  
-  
 .modal-header .filled-box {  
   position: absolute;  
   top: 0;  
@@ -571,7 +566,6 @@ body > main > div > div.row.outcome-header {
   background-color: var(--phase-color, #e91e63); /* Default color */  
   z-index: -1;  
 }  
-  
 .modal-title {  
   font-family: 'Unica One', sans-serif;  
   font-weight: 500;  
@@ -579,11 +573,9 @@ body > main > div > div.row.outcome-header {
   text-shadow: 1px 1px 0px #000000;  
   color: white;  
 }  
-  
-.node-icon {  
-  margin-right: 0.5rem;  
+.form-group {  
+  margin-bottom: 1.5rem; /* Add spacing between form fields */  
 }  
-  
 .phase-colors {  
   --phase-0: #e91e63;  
   --phase-1: #00bcd4;  
@@ -591,23 +583,33 @@ body > main > div > div.row.outcome-header {
   --phase-3: #ffc107;  
   --phase-4: #66bd0e;  
 }  
-  
 [data-phase-index="0"] .modal-header .filled-box {  
-  background-color: var(--phase-0);  
+  background-color: var(--phase-0) !important; /* Ensure high specificity */  
 }  
-  
 [data-phase-index="1"] .modal-header .filled-box {  
-  background-color: var(--phase-1);  
+  background-color: var(--phase-1) !important; /* Ensure high specificity */  
 }  
-  
 [data-phase-index="2"] .modal-header .filled-box {  
-  background-color: var(--phase-2);  
+  background-color: var(--phase-2) !important; /* Ensure high specificity */  
 }  
-  
 [data-phase-index="3"] .modal-header .filled-box {  
-  background-color: var(--phase-3);  
+  background-color: var(--phase-3) !important; /* Ensure high specificity */  
 }  
-  
 [data-phase-index="4"] .modal-header .filled-box {  
-  background-color: var(--phase-4);  
+  background-color: var(--phase-4) !important; /* Ensure high specificity */  
+}  
+[data-phase-index="0"] .modal-content {  
+  border: 2px solid var(--phase-0) !important; /* Ensure high specificity */  
+}  
+[data-phase-index="1"] .modal-content {  
+  border: 2px solid var(--phase-1) !important; /* Ensure high specificity */  
+}  
+[data-phase-index="2"] .modal-content {  
+  border: 2px solid var(--phase-2) !important; /* Ensure high specificity */  
+}  
+[data-phase-index="3"] .modal-content {  
+  border: 2px solid var(--phase-3) !important; /* Ensure high specificity */  
+}  
+[data-phase-index="4"] .modal-content {  
+  border: 2px solid var(--phase-4) !important; /* Ensure high specificity */  
 }  

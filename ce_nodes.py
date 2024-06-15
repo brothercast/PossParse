@@ -1,7 +1,7 @@
 NODES = {  
     "Default": {  
         "definition": "This node is a default research mode for undefined node types.",  
-        "icon": "fas fa-question-circle",  
+        "icon": "fa-solid fa-question-circle",  
         "modal_config": {  
             "fields": [  
                 {"type": "text", "name": "detail", "placeholder": "Detail"},  
@@ -14,7 +14,7 @@ NODES = {
     },  
     "Research": {  
         "definition": "This node aggregates resources and research related to the Conditional Element.",  
-        "icon": "fas fa-flask",  
+        "icon": "fa-solid fa-flask",  
         "modal_config": {  
             "fields": [  
                 {"type": "text", "name": "research_title", "placeholder": "Research Title"},  
@@ -27,7 +27,7 @@ NODES = {
     },  
     "Location": {  
         "definition": "This node allows the user to specify a geographic region relevant to the Conditional Element.",  
-        "icon": "fas fa-map-marker-alt",  
+        "icon": "fa-solid fa-map-marker-alt",  
         "modal_config": {  
             "fields": [  
                 {"type": "text", "name": "region_name", "placeholder": "Region Name"},  
@@ -37,11 +37,10 @@ NODES = {
             "explanation": "Provide geographic information, regional details, or specific location-related data relevant to the Condition of Satisfaction (COS).",  
             "ai_context": "Provide geographic information, regional details, or specific location-related data relevant to the Condition of Satisfaction (COS)."  
         }  
-    }, 
-    
+    },  
     "Resource": {
         "definition": "This node provides a list of resources or assets related to the Conditional Element.",
-        "icon": "fas fa-tools",
+        "icon": "fa-solid fa-tools",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "resource_name", "placeholder": "Resource Name"},
@@ -52,7 +51,7 @@ NODES = {
     },
     "Action": {
         "definition": "This node represents an action or task to be taken to fulfill the Conditional Element.",
-        "icon": "fas fa-tasks",
+        "icon": "fa-solid fa-tasks",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "action_name", "placeholder": "Action Name"},
@@ -63,7 +62,7 @@ NODES = {
     },
     "Time": {
         "definition": "This node specifies a time frame or deadline associated with the Conditional Element.",
-        "icon": "fas fa-clock",
+        "icon": "fa-solid fa-clock",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "time_frame", "placeholder": "Time Frame"},
@@ -74,7 +73,7 @@ NODES = {
     },
     "Stakeholder": {
         "definition": "This node captures the stakeholders involved in the Conditional Element.",
-        "icon": "fas fa-user-friends",
+        "icon": "fa-solid fa-user-friends",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "stakeholder_name", "placeholder": "Stakeholder Name"},
@@ -85,7 +84,7 @@ NODES = {
     },
     "Collaboration": {
         "definition": "This node focuses on collaboration efforts or partnerships needed for the Conditional Element.",
-        "icon": "fas fa-handshake",
+        "icon": "fa-solid fa-handshake",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "partner_name", "placeholder": "Partner Name"},
@@ -96,7 +95,7 @@ NODES = {
     },
     "Policy": {
         "definition": "This node addresses policy or regulatory aspects related to the Conditional Element.",
-        "icon": "fas fa-gavel",
+        "icon": "fa-solid fa-gavel",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "policy_name", "placeholder": "Policy Name"},
@@ -107,7 +106,7 @@ NODES = {
     },
     "Data": {
         "definition": "This node highlights data requirements or analytics related to the Conditional Element.",
-        "icon": "fas fa-database",
+        "icon": "fa-solid fa-database",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "data_type", "placeholder": "Data Type"},
@@ -118,7 +117,7 @@ NODES = {
     },
     "Technology": {
         "definition": "This node explores the use of technology or tools for the Conditional Element.",
-        "icon": "fas fa-cogs",
+        "icon": "fa-solid fa-cogs",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "technology_name", "placeholder": "Technology Name"},
@@ -129,7 +128,7 @@ NODES = {
     },
     "Communication": {
         "definition": "This node focuses on communication strategies or channels related to the Conditional Element.",
-        "icon": "fas fa-comments",
+        "icon": "fa-solid fa-comments",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "communication_channel", "placeholder": "Communication Channel"},
@@ -140,7 +139,7 @@ NODES = {
     },
     "Skill": {
         "definition": "This node identifies specific skills or expertise required for the Conditional Element.",
-        "icon": "fas fa-brain",
+        "icon": "fa-solid fa-brain",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "skill_name", "placeholder": "Skill Name"},
@@ -151,7 +150,7 @@ NODES = {
     },
     "Education": {
         "definition": "This node addresses educational requirements or training related to the Conditional Element.",
-        "icon": "fas fa-graduation-cap",
+        "icon": "fa-solid fa-graduation-cap",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "course_name", "placeholder": "Course Name"},
@@ -162,7 +161,7 @@ NODES = {
     },
     "Evaluation": {
         "definition": "This node tracks evaluation methods or metrics for assessing the Conditional Element.",
-        "icon": "fas fa-star-half-alt",
+        "icon": "fa-solid fa-star-half-alt",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "evaluation_method", "placeholder": "Evaluation Method"},
@@ -173,18 +172,20 @@ NODES = {
     },
     "Impact": {
         "definition": "This node explores the potential impact or outcomes of the Conditional Element.",
-        "icon": "fas fa-chart-bar",
+        "icon": "fa-solid fa-chart-bar",
         "modal_config": {
             "fields": [
                 {"type": "textarea", "name": "impact_statement", "placeholder": "Impact Statement"},
                 {"type": "text", "name": "impact_metric", "placeholder": "Impact Metric"},
-                {"type": "textarea", "name": "long_term_effects", "placeholder": "Long-term Effects"}
+                {"type": "textarea", "name": "expected_outcomes", "placeholder": "Expected Outcomes"}
             ]
         }
     },
+
+
     "Legal": {
         "definition": "This node covers legal considerations or requirements related to the Conditional Element.",
-        "icon": "fas fa-balance-scale",
+        "icon": "fa-solid fa-balance-scale",
         "modal_config": {
             "fields": [
                 {"type": "textarea", "name": "legal_requirements", "placeholder": "Legal Requirements"},
@@ -195,7 +196,7 @@ NODES = {
     },
     "Environmental": {
         "definition": "This node focuses on environmental factors or considerations for the Conditional Element.",
-        "icon": "fas fa-leaf",
+        "icon": "fa-solid fa-leaf",
         "modal_config": {
             "fields": [
                 {"type": "textarea", "name": "environmental_impact", "placeholder": "Environmental Impact"},
@@ -206,7 +207,7 @@ NODES = {
     },
     "Compliance": {
         "definition": "This node focuses on compliance requirements or regulations for the Conditional Element.",
-        "icon": "fas fa-file-alt",
+        "icon": "fa-solid fa-file-alt",
         "modal_config": {
             "fields": [
                 {"type": "textarea", "name": "compliance_checklist", "placeholder": "Compliance Checklist"},
@@ -217,7 +218,7 @@ NODES = {
     },
     "Performance": {
         "definition": "This node tracks performance indicators or benchmarks for the Conditional Element.",
-        "icon": "fas fa-chart-line",
+        "icon": "fa-solid fa-chart-line",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "performance_metric", "placeholder": "Performance Metric"},
@@ -228,7 +229,7 @@ NODES = {
     },
     "Logistic": {
         "definition": "This node addresses logistical considerations or requirements for the Conditional Element.",
-        "icon": "fas fa-truck",
+        "icon": "fa-solid fa-truck",
         "modal_config": {
             "fields": [
                 {"type": "textarea", "name": "logistics_plan", "placeholder": "Logistics Plan"},
@@ -239,7 +240,7 @@ NODES = {
     },
     "Infrastructure": {
         "definition": "This node covers infrastructure needs or considerations for the Conditional Element.",
-        "icon": "fas fa-building",
+        "icon": "fa-solid fa-building",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "infrastructure_type", "placeholder": "Infrastructure Type"},
@@ -250,7 +251,7 @@ NODES = {
     },
     "Health and Safety": {
         "definition": "This node focuses on health and safety considerations for the Conditional Element.",
-        "icon": "fas fa-heartbeat",
+        "icon": "fa-solid fa-heartbeat",
         "modal_config": {
             "fields": [
                 {"type": "textarea", "name": "safety_guidelines", "placeholder": "Safety Guidelines"},
@@ -261,7 +262,7 @@ NODES = {
     },
     "Scalability": {
         "definition": "This node addresses the scalability potential of the Conditional Element.",
-        "icon": "fas fa-expand-arrows-alt",
+        "icon": "fa-solid fa-expand-arrows-alt",
         "modal_config": {
             "fields": [
                 {"type": "textarea", "name": "scalability_plan", "placeholder": "Scalability Plan"},
@@ -272,7 +273,7 @@ NODES = {
     },
     "Ethical": {
         "definition": "This node explores ethical considerations or implications of the Conditional Element.",
-        "icon": "fas fa-balance-scale-left",
+        "icon": "fa-solid fa-balance-scale-left",
         "modal_config": {
             "fields": [
                 {"type": "textarea", "name": "ethical_considerations", "placeholder": "Ethical Considerations"},
@@ -283,7 +284,7 @@ NODES = {
     },
     "Cultural": {
         "definition": "This node addresses cultural factors or considerations for the Conditional Element.",
-        "icon": "fas fa-globe",
+        "icon": "fa-solid fa-globe",
         "modal_config": {
             "fields": [
                 {"type": "textarea", "name": "cultural_impact", "placeholder": "Cultural Impact"},
@@ -294,7 +295,7 @@ NODES = {
     },
     "Innovation": {
         "definition": "This node focuses on innovative approaches or technologies for the Conditional Element.",
-        "icon": "fas fa-lightbulb-on",
+        "icon": "fa-solid fa-lightbulb-on",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "innovation_name", "placeholder": "Innovation Name"},
@@ -305,7 +306,7 @@ NODES = {
     },
     "Public Relations": {
         "definition": "This node covers public relations strategies or activities related to the Conditional Element.",
-        "icon": "fas fa-megaphone",
+        "icon": "fa-solid fa-megaphone",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "pr_strategy", "placeholder": "PR Strategy"},
@@ -316,7 +317,7 @@ NODES = {
     },
     "Governance": {
         "definition": "This node addresses governance structures or requirements for the Conditional Element.",
-        "icon": "fas fa-users-cog",
+        "icon": "fa-solid fa-users-cog",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "governance_model", "placeholder": "Governance Model"},
@@ -327,7 +328,7 @@ NODES = {
     },
     "Monitoring": {
         "definition": "This node focuses on monitoring and tracking progress or performance related to the Conditional Element.",
-        "icon": "fas fa-heartbeat",
+        "icon": "fa-solid fa-heartbeat",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "monitoring_tool", "placeholder": "Monitoring Tool"},
@@ -338,7 +339,7 @@ NODES = {
     },
     "Quality Assurance": {
         "definition": "This node ensures quality control and assurance processes and standards for the Conditional Element.",
-        "icon": "fas fa-check-circle",
+        "icon": "fa-solid fa-check-circle",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "qa_process", "placeholder": "QA Process"},
@@ -349,7 +350,7 @@ NODES = {
     },
     "Ethical AI": {
         "definition": "This node explores ethical considerations and guidelines related to the use of AI in the Conditional Element.",
-        "icon": "fas fa-brain",
+        "icon": "fa-solid fa-brain",
         "modal_config": {
             "fields": [
                 {"type": "textarea", "name": "ethical_ai_guidelines", "placeholder": "Ethical AI Guidelines"},
@@ -360,7 +361,7 @@ NODES = {
     },
     "Privacy and Data Security": {
         "definition": "This node addresses privacy and data security measures and guidelines for the Conditional Element.",
-        "icon": "fas fa-lock",
+        "icon": "fa-solid fa-lock",
         "modal_config": {
             "fields": [
                 {"type": "textarea", "name": "data_security_plan", "placeholder": "Data Security Plan"},
@@ -371,7 +372,7 @@ NODES = {
     },
     "Regulatory Compliance": {
         "definition": "This node focuses specifically on regulatory compliance requirements for the Conditional Element.",
-        "icon": "fas fa-balance-scale",
+        "icon": "fa-solid fa-balance-scale",
         "modal_config": {
             "fields": [
                 {"type": "textarea", "name": "regulatory_requirements", "placeholder": "Regulatory Requirements"},
@@ -382,7 +383,7 @@ NODES = {
     },
     "Cost and Budgeting": {
         "definition": "This node addresses cost estimation, budgeting, and financial considerations for the Conditional Element.",
-        "icon": "fas fa-dollar-sign",
+        "icon": "fa-solid fa-dollar-sign",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "budget_item", "placeholder": "Budget Item"},
@@ -393,7 +394,7 @@ NODES = {
     },
     "Accessibility": {
         "definition": "This node emphasizes accessibility requirements and inclusive design principles for the Conditional Element.",
-        "icon": "fas fa-wheelchair",
+        "icon": "fa-solid fa-wheelchair",
         "modal_config": {
             "fields": [
                 {"type": "textarea", "name": "accessibility_standards", "placeholder": "Accessibility Standards"},
@@ -404,7 +405,7 @@ NODES = {
     },
     "User Experience": {
         "definition": "This node addresses user experience design and considerations for the Conditional Element.",
-        "icon": "fas fa-user-circle",
+        "icon": "fa-solid fa-user-circle",
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "ux_strategy", "placeholder": "UX Strategy"},
