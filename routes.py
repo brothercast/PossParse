@@ -175,26 +175,16 @@ def get_ce_modal(ce_type):
         cos_content = data.get('cos_content')  
         phase_name = data.get('phase_name')  
         phase_index = data.get('phase_index')  
-        ssol_goal = data.get('ssol_goal')  # Ensure this is passed from the client-side  
-  
-        # Fetch the CE data if necessary; for now, we assume ce_data is None  
-        ce_data = None  
-  
-        if ce_id and ce_id != 'unknown_ce_id':  
-            ce_data = get_ce_by_id(ce_id)  # Fetch CE data by ID  
-            if ce_data:  
-                ce_data = ce_data.to_dict()  # Convert to dictionary if needed  
+        ssol_goal = data.get('ssol_goal')  
   
         # Fetch AI generated data  
         ai_generated_data = generate_ai_data(cos_content, ce_id, ce_type, ssol_goal)  
   
-        modal_content = generate_dynamic_modal(ce_type, ce_data, cos_content, ai_generated_data, phase_name, phase_index)  
+        modal_content = generate_dynamic_modal(ce_type, None, cos_content, ai_generated_data, phase_name, phase_index)  
         return jsonify(modal_html=modal_content)  
     except Exception as e:  
         current_app.logger.error(f"Error getting modal content for CE type {ce_type}: {e}", exc_info=True)  
         return jsonify(error=f"Error: {e}"), 500  
-
-
 
 @routes_bp.route('/analyze_cos/<string:cos_id>', methods=['GET'])  
 def analyze_cos_route(cos_id):  

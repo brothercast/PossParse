@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from openai import AzureOpenAI
 from app import USE_DATABASE, db  
+from ce_nodes import get_valid_node_types
 from models import COS, CE, SSOL, COS_CE_Link  
 from store import ssol_store, cos_store, ce_store  
 from stability_sdk import client as stability_client  
@@ -143,7 +144,6 @@ def parse_ai_response_and_generate_html(response_json):
             })  
   
     return structured_solution  
-
 
 def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None):        
     # Initialize outcome_data with default keys and values        
@@ -534,4 +534,39 @@ def generate_structured_solution(selected_goal):
         current_app.logger.error(f"Unexpected error in generating structured solution: {e}", exc_info=True)      
         raise ValueError("Failed to generate structured solution.")
 
-    
+def generate_chat_response_with_node_types(messages, role, task, temperature=0.75, retries=3, backoff_factor=2):  
+    last_exception = None  
+    for retry_attempt in range(retries):  
+        try:  
+            node_types = get_valid_node_types()  # Fetch valid node types  
+            node_types_str = ', '.join(node_types)  
+  
+            # Ensure the system message indicates JSON response format  
+            system_message = {  
+                "role": "system",  
+                "content": "You are a helpful assistant. Please respond with information in JSON format. Valid Node Types: " + node_types_str  
+            }  
+            messages_with_json = [system_message] + messages  
+  
+            # Send request to Azure OpenAI model using JSON mode  
+            response = azure_openai_client.chat.completions.create(  
+                model=azure_oai_model,  
+                response_format={"type": "json_object"},  
+                messages=messages_with_json,  
+                temperature=temperature,  
+                max_tokens=1800  
+            )  
+            response_content = response.choices[0].message.content  
+            Logger.log_message(f"SSPEC Response ({role} - {task}): {response_content}", 'debug')  
+            return response_content  
+        except Exception as e:  
+            last_exception = e  
+            if retry_attempt < retries - 1:  
+                sleep_time = backoff_factor ** (retry_attempt + 1)  
+                Logger.log_message(f"Error in generate_chat_response: {e}. Retrying in {sleep_time} seconds.", 'error')  
+                time.sleep(sleep_time)  
+            else:  
+                Logger.log_message(f"Error in generate_chat_response: {e}. All retries exhausted.", 'error')  
+  
+    # Raise the last exception if all retries fail  
+    raise last_exception  

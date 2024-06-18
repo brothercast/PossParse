@@ -2,18 +2,19 @@
 import logging  
 from flask import render_template_string, current_app  
 from utilities import generate_chat_response  
-from ce_nodes import NODES  
+from ce_nodes import NODES, get_valid_node_types  
   
 # Define a base template for the modal dialogs that will be populated dynamically  
+  
 BASE_MODAL_TEMPLATE = """  
 <div class="modal fade" id="ceModal{{ ce_id }}" tabindex="-1" aria-labelledby="ceModalLabel{{ ce_id }}" aria-hidden="true">  
   <div class="modal-dialog modal-lg" role="document">  
-    <div class="modal-content phase-{{ phase_index }}"> <!-- Add phase color class -->  
+    <div class="modal-content phase-{{ phase_index }}">  
       <div class="modal-header">  
         <div class="filled-box"></div>  
         <h5 class="modal-title" id="ceModalLabel{{ ce_id }}">  
-          <span class="node-icon me-2" style="background-color: white;">  
-            <i class="{{ node_info['icon'] }}" style="color: var(--phase-{{ phase_index }});"></i>  
+          <span class="node-icon">  
+            <i class="{{ node_info['icon'] }}"></i>  
           </span>  
           <span class="modal-header-title">{{ node_name }}</span>  
         </h5>  
@@ -25,7 +26,21 @@ BASE_MODAL_TEMPLATE = """
         <p>{{ ai_generated_data | safe }}</p>  
         <form id="ceForm{{ ce_id }}">  
           {{ form_fields | safe }}  
+          <button type="button" class="btn btn-primary" id="addEntryButton">Add Entry</button>  
         </form>  
+        <hr>  
+        <h5>{{ node_name }} Details</h5>  
+        <table class="table table-bordered" id="dynamicTable">  
+          <thead>  
+            <tr>  
+              {{ table_headers | safe }}  
+              <th>Actions</th>  
+            </tr>  
+          </thead>  
+          <tbody>  
+            <!-- Rows will be dynamically added here -->  
+          </tbody>  
+        </table>  
       </div>  
       <div class="modal-footer">  
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
@@ -34,9 +49,9 @@ BASE_MODAL_TEMPLATE = """
     </div>  
   </div>  
 </div>  
+
 """  
-
-
+  
 def generate_form_field(field_type, field_name, field_value='', placeholder='', options=None):  
     field_templates = {  
         'text': '<div class="form-group"><label for="{name}">{label}</label><input type="text" class="form-control" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}"/></div>',  
@@ -58,10 +73,10 @@ def generate_form_field(field_type, field_name, field_value='', placeholder='', 
   
     if field_type in ['radio', 'select']:  
         options_html = ''.join(f'<option value="{opt_value}" {"selected" if field_value and opt_value == field_value else ""}>{opt_label}</option>' for opt_value, opt_label in (options or {}).items())  
-        return field_templates[field_type].format(name=field_name, label=label, value=field_value, placeholder=placeholder, options=options_html)  
+        return field_templates.get(field_type, field_templates['text']).format(name=field_name, label=label, value=field_value, placeholder=placeholder, options=options_html)  
     else:  
-        return field_templates[field_type].format(name=field_name, label=label, value=field_value, placeholder=placeholder, checked=checked) 
-  
+        return field_templates.get(field_type, field_templates['text']).format(name=field_name, label=label, value=field_value, placeholder=placeholder, checked=checked)  
+
 def generate_form_fields(fields_config):  
     form_fields_html = ""  
     for field in fields_config:  
@@ -74,16 +89,21 @@ def generate_form_fields(fields_config):
         )  
         form_fields_html += field_html  
     return form_fields_html  
+
+def generate_table_headers(fields_config):  
+    table_headers_html = ""  
+    for field in fields_config:  
+        header_label = field['name'].replace('_', ' ').title()  
+        table_headers_html += f"<th>{header_label}</th>"  
+    return table_headers_html  
   
 def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated_data=None, phase_name=None, phase_index=None):  
     node_info = NODES.get(ce_type, NODES['Default'])  
     fields_config = node_info.get('modal_config', {}).get('fields', [])  
   
     # Populate form fields with existing data if available  
-    form_fields = ""  
-    for field in fields_config:  
-        field_value = ce_data.get(field['name'], '') if ce_data else ''  
-        form_fields += generate_form_field(field['type'], field['name'], field_value, field.get('placeholder', ''), field.get('options', None))  
+    form_fields = generate_form_fields(fields_config)  
+    table_headers = generate_table_headers(fields_config)  
   
     node_name = ce_type.replace('_', ' ').title()  # Convert node type to a readable format  
   
@@ -92,18 +112,16 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
         ce_type=ce_type,  
         node_info=node_info,  
         form_fields=form_fields,  
+        table_headers=table_headers,  
         ce_data=ce_data or {'id': 'unknown_ce_id'},  
         cos_content=cos_content,  
         ai_generated_data=ai_generated_data or "No AI context provided.",  
         phase_name=phase_name,  
         phase_index=phase_index,  
         node_name=node_name,  
-        ce_id=ce_data.get('id', 'unknown_ce_id') if ce_data else 'unknown_ce_id'  # Ensure ce_id is passed correctly  
+        ce_id=ce_data.get('id', 'unknown_ce_id') if ce_data else 'unknown_ce_id'  
     )  
     return modal_content  
-
-
-
 
 def get_ce_modal(ce_type):  
     modal_html = generate_dynamic_modal(ce_type)  
@@ -116,14 +134,17 @@ def generate_ai_data(cos_text, ce_id, ce_type, ssol_goal):
     if not ai_context:  
         return "No AI context provided."  
   
+    valid_node_types = ', '.join(get_valid_node_types())  
+  
     messages = [  
         {  
             "role": "system",  
             "content": (  
                 "You are a helpful assistant. Generate contextually relevant data based on the Structured Solution (SSOL) goal, "  
                 "the parent Condition of Satisfaction (COS) text, and the specific Conditional Element Identifier (CE ID) and type provided. Use this information to generate "  
-                "detailed and specific insights or data that can fulfill on satisfying the COS and ultimately achieving the SSOL goal."  
-            )  
+                "detailed and specific insights or data that can fulfill on satisfying the COS and ultimately achieving the SSOL goal. "  
+                "Select the most appropriate conditional element type from the following list: {valid_node_types}."  
+            ).format(valid_node_types=valid_node_types)  
         },  
         {  
             "role": "user",  

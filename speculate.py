@@ -11,7 +11,7 @@ from ce_nodes import NODES
 from models import session  
 from sqlalchemy.inspection import inspect
 from sqlalchemy.exc import SQLAlchemyError
-from utilities import generate_chat_response, parse_ai_response_and_generate_html
+from utilities import generate_chat_response, get_valid_node_types, generate_chat_response_with_node_types
 from models import COS, CE, SSOL, COS_CE_Link  
 from store import ssol_store, cos_store, ce_store  
 from sqlalchemy.orm import relationship, sessionmaker
@@ -67,7 +67,6 @@ def create_cos(ssol_id, content, status, accountable_party=None, completion_date
             db.session.rollback()  # Rollback the session in case of an error when using the database  
         raise 
 
-
 def get_cos_by_id(cos_id):  
     from app import USE_DATABASE 
     if USE_DATABASE:  
@@ -76,50 +75,54 @@ def get_cos_by_id(cos_id):
         return cos_store.get(str(cos_id))  
     
 def analyze_cos(cos_content):  
-    # Define the prompt for the AI to identify conditional elements        
+    valid_node_types = ', '.join(get_valid_node_types())  # Fetch and join valid node types  
+  
     prompt = (  
         "Analyze the following condition of satisfaction (COS) and identify any conditional elements (CEs). "  
-        "Return a JSON object with the COS text and an array of CEs, each with its text and type."  
+        "Return a JSON object with the COS text and an array of CEs, each with its text and type. "  
+        "Select the most appropriate conditional element type from the following list: {valid_node_types}."  
         "\nCOS: '{}'"  
         "\nExpected response format:"  
         "{{"  
         "  'COS': 'The full text of the COS',"  
         "  'CEs': ["  
-        "    {{'text': 'A conditional element', 'type': 'The type of CE'}},"  
-        "    {{'text': 'Another conditional element', 'type': 'Another type of CE'}}"  
+        "    {{'text': 'A conditional element', 'type': 'The type of CE'}}"  
         "  ]"  
         "}}"  
-    ).format(cos_content)  
-      
+    ).format(cos_content, valid_node_types=valid_node_types)  
+  
     messages = [  
         {"role": "system", "content": "Return a JSON object with the analyzed COS and CEs."},  
         {"role": "user", "content": prompt},  
     ]  
-      
+  
     try:  
-        # Send messages to the AI and get the response      
-        response_text = generate_chat_response(messages)  
+        # Send messages to the AI and get the response  
+        response_text = generate_chat_response(messages, role='COS Analysis', task='Analyze COS')  
         response_json = json.loads(response_text)  
-          
+  
         # Extract the COS and CEs from the response  
         cos_text = response_json.get("COS", cos_content)  
         ces = response_json.get("CEs", [])  
-          
+  
+        valid_node_types_list = get_valid_node_types()  
+  
         # Process the CEs, such as storing them in the database  
         stored_ces = []  
         for ce in ces:  
-            new_ce = CE(content=ce["text"], node_type=ce["type"])  
-            db.session.add(new_ce)  
-            stored_ces.append(new_ce)  
+            if ce["type"] in valid_node_types_list:  
+                new_ce = CE(content=ce["text"], node_type=ce["type"])  
+                db.session.add(new_ce)  
+                stored_ces.append(new_ce)  
+  
         db.session.commit()  
-          
+  
         return {'COS': cos_text, 'CEs': [ce.to_dict() for ce in stored_ces]}  
-          
+  
     except Exception as e:  
         logging.error(f"Exception occurred during COS analysis: {e}", exc_info=True)  
         db.session.rollback()  
         return {'COS': cos_content, 'CEs': []}  
-  
   
 def extract_conditional_elements(response_text, original_content):    
     ces = []    
@@ -383,29 +386,52 @@ def generate_card(ce_type, ce_id):
         return ""
 
   
-def analyze_cos(cos_content):    
+def analyze_cos(cos_content):  
+    prompt = (  
+        "Analyze the following condition of satisfaction (COS) and identify any conditional elements (CEs). "  
+        "Return a JSON object with the COS text and an array of CEs, each with its text and type."  
+        "\nCOS: '{}'"  
+        "\nExpected response format:"  
+        "{{"  
+        "  'COS': 'The full text of the COS',"  
+        "  'CEs': ["  
+        "    {{'text': 'A conditional element', 'type': 'The type of CE (must be one of the valid node types)'}}"  
+        "  ]"  
+        "}}"  
+    ).format(cos_content)  
+  
+    messages = [  
+        {"role": "system", "content": "Return a JSON object with the analyzed COS and CEs."},  
+        {"role": "user", "content": prompt},  
+    ]  
+  
     try:  
-        # Assume cos_content is the JSON response from the AI  
-        # Let's parse the JSON into a Python dictionary  
-        cos_json = json.loads(cos_content)  
-          
-        # Use the parse_ai_response_and_generate_html function  
-        # to convert the AI response into HTML  
-        structured_solution_html = parse_ai_response_and_generate_html(cos_json)  
-          
-        # Return the structured HTML content  
-        return structured_solution_html  
+        # Send messages to the AI and get the response  
+        response_text = generate_chat_response_with_node_types(messages, role='COS Analysis', task='Analyze COS')  
+        response_json = json.loads(response_text)  
   
-    except json.JSONDecodeError as e:  
-        # If there's an error parsing the JSON, log it  
-        logging.error(f"JSON decode error during COS analysis: {e}", exc_info=True)  
-        return None  
+        # Extract the COS and CEs from the response  
+        cos_text = response_json.get("COS", cos_content)  
+        ces = response_json.get("CEs", [])  
   
-    except Exception as e:    
-        # If there's a different error, log it  
+        valid_node_types = get_valid_node_types()  
+  
+        # Validate and process the CEs  
+        valid_ces = []  
+        for ce in ces:  
+            if ce["type"] in valid_node_types:  
+                new_ce = CE(content=ce["text"], node_type=ce["type"])  
+                db.session.add(new_ce)  
+                valid_ces.append(new_ce)  
+  
+        db.session.commit()  
+  
+        return {'COS': cos_text, 'CEs': [ce.to_dict() for ce in valid_ces]}  
+  
+    except Exception as e:  
         logging.error(f"Exception occurred during COS analysis: {e}", exc_info=True)  
-        return None  
-
+        db.session.rollback()  
+        return {'COS': cos_content, 'CEs': []}  
 
 def get_badge_class_from_status(status):    
     return {    

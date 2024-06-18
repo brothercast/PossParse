@@ -535,14 +535,11 @@ body > main > div > div.row.outcome-header {
   background-color: var(--phase-color, #e91e63); /* Default color */  
 }  
 .node-icon {  
-  background-color: white; /* White background for the icon */  
+  background-color: white;  
   border-radius: 5px;  
   padding: 10px;  
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);  
   margin-right: 0.5rem;  
-}  
-.node-icon i {  
-  color: var(--phase-color, #e91e63); /* Color the icon itself according to the phase */  
 }  
 .modal-body {  
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);  
@@ -572,9 +569,6 @@ body > main > div > div.row.outcome-header {
   text-transform: uppercase;  
   text-shadow: 1px 1px 0px #000000;  
   color: white;  
-}  
-.form-group {  
-  margin-bottom: 1.5rem; /* Add spacing between form fields */  
 }  
 .phase-colors {  
   --phase-0: #e91e63;  

@@ -33,17 +33,15 @@ function handleCEPillClick(event) {
   const cosContent = event.target.closest('tr').querySelector('.cos-content-cell').textContent.trim();  
   const phaseElement = event.target.closest('.accordion-item');  
   const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();  
-  const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement); // Calculate the phase index  
+  const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement);  
   
   const requestData = {  
     ce_id: ceId,  
     cos_content: cosContent,  
     phase_name: phaseName,  
-    phase_index: phaseIndex,  // Ensure phase_index is included  
+    phase_index: phaseIndex,  
     ssol_goal: document.querySelector('#ssol-goal').textContent.trim()  
   };  
-  
-  console.log("Request data for CE modal:", requestData);  
   
   fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {  
     method: 'POST',  
@@ -54,7 +52,6 @@ function handleCEPillClick(event) {
   })  
   .then(response => response.json())  
   .then(data => {  
-    console.log("Response data for CE modal:", data);  
     if (data && data.modal_html) {  
       displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex);  
     } else {  
@@ -64,7 +61,6 @@ function handleCEPillClick(event) {
   .catch(error => console.error('Error fetching modal content:', error));  
 }  
 
-  
 function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseIndex) {  
   const modalContainer = document.getElementById('dynamicModalContainer');  
   if (!modalContainer) {  
@@ -72,7 +68,13 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
     return;  
   }  
   
-  // Wrap the modal content correctly  
+  // Ensure NODES and required properties are defined  
+  if (!NODES || !NODES[ceType] || !NODES[ceType].icon || !NODES[ceType].definition || !NODES[ceType].modal_config || !NODES[ceType].modal_config.fields) {  
+    console.error('Invalid node configuration for CE type:', ceType);  
+    return;  
+  }  
+  
+  // Wrap the modal content correctly with the provided information  
   const wrappedModalHtml = `  
     <div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">  
       <div class="modal-dialog modal-lg" role="document">  
@@ -93,7 +95,14 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
             <p>No AI context provided.</p>  
             <form id="ceForm-${ceId}">  
               ${NODES[ceType].modal_config.fields.map(field => `  
-                <input type="${field.type}" class="form-control" name="${field.name}" value="" placeholder="${field.placeholder}">  
+                <div class="form-group">  
+                  <label for="${field.name}">${field.placeholder}</label>  
+                  ${field.type === 'textarea' ? `  
+                    <textarea class="form-control" id="${field.name}" name="${field.name}" placeholder="${field.placeholder}"></textarea>  
+                  ` : `  
+                    <input type="${field.type}" class="form-control" id="${field.name}" name="${field.name}" placeholder="${field.placeholder}">  
+                  `}  
+                </div>  
               `).join('')}  
             </form>  
           </div>  
@@ -109,6 +118,7 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
   console.log('Appending modal HTML to container:', wrappedModalHtml);  
   modalContainer.innerHTML = wrappedModalHtml;  
   
+  // Delay to ensure the modal content is appended before displaying it  
   setTimeout(() => {  
     const modalElement = modalContainer.querySelector(`#ceModal-${ceId}`);  
     if (modalElement) {  
@@ -119,6 +129,8 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
     }  
   }, 100);  
 }  
+
+
 
  
 function fetchCEDataAndDisplayModal(ceId, ceType, cosContent) {  
