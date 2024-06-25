@@ -2,9 +2,10 @@ import os
 import json  
 import uuid  
 import pdfkit  
-import openai  
+import openai
+from app import db  
 import requests  
-import logging  
+import logging
 from bs4 import BeautifulSoup  
 from ce_nodes import NODES  
 from app import app, USE_DATABASE  
@@ -171,6 +172,7 @@ def delete_cos_route(cos_id):
 def get_ce_modal(ce_type):  
     try:  
         data = request.get_json()  
+        current_app.logger.debug(f"Received data: {data}")  # Log received data  
         ce_id = data.get('ce_id')  
         cos_content = data.get('cos_content')  
         phase_name = data.get('phase_name')  
@@ -179,12 +181,22 @@ def get_ce_modal(ce_type):
   
         # Fetch AI generated data  
         ai_generated_data = generate_ai_data(cos_content, ce_id, ce_type, ssol_goal)  
+        current_app.logger.debug(f"AI generated data: {ai_generated_data}")  # Log AI data  
   
-        modal_content = generate_dynamic_modal(ce_type, None, cos_content, ai_generated_data, phase_name, phase_index)  
-        return jsonify(modal_html=modal_content)  
+        # Fetch CE data including table data  
+        ce_data = fetch_ce_data(ce_id)  
+        current_app.logger.debug(f"Fetched CE data: {ce_data}")  # Log CE data  
+  
+        # Get tabulator columns configuration  
+        node_info = NODES.get(ce_type, NODES['Default'])  
+        tabulator_columns = node_info.get('tabulator_config', {}).get('columns', [])  
+  
+        modal_content = generate_dynamic_modal(ce_type, ce_data, cos_content, ai_generated_data, phase_name, phase_index)  
+        return jsonify(modal_html=modal_content, table_data=ce_data.get('table_data', []), tabulator_columns=tabulator_columns)  
     except Exception as e:  
         current_app.logger.error(f"Error getting modal content for CE type {ce_type}: {e}", exc_info=True)  
         return jsonify(error=f"Error: {e}"), 500  
+
 
 @routes_bp.route('/analyze_cos/<string:cos_id>', methods=['GET'])  
 def analyze_cos_route(cos_id):  
@@ -304,3 +316,79 @@ def log_ce_entries():
 def log_in_memory_ce_entries():  
     for ce_id, ce in ce_store.items():  
         current_app.logger.debug(f"CE ID: {ce_id}, Type: {ce.get('node_type')}, Content: {ce.get('content')}")  
+
+@routes_bp.route('/fetch_ce_data/<uuid:ce_id>', methods=['GET'])  
+def fetch_ce_data(ce_id):  
+    try:  
+        if USE_DATABASE:  
+            ce = CE.query.get(ce_id)  
+            if ce:  
+                return ce.to_dict()  
+            else:  
+                raise ValueError(f"CE with ID {ce_id} not found in the database.")  
+        else:  
+            ce_dict = ce_store.get(str(ce_id))  
+            if ce_dict:  
+                return ce_dict  
+            else:  
+                raise ValueError(f"CE with ID {ce_id} not found in the in-memory store.")  
+    except ValueError as e:  
+        logging.error(f"Error retrieving CE by ID {ce_id}: {e}")  
+        raise e  
+    except SQLAlchemyError as e:  
+        logging.error(f"Database error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
+        raise e  
+    except Exception as e:  
+        logging.error(f"Unexpected error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
+        raise e  
+
+@routes_bp.route('/update_ce_data/<uuid:ce_id>', methods=['POST'])  
+def update_ce_data(ce_id):  
+    try:  
+        data = request.get_json()  
+        success = update_ce_by_id(ce_id, data)  
+        if success:  
+            return jsonify(success=True), 200  
+        else:  
+            return jsonify(success=False, error="Failed to update CE data."), 500  
+    except Exception as e:  
+        return jsonify(success=False, error=str(e)), 500  
+
+@routes_bp.route('/delete_ce_data/<uuid:ce_id>', methods=['DELETE'])  
+def delete_ce_data(ce_id):  
+    try:  
+        success = delete_ce_by_id(ce_id)  
+        if success:  
+            return jsonify(success=True), 200  
+        else:  
+            return jsonify(success=False, error="Failed to delete CE data."), 500  
+    except Exception as e:  
+        return jsonify(success=False, error=str(e)), 500  
+
+@routes_bp.route('/save_ce_data', methods=['POST'])  
+def save_ce_data():  
+    try:  
+        data = request.get_json()  
+        for ce in data:  
+            if USE_DATABASE:  
+                ce_instance = CE.query.get(ce['id']) or CE(id=uuid.uuid4())  
+                ce_instance.content = ce['field1']  
+                ce_instance.node_type = ce['field2']  
+                ce_instance.details = ce['field3']  
+                db.session.add(ce_instance)  
+            else:  
+                ce_id = ce.get('id') or str(uuid.uuid4())  
+                ce_store[ce_id] = {  
+                    'id': ce_id,  
+                    'content': ce['field1'],  
+                    'node_type': ce['field2'],  
+                    'details': ce['field3']  
+                }  
+        if USE_DATABASE:  
+            db.session.commit()  
+        return jsonify(success=True)  
+    except Exception as e:  
+        current_app.logger.error(f"Error saving CE data: {e}")  
+        return jsonify(success=False, error=str(e)), 500  
+
+

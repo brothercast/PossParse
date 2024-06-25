@@ -10,6 +10,13 @@ NODES = {
             ],  
             "explanation": "Provide a detailed description of the node.",  
             "ai_context": "Provide general information and suggestions to help achieve the Condition of Satisfaction (COS)."  
+        },  
+        "tabulator_config": {  
+            "columns": [  
+                {"title": "Detail", "field": "detail", "editor": "input"},  
+                {"title": "Supporting Files", "field": "supporting_files", "editor": "input"},  
+                {"title": "Stakeholders", "field": "stakeholders", "editor": "input"}  
+            ]  
         }  
     },  
     "Research": {  
@@ -23,21 +30,37 @@ NODES = {
             ],  
             "explanation": "Capture relevant research aspects of the node.",  
             "ai_context": "Provide detailed research information, studies, and academic resources relevant to the COS."  
+        },  
+        "tabulator_config": {  
+            "columns": [  
+                {"title": "Research Title", "field": "research_title", "editor": "input"},  
+                {"title": "Summary", "field": "research_summary", "editor": "textarea"},  
+                {"title": "Researcher Name", "field": "researcher_name", "editor": "input"}  
+            ]  
         }  
     },  
-    "Location": {  
-        "definition": "Specifies geographic regions or locations relevant to the COS.",  
-        "icon": "fa-solid fa-map-marker-alt",  
+    
+    "Education": {  
+        "definition": "Addresses educational requirements or training related to the COS.",  
+        "icon": "fa-solid fa-graduation-cap",  
         "modal_config": {  
             "fields": [  
-                {"type": "text", "name": "region_name", "placeholder": "Region Name"},  
-                {"type": "textarea", "name": "region_details", "placeholder": "Region Details"},  
-                {"type": "text", "name": "coordinates", "placeholder": "Coordinates"}  
+                {"type": "text", "name": "course_name", "placeholder": "Course Name"},  
+                {"type": "textarea", "name": "course_description", "placeholder": "Course Description"},  
+                {"type": "text", "name": "institution", "placeholder": "Institution"}  
             ],  
-            "explanation": "Provide geographic information, regional details, or specific location-related data relevant to the COS.",  
-            "ai_context": "Provide geographic information, regional details, or specific location-related data relevant to the COS."  
+            "explanation": "Detail educational requirements and training necessary for the COS.",  
+            "ai_context": "Provide information on educational requirements or training related to the COS."  
+        },  
+        "tabulator_config": {  
+            "columns": [  
+                {"title": "Course Name", "field": "course_name", "editor": "input"},  
+                {"title": "Description", "field": "course_description", "editor": "textarea"},  
+                {"title": "Institution", "field": "institution", "editor": "input"}  
+            ]  
         }  
-    },  
+    }, 
+     
     "Resource": {  
         "definition": "Lists resources or assets essential for achieving the COS.",  
         "icon": "fa-solid fa-tools",  
@@ -88,6 +111,13 @@ NODES = {
             ],  
             "explanation": "Detail the roles and contact information of stakeholders related to the COS.",  
             "ai_context": "Identify and provide details of stakeholders involved in the COS."  
+        },  
+        "tabulator_config": {  
+            "columns": [  
+                {"title": "Stakeholder Name", "field": "stakeholder_name", "editor": "input"},  
+                {"title": "Stakeholder Role", "field": "stakeholder_role", "editor": "textarea"},  
+                {"title": "Contact Info", "field": "contact_info", "editor": "input"}  
+            ]  
         }  
     },  
     "Collaboration": {  

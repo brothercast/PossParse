@@ -5,15 +5,14 @@ from utilities import generate_chat_response
 from ce_nodes import NODES, get_valid_node_types  
   
 # Define a base template for the modal dialogs that will be populated dynamically  
-  
 BASE_MODAL_TEMPLATE = """  
 <div class="modal fade" id="ceModal{{ ce_id }}" tabindex="-1" aria-labelledby="ceModalLabel{{ ce_id }}" aria-hidden="true">  
   <div class="modal-dialog modal-lg" role="document">  
-    <div class="modal-content phase-{{ phase_index }}">  
+    <div class="modal-content" data-phase-index="{{ phase_index }}">  
       <div class="modal-header">  
         <div class="filled-box"></div>  
         <h5 class="modal-title" id="ceModalLabel{{ ce_id }}">  
-          <span class="node-icon">  
+          <span class="node-icon me-2">  
             <i class="{{ node_info['icon'] }}"></i>  
           </span>  
           <span class="modal-header-title">{{ node_name }}</span>  
@@ -23,24 +22,15 @@ BASE_MODAL_TEMPLATE = """
       <div class="modal-body">  
         <p>{{ node_info['definition'] }}</p>  
         <h6>Parent COS: {{ cos_content }}</h6>  
-        <p>{{ ai_generated_data | safe }}</p>  
+        <p>{{ ai_generated_data | safe }}</p> <!-- Ensure AI context is displayed here -->  
+        <div id="ceTable-{{ ce_id }}" class="tabulator-table"></div> <!-- Tabulator table placeholder -->  
+        <hr>  
         <form id="ceForm{{ ce_id }}">  
           {{ form_fields | safe }}  
           <button type="button" class="btn btn-primary" id="addEntryButton">Add Entry</button>  
         </form>  
         <hr>  
         <h5>{{ node_name }} Details</h5>  
-        <table class="table table-bordered" id="dynamicTable">  
-          <thead>  
-            <tr>  
-              {{ table_headers | safe }}  
-              <th>Actions</th>  
-            </tr>  
-          </thead>  
-          <tbody>  
-            <!-- Rows will be dynamically added here -->  
-          </tbody>  
-        </table>  
       </div>  
       <div class="modal-footer">  
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
@@ -49,9 +39,8 @@ BASE_MODAL_TEMPLATE = """
     </div>  
   </div>  
 </div>  
-
 """  
-  
+
 def generate_form_field(field_type, field_name, field_value='', placeholder='', options=None):  
     field_templates = {  
         'text': '<div class="form-group"><label for="{name}">{label}</label><input type="text" class="form-control" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}"/></div>',  
@@ -76,7 +65,7 @@ def generate_form_field(field_type, field_name, field_value='', placeholder='', 
         return field_templates.get(field_type, field_templates['text']).format(name=field_name, label=label, value=field_value, placeholder=placeholder, options=options_html)  
     else:  
         return field_templates.get(field_type, field_templates['text']).format(name=field_name, label=label, value=field_value, placeholder=placeholder, checked=checked)  
-
+  
 def generate_form_fields(fields_config):  
     form_fields_html = ""  
     for field in fields_config:  
@@ -89,7 +78,7 @@ def generate_form_fields(fields_config):
         )  
         form_fields_html += field_html  
     return form_fields_html  
-
+  
 def generate_table_headers(fields_config):  
     table_headers_html = ""  
     for field in fields_config:  
@@ -100,10 +89,12 @@ def generate_table_headers(fields_config):
 def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated_data=None, phase_name=None, phase_index=None):  
     node_info = NODES.get(ce_type, NODES['Default'])  
     fields_config = node_info.get('modal_config', {}).get('fields', [])  
+    tabulator_config = node_info.get('tabulator_config', {})  
   
     # Populate form fields with existing data if available  
     form_fields = generate_form_fields(fields_config)  
     table_headers = generate_table_headers(fields_config)  
+    table_data = ce_data.get('table_data', []) if ce_data else []  
   
     node_name = ce_type.replace('_', ' ').title()  # Convert node type to a readable format  
   
@@ -113,9 +104,11 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
         node_info=node_info,  
         form_fields=form_fields,  
         table_headers=table_headers,  
+        table_data=table_data,  # Pass table data to the template  
+        tabulator_columns=tabulator_config.get('columns', []),  # Pass Tabulator columns config  
         ce_data=ce_data or {'id': 'unknown_ce_id'},  
         cos_content=cos_content,  
-        ai_generated_data=ai_generated_data or "No AI context provided.",  
+        ai_generated_data=ai_generated_data or node_info.get('ai_context', "No AI context provided."),  
         phase_name=phase_name,  
         phase_index=phase_index,  
         node_name=node_name,  

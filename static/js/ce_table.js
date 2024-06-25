@@ -1,20 +1,36 @@
 function handleCEPillClick(event) {  
   const ceId = event.target.dataset.ceId;  
-  fetch(`/get_ce_by_id/${encodeURIComponent(ceId)}`)  
-    .then(response => response.json())  
-    .then(data => {  
-      if (data && data.ce) {  
-        showCEModal(data.ce, data.cos_content); // Pass the parent COS content to the modal  
-      } else {  
-        throw new Error('CE data not found or error in response');  
-      }  
-    })  
-    .catch(error => {  
-      console.error('Error fetching CE data:', error);  
-    });  
+  const ceType = event.target.dataset.ceType || "Default";  
+  const cosContent = event.target.closest('tr').querySelector('.cos-content-cell').textContent.trim();  
+  const phaseElement = event.target.closest('.accordion-item');  
+  const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();  
+  const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement);  
+  
+  const requestData = {  
+    ce_id: ceId,  
+    cos_content: cosContent,  
+    phase_name: phaseName,  
+    phase_index: phaseIndex,  
+    ssol_goal: document.querySelector('#ssol-goal').textContent.trim()  
+  };  
+  
+  fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {  
+    method: 'POST',  
+    headers: {  
+      'Content-Type': 'application/json'  
+    },  
+    body: JSON.stringify(requestData)  
+  })  
+  .then(response => response.json())  
+  .then(data => {  
+    if (data && data.modal_html) {  
+      displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex, data.ai_context);  
+    } else {  
+      throw new Error('Modal HTML content not found or error in response');  
+    }  
+  })  
+  .catch(error => console.error('Error fetching modal content:', error));  
 }  
-
-
 
 // Function to analyze the CE and get the CE type
 function analyzeCE(ceId, ceData) {
@@ -56,8 +72,7 @@ function updateCEwithAnalyzedCE(ceId, ceData, ceType) {
     });
 }
 
-// Function to create the CE modal content  
-function createCEModalContent(ceData, cosContent) {  
+function createCEModalContent(ceData, cosContent, aiContext) {  
   const modalContent = document.createElement('div');  
   modalContent.classList.add('modal-content');  
   
@@ -83,9 +98,13 @@ function createCEModalContent(ceData, cosContent) {
     const ceTypeElement = document.createElement('p');  
     ceTypeElement.textContent = `CE Type: ${ceData.ce_type}`;  
   
+    const aiContextElement = document.createElement('p');  
+    aiContextElement.innerHTML = `<strong>AI Context:</strong> ${aiContext}`;  
+  
     modalBody.appendChild(cosContentElement);  
     modalBody.appendChild(ceContentElement);  
     modalBody.appendChild(ceTypeElement);  
+    modalBody.appendChild(aiContextElement);  
   } else {  
     modalBody.innerHTML = '<p>Error: Unable to load CE details.</p>';  
   }  
@@ -95,6 +114,7 @@ function createCEModalContent(ceData, cosContent) {
   
   return modalContent;  
 }  
+
 
 
 // Function to display the CE modal
