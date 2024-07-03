@@ -169,33 +169,29 @@ def delete_cos_route(cos_id):
         return jsonify(success=False, error=str(e)), 500  
 
 @routes_bp.route('/get_ce_modal/<string:ce_type>', methods=['POST'])  
-def get_ce_modal(ce_type):  
+def get_ce_modal_route(ce_type):  
     try:  
         data = request.get_json()  
-        current_app.logger.debug(f"Received data: {data}")  # Log received data  
-        ce_id = data.get('ce_id')  
-        cos_content = data.get('cos_content')  
-        phase_name = data.get('phase_name')  
-        phase_index = data.get('phase_index')  
-        ssol_goal = data.get('ssol_goal')  
+        current_app.logger.debug(f"Received data: {data}")  
   
-        # Fetch AI generated data  
-        ai_generated_data = generate_ai_data(cos_content, ce_id, ce_type, ssol_goal)  
-        current_app.logger.debug(f"AI generated data: {ai_generated_data}")  # Log AI data  
+        # Fetch AI-generated data  
+        ai_generated_data = generate_ai_data(data['cos_content'], data['ce_id'], ce_type, data['ssol_goal'])  
+        current_app.logger.debug(f"AI Generated Data: {ai_generated_data}")  
   
         # Fetch CE data including table data  
-        ce_data = fetch_ce_data(ce_id)  
-        current_app.logger.debug(f"Fetched CE data: {ce_data}")  # Log CE data  
+        ce_data = fetch_ce_data(data['ce_id'])  
+        current_app.logger.debug(f"Fetched CE data: {ce_data}")  
   
         # Get tabulator columns configuration  
         node_info = NODES.get(ce_type, NODES['Default'])  
         tabulator_columns = node_info.get('tabulator_config', {}).get('columns', [])  
   
-        modal_content = generate_dynamic_modal(ce_type, ce_data, cos_content, ai_generated_data, phase_name, phase_index)  
+        # Generate modal content with all the necessary data  
+        modal_content = generate_dynamic_modal(ce_type, ce_data, data['cos_content'], ai_generated_data, data['phase_name'], data['phase_index'])  
         return jsonify(modal_html=modal_content, table_data=ce_data.get('table_data', []), tabulator_columns=tabulator_columns)  
     except Exception as e:  
         current_app.logger.error(f"Error getting modal content for CE type {ce_type}: {e}", exc_info=True)  
-        return jsonify(error=f"Error: {e}"), 500  
+        return jsonify(error=str(e)), 500  
 
 
 @routes_bp.route('/analyze_cos/<string:cos_id>', methods=['GET'])  
@@ -354,17 +350,6 @@ def update_ce_data(ce_id):
     except Exception as e:  
         return jsonify(success=False, error=str(e)), 500  
 
-@routes_bp.route('/delete_ce_data/<uuid:ce_id>', methods=['DELETE'])  
-def delete_ce_data(ce_id):  
-    try:  
-        success = delete_ce_by_id(ce_id)  
-        if success:  
-            return jsonify(success=True), 200  
-        else:  
-            return jsonify(success=False, error="Failed to delete CE data."), 500  
-    except Exception as e:  
-        return jsonify(success=False, error=str(e)), 500  
-
 @routes_bp.route('/save_ce_data', methods=['POST'])  
 def save_ce_data():  
     try:  
@@ -391,4 +376,21 @@ def save_ce_data():
         current_app.logger.error(f"Error saving CE data: {e}")  
         return jsonify(success=False, error=str(e)), 500  
 
+@routes_bp.route('/debug/generate_ai_data', methods=['POST'])  
+def debug_generate_ai_data():  
+    try:  
+        data = request.get_json()  
+        ce_id = data.get('ce_id')  
+        cos_content = data.get('cos_content')  
+        ce_type = data.get('ce_type')  
+        ssol_goal = data.get('ssol_goal')  
+  
+        # Generate AI data  
+        ai_generated_data = generate_ai_data(cos_content, ce_id, ce_type, ssol_goal)  
+        current_app.logger.debug(f"AI Generated Data: {ai_generated_data}")  
+  
+        return jsonify(success=True, ai_generated_data=ai_generated_data)  
+    except Exception as e:  
+        current_app.logger.error(f"Error in debug_generate_ai_data: {e}", exc_info=True)  
+        return jsonify(success=False, error=str(e)), 500
 

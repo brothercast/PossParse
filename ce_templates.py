@@ -1,4 +1,5 @@
 # ce_templates.py   
+import json
 import logging  
 from flask import render_template_string, current_app  
 from utilities import generate_chat_response  
@@ -22,13 +23,15 @@ BASE_MODAL_TEMPLATE = """
       <div class="modal-body">  
         <p>{{ node_info['definition'] }}</p>  
         <h6>Parent COS: {{ cos_content }}</h6>  
-        <p>{{ ai_generated_data | safe }}</p> <!-- Ensure AI context is displayed here -->  
-        <div id="ceTable-{{ ce_id }}" class="tabulator-table"></div> <!-- Tabulator table placeholder -->  
-        <hr>  
-        <form id="ceForm{{ ce_id }}">  
-          {{ form_fields | safe }}  
-          <button type="button" class="btn btn-primary" id="addEntryButton">Add Entry</button>  
-        </form>  
+        <p>{{ ai_generated_data | safe }}</p>  
+        <button type="button" class="btn btn-info" id="aiSuggestButton" data-ce-id="{{ ce_id }}">AI Suggest</button>  
+        <div id="ceFormContainer">  
+          <form id="ceForm{{ ce_id }}">  
+            {{ form_fields | safe }}  
+            <button type="button" class="btn btn-primary" id="addEntryButton">Add to Resources</button>  
+          </form>  
+        </div>  
+        <div id="ceTable-{{ ce_id }}" class="tabulator-table"></div>  
         <hr>  
         <h5>{{ node_name }} Details</h5>  
       </div>  
@@ -66,37 +69,66 @@ def generate_form_field(field_type, field_name, field_value='', placeholder='', 
     else:  
         return field_templates.get(field_type, field_templates['text']).format(name=field_name, label=label, value=field_value, placeholder=placeholder, checked=checked)  
   
-def generate_form_fields(fields_config):  
+def generate_form_fields(fields_config, ai_generated_data=None):  
     form_fields_html = ""  
     for field in fields_config:  
+        # Check if AI-generated data exists for the field  
+        field_value = ai_generated_data.get(field['name'], '') if ai_generated_data else ''  
+          
         field_html = generate_form_field(  
             field_type=field['type'],  
             field_name=field['name'],  
-            field_value=field.get('value', ''),  
+            field_value=field_value,  
             placeholder=field.get('placeholder', ''),  
             options=field.get('options', None)  
         )  
         form_fields_html += field_html  
     return form_fields_html  
+    
+  
+def generate_form_fields(fields_config, ai_generated_data=None):  
+    form_fields_html = ""  
+    for field in fields_config:  
+        # Check if AI-generated data exists for the field  
+        field_value = ai_generated_data.get(field['name'], '') if ai_generated_data else ''  
+          
+        field_html = generate_form_field(  
+            field_type=field['type'],  
+            field_name=field['name'],  
+            field_value=field_value,  
+            placeholder=field.get('placeholder', ''),  
+            options=field.get('options', None)  
+        )  
+        form_fields_html += field_html  
+    return form_fields_html  
+
   
 def generate_table_headers(fields_config):  
     table_headers_html = ""  
     for field in fields_config:  
         header_label = field['name'].replace('_', ' ').title()  
         table_headers_html += f"<th>{header_label}</th>"  
-    return table_headers_html  
+    return table_headers_html   
   
 def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated_data=None, phase_name=None, phase_index=None):  
+    current_app.logger.debug(f"Generating modal for CE type: {ce_type}")  
+    current_app.logger.debug(f"CE data: {ce_data}")  
+    current_app.logger.debug(f"COS content: {cos_content}")  
+    current_app.logger.debug(f"AI generated data: {ai_generated_data}")  
+    current_app.logger.debug(f"Phase name: {phase_name}")  
+    current_app.logger.debug(f"Phase index: {phase_index}")  
     node_info = NODES.get(ce_type, NODES['Default'])  
     fields_config = node_info.get('modal_config', {}).get('fields', [])  
     tabulator_config = node_info.get('tabulator_config', {})  
   
     # Populate form fields with existing data if available  
-    form_fields = generate_form_fields(fields_config)  
+    form_fields = generate_form_fields(NODES[ce_type]['modal_config']['fields'], ai_generated_data)  
     table_headers = generate_table_headers(fields_config)  
     table_data = ce_data.get('table_data', []) if ce_data else []  
   
     node_name = ce_type.replace('_', ' ').title()  # Convert node type to a readable format  
+  
+    current_app.logger.debug(f"Generating modal for CE type: {ce_type}, AI Data: {ai_generated_data}")  
   
     modal_content = render_template_string(  
         BASE_MODAL_TEMPLATE,  
@@ -120,43 +152,70 @@ def get_ce_modal(ce_type):
     modal_html = generate_dynamic_modal(ce_type)  
     return modal_html  
   
-def generate_ai_data(cos_text, ce_id, ce_type, ssol_goal):  
-    node_info = NODES.get(ce_type, NODES['Default'])  
-    ai_context = node_info.get('ai_context', '')  
-  
-    if not ai_context:  
-        return "No AI context provided."  
-  
-    valid_node_types = ', '.join(get_valid_node_types())  
-  
-    messages = [  
-        {  
-            "role": "system",  
-            "content": (  
-                "You are a helpful assistant. Generate contextually relevant data based on the Structured Solution (SSOL) goal, "  
-                "the parent Condition of Satisfaction (COS) text, and the specific Conditional Element Identifier (CE ID) and type provided. Use this information to generate "  
-                "detailed and specific insights or data that can fulfill on satisfying the COS and ultimately achieving the SSOL goal. "  
-                "Select the most appropriate conditional element type from the following list: {valid_node_types}."  
-            ).format(valid_node_types=valid_node_types)  
-        },  
-        {  
-            "role": "user",  
-            "content": (  
-                f"SSOL Goal: {ssol_goal}\n"  
-                f"COS Text: {cos_text}\n"  
-                f"CE ID: {ce_id}\n"  
-                f"CE Type: {ce_type}\n"  
-                f"Context: {ai_context}\n"  
-                f"Based on the SSOL goal and the context provided by the parent COS, "  
-                f"generate detailed and relevant data for the CE type '{ce_type}' that contributes towards meeting the COS and achieving the SSOL."  
-            )  
-        }  
-    ]  
-  
-    try:  
-        response = generate_chat_response(messages, role='AI Contextual Query', task=f'Generate Data for {ce_type}')  
-        logging.info(f"AI Response: {response}")  
-        return response  
-    except Exception as e:  
-        logging.error(f"Error generating AI data: {e}")  
-        return "Error generating AI data."  
+
+def generate_ai_data(cos_text, ce_id, ce_type, ssol_goal):
+    node_info = NODES.get(ce_type, NODES['Default'])
+    ai_context = node_info.get('ai_context', '')
+    modal_config_fields = node_info.get('modal_config', {}).get('fields', [])
+
+    current_app.logger.debug(f"Node info for CE type {ce_type}: {node_info}")
+    current_app.logger.debug(f"AI context template: {ai_context}")
+
+    if not ai_context:
+        current_app.logger.debug(f"No AI context provided for CE type: {ce_type}")
+        return {"summary": "No AI context provided.", "fields": {}}
+
+    valid_node_types = ', '.join(get_valid_node_types())
+
+    field_labels = [field['name'] for field in modal_config_fields]
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a helpful assistant. Generate contextually relevant data based on the Structured Solution (SSOL) goal, "
+                "the parent Condition of Satisfaction (COS) text, and the specific Conditional Element Identifier (CE ID) and type provided. Use this information to generate "
+                "detailed and specific insights or data that can fulfill on satisfying the COS and ultimately achieving the SSOL goal. "
+                "Select the most appropriate conditional element type from the following list: {valid_node_types}."
+            ).format(valid_node_types=valid_node_types)
+        },
+        {
+            "role": "user",
+            "content": (
+                f"SSOL Goal: {ssol_goal}\n"
+                f"COS Text: {cos_text}\n"
+                f"CE ID: {ce_id}\n"
+                f"CE Type: {ce_type}\n"
+                f"Context: {ai_context}\n"
+                f"Form Field Labels: {', '.join(field_labels)}\n"
+                f"Based on the SSOL goal and the context provided by the parent COS and other conditional elements, "
+                f"generate a JSON response with the following structure:\n"
+                f"{{\n"
+                f"  \"summary\": \"Summary of the Conditional Element\",\n"
+                f"  \"fields\": {{\n"
+                f"    \"field_label_1\": \"Value for field_label_1\",\n"
+                f"    \"field_label_2\": \"Value for field_label_2\",\n"
+                f"    ...\n"
+                f"  }}\n"
+                f"}}\n"
+                f"Fill in the values for the form fields based on the COS and context provided."
+            )
+        }
+    ]
+
+    # Log the constructed prompt for debugging
+    prompt_for_debugging = json.dumps(messages, indent=2)
+    current_app.logger.debug(f"Constructed Prompt for generate_chat_response: {prompt_for_debugging}")
+    print(f"Constructed Prompt for generate_chat_response: {prompt_for_debugging}")  # This line is added to print the prompt
+
+    try:
+        response = generate_chat_response(messages, role='AI Contextual Query', task=f'Generate Data for {ce_type}')
+        current_app.logger.debug(f"AI Response: {response}")
+
+        ai_data = json.loads(response)
+        current_app.logger.debug(f"Parsed AI Data: {ai_data}")
+
+        return ai_data
+    except Exception as e:
+        current_app.logger.error(f"Error generating AI data: {e}")
+        return {"summary": "Error generating AI data.", "fields": {}}

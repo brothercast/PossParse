@@ -541,7 +541,7 @@ body > main > div > div.row.outcome-header {
   background-color: white;  
   border-radius: 5px;  
   padding: 10px;  
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);  
+  /* box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);   */
   margin-right: 0.5rem;  
 }  
 
@@ -630,4 +630,91 @@ body > main > div > div.row.outcome-header {
 
 [data-phase-index="4"] .modal-content {  
   border: 2px solid var(--phase-4) !important;  
+}  
+
+/* Tabulator table styling */  
+.tabulator {  
+  border-radius: 5px;  
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);  
+  margin-bottom: 20px;  
+}  
+  
+.tabulator-header {  
+  font-family: 'Jost', sans-serif;  
+  font-weight: 600;  
+  font-size: 0.9em;  
+  border-bottom: 2px solid black;  
+  background-color: transparent; /* No background color */  
+  color: #333; /* Darker text color */  
+}  
+  
+.tabulator-header .tabulator-col {  
+  border-right: 1px solid #ddd; /* Light grey border between columns */  
+}  
+  
+.tabulator-header .tabulator-col:last-child {  
+  border-right: none;  
+}  
+  
+.tabulator-row {  
+  background-color: #f5f5f5;  
+}  
+  
+.tabulator-row:nth-child(even) {  
+  background-color: #eeeeee;  
+}  
+  
+.tabulator-row:hover {  
+  background-color: #dddddd;  
+}  
+  
+.tabulator-cell {  
+  padding: 10px;  
+  border: none;  
+}  
+  
+/* Specific phase colors for Tabulator */  
+[data-phase-index="0"] .tabulator-header {  
+  color: var(--phase-0) !important;  
+}  
+  
+[data-phase-index="1"] .tabulator-header {  
+  color: var(--phase-1) !important;  
+}  
+  
+[data-phase-index="2"] .tabulator-header {  
+  color: var(--phase-2) !important;  
+}  
+  
+[data-phase-index="3"] .tabulator-header {  
+  color: var(--phase-3) !important;  
+}  
+  
+[data-phase-index="4"] .tabulator-header {  
+  color: var(--phase-4) !important;  
+}  
+  
+.tabulator-header .tabulator-col {  
+  background-color: transparent;  
+}  
+  
+.tabulator-row {  
+  border-bottom: 1px solid #ddd;  
+}  
+  
+.tabulator-row:last-child {  
+  border-bottom: none;  
+}  
+  
+/* Overshooting color fix */  
+.modal-header .filled-box {  
+  position: absolute;  
+  top: -4;  
+  left: 0;  
+  right: 0;  
+  bottom: 0;  
+  background-color: var(--phase-color, #e91e63); /* Default color */  
+  z-index: -1;  
+  border-top-left-radius: 10px;  
+  border-top-right-radius: 10px;  
 }  

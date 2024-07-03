@@ -1,52 +1,114 @@
 document.addEventListener('DOMContentLoaded', function () {  
-  initializeCETable();  
+  const tableSelector = '#ceTable';  
+  if (typeof tableData !== 'undefined' && typeof tabulatorColumns !== 'undefined') {
+    initializeCETable(tableSelector, tableData, tabulatorColumns);
+  } else {
+    console.error('tableData or tabulatorColumns is not defined');
+  }
   setupEventListeners();  
 });  
   
-function initializeCETable() {  
-  const cosContentCells = document.querySelectorAll('.cos-content-cell');  
-  cosContentCells.forEach(cell => {  
-    cell.innerHTML = replaceCETagsWithPills(cell.innerHTML);  
-  });  
-}  
+function initializeCETable(tableSelector, tableData, tabulatorColumns) {  
+  const tableElement = document.querySelector(tableSelector);  
+  if (!tableElement) {  
+    console.error('Table element not found:', tableSelector);  
+    return;  
+  }  
   
+  const paginationElement = document.querySelector(`${tableSelector} .tabulator-paginator`);  
+  if (paginationElement) {  
+    if (tableData.length <= 5) {  
+      paginationElement.style.display = 'none';  
+    } else {  
+      paginationElement.style.display = 'block';  
+    }  
+  }  
+  
+  new Tabulator(tableSelector, {  
+    data: tableData, // Load data into table  
+    layout: "fitColumns", // Fit columns to width of table  
+    pagination: "local", // Enable pagination  
+    paginationSize: 5, // Number of rows per page  
+    movableColumns: true, // Enable column move  
+    resizableRows: true, // Enable row resize  
+    columns: tabulatorColumns, // Use the provided columns configuration  
+    rowFormatter: function (row) {  
+      const element = row.getElement();  
+      element.style.backgroundColor = row.getPosition() % 2 === 0 ? '#f5f5f5' : '#eeeeee';  
+    },  
+    paginationButtonCount: 3, // Number of page buttons to display  
+  });  
+}   
+
 function replaceCETagsWithPills(content) {  
   const ceTagPattern = /<ce id="(.*?)" type="(.*?)">(.*?)<\/ce>/gi;  
   return content.replace(ceTagPattern, (match, ceId, ceType, ceContent) => {  
     return `<span class="badge rounded-pill bg-secondary ce-pill" data-ce-id="${ceId}" data-ce-type="${ceType}" contenteditable="false">${ceContent}</span>`;  
   });  
 }  
-  
+
 function setupEventListeners() {  
   document.addEventListener('click', event => {  
     if (event.target.matches('.ce-pill')) {  
       handleCEPillClick(event);  
-    } else if (event.target.matches('.btn-save-changes')) {  
-      handleSaveChanges(event);  
     }  
   });  
-}  
+}    
   
 function handleCEPillClick(event) {  
-  console.log("CE pill clicked"); // Log click event  
+  // Extract necessary data attributes from the clicked CE pill  
   const ceId = event.target.dataset.ceId;  
   const ceType = event.target.dataset.ceType || "Default";  
-  const cosContent = event.target.closest('tr').querySelector('.cos-content-cell').textContent.trim();  
+  const cosContentElement = event.target.closest('tr').querySelector('.cos-content-cell');  
+  
+  if (!cosContentElement) {  
+    console.error('cosContentElement not found');  
+    return;  
+  }  
+  
+  const cosContent = cosContentElement.textContent.trim();  
   const phaseElement = event.target.closest('.accordion-item');  
   const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();  
   const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement);  
+  const ssolGoalElement = document.querySelector('#ssol-goal');  
+  const ssolGoal = ssolGoalElement ? ssolGoalElement.textContent.trim() : '';  
   
+  // Construct the request data object  
   const requestData = {  
     ce_id: ceId,  
     cos_content: cosContent,  
     phase_name: phaseName,  
     phase_index: phaseIndex,  
-    ssol_goal: document.querySelector('#ssol-goal').textContent.trim()  
+    ssol_goal: ssolGoal  
   };  
   
-  console.log("Request data:", requestData); // Log request data  
+  // Fetch the modal content using the POST request to the `/get_ce_modal` endpoint  
+  fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestData)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data && data.modal_html) {
+      displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex);
+      
+      // Initialize the table with the received data
+      if (data.table_data && data.tabulator_columns) {
+        const tableSelector = `#dynamicTable-${ceId}`;
+        initializeCETable(tableSelector, data.table_data, data.tabulator_columns);
+      }
+    } else {
+      throw new Error('Modal HTML content not found or error in response');
+    }
+  })
+  .catch(error => console.error('Error fetching modal content:', error));
+}
   
-  fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {  
+function fetchModalContent(requestData) {  
+  fetch(`/get_ce_modal/${encodeURIComponent(requestData.ceType)}`, {  
     method: 'POST',  
     headers: {  
       'Content-Type': 'application/json'  
@@ -55,130 +117,366 @@ function handleCEPillClick(event) {
   })  
   .then(response => response.json())  
   .then(data => {  
-    console.log("Modal data received:", data); // Log response data  
-    if (data && data.modal_html) {  
-      displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex);  
-      initializeTabulatorTable(`#ceTable-${ceId}`, data.table_data); // Initialize Tabulator with data  
+    if (data.modal_html) {  
+      displayCEModal(data.modal_html, requestData.ce_id, requestData.ceType, requestData.cos_content, requestData.phase_name, requestData.phase_index, data.ai_context);  
     } else {  
-      throw new Error('Modal HTML content not found or error in response');  
+      throw new Error('Error fetching modal content: ' + (data.error || 'Unknown error'));  
     }  
   })  
-  .catch(error => console.error('Error fetching modal content:', error));  
+  .catch(error => {  
+    console.error('Error fetching modal content:', error);  
+  });  
 }  
-
   
-function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseIndex, aiContext) {  
+function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseIndex) {  
   const modalContainer = document.getElementById('dynamicModalContainer');  
   if (!modalContainer) {  
-      console.error('Modal container element not found in the DOM');  
-      return;  
+    console.error('Modal container element not found in the DOM');  
+    return;  
   }  
-
-  const phaseColors = ["#e91e63", "#00bcd4", "#9c27b0", "#ffc107", "#66bd0e"]; // Colors for each phase  
-  const phaseColor = phaseColors[phaseIndex % phaseColors.length]; // Get color based on phase index  
-
+  
+  console.log('Displaying CE Modal with the following parameters:');  
+  console.log(`CE ID: ${ceId}`);  
+  console.log(`CE Type: ${ceType}`);  
+  console.log(`COS Content: ${cosContent}`);  
+  console.log(`Phase Name: ${phaseName}`);  
+  console.log(`Phase Index: ${phaseIndex}`);  
+  
+  const phaseColors = ["#e91e63", "#00bcd4", "#9c27b0", "#ffc107", "#66bd0e"];  
+  const phaseColor = phaseColors[phaseIndex % phaseColors.length];  
+  
   const wrappedModalHtml = `  
-      <div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">  
-          <div class="modal-dialog modal-lg" role="document">  
-              <div class="modal-content" style="border-top: 5px solid ${phaseColor};">  
-                  <div class="modal-header" style="background-color: ${phaseColor};">  
-                      <div class="filled-box"></div>  
-                      <h5 class="modal-title" id="ceModalLabel-${ceId}">  
-                          <span class="node-icon me-2" style="color: ${phaseColor};">  
-                              <i class="${NODES[ceType].icon}"></i>  
-                          </span>  
-                          <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()}</span>  
-                      </h5>  
-                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
-                  </div>  
-                  <div class="modal-body">  
-                      <p>${NODES[ceType].definition}</p>  
-                      <h6>Parent COS: ${cosContent}</h6>  
-                      <p>${aiContext}</p>  
-                      <div id="ceTable-${ceId}" class="tabulator-table"></div>  
-                      <hr>  
-                      <form id="ceForm-${ceId}">  
-                          ${NODES[ceType].modal_config.fields.map(field => `  
-                              <div class="form-group">  
-                                  <label for="${field.name}">${field.placeholder}</label>  
-                                  ${field.type === 'textarea' ? `  
-                                      <textarea class="form-control" id="${field.name}" name="${field.name}" placeholder="${field.placeholder}"></textarea>  
-                                  ` : `  
-                                      <input type="${field.type}" class="form-control" id="${field.name}" name="${field.name}" placeholder="${field.placeholder}">  
-                                  `}  
-                              </div>  
-                          `).join('')}  
-                      </form>  
-                  </div>  
-                  <div class="modal-footer">  
-                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
-                      <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save changes</button>  
-                  </div>  
-              </div>  
-          </div>  
+  <div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">  
+    <div class="modal-dialog modal-lg" role="document">  
+      <div class="modal-content">  
+        <div class="modal-header" style="background-color: ${phaseColor};">  
+          <div class="filled-box"></div>  
+          <h5 class="modal-title" id="ceModalLabel-${ceId}">  
+            <span class="node-icon me-2" style="color: ${phaseColor};">  
+              <i class="${NODES[ceType]?.icon || 'fa-solid fa-question-circle'}"></i>  
+            </span>  
+            <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()}</span>  
+          </h5>  
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
+        </div>  
+        <div class="modal-body">  
+          <p>${NODES[ceType]?.definition || 'No definition available.'}</p>  
+          <h6>Parent COS: ${cosContent}</h6>  
+          <div id="dynamicTable-${ceId}" class="tabulator-table"></div> <!-- Ensure ID is unique by appending ceId -->  
+          <hr>  
+          <form id="ceForm-${ceId}">  
+            ${generateFormFields(NODES[ceType]?.modal_config.fields)}  
+          </form>  
+          <button type="button" class="btn btn-success" id="addRowButton-${ceId}">Add ${ceType}</button>  
+        </div>  
+        <div class="modal-footer">  
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
+          <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save changes</button>  
+        </div>  
       </div>  
+    </div>  
+  </div>  
   `;  
-
+  
+  console.log('Wrapped Modal HTML:', wrappedModalHtml);  
+  
   modalContainer.innerHTML = wrappedModalHtml;  
-
-  setTimeout(() => {  
-      const modalElement = modalContainer.querySelector(`#ceModal-${ceId}`);  
-      if (modalElement) {  
-          $(`#ceModal-${ceId}`).modal('show');  
-
-          $(`#ceModal-${ceId}`).on('shown.bs.modal', function () {  
-              const tableElementId = `#ceTable-${ceId}`;  
-              const tableData = []; // Replace with actual data  
-              const tabulatorColumns = NODES[ceType].tabulator_config.columns;  
-              initializeTabulatorTable(tableElementId, tableData, tabulatorColumns);  
-          });  
-      } else {  
-          console.error(`Modal element not found in the DOM for CE ID: ${ceId}`);  
-      }  
-  }, 100);  
+  
+  const modalElement = modalContainer.querySelector(`#ceModal-${ceId}`);  
+  console.log('Modal Element:', modalElement);  
+  
+  if (modalElement) {  
+    const modal = new bootstrap.Modal(modalElement);  
+    modal.show();  
+  
+    modalElement.addEventListener('shown.bs.modal', function () {  
+      const tableElementId = `#dynamicTable-${ceId}`;  
+      const tabulatorColumns = NODES[ceType]?.tabulator_config.columns || [];  
+      console.log('Initializing Tabulator Table with ID:', tableElementId);  
+      initializeTabulatorTable(tableElementId, [], tabulatorColumns);  
+    });  
+  
+    console.log(`Modal content for CE ID ${ceId}:`, modalElement.innerHTML);  
+  
+    const addRowButton = document.getElementById(`addRowButton-${ceId}`);  
+    if (addRowButton) {  
+      addRowButton.addEventListener('click', () => {  
+        const formData = new FormData(document.querySelector(`#ceForm-${ceId}`));  
+        const rowData = {};  
+        formData.forEach((value, key) => {  
+          rowData[key] = value;  
+        });  
+        const table = Tabulator.findTable(`#dynamicTable-${ceId}`)[0];  
+        table.addRow(rowData);  
+      });  
+    }  
+  
+    const saveChangesButton = modalElement.querySelector('.btn-save-changes');  
+    if (saveChangesButton) {  
+      saveChangesButton.addEventListener('click', () => {  
+        const formData = new FormData(document.querySelector(`#ceForm-${ceId}`));  
+        const updatedData = {};  
+        formData.forEach((value, key) => {  
+          updatedData[key] = value;  
+        });  
+        saveCEChanges(ceId, updatedData);  
+      });  
+    }  
+  } else {  
+    console.error(`Modal element not found in the DOM for CE ID: ${ceId}`);  
+  }  
 }  
   
-function initializeTabulatorTable(tableId, tableData, tabulatorColumns) {  
-  console.log('Initializing Tabulator table with ID:', tableId, 'and data:', tableData);  
-  new Tabulator(tableId, {  
+function generateFormFields(fieldsConfig) {  
+  if (!fieldsConfig) {  
+    return 'No form fields available.';  
+  }  
+  
+  return fieldsConfig.map(field => `  
+    <div class="form-group">  
+      <label for="${field.name}">${field.placeholder}</label>  
+      ${field.type === 'textarea' ? `  
+        <textarea class="form-control" id="${field.name}" name="${field.name}" placeholder="${field.placeholder}"></textarea>  
+      ` : `  
+        <input type="${field.type}" class="form-control" id="${field.name}" name="${field.name}" placeholder="${field.placeholder}">  
+      `}  
+    </div>  
+  `).join('');  
+}  
+  
+function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {  
+  const tableElement = document.querySelector(tableSelector);  
+  if (!tableElement) {  
+    console.error('Table element not found:', tableSelector);  
+    return;  
+  }  
+  
+  new Tabulator(tableSelector, {  
     data: tableData, // Load data into table  
     layout: "fitColumns", // Fit columns to width of table  
-    height: "200px", // Set height to display 5 rows  
     pagination: "local", // Enable pagination  
     paginationSize: 5, // Number of rows per page  
     movableColumns: true, // Enable column move  
     resizableRows: true, // Enable row resize  
-    columns: tabulatorColumns // Use the provided columns configuration  
+    columns: tabulatorColumns, // Use the provided columns configuration  
+    rowFormatter: function (row) {  
+      const element = row.getElement();  
+      element.style.backgroundColor = row.getPosition() % 2 === 0 ? '#f5f5f5' : '#eeeeee';  
+    },  
+    paginationButtonCount: 3, // Number of page buttons to display  
+  });  
+}  
+  
+function saveCEChanges(ceId, updatedData) {  
+  fetch(`/update_ce/${encodeURIComponent(ceId)}`, {  
+    method: 'PUT',  
+    headers: {  
+      'Content-Type': 'application/json'  
+    },  
+    body: JSON.stringify(updatedData)  
+  })  
+  .then(response => response.json())  
+  .then(data => {  
+    if (data.success) {  
+      console.log(`CE ID ${ceId} updated successfully`);  
+      bootstrap.Modal.getInstance(document.querySelector(`#ceModal-${ceId}`)).hide();  
+    } else {  
+      throw new Error(data.error || 'An error occurred while updating the CE.');  
+    }  
+  })  
+  .catch(error => {  
+    console.error('Error updating CE:', error);  
+    alert('An error occurred while updating the CE. Please try again.');  
+  });  
+}  
+  
+function generateFormFields(fieldsConfig) {  
+  if (!fieldsConfig) {  
+    return 'No form fields available.';  
+  }  
+  
+  return fieldsConfig.map(field => `  
+    <div class="form-group">  
+      <label for="${field.name}">${field.placeholder}</label>  
+      ${field.type === 'textarea' ? `  
+        <textarea class="form-control" id="${field.name}" name="${field.name}" placeholder="${field.placeholder}"></textarea>  
+      ` : `  
+        <input type="${field.type}" class="form-control" id="${field.name}" name="${field.name}" placeholder="${field.placeholder}">  
+      `}  
+    </div>  
+  `).join('');  
+}  
+  
+function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {  
+  const tableElement = document.querySelector(tableSelector);  
+  if (!tableElement) {  
+    console.error('Table element not found:', tableSelector);  
+    return;  
+  }  
+  
+  new Tabulator(tableSelector, {  
+    data: tableData, // Load data into table  
+    layout: "fitColumns", // Fit columns to width of table  
+    pagination: "local", // Enable pagination  
+    paginationSize: 5, // Number of rows per page  
+    movableColumns: true, // Enable column move  
+    resizableRows: true, // Enable row resize  
+    columns: tabulatorColumns, // Use the provided columns configuration  
+    rowFormatter: function (row) {  
+      const element = row.getElement();  
+      element.style.backgroundColor = row.getPosition() % 2 === 0 ? '#f5f5f5' : '#eeeeee';  
+    },  
+    paginationButtonCount: 3, // Number of page buttons to display  
   });  
 }  
 
-function fetchCEDataAndDisplayModal(ceId, ceType, cosContent) {  
-  console.log(`Fetching CE data for ID: ${ceId} and Type: ${ceType}`);  
-  fetch(`/get_ce_by_id/${encodeURIComponent(ceId)}`)  
-    .then(response => response.json())  
-    .then(data => {  
-      if (data && data.ce) {  
-        const ceData = data.ce;  
-        console.log(`Fetched CE data: ${JSON.stringify(ceData)}`);  
-        fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`)  
-          .then(response => response.json())  
-          .then(modalData => {  
-            if (modalData && modalData.modal_html) {  
-              console.log(`Fetched Modal HTML: ${modalData.modal_html}`);  
-              displayCEModal(modalData.modal_html, ceData, cosContent);  
-            } else {  
-              throw new Error('Modal HTML content not found or error in response');  
-            }  
-          })  
-          .catch(error => console.error('Error fetching modal content:', error));  
-      } else {  
-        throw new Error('CE data not found or error in response');  
+function setupModalEventListeners(modalElement) {  
+  // Assuming that Tabulator creates a table element with a specific class  
+  const tableElement = modalElement.querySelector('.tabulator-table');  
+    
+  // Setup event listener for the Add Entry button in the modal  
+  const addEntryButton = modalElement.querySelector('.add-entry-button');  
+  if (addEntryButton) {  
+    addEntryButton.addEventListener('click', function () {  
+      const formSelector = `#ceForm-${modalElement.dataset.ceId}`;  
+      const form = modalElement.querySelector(formSelector);  
+      if (form) {  
+        const formData = new FormData(form);  
+        addEntryToTable(tableElement, formData);  
+        form.reset(); // Clear the form fields after adding the entry  
       }  
-    })  
-    .catch(error => console.error('Error fetching CE details:', error));  
-}  
- 
+    });  
+  }  
+  
+  // Setup event listeners for any existing table rows for edit and delete actions  
+  setupTableEventListeners(tableElement);  
+}   
 
+function setupTableEventListeners(tableElement) {  
+  // Attach event listeners to the table body for edit and delete actions  
+  const tableBody = tableElement.querySelector('tbody');  
+  if (tableBody) {  
+    tableBody.addEventListener('click', function (event) {  
+      if (event.target.matches('.edit-entry')) {  
+        const row = event.target.closest('tr');  
+        editEntry(row);  
+      } else if (event.target.matches('.delete-entry')) {  
+        const row = event.target.closest('tr');  
+        deleteEntry(row);  
+      }  
+    });  
+  }  
+}  
+  
+function addEntryToTable(tableElement, formData) {  
+  // Logic to add a new entry to the Tabulator table  
+  if (tableElement) {  
+    const table = Tabulator.findTable(tableElement)[0];  
+    if (table) {  
+      const rowData = {};  
+      formData.forEach((value, key) => {  
+        rowData[key] = value;  
+      });  
+      table.addRow(rowData); // This assumes Tabulator's addRow method  
+    }  
+  }  
+}  
+  
+function generateTableRowHTML(formData) {  
+  let rowHTML = '';  
+  formData.forEach((value, key) => {  
+    rowHTML += `<td>${value}</td>`;  
+  });  
+  // Add action buttons for editing and deleting the entry  
+  rowHTML += `  
+    <td>  
+      <button class="btn btn-sm btn-warning edit-entry">Edit</button>  
+      <button class="btn btn-sm btn-danger delete-entry">Delete</button>  
+    </td>  
+  `;  
+  return rowHTML;  
+}  
+  
+function populateFormFieldsFromRow(row, ceId) {  
+  const form = document.querySelector(`#ceForm-${ceId}`);  
+  const inputs = form.querySelectorAll('input, select, textarea');  
+  const cells = row.querySelectorAll('td');  
+  inputs.forEach((input, index) => {  
+    if (index < cells.length - 1) { // Exclude the last cell which contains buttons  
+      input.value = cells[index].textContent;  
+    }  
+  });  
+}  
+  
+  // Fetch AI suggestions and populate the table  
+  const aiGeneratedData = JSON.parse(document.getElementById('aiGeneratedData').textContent);  
+  aiGeneratedData.forEach(suggestion => {  
+    const formData = new FormData();  
+    Object.entries(suggestion).forEach(([key, value]) => formData.set(key, value));  
+    const newRow = document.createElement('tr');  
+    newRow.innerHTML = generateTableRowHTML(formData);  
+    tableBody.appendChild(newRow);  
+  });  
+
+  document.addEventListener('shown.bs.modal', function(event) {  
+    if (event.target.classList.contains('ce-modal')) {  
+      setupModalEventListeners(event.target);  
+    }  
+  });  
+  
+  function editEntry(row) {  
+    // Extract the row data from Tabulator  
+    const rowData = row.getData();  
+      
+    // Assuming you have a form inside the modal to edit the row data  
+    const formSelector = `#ceForm-${row.getTable().element.dataset.ceId}`;  
+    const form = row.getTable().element.closest('.modal').querySelector(formSelector);  
+      
+    if (form) {  
+      // Populate the form with the row data  
+      Object.entries(rowData).forEach(([key, value]) => {  
+        const input = form.querySelector(`[name="${key}"]`);  
+        if (input) {  
+          input.value = value;  
+        }  
+      });  
+    
+      // Bring the form into view and focus on the first input  
+      form.scrollIntoView();  
+      const firstInput = form.querySelector('input, select, textarea');  
+      if (firstInput) {  
+        firstInput.focus();  
+      }  
+    
+      // Add a temporary event listener to the form's submit event  
+      const submitHandler = function(event) {  
+        event.preventDefault();  
+        const updatedData = {};  
+        new FormData(form).forEach((value, key) => {  
+          updatedData[key] = value;  
+        });  
+        row.update(updatedData); // Update the row in the Tabulator table  
+        form.removeEventListener('submit', submitHandler);  
+        form.reset(); // Clear the form fields after updating  
+      };  
+      form.addEventListener('submit', submitHandler);  
+    }  
+  }  
+    
+  function deleteEntry(row) {  
+    // Show a confirmation dialog before deleting  
+    if (confirm('Are you sure you want to delete this entry?')) {  
+      row.delete(); // Delete the row from the Tabulator table  
+    }  
+  }  
+    
+  // Bind event listeners when the modal is shown  
+  document.addEventListener('shown.bs.modal', function(event) {  
+    if (event.target.classList.contains('ce-modal')) {  
+      setupModalEventListeners(event.target);  
+    }  
+  });  
+  
 function handleSaveChanges(event) {  
   const ceId = event.target.dataset.ceId;  
   const form = document.querySelector(`form[data-ce-id="${ceId}"]`);  
@@ -226,93 +524,7 @@ function updateCERow(ceId, formData) {
     cePill.textContent = formData['ceContent'];  
     cePill.dataset.ceType = formData['ceType'];  
   }  
-}  
-  
-function displayFeedback(message, type) {  
-  const feedbackElement = document.querySelector('#feedback');  
-  if (feedbackElement) {  
-    feedbackElement.textContent = message;  
-    feedbackElement.className = `feedback ${type}`;  
-    feedbackElement.style.display = 'block';  
-    setTimeout(() => {  
-      feedbackElement.style.display = 'none';  
-    }, 5000);  
-  }  
-}  
-  
-function changeCEType(ceType) {  
-  fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`)  
-    .then(response => response.json())  
-    .then(data => {  
-      if (data.modal_html) {  
-        const modalContainer = document.querySelector('#dynamicModalContainer');  
-        modalContainer.innerHTML = data.modal_html;  
-      } else {  
-        throw new Error('Modal HTML content not found or error in response');  
-      }  
-    })  
-    .catch(error => {  
-      console.error('Error fetching modal content:', error);  
-    });  
-}  
-  
-async function speculate(button) {  
-  const ceType = button.closest('.modal').id.replace('ceModal', '');  
-  const cosText = ''; // Retrieve the COS text relevant for speculation  
-  const ssolGoal = ''; // Retrieve the SSOL goal relevant for speculation  
-  const ceId = ''; // Retrieve the CE ID relevant for speculation  
-  
-  try {  
-    const aiMessage = window.generate_ai_query(cosText, ceId, ceType, ssolGoal);  
-    const aiResponse = await fetchAIResponse(aiMessage);  
-    const tableContainer = document.querySelector(`#tableContainer${ceType}`);  
-    const newRow = document.createElement('tr');  
-    newRow.innerHTML = `<td>${aiResponse}</td>`;  
-    const table = tableContainer.querySelector('table tbody');  
-    table.appendChild(newRow);  
-  } catch (error) {  
-    console.error('Error speculating AI response:', error);  
-  }  
-}  
-  
-async function fetchAIResponse(aiMessage) {  
-  const aiEndpoint = '/ai-query-endpoint';  
-  const response = await fetch(aiEndpoint, {  
-    method: 'POST',  
-    headers: {  
-      'Content-Type': 'application/json'  
-    },  
-    body: JSON.stringify({ message: aiMessage })  
-  });  
-  
-  if (!response.ok) {  
-    throw new Error(`AI service responded with status ${response.status}`);  
-  }  
-  
-  return await response.json();  
-}  
-  
-function createAndShowCEModal(ceData) {  
-  if (!ceData || typeof ceData.type === 'undefined') {  
-    console.error('CE data or type is undefined');  
-    displayFeedback("Error: CE data or type is undefined", "error");  
-    return;  
-  }  
-  
-  fetch(`/get_ce_modal/${encodeURIComponent(ceData.node_type)}`)  
-    .then(response => response.json())  
-    .then(data => {  
-      if (data.modal_html) {  
-        const modalContainer = document.getElementById('dynamicModalContainer');  
-        modalContainer.innerHTML = data.modal_html;  
-        $(`#ceModal${ceData.node_type}`).modal('show');  
-      } else {  
-        throw new Error('Modal HTML content not found or error in response');  
-      }  
-    })  
-    .catch(error => console.error('Error fetching modal content:', error));  
-}  
-  
+}    
 function generateDynamicForm(ceData) {  
   return `  
     <form id="ceForm" data-ce-id="${ceData.id}">  
@@ -334,101 +546,5 @@ function generateSelectOptions(selectedType) {
     return `<option value="${type}" ${type === selectedType ? "selected" : ""}>${definition}</option>`;  
   }).join('');  
 }  
-  
-// Event listener for the "Save changes" button within the modal  
-document.addEventListener('DOMContentLoaded', function () {  
-  document.addEventListener('click', function (event) {  
-    if (event.target.matches('.btn-save-changes')) {  
-      const ceId = event.target.dataset.ceId;  
-      const form = document.querySelector(`#ceForm${ceId}`);  
-      if (form) {  
-        const formData = new FormData(form);  
-        const data = {};  
-        formData.forEach((value, key) => data[key] = value);  
-  
-        fetch(`/update_ce/${encodeURIComponent(ceId)}`, {  
-          method: 'PUT',  
-          headers: {  
-            'Content-Type': 'application/json'  
-          },  
-          body: JSON.stringify(data)  
-        })  
-          .then(response => response.json())  
-          .then(updateData => {  
-            if (updateData.success) {  
-              $(`#ceModal${ceId}`).modal('hide');  
-              displayFeedback("CE updated successfully", "success");  
-            } else {  
-              displayFeedback(updateData.error || 'An error occurred while updating the CE.', "error");  
-            }  
-          })  
-          .catch(updateError => {  
-            displayFeedback(`Error: ${updateError.message}`, "error");  
-          });  
-      } else {  
-        console.error('Form not found');  
-      }  
-    }  
-  });  
-});  
+ 
 
-document.addEventListener('DOMContentLoaded', function () {  
-  const addEntryButton = document.getElementById('addEntryButton');  
-  const dynamicTable = document.getElementById('dynamicTable').querySelector('tbody');  
-  
-  addEntryButton.addEventListener('click', function () {  
-    const form = document.getElementById(`ceForm${ce_id}`);  
-    const formData = new FormData(form);  
-    const newRow = document.createElement('tr');  
-  
-    newRow.innerHTML = generateTableRowHTML(formData);  
-    dynamicTable.appendChild(newRow);  
-    form.reset(); // Clear the form fields  
-  });  
-  
-  dynamicTable.addEventListener('click', function (event) {  
-    if (event.target.classList.contains('delete-entry')) {  
-      const row = event.target.closest('tr');  
-      row.remove();  
-    } else if (event.target.classList.contains('edit-entry')) {  
-      const row = event.target.closest('tr');  
-      populateFormFieldsFromRow(row);  
-      row.remove();  
-    }  
-  });  
-  
-  function generateTableRowHTML(formData) {  
-    let rowHTML = '';  
-    formData.forEach((value, key) => {  
-      rowHTML += `<td>${value}</td>`;  
-    });  
-    rowHTML += `  
-      <td>  
-        <button class="btn btn-sm btn-warning edit-entry">Edit</button>  
-        <button class="btn btn-sm btn-danger delete-entry">Delete</button>  
-      </td>  
-    `;  
-    return rowHTML;  
-  }  
-  
-  function populateFormFieldsFromRow(row) {  
-    const form = document.getElementById(`ceForm${ce_id}`);  
-    const cells = row.querySelectorAll('td');  
-    cells.forEach((cell, index) => {  
-      if (index < cells.length - 1) {  
-        const fieldName = form.elements[index].name;  
-        form.elements[fieldName].value = cell.textContent;  
-      }  
-    });  
-  }  
-  
-  // Fetch AI suggestions and populate the table  
-  const aiGeneratedData = JSON.parse(document.getElementById('aiGeneratedData').textContent);  
-  aiGeneratedData.forEach(suggestion => {  
-    const formData = new FormData();  
-    Object.entries(suggestion).forEach(([key, value]) => formData.set(key, value));  
-    const newRow = document.createElement('tr');  
-    newRow.innerHTML = generateTableRowHTML(formData);  
-    dynamicTable.appendChild(newRow);  
-  });  
-});  
