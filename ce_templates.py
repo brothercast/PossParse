@@ -142,15 +142,16 @@ def get_ce_modal(ce_type):
   
 def generate_ai_data(cos_text, ce_id, ce_type, ssol_goal):  
     node_info = NODES.get(ce_type, NODES['Default'])  
-    ai_context = node_info.get('ai_context', '')  
+    ai_context = node_info.get('modal_config', {}).get('ai_context', '')  
     modal_config_fields = node_info.get('modal_config', {}).get('fields', [])  
-    current_app.logger.debug(f"Node info for CE type {ce_type}: {node_info}")  
-    current_app.logger.debug(f"AI context template: {ai_context}")  
+  
     if not ai_context:  
         current_app.logger.debug(f"No AI context provided for CE type: {ce_type}")  
         return {"summary": "No AI context provided.", "fields": {}}  
+  
     valid_node_types = ', '.join(get_valid_node_types())  
     field_labels = [field['name'] for field in modal_config_fields]  
+  
     messages = [  
         {  
             "role": "system",  

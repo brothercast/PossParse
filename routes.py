@@ -2,29 +2,29 @@ import os
 import json  
 import uuid  
 import pdfkit  
-import openai
+import openai  
 from app import db  
 import requests  
-import logging
+import logging  
 from bs4 import BeautifulSoup  
 from ce_nodes import NODES  
 from app import app, USE_DATABASE  
 from uuid import uuid4  
-from ce_templates import generate_dynamic_modal, generate_ai_data
-from sqlalchemy.exc import SQLAlchemyError
+from ce_templates import generate_dynamic_modal, generate_ai_data  
+from sqlalchemy.exc import SQLAlchemyError  
 from models import SSOL, COS, CE  
 from store import ce_store, cos_store, ssol_store  
 from flask import Blueprint, render_template, render_template_string, request, flash, redirect, url_for, jsonify, make_response, current_app, send_from_directory  
 from werkzeug.exceptions import BadRequest, NotFound  
 from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data  
-from speculate import get_badge_class_from_status, delete_cos_by_id, update_ce_by_id, update_cos_by_id, get_ce_by_id, analyze_cos, get_cos_by_id, get_phase_index, get_ssol_by_id    
+from speculate import get_badge_class_from_status, delete_cos_by_id, update_ce_by_id, update_cos_by_id, get_ce_by_id, analyze_cos, get_cos_by_id, get_phase_index, get_ssol_by_id  
 from dotenv import load_dotenv  
   
 # Load environment variables  
 load_dotenv()  
 azure_openai_key = os.environ["AZURE_OPENAI_API_KEY"]  
 azure_openai_endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]  
-deployment_name = os.environ["AZURE_DEPLOYMENT_NAME"]  
+azure_oai_model = os.getenv("AZURE_MODEL_NAME")  
   
 # Initialize Azure OpenAI client  
 openai.api_key = azure_openai_key  
@@ -167,50 +167,50 @@ def delete_cos_route(cos_id):
     except Exception as e:  
         logging.error(f"Unexpected error occurred: {e}", exc_info=True)  
         return jsonify(success=False, error=str(e)), 500  
-
-@routes_bp.route('/get_ce_modal/<string:ce_type>', methods=['POST'])
-def get_ce_modal_route(ce_type):
-    try:
-        data = request.get_json()
-        current_app.logger.debug(f"Received data: {data}")
-
-        if not isinstance(data, dict):
-            raise ValueError("Received data is not a dictionary")
-
-        required_keys = ['cos_content', 'ce_id', 'ssol_goal']
-        for key in required_keys:
-            if key not in data:
-                raise ValueError(f"Missing required key: {key}")
-
-        # Fetch AI-generated data
-        current_app.logger.info(f"Calling generate_ai_data with COS content: {data['cos_content']}, CE ID: {data['ce_id']}, CE Type: {ce_type}, SSOL Goal: {data['ssol_goal']}")
-        ai_generated_data = generate_ai_data(data['cos_content'], data['ce_id'], ce_type, data['ssol_goal'])
-        current_app.logger.debug(f"AI Generated Data: {ai_generated_data}")
-
-        # Fetch CE data including table data
-        ce_data = fetch_ce_data(data['ce_id'])
-        current_app.logger.debug(f"Fetched CE data: {ce_data}")
-
-        # Get tabulator columns configuration
-        node_info = NODES.get(ce_type, NODES['Default'])
-        tabulator_columns = node_info.get('tabulator_config', {}).get('columns', [])
-
-        # Generate modal content with all the necessary data
-        modal_content = generate_dynamic_modal(ce_type, ce_data, data['cos_content'], ai_generated_data, data['phase_name'], data['phase_index'])
-        
-        return jsonify(
-            modal_html=modal_content,
-            table_data=ce_data.get('table_data', []),
-            tabulator_columns=tabulator_columns,
-            ai_generated_data=ai_generated_data
-        )
-    except ValueError as ve:
-        current_app.logger.error(f"ValueError in get_ce_modal_route: {str(ve)}", exc_info=True)
-        return jsonify(error=str(ve)), 400
-    except Exception as e:
-        current_app.logger.error(f"Error getting modal content for CE type {ce_type}: {e}", exc_info=True)
-        return jsonify(error=str(e)), 500
-
+  
+@routes_bp.route('/get_ce_modal/<string:ce_type>', methods=['POST'])  
+def get_ce_modal_route(ce_type):  
+    try:  
+        data = request.get_json()  
+        current_app.logger.debug(f"Received data: {data}")  
+  
+        if not isinstance(data, dict):  
+            raise ValueError("Received data is not a dictionary")  
+  
+        required_keys = ['cos_content', 'ce_id', 'ssol_goal']  
+        for key in required_keys:  
+            if key not in data:  
+                raise ValueError(f"Missing required key: {key}")  
+  
+        # Fetch AI-generated data  
+                current_app.logger.info(f"Calling generate_ai_data with COS content: {data['cos_content']}, CE ID: {data['ce_id']}, CE Type: {ce_type}, SSOL Goal: {data['ssol_goal']}")  
+        ai_generated_data = generate_ai_data(data['cos_content'], data['ce_id'], ce_type, data['ssol_goal'])  
+        current_app.logger.debug(f"AI Generated Data: {ai_generated_data}")  
+  
+        # Fetch CE data including table data  
+        ce_data = fetch_ce_data(data['ce_id'])  
+        current_app.logger.debug(f"Fetched CE data: {ce_data}")  
+  
+        # Get tabulator columns configuration  
+        node_info = NODES.get(ce_type, NODES['Default'])  
+        tabulator_columns = node_info.get('tabulator_config', {}).get('columns', [])  
+  
+        # Generate modal content with all the necessary data  
+        modal_content = generate_dynamic_modal(ce_type, ce_data, data['cos_content'], ai_generated_data, data['phase_name'], data['phase_index'])  
+  
+        return jsonify(  
+            modal_html=modal_content,  
+            table_data=ce_data.get('table_data', []),  
+            tabulator_columns=tabulator_columns,  
+            ai_generated_data=ai_generated_data  
+        )  
+    except ValueError as ve:  
+        current_app.logger.error(f"ValueError in get_ce_modal_route: {str(ve)}", exc_info=True)  
+        return jsonify(error=str(ve)), 400  
+    except Exception as e:  
+        current_app.logger.error(f"Error getting modal content for CE type {ce_type}: {e}", exc_info=True)  
+        return jsonify(error=str(e)), 500  
+  
 @routes_bp.route('/analyze_cos/<string:cos_id>', methods=['GET'])  
 def analyze_cos_route(cos_id):  
     logging.info(f"Analyzing COS with ID: {cos_id}")  
@@ -271,7 +271,7 @@ def ai_query_endpoint():
     except Exception as e:  
         current_app.logger.error(f"Exception in AI query endpoint: {e}")  
         return jsonify(success=False, error=str(e)), 500  
-
+  
 # Function to fetch actual CE data  
 def fetch_ce_data(ce_type):  
     try:  
@@ -302,7 +302,7 @@ def fetch_ce_data(ce_type):
     except Exception as e:  
         current_app.logger.error(f"Error fetching CE data for type '{ce_type}': {e}", exc_info=True)  
         return None  
- 
+  
 # Debug routes for logging CE entries  
 @routes_bp.route('/debug/log_ce_entries', methods=['GET'])  
 def debug_log_ce_entries():  
@@ -329,7 +329,7 @@ def log_ce_entries():
 def log_in_memory_ce_entries():  
     for ce_id, ce in ce_store.items():  
         current_app.logger.debug(f"CE ID: {ce_id}, Type: {ce.get('node_type')}, Content: {ce.get('content')}")  
-
+  
 @routes_bp.route('/fetch_ce_data/<uuid:ce_id>', methods=['GET'])  
 def fetch_ce_data(ce_id):  
     try:  
@@ -354,7 +354,7 @@ def fetch_ce_data(ce_id):
     except Exception as e:  
         logging.error(f"Unexpected error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
         raise e  
-
+  
 @routes_bp.route('/update_ce_data/<uuid:ce_id>', methods=['POST'])  
 def update_ce_data(ce_id):  
     try:  
@@ -366,7 +366,7 @@ def update_ce_data(ce_id):
             return jsonify(success=False, error="Failed to update CE data."), 500  
     except Exception as e:  
         return jsonify(success=False, error=str(e)), 500  
-
+  
 @routes_bp.route('/save_ce_data', methods=['POST'])  
 def save_ce_data():  
     try:  
@@ -392,7 +392,7 @@ def save_ce_data():
     except Exception as e:  
         current_app.logger.error(f"Error saving CE data: {e}")  
         return jsonify(success=False, error=str(e)), 500  
-
+  
 @routes_bp.route('/debug/generate_ai_data', methods=['POST'])  
 def debug_generate_ai_data():  
     try:  
@@ -409,5 +409,4 @@ def debug_generate_ai_data():
         return jsonify(success=True, ai_generated_data=ai_generated_data)  
     except Exception as e:  
         current_app.logger.error(f"Error in debug_generate_ai_data: {e}", exc_info=True)  
-        return jsonify(success=False, error=str(e)), 500
-
+        return jsonify(success=False, error=str(e)), 500  

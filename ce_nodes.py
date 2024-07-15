@@ -8,7 +8,7 @@ NODES = {
                 {"type": "file", "name": "supporting_files", "placeholder": "Supporting Files"},  
                 {"type": "text", "name": "stakeholders", "placeholder": "Stakeholders"}  
             ],  
-            "explanation": "Provide a detailed description of the node.",  
+            "explanation": "Default Resource Node.",  
             "ai_context": "Provide general information and suggestions to help achieve the Condition of Satisfaction (COS)."  
         },  
         "tabulator_config": {  

@@ -45,7 +45,7 @@ function handleCEPillClick(event) {
     }  
   })  
   .catch(error => console.error('Error fetching modal content:', error));  
-}  
+}   
 
 function fetchModalContent(ceType, requestData) {  
   fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {  
@@ -123,7 +123,10 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
   
     modalElement.addEventListener('shown.bs.modal', function () {  
       const tableElementId = `#dynamicTable-${ceId}`;  
-      initializeTabulatorTable(tableElementId, tableData, tabulatorColumns);  
+      const table = initializeTabulatorTable(tableElementId, tableData, tabulatorColumns);  
+  
+      // Store the table instance in the modal element for later use  
+      modalElement._tabulator = table;  
     });  
   
     const addRowButton = document.getElementById(`addRowButton-${ceId}`);  
@@ -134,7 +137,9 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
         formData.forEach((value, key) => {  
           rowData[key] = value;  
         });  
-        const table = Tabulator.findTable(`#dynamicTable-${ceId}`)[0];  
+  
+        // Access the Tabulator instance stored in the modal element  
+        const table = modalElement._tabulator;  
         table.addRow(rowData);  
       });  
     }  
@@ -162,7 +167,7 @@ function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {
     return;  
   }  
   
-  new Tabulator(tableSelector, {  
+  return new Tabulator(tableSelector, {  
     data: tableData,  
     layout: "fitColumns",  
     pagination: "local",  

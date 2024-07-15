@@ -4,7 +4,6 @@ from flask import Flask
 from flask_migrate import Migrate  
 from dotenv import load_dotenv  
 from models import db  # Import the db object from models.py  
-
   
 # Load environment variables  
 load_dotenv()  
