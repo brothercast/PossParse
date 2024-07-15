@@ -59,6 +59,27 @@ NODES = {
             ]
         }
     },
+    "Advocacy": {  
+    "definition": "Focuses on efforts to influence public policy and resource allocation decisions.",  
+    "icon": "fa-solid fa-bullhorn",  
+    "modal_config": {  
+        "fields": [  
+            {"type": "text", "name": "campaign_name", "placeholder": "Campaign Name"},  
+            {"type": "textarea", "name": "campaign_objective", "placeholder": "Campaign Objective"},  
+            {"type": "text", "name": "target_audience", "placeholder": "Target Audience"}  
+        ],  
+        "explanation": "Detail the advocacy campaign's objectives and target audience.",  
+        "ai_context": "Provide information on advocacy efforts and campaign strategies pertinent to the COS."  
+    },  
+    "tabulator_config": {  
+        "columns": [  
+            {"title": "Campaign Name", "field": "campaign_name", "editor": "input"},  
+            {"title": "Campaign Objective", "field": "campaign_objective", "editor": "textarea"},  
+            {"title": "Target Audience", "field": "target_audience", "editor": "input"}  
+        ]  
+    }
+    },
+
     "Resource": {
         "definition": "Lists resources or assets essential for achieving the COS.",
         "icon": "fa-solid fa-tools",

@@ -541,7 +541,6 @@ body > main > div > div.row.outcome-header {
   background-color: white;  
   border-radius: 5px;  
   padding: 10px;  
-  /* box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);   */
   margin-right: 0.5rem;  
 }  
 
@@ -552,8 +551,7 @@ body > main > div > div.row.outcome-header {
 .btn-save-changes {  
   background-color: var(--bs-primary);  
   border-color: var(--bs-primary);  
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);  
-}  
+  box-shadow: 0 4px 8px rgba
 
 .btn-save-changes:hover {  
   background-color: var(--bs-primary);  
