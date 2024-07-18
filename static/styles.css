@@ -518,7 +518,7 @@ body > main > div > div.row.outcome-header {
   text-transform: uppercase;  
   font-family: 'Unica One', sans-serif;  
   font-weight: 500;  
-  font-size: 1.5em;  
+  font-size: 1.9em;  
   text-shadow: 1px 1px 0px #000000;  
   color: #ffffff;  
 }  
@@ -541,6 +541,7 @@ body > main > div > div.row.outcome-header {
   background-color: white;  
   border-radius: 5px;  
   padding: 10px;  
+  /* box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);   */
   margin-right: 0.5rem;  
 }  
 
@@ -551,7 +552,8 @@ body > main > div > div.row.outcome-header {
 .btn-save-changes {  
   background-color: var(--bs-primary);  
   border-color: var(--bs-primary);  
-  box-shadow: 0 4px 8px rgba
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);  
+}  
 
 .btn-save-changes:hover {  
   background-color: var(--bs-primary);  
@@ -629,6 +631,22 @@ body > main > div > div.row.outcome-header {
 [data-phase-index="4"] .modal-content {  
   border: 2px solid var(--phase-4) !important;  
 }  
+
+.green-dot {  
+  display: inline-block;  
+  width: 8px;  
+  height: 8px;  
+  background-color: green;  
+  border-radius: 50%;  
+  margin-right: 5px;  
+}  
+  
+.resource-tally {  
+  display: inline-block;  
+  margin-right: 5px;  
+  font-weight: bold;  
+}  
+
 
 /* Tabulator table styling */  
 .tabulator {  

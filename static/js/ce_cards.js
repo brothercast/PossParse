@@ -3,14 +3,21 @@ document.addEventListener('DOMContentLoaded', function () {
 });  
   
 function setupEventListeners() {  
-  document.addEventListener('click', event => {  
-    if (event.target.matches('.ce-pill')) {  
-      handleCEPillClick(event);  
-    }  
+  document.querySelectorAll('.ce-pill').forEach(pill => {  
+    pill.addEventListener('click', handleCEPillClick, { once: true });  
   });  
-}  
+}   
   
 function handleCEPillClick(event) {  
+  event.preventDefault();  
+  event.stopPropagation();  
+  
+  // Ensure only one modal is created  
+  const existingModal = document.querySelector('.modal.fade.show');  
+  if (existingModal) {  
+    existingModal.remove();  
+  }  
+  
   const ceId = event.target.dataset.ceId;  
   const ceType = event.target.dataset.ceType || "Default";  
   const cosContent = event.target.closest('tr').querySelector('.cos-content-cell').textContent.trim();  
@@ -45,33 +52,9 @@ function handleCEPillClick(event) {
     }  
   })  
   .catch(error => console.error('Error fetching modal content:', error));  
-}   
-
-function fetchModalContent(ceType, requestData) {  
-  fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {  
-    method: 'POST',  
-    headers: {  
-      'Content-Type': 'application/json'  
-    },  
-    body: JSON.stringify(requestData)  
-  })  
-    .then(response => response.json())  
-    .then(data => {  
-      if (data.modal_html) {  
-        const aiGeneratedData = data.ai_generated_data || { fields: {} };  
-        console.log("AI Generated Data: ", aiGeneratedData);  
-        displayCEModal(data.modal_html, requestData.ce_id, ceType, requestData.cos_content, requestData.phase_name, requestData.phase_index, aiGeneratedData);  
-        initializeCETable(`#dynamicTable-${requestData.ce_id}`, data.table_data, data.tabulator_columns);  
-      } else {  
-        throw new Error('Error fetching modal content: ' + (data.error || 'Unknown error'));  
-      }  
-    })  
-    .catch(error => {  
-      console.error('Error fetching modal content:', error);  
-    });  
 }  
-  
-function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseIndex, aiGeneratedData, tableData, tabulatorColumns) {  
+
+function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseIndex, aiGeneratedData = { fields: {} }, tableData, tabulatorColumns) {  
   const modalContainer = document.getElementById('dynamicModalContainer');  
   if (!modalContainer) {  
     console.error('Modal container element not found in the DOM');  
@@ -125,7 +108,6 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
       const tableElementId = `#dynamicTable-${ceId}`;  
       const table = initializeTabulatorTable(tableElementId, tableData, tabulatorColumns);  
   
-      // Store the table instance in the modal element for later use  
       modalElement._tabulator = table;  
     });  
   
@@ -138,7 +120,6 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
           rowData[key] = value;  
         });  
   
-        // Access the Tabulator instance stored in the modal element  
         const table = modalElement._tabulator;  
         table.addRow(rowData);  
       });  
@@ -159,6 +140,94 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
     console.error(`Modal element not found in the DOM for CE ID: ${ceId}`);  
   }  
 }  
+  
+function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseIndex, aiGeneratedData = { fields: {} }, tableData, tabulatorColumns) {  
+  const modalContainer = document.getElementById('dynamicModalContainer');  
+  if (!modalContainer) {  
+    console.error('Modal container element not found in the DOM');  
+    return;  
+  }  
+  
+  const phaseColors = ["#e91e63", "#00bcd4", "#9c27b0", "#ffc107", "#66bd0e"];  
+  const phaseColor = phaseColors[phaseIndex % phaseColors.length];  
+  
+  const wrappedModalHtml = `  
+  <div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">  
+    <div class="modal-dialog modal-lg" role="document">  
+      <div class="modal-content">  
+        <div class="modal-header" style="background-color: ${phaseColor};">  
+          <div class="filled-box"></div>  
+          <h5 class="modal-title" id="ceModalLabel-${ceId}">  
+            <span class="node-icon me-2" style="color: ${phaseColor};">  
+              <i class="${NODES[ceType]?.icon || 'fa-solid fa-question-circle'}"></i>  
+            </span>  
+            <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()}</span>  
+          </h5>  
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
+        </div>  
+        <div class="modal-body">  
+          <p>${NODES[ceType]?.definition || 'No definition available.'}</p>  
+          <h6>Parent COS: ${cosContent}</h6>  
+          <div id="dynamicTable-${ceId}" class="tabulator-table"></div> <!-- Ensure ID is unique by appending ceId -->  
+          <hr>  
+          <form id="ceForm-${ceId}">  
+            ${generateFormFields(NODES[ceType]?.modal_config.fields, aiGeneratedData.fields)}  
+          </form>  
+          <button type="button" class="btn btn-success" id="addRowButton-${ceId}">Add ${ceType}</button>  
+        </div>  
+        <div class="modal-footer">  
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
+          <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save changes</button>  
+        </div>  
+      </div>  
+    </div>  
+  </div>  
+  `;  
+  
+  modalContainer.innerHTML = wrappedModalHtml;  
+  
+  const modalElement = modalContainer.querySelector(`#ceModal-${ceId}`);  
+  if (modalElement) {  
+    const modal = new bootstrap.Modal(modalElement);  
+    modal.show();  
+  
+    modalElement.addEventListener('shown.bs.modal', function () {  
+      const tableElementId = `#dynamicTable-${ceId}`;  
+      const table = initializeTabulatorTable(tableElementId, tableData, tabulatorColumns);  
+  
+      modalElement._tabulator = table;  
+    });  
+  
+    const addRowButton = document.getElementById(`addRowButton-${ceId}`);  
+    if (addRowButton) {  
+      addRowButton.addEventListener('click', () => {  
+        const formData = new FormData(document.querySelector(`#ceForm-${ceId}`));  
+        const rowData = {};  
+        formData.forEach((value, key) => {  
+          rowData[key] = value;  
+        });  
+  
+        const table = modalElement._tabulator;  
+        table.addRow(rowData);  
+      });  
+    }  
+  
+    const saveChangesButton = modalElement.querySelector('.btn-save-changes');  
+    if (saveChangesButton) {  
+      saveChangesButton.addEventListener('click', () => {  
+        const formData = new FormData(document.querySelector(`#ceForm-${ceId}`));  
+        const updatedData = {};  
+        formData.forEach((value, key) => {  
+          updatedData[key] = value;  
+        });  
+        saveCEChanges(ceId, updatedData);  
+      });  
+    }  
+  } else {  
+    console.error(`Modal element not found in the DOM for CE ID: ${ceId}`);  
+  }  
+}  
+
 
 function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {  
   const tableElement = document.querySelector(tableSelector);  
@@ -276,34 +345,37 @@ function generateFormFields(fieldsConfig, aiData) {
     });  
   }  
   
-  function updateCERow(ceId, formData) {
-    const cePill = document.querySelector(`.ce-pill[data-ce-id="${ceId}"]`);
-    if (cePill) {
-      cePill.textContent = formData['ceContent'];
-      cePill.dataset.ceType = formData['ceType'];
-    }
-  }
+  function updateCERow(ceId, formData) {  
+    const cePill = document.querySelector(`.ce-pill[data-ce-id="${ceId}"]`);  
+    if (cePill) {  
+      cePill.textContent = formData['ceContent'];  
+      cePill.dataset.ceType = formData['ceType'];  
+    }  
+  }  
   
-  function generateDynamicForm(ceData) {
+  function generateDynamicForm(ceData) {  
     return `  
-    <form id="ceForm" data-ce-id="${ceData.id}">  
-      <div class="form-group">  
-        <label for="ceContent">Content</label>  
-        <textarea class="form-control" id="ceContent" required>${ceData.content}</textarea>  
-      </div>  
-      <div class="form-group">  
-        <label for="ceType">Type</label>  
-        <select class="form-control" id="ceType" required>${generateSelectOptions(ceData.node_type)}</select>  
-      </div>  
-      <!-- Add additional fields as needed -->  
-    </form>  
-  `;
-  }
+      <form id="ceForm" data-ce-id="${ceData.id}">  
+        <div class="form-group">  
+          <label for="ceContent">Content</label>  
+          <textarea class="form-control" id="ceContent" required>${ceData.content}</textarea>  
+        </div>  
+        <div class="form-group">  
+          <label for="ceType">Type</label>  
+          <select class="form-control" id="ceType" required>${generateSelectOptions(ceData.node_type)}</select>  
+        </div>  
+        <!-- Add additional fields as needed -->  
+      </form>  
+    `;  
+  }   
   
-  function generateSelectOptions(selectedType) {
-    return Object.entries(NODES).map(([type, { definition }]) => {
-      return `<option value="${type}" ${type === selectedType ? "selected" : ""}>${definition}</option>`;
-    }).join('');
-  }
- 
-
+  function generateSelectOptions(selectedType) {  
+    return Object.entries(NODES).map(([type, { definition }]) => {  
+      return `<option value="${type}" ${type === selectedType ? "selected" : ""}>${definition}</option>`;  
+    }).join('');  
+  }  
+    
+  document.addEventListener('DOMContentLoaded', function () {  
+    setupEventListeners();  
+  });  
+    

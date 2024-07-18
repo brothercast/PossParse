@@ -18,7 +18,7 @@ NODES = {
                 {"title": "Stakeholders", "field": "stakeholders", "editor": "input"}  
             ]  
         }  
-    },  
+    },   
     "Research": {  
         "definition": "Aggregates and summarizes research materials and resources pertinent to the COS.",  
         "icon": "fa-solid fa-flask",  
@@ -100,7 +100,7 @@ NODES = {
             ]
         }
     },
-    "Action": {
+    "Praxis": {
         "definition": "Defines actions or tasks necessary to meet the COS.",
         "icon": "fa-solid fa-tasks",
         "modal_config": {
