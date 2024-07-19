@@ -85,49 +85,45 @@ def generate_table_headers(fields_config):
         table_headers_html += f"<th>{header_label}</th>"
     return table_headers_html
 
-def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated_data=None, phase_name=None, phase_index=None):
-    current_app.logger.debug(f"Generating modal for CE type: {ce_type}")
-    current_app.logger.debug(f"CE data: {ce_data}")
-    current_app.logger.debug(f"COS content: {cos_content}")
-    current_app.logger.debug(f"AI generated data: {ai_generated_data}")
-    current_app.logger.debug(f"Phase name: {phase_name}")
-    current_app.logger.debug(f"Phase index: {phase_index}")
-
-    node_info = NODES.get(ce_type, NODES['Default'])
-    fields_config = node_info.get('modal_config', {}).get('fields', [])
-    tabulator_config = node_info.get('tabulator_config', {})
-
-    # Populate form fields with existing data if available
-    form_fields = generate_form_fields(fields_config, ai_generated_data.get('fields', {}))
-    table_headers = generate_table_headers(fields_config)
-    table_data = ce_data.get('table_data', []) if ce_data else []
-
-    node_name = ce_type.replace('_', ' ').title()  # Convert node type to a readable format
-
-    # Generate AI contextual definition
-    ai_context_definition = ai_generated_data.get('summary', 'No contextual definition provided.')
-
-    # Replace CE tags with pills in the COS content
-    cos_content_with_pills = replace_ce_tags_with_pills(cos_content)
-
-    modal_content = render_template_string(
-        BASE_MODAL_TEMPLATE,
-        ce_type=ce_type,
-        node_info=node_info,
-        form_fields=form_fields,
-        table_headers=table_headers,
-        table_data=table_data,  # Pass table data to the template
-        tabulator_columns=tabulator_config.get('columns', []),  # Pass Tabulator columns config
-        ce_data=ce_data or {'id': 'unknown_ce_id'},
-        cos_content=cos_content_with_pills,  # Pass the COS content with CE pills
-        ai_generated_data=ai_generated_data,
-        phase_name=phase_name,
-        phase_index=phase_index,
-        node_name=node_name,
-        ce_id=ce_data.get('id', 'unknown_ce_id') if ce_data else 'unknown_ce_id',
-        ai_context_definition=ai_context_definition  # Pass the AI contextual definition
-    )
-    return modal_content
+def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated_data=None, phase_name=None, phase_index=None):  
+    current_app.logger.debug(f"Generating modal for CE type: {ce_type}")  
+    current_app.logger.debug(f"CE data: {ce_data}")  
+    current_app.logger.debug(f"COS content: {cos_content}")  
+    current_app.logger.debug(f"AI generated data: {ai_generated_data}")  
+    current_app.logger.debug(f"Phase name: {phase_name}")  
+    current_app.logger.debug(f"Phase index: {phase_index}")  
+  
+    node_info = NODES.get(ce_type, NODES['Default'])  
+    fields_config = node_info.get('modal_config', {}).get('fields', [])  
+    tabulator_config = node_info.get('tabulator_config', {})  
+  
+    form_fields = generate_form_fields(fields_config, ai_generated_data.get('fields', {}))  
+    table_headers = generate_table_headers(fields_config)  
+    table_data = ce_data.get('table_data', []) if ce_data else []  
+  
+    node_name = ce_type.replace('_', ' ').title()  
+    ai_context_definition = ai_generated_data.get('summary', 'No contextual definition provided.')  
+    cos_content_with_pills = replace_ce_tags_with_pills(cos_content)  
+  
+    modal_content = render_template_string(  
+        BASE_MODAL_TEMPLATE,  
+        ce_type=ce_type,  
+        node_info=node_info,  
+        form_fields=form_fields,  
+        table_headers=table_headers,  
+        table_data=table_data,  
+        tabulator_columns=tabulator_config.get('columns', []),  
+        ce_data=ce_data or {'id': 'unknown_ce_id'},  
+        cos_content=cos_content_with_pills,  
+        ai_generated_data=ai_generated_data,  
+        phase_name=phase_name,  
+        phase_index=phase_index,  
+        node_name=node_name,  
+        ce_id=ce_data.get('id', 'unknown_ce_id') if ce_data else 'unknown_ce_id',  
+        ai_context_definition=ai_context_definition  
+    )  
+  
+    return modal_content  
 
 def replace_ce_tags_with_pills(content):
     soup = BeautifulSoup(content, 'html.parser')
