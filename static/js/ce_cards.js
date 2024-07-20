@@ -270,26 +270,28 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
   
 function saveCEChanges(ceId, updatedData) {  
   fetch(`/update_ce/${encodeURIComponent(ceId)}`, {  
-    method: 'PUT',  
-    headers: {  
-      'Content-Type': 'application/json'  
-    },  
-    body: JSON.stringify(updatedData)  
+      method: 'PUT',  // Ensure the method is PUT  
+      headers: {  
+          'Content-Type': 'application/json'  
+      },  
+      body: JSON.stringify(updatedData)  
   })  
   .then(response => response.json())  
   .then(data => {  
-    if (data.success) {  
-      console.log(`CE ID ${ceId} updated successfully`);  
-      bootstrap.Modal.getInstance(document.querySelector(`#ceModal-${ceId}`)).hide();  
-    } else {  
-      throw new Error(data.error || 'An error occurred while updating the CE.');  
-    }  
+      if (data.success) {  
+          console.log(`CE ID ${ceId} updated successfully`);  
+          bootstrap.Modal.getInstance(document.querySelector(`#ceModal-${ceId}`)).hide();  
+      } else {  
+          throw new Error(data.error || 'An error occurred while updating the CE.');  
+      }  
   })  
   .catch(error => {  
-    console.error('Error updating CE:', error);  
-    alert('An error occurred while updating the CE. Please try again.');  
+      console.error('Error updating CE:', error);  
+      alert('An error occurred while updating the CE. Please try again.');  
   });  
 }  
+
+
   
 function updateCERow(ceId, formData) {  
   const cePill = document.querySelector(`.ce-pill[data-ce-id="${ceId}"]`);  

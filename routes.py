@@ -6,6 +6,7 @@ import openai
 from app import db  
 import requests  
 import logging  
+from uuid import UUID
 from bs4 import BeautifulSoup  
 from ce_nodes import NODES  
 from app import app, USE_DATABASE  
@@ -236,10 +237,14 @@ def analyze_cos_by_id(cos_id_str):
     except Exception as e:  
         return {'success': False, 'message': f"An unexpected error occurred: {str(e)}"}  
   
-@routes_bp.route('/update_ce/<uuid:ce_id>', methods=['POST'])  
-def update_ce(ce_id):  
+@routes_bp.route('/update_ce/<uuid:ce_id>', methods=['PUT'])  
+def update_ce(ce_id: UUID):  
     ce_data = request.get_json()  
     try:  
+        # Log the CE ID and data for debugging  
+        current_app.logger.info(f"Attempting to update CE with ID: {ce_id}")  
+        current_app.logger.info(f"CE Data: {ce_data}")  
+
         success = update_ce_by_id(ce_id, ce_data)  
         if success:  
             return jsonify(success=True), 200  
@@ -247,6 +252,9 @@ def update_ce(ce_id):
             return jsonify(success=False, error="Conditional Element not found."), 404  
     except Exception as e:  
         return jsonify(success=False, error=str(e)), 500  
+
+
+
   
 @routes_bp.route('/ai-query-endpoint', methods=['POST'])  
 def ai_query_endpoint():  

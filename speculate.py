@@ -73,6 +73,36 @@ def get_cos_by_id(cos_id):
         return COS.query.get(cos_id)  
     else:  
         return cos_store.get(str(cos_id))  
+
+def get_ce_by_id(ce_id: UUID):  
+    try:  
+        if USE_DATABASE:  
+            ce = session.query(CE).get(ce_id)  
+            if not ce:  
+                current_app.logger.error(f"CE with ID {ce_id} not found in database.")  
+                raise ValueError(f"CE with ID {ce_id} not found in the database.")  
+        else:  
+            ce_id_str = str(ce_id)  
+            ce_dict = ce_store.get(ce_id_str)  
+            if not ce_dict:  
+                current_app.logger.error(f"CE with ID {ce_id_str} not found in in-memory store.")  
+                raise ValueError(f"CE with ID {ce_id_str} not found in the in-memory store.")  
+
+            ce_fields = {c.name for c in CE.__table__.columns}  
+            ce_dict_filtered = {key: value for key, value in ce_dict.items() if key in ce_fields}  
+            ce = CE(**ce_dict_filtered)  
+
+        return ce  
+
+    except ValueError as e:  
+        logging.error(f"Error retrieving CE by ID {ce_id}: {e}")  
+        raise e  
+    except SQLAlchemyError as e:  
+        logging.error(f"Database error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
+        raise e  
+    except Exception as e:  
+        logging.error(f"Unexpected error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
+        raise e  
     
 def analyze_cos(cos_content):  
     valid_node_types = ', '.join(get_valid_node_types())  # Fetch and join valid node types  
@@ -284,58 +314,21 @@ def create_ce(content, node_type, cos_id):
         'node_type': node_type,  
         'cos_id': cos_id  
     }  
-  
+
     if USE_DATABASE:  
-        ce = CE(id=ce_id, content=content, node_type=node_type, cos_id=cos_id)  # Add cos_id here  
+        ce = CE(id=ce_id, content=content, node_type=node_type, cos_id=cos_id)  
         db.session.add(ce)  
         db.session.commit()  
         current_app.logger.debug(f"Created CE in database: {ce}")  
     else:  
         ce_store[ce_id] = ce_data  
         current_app.logger.debug(f"Created CE in in-memory store: {ce_store[ce_id]}")  
-  
+
     return ce_id  
 
 
-def get_ce_by_id(ce_id):  
-    try:  
-        if USE_DATABASE:  
-            ce = session.query(CE).get(ce_id)  
-            if not ce:  
-                raise ValueError(f"CE with ID {ce_id} not found in the database.")  
-        else:  
-            ce_dict = ce_store.get(str(ce_id))  
-            if not ce_dict:  
-                raise ValueError(f"CE with ID {ce_id} not found in the in-memory store.")  
-              
-            # Filter out any invalid fields  
-            ce_fields = {c.name for c in CE.__table__.columns}  
-            ce_dict_filtered = {key: value for key, value in ce_dict.items() if key in ce_fields}  
-            ce = CE(**ce_dict_filtered)  # Convert filtered dict to CE object for compatibility  
-  
-        return ce  
-  
-    except ValueError as e:  
-        logging.error(f"Error retrieving CE by ID {ce_id}: {e}")  
-        raise e  
-    except SQLAlchemyError as e:  
-        logging.error(f"Database error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
-        raise e  
-    except Exception as e:  
-        logging.error(f"Unexpected error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
-        raise e  
-    except ValueError as e:  
-        logging.error(f"Error retrieving CE by ID {ce_id}: {e}")  
-        raise e  
-    except SQLAlchemyError as e:  
-        logging.error(f"Database error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
-        raise e  
-    except Exception as e:  
-        logging.error(f"Unexpected error retrieving CE by ID {ce_id}: {e}", exc_info=True)  
-        raise e  
 
-# Function to update CE by ID  
-def update_ce_by_id(ce_id, ce_data):  
+def update_ce_by_id(ce_id: UUID, ce_data):  
     if USE_DATABASE:  
         ce = CE.query.get(ce_id)  
         if ce:  
@@ -344,12 +337,15 @@ def update_ce_by_id(ce_id, ce_data):
             db.session.commit()  
             return True  
         else:  
+            current_app.logger.error(f"CE with ID {ce_id} not found in database.")  
             return False  
     else:  
-        if ce_id in ce_store:  
-            ce_store[ce_id].update(ce_data)  
+        ce_id_str = str(ce_id)  
+        if ce_id_str in ce_store:  
+            ce_store[ce_id_str].update(ce_data)  
             return True  
         else:  
+            current_app.logger.error(f"CE with ID {ce_id_str} not found in in-memory store.")  
             return False  
 
   
