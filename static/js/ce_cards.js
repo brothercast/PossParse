@@ -72,7 +72,7 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
             <span class="node-icon me-2" style="color: ${phaseColor};">  
               <i class="${NODES[ceType]?.icon || 'fa-solid fa-question-circle'}"></i>  
             </span>  
-            <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()}</span>  
+            <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()} Phase</span>  
           </h5>  
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
         </div>  
@@ -269,8 +269,15 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
 }  
   
 function saveCEChanges(ceId, updatedData) {  
+  const modalElement = document.querySelector(`#ceModal-${ceId}`);  
+  const table = modalElement._tabulator;  
+  const tableData = table.getData();  // Get the data from the Tabulator table  
+  
+  // Include the table data in the updated data  
+  updatedData.table_data = tableData;  
+  
   fetch(`/update_ce/${encodeURIComponent(ceId)}`, {  
-      method: 'PUT',  // Ensure the method is PUT  
+      method: 'PUT',  
       headers: {  
           'Content-Type': 'application/json'  
       },  
@@ -280,7 +287,10 @@ function saveCEChanges(ceId, updatedData) {
   .then(data => {  
       if (data.success) {  
           console.log(`CE ID ${ceId} updated successfully`);  
-          bootstrap.Modal.getInstance(document.querySelector(`#ceModal-${ceId}`)).hide();  
+          bootstrap.Modal.getInstance(modalElement).hide();  
+  
+          // Reattach event listeners to CE pills  
+          setupEventListeners();  
       } else {  
           throw new Error(data.error || 'An error occurred while updating the CE.');  
       }  
@@ -290,7 +300,6 @@ function saveCEChanges(ceId, updatedData) {
       alert('An error occurred while updating the CE. Please try again.');  
   });  
 }  
-
 
   
 function updateCERow(ceId, formData) {  

@@ -8,35 +8,33 @@ from utilities import generate_chat_response
 from ce_nodes import NODES, get_valid_node_types
 
 # Define a base template for the modal dialogs that will be populated dynamically
-BASE_MODAL_TEMPLATE = """
-<div class="modal fade" id="ceModal-{{ ce_id }}" tabindex="-1" aria-labelledby="ceModalLabel-{{ ce_id }}" aria-hidden="true">
-  <div class="modal-dialog modal-lg" role="document">
-    <div class="modal-content" data-phase-index="{{ phase_index }}">
-      <!-- Modal Header -->
-      <div class="modal-header">
-        <h5 class="modal-title" id="ceModalLabel-{{ ce_id }}" style="color: {{ node_info['modal_header_color'] }};">
-          <i class="{{ node_info['icon'] }}"></i>
-          {{ ce_type.replace('_', ' ').title() }}
-        </h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <!-- Modal Body -->
-      <div class="modal-body">
-        {{ modal_content | safe }}
-      </div>
-      <!-- Modal Footer -->
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary">Save changes</button>
-      </div>
-    </div>
-  </div>
-</div>
-"""
-
-
+BASE_MODAL_TEMPLATE = """  
+<div class="modal fade" id="ceModal-{{ ce_id }}" tabindex="-1" aria-labelledby="ceModalLabel-{{ ce_id }}" aria-hidden="true">  
+  <div class="modal-dialog modal-lg" role="document">  
+    <div class="modal-content" data-phase-index="{{ phase_index }}">  
+      <!-- Modal Header -->  
+      <div class="modal-header">  
+        <h5 class="modal-title" id="ceModalLabel-{{ ce_id }}" style="color: {{ node_info['modal_header_color'] }};">  
+          <i class="{{ node_info['icon'] }}"></i>  
+          {{ ce_type.replace('_', ' ').title() }} // {{ phase_name.title() }}  
+        </h5>  
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">  
+          <span aria-hidden="true">&times;</span>  
+        </button>  
+      </div>  
+      <!-- Modal Body -->  
+      <div class="modal-body">  
+        {{ modal_content | safe }}  
+      </div>  
+      <!-- Modal Footer -->  
+      <div class="modal-footer">  
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>  
+        <button type="button" class="btn btn-primary">Save changes</button>  
+      </div>  
+    </div>  
+  </div>  
+</div>  
+"""  
 def generate_form_field(field_type, field_name, field_value='', placeholder='', options=None):
     field_templates = {
         'text': '<div class="form-group"><label for="{name}">{label}</label><input type="text" class="form-control" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}"/></div>',
@@ -97,7 +95,9 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
     fields_config = node_info.get('modal_config', {}).get('fields', [])  
     tabulator_config = node_info.get('tabulator_config', {})  
   
-    form_fields = generate_form_fields(fields_config, ai_generated_data.get('fields', {}))  
+    # Check if saved form data exists in ce_data  
+    saved_form_data = ce_data.get('form_data', {}) if ce_data else {}  
+    form_fields = generate_form_fields(fields_config, saved_form_data)  
     table_headers = generate_table_headers(fields_config)  
     table_data = ce_data.get('table_data', []) if ce_data else []  
   
