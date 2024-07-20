@@ -72,21 +72,25 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
             <span class="node-icon me-2" style="color: ${phaseColor};">  
               <i class="${NODES[ceType]?.icon || 'fa-solid fa-question-circle'}"></i>  
             </span>  
-            <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()} Phase</span>  
+            <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()}</span>  
           </h5>  
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
         </div>  
         <div class="modal-body">  
-          <p>${NODES[ceType]?.definition || 'No definition available.'}</p>  
-          <h6>Parent COS: ${cosContent}</h6>  
+          <p>${aiGeneratedData.contextual_description || 'No contextual description available.'}</p>  
+          <h6>Source COS: ${cosContent}</h6>  
           <div id="dynamicTable-${ceId}" class="tabulator-table"></div> <!-- Ensure ID is unique by appending ceId -->  
           <hr>  
           <form id="ceForm-${ceId}">  
             ${generateFormFields(NODES[ceType]?.modal_config.fields, aiGeneratedData.fields)}  
           </form>  
-          <div class="button-group">  
-            <button type="button" class="btn btn-success" id="addRowButton-${ceId}">Add ${ceType}</button>  
-            <button type="button" class="btn btn-primary" id="generateRowButton-${ceId}">Generate ${ceType}</button>  
+          <div class="row mt-2">  
+            <div class="col">  
+              <button type="button" class="btn btn-success mb-2 w-100" id="addRowButton-${ceId}" style="padding-top: 10px;">Add ${ceType}</button>  
+            </div>  
+            <div class="col">  
+              <button type="button" class="btn btn-primary mb-2 w-100" id="generateRowButton-${ceId}" style="padding-top: 10px;">Generate ${ceType}</button>  
+            </div>  
           </div>  
         </div>  
         <div class="modal-footer">  
@@ -115,6 +119,9 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
     console.error(`Modal element not found in the DOM for CE ID: ${ceId}`);  
   }  
 }  
+
+
+
   
 function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {  
   const tableElement = document.querySelector(tableSelector);  

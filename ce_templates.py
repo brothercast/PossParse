@@ -102,7 +102,7 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
     table_data = ce_data.get('table_data', []) if ce_data else []  
   
     node_name = ce_type.replace('_', ' ').title()  
-    ai_context_definition = ai_generated_data.get('summary', 'No contextual definition provided.')  
+    ai_context_description = ai_generated_data.get('contextual_description', 'No contextual description provided.')  
     cos_content_with_pills = replace_ce_tags_with_pills(cos_content)  
   
     modal_content = render_template_string(  
@@ -120,10 +120,12 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
         phase_index=phase_index,  
         node_name=node_name,  
         ce_id=ce_data.get('id', 'unknown_ce_id') if ce_data else 'unknown_ce_id',  
-        ai_context_definition=ai_context_definition  
+        ai_context_description=ai_context_description  
     )  
   
     return modal_content  
+
+
 
 def replace_ce_tags_with_pills(content):
     soup = BeautifulSoup(content, 'html.parser')
@@ -176,7 +178,7 @@ def generate_ai_data(cos_text, ce_id, ce_type, ssol_goal):
                 "You are a helpful assistant. Generate contextually relevant data based on the Structured Solution (SSOL) goal, "  
                 "the parent Condition of Satisfaction (COS) text, and the specific Conditional Element Identifier (CE ID) and type provided. Use this information to generate "  
                 "detailed and specific insights or data that can fulfill on satisfying the COS and ultimately achieving the SSOL goal. "  
-                "Select the most appropriate conditional element type from the following list: {valid_node_types}."  
+                "Choose the most appropriate conditional element type from within the following list: {valid_node_types}."  
             ).format(valid_node_types=valid_node_types)  
         },  
         {  
@@ -192,6 +194,7 @@ def generate_ai_data(cos_text, ce_id, ce_type, ssol_goal):
                 f"generate a JSON response with the following structure:\n"  
                 f"{{\n"  
                 f"  \"summary\": \"Summary of the Conditional Element\",\n"  
+                f"  \"contextual_description\": \"Contextual description of the CE\",\n"  
                 f"  \"fields\": {{\n"  
                 f"    \"field_label_1\": \"Value for field_label_1\",\n"  
                 f"    \"field_label_2\": \"Value for field_label_2\",\n"  
@@ -203,10 +206,6 @@ def generate_ai_data(cos_text, ce_id, ce_type, ssol_goal):
         }  
     ]  
   
-    # Log the constructed prompt for debugging  
-    prompt_for_debugging = json.dumps(messages, indent=2)  
-    current_app.logger.debug(f"Constructed Prompt for generate_chat_response: {prompt_for_debugging}")  
-  
     try:  
         response = generate_chat_response(messages, role='AI Contextual Query', task=f'Generate Data for {ce_type}')  
         current_app.logger.debug(f"AI Response: {response}")  
@@ -215,5 +214,4 @@ def generate_ai_data(cos_text, ce_id, ce_type, ssol_goal):
         return ai_data  
     except Exception as e:  
         current_app.logger.error(f"Error generating AI data: {e}")  
-        return {"summary": "Error generating AI data.", "fields": {}}  
- 
+        return {"summary": "Error generating AI data.", "contextual_description": "Error generating context.", "fields": {}}  
