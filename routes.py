@@ -252,10 +252,11 @@ def update_ce(ce_id):
 def ai_query_endpoint():  
     try:  
         data = request.get_json()  
+        current_app.logger.info(f"AI Query Request Data: {data}")  # Add logging for request data  
         if not data:  
             raise BadRequest('No JSON payload received.')  
   
-        cos_text = data.get('cos_text')  
+        cos_text = data.get('cos_content')  # Updated to match the front-end key  
         ce_id = data.get('ce_id')  
         ce_type = data.get('ce_type')  
         ssol_goal = data.get('ssol_goal')  
@@ -263,14 +264,17 @@ def ai_query_endpoint():
         if not all([cos_text, ce_id, ce_type, ssol_goal]):  
             raise BadRequest('Missing required fields in JSON payload.')  
   
-        # Changed the call to generate_ai_data to not include '()' since it's a function, not a callable object  
+        # Generate AI data  
         ai_response = generate_ai_data(cos_text, ce_id, ce_type, ssol_goal)  
+        current_app.logger.info(f"AI Response Data: {ai_response}")  # Add logging for AI response data  
         return jsonify(ai_response=ai_response), 200  
     except BadRequest as e:  
+        current_app.logger.error(f"BadRequest in AI query endpoint: {e}")  
         return jsonify(success=False, error=str(e)), 400  
     except Exception as e:  
         current_app.logger.error(f"Exception in AI query endpoint: {e}")  
         return jsonify(success=False, error=str(e)), 500  
+
   
 # Function to fetch actual CE data  
 def fetch_ce_data(ce_type):  

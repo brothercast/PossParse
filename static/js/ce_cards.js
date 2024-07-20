@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {  
   setupEventListeners();  
-}); 
+});  
   
 function setupEventListeners() {  
   document.querySelectorAll('.ce-pill').forEach(pill => {  
@@ -115,7 +115,7 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
     console.error(`Modal element not found in the DOM for CE ID: ${ceId}`);  
   }  
 }  
-
+  
 function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {  
   const tableElement = document.querySelector(tableSelector);  
   if (!tableElement) {  
@@ -138,6 +138,9 @@ function clearFormFields(formSelector) {
   const form = document.querySelector(formSelector);  
   if (form) {  
     form.reset();  
+    form.querySelectorAll('input, textarea, select').forEach(field => {  
+      field.value = field.placeholder;  
+    });  
   }  
 }  
   
@@ -153,6 +156,8 @@ function generateFieldsFromAI(ceId, ceType) {
     ssol_goal: ssolGoal  
   };  
   
+  console.log("Sending AI query request data:", requestData); // Add logging  
+  
   fetch('/ai-query-endpoint', {  
     method: 'POST',  
     headers: {  
@@ -160,8 +165,12 @@ function generateFieldsFromAI(ceId, ceType) {
     },  
     body: JSON.stringify(requestData)  
   })  
-  .then(response => response.json())  
+  .then(response => {  
+    console.log("AI query response status:", response.status); // Add logging  
+    return response.json();  
+  })  
   .then(data => {  
+    console.log("AI query response data:", data); // Add logging  
     if (data && data.ai_response) {  
       populateFormFields(ceId, data.ai_response.fields);  
     } else {  
@@ -170,7 +179,7 @@ function generateFieldsFromAI(ceId, ceType) {
   })  
   .catch(error => console.error('Error generating fields from AI:', error));  
 }  
-
+  
 function populateFormFields(ceId, aiData) {  
   const form = document.querySelector(`#ceForm-${ceId}`);  
   if (form) {  
@@ -182,7 +191,7 @@ function populateFormFields(ceId, aiData) {
     });  
   }  
 }  
-
+  
 function generateFormFields(fieldsConfig, aiData) {  
   if (!fieldsConfig) {  
     return 'No form fields available.';  
@@ -215,15 +224,34 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
       formData.forEach((value, key) => {  
         rowData[key] = value;  
       });  
-      table.addRow(rowData).then(() => {  
-        clearFormFields(`#ceForm-${ceId}`);  
-      });  
+  
+      // Find the first empty row  
+      const rows = table.getRows();  
+      let emptyRow = rows.find(row => Object.values(row.getData()).every(val => val === ''));  
+        
+      if (emptyRow) {  
+        emptyRow.update(rowData);  
+      } else {  
+        table.addRow(rowData, true); // Add row to the top  
+      }  
+        
+      clearFormFields(`#ceForm-${ceId}`);  
     });  
   }  
   
   if (generateRowButton) {  
     generateRowButton.addEventListener('click', () => {  
-      generateFieldsFromAI(ceId, ceType);  
+      const form = modalElement.querySelector(`#ceForm-${ceId}`);  
+      const inputs = form.querySelectorAll('input, textarea, select');  
+      let emptyFields = Array.from(inputs).filter(input => input.value.trim() === '');  
+  
+      if (emptyFields.length > 0) {  
+        generateFieldsFromAI(ceId, ceType);  
+      } else {  
+        if (confirm('There are already values in the fields. Do you want to overwrite them?')) {  
+          generateFieldsFromAI(ceId, ceType);  
+        }  
+      }  
     });  
   }  
   
@@ -238,8 +266,8 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
       saveCEChanges(ceId, updatedData);  
     });  
   }  
-}   
-
+}  
+  
 function saveCEChanges(ceId, updatedData) {  
   fetch(`/update_ce/${encodeURIComponent(ceId)}`, {  
     method: 'PUT',  
@@ -263,37 +291,36 @@ function saveCEChanges(ceId, updatedData) {
   });  
 }  
   
-  function updateCERow(ceId, formData) {  
-    const cePill = document.querySelector(`.ce-pill[data-ce-id="${ceId}"]`);  
-    if (cePill) {  
-      cePill.textContent = formData['ceContent'];  
-      cePill.dataset.ceType = formData['ceType'];  
-    }  
+function updateCERow(ceId, formData) {  
+  const cePill = document.querySelector(`.ce-pill[data-ce-id="${ceId}"]`);  
+  if (cePill) {  
+    cePill.textContent = formData['ceContent'];  
+    cePill.dataset.ceType = formData['ceType'];  
   }  
+}  
   
-  function generateDynamicForm(ceData) {  
-    return `  
-      <form id="ceForm" data-ce-id="${ceData.id}">  
-        <div class="form-group">  
-          <label for="ceContent">Content</label>  
-          <textarea class="form-control" id="ceContent" required>${ceData.content}</textarea>  
-        </div>  
-        <div class="form-group">  
-          <label for="ceType">Type</label>  
-          <select class="form-control" id="ceType" required>${generateSelectOptions(ceData.node_type)}</select>  
-        </div>  
-        <!-- Add additional fields as needed -->  
-      </form>  
-    `;  
-  }   
+function generateDynamicForm(ceData) {  
+  return `  
+    <form id="ceForm" data-ce-id="${ceData.id}">  
+      <div class="form-group">  
+        <label for="ceContent">Content</label>  
+        <textarea class="form-control" id="ceContent" required>${ceData.content}</textarea>  
+      </div>  
+      <div class="form-group">  
+        <label for="ceType">Type</label>  
+        <select class="form-control" id="ceType" required>${generateSelectOptions(ceData.node_type)}</select>  
+      </div>  
+      <!-- Add additional fields as needed -->  
+    </form>  
+  `;  
+}  
   
-  function generateSelectOptions(selectedType) {  
-    return Object.entries(NODES).map(([type, { definition }]) => {  
-      return `<option value="${type}" ${type === selectedType ? "selected" : ""}>${definition}</option>`;  
-    }).join('');  
-  }  
-    
-  document.addEventListener('DOMContentLoaded', function () {  
-    setupEventListeners();  
-  });  
-    
+function generateSelectOptions(selectedType) {  
+  return Object.entries(NODES).map(([type, { definition }]) => {  
+    return `<option value="${type}" ${type === selectedType ? "selected" : ""}>${definition}</option>`;  
+  }).join('');  
+}  
+  
+document.addEventListener('DOMContentLoaded', function () {  
+  setupEventListeners();  
+});  
