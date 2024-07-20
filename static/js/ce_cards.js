@@ -23,7 +23,7 @@ function handleCEPillClick(event) {
   const phaseElement = event.target.closest('.accordion-item');  
   const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();  
   const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement);  
-  const ssolGoal = document.querySelector('#ssol-goal').textContent.trim();  
+  const ssolGoal = document.querySelector('#ssol-goal').textContent.trim();  // Ensure ssolGoal is correctly defined  
   
   const requestData = {  
     ce_id: ceId,  
@@ -44,7 +44,7 @@ function handleCEPillClick(event) {
   .then(data => {  
     if (data && data.modal_html) {  
       const aiGeneratedData = data.ai_generated_data || { fields: {} };  
-      displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex, aiGeneratedData, data.table_data, data.tabulator_columns);  
+      displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex, aiGeneratedData, data.table_data, data.tabulator_columns, ssolGoal);  
     } else {  
       throw new Error('Modal HTML content not found or error in response');  
     }  
@@ -120,10 +120,8 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
   }  
 }  
 
-
-
   
-function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {  
+function initializeTabulatorTable(tableSelector, tableData = [], tabulatorColumns = []) {  
   const tableElement = document.querySelector(tableSelector);  
   if (!tableElement) {  
     console.error('Table element not found:', tableSelector);  
@@ -137,19 +135,20 @@ function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {
     paginationSize: 5,  
     movableColumns: true,  
     resizableRows: true,  
-    columns: tabulatorColumns,  
+    columns: tabulatorColumns.length ? tabulatorColumns : []  
   });  
 }  
   
 function clearFormFields(formSelector) {  
   const form = document.querySelector(formSelector);  
   if (form) {  
-    form.reset();  
     form.querySelectorAll('input, textarea, select').forEach(field => {  
-      field.value = field.placeholder;  
+      field.value = '';  // Clear the field value  
+      field.placeholder = field.getAttribute('data-placeholder') || field.placeholder;  // Reset the placeholder text  
     });  
   }  
 }  
+
   
 function generateFieldsFromAI(ceId, ceType) {  
   const form = document.querySelector(`#ceForm-${ceId}`);  
@@ -229,19 +228,19 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
       const formData = new FormData(modalElement.querySelector(`#ceForm-${ceId}`));  
       const rowData = {};  
       formData.forEach((value, key) => {  
-        rowData[key] = value;  
+        rowData[key] = value || '';  // Ensure value is not null  
       });  
   
       // Find the first empty row  
       const rows = table.getRows();  
       let emptyRow = rows.find(row => Object.values(row.getData()).every(val => val === ''));  
-        
+  
       if (emptyRow) {  
         emptyRow.update(rowData);  
       } else {  
         table.addRow(rowData, true); // Add row to the top  
       }  
-        
+  
       clearFormFields(`#ceForm-${ceId}`);  
     });  
   }  
@@ -268,17 +267,18 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
       const formData = new FormData(modalElement.querySelector(`#ceForm-${ceId}`));  
       const updatedData = {};  
       formData.forEach((value, key) => {  
-        updatedData[key] = value;  
+        updatedData[key] = value || '';  // Ensure value is not null  
       });  
       saveCEChanges(ceId, updatedData);  
     });  
   }  
 }  
+
   
 function saveCEChanges(ceId, updatedData) {  
   const modalElement = document.querySelector(`#ceModal-${ceId}`);  
   const table = modalElement._tabulator;  
-  const tableData = table.getData();  // Get the data from the Tabulator table  
+  const tableData = table ? table.getData() : [];  // Get the data from the Tabulator table  
   
   // Include the table data in the updated data  
   updatedData.table_data = tableData;  
@@ -306,8 +306,7 @@ function saveCEChanges(ceId, updatedData) {
       console.error('Error updating CE:', error);  
       alert('An error occurred while updating the CE. Please try again.');  
   });  
-}  
-
+} 
   
 function updateCERow(ceId, formData) {  
   const cePill = document.querySelector(`.ce-pill[data-ce-id="${ceId}"]`);  
@@ -316,6 +315,7 @@ function updateCERow(ceId, formData) {
     cePill.dataset.ceType = formData['ceType'];  
   }  
 }  
+   
   
 function generateDynamicForm(ceData) {  
   return `  
