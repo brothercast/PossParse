@@ -52,56 +52,56 @@ function handleCEPillClick(event) {
   .catch(error => console.error('Error fetching modal content:', error));  
 }  
   
-function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseIndex, aiGeneratedData = { fields: {} }, tableData, tabulatorColumns, ssolGoal) {  
-  const modalContainer = document.getElementById('dynamicModalContainer');  
-  if (!modalContainer) {  
-    console.error('Modal container element not found in the DOM');  
-    return;  
-  }  
-  
-  const phaseColors = ["#e91e63", "#00bcd4", "#9c27b0", "#ffc107", "#66bd0e"];  
-  const phaseColor = phaseColors[phaseIndex % phaseColors.length];  
-  
-  const wrappedModalHtml = `  
-  <div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">  
-    <div class="modal-dialog modal-lg" role="document">  
-      <div class="modal-content">  
-        <div class="modal-header" style="background-color: ${phaseColor};">  
-          <div class="filled-box"></div>  
-          <h5 class="modal-title" id="ceModalLabel-${ceId}">  
-            <span class="node-icon me-2" style="color: ${phaseColor};">  
-              <i class="${NODES[ceType]?.icon || 'fa-solid fa-question-circle'}"></i>  
-            </span>  
-            <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()}</span>  
-          </h5>  
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
-        </div>  
-        <div class="modal-body">  
-          <p>${aiGeneratedData.contextual_description || 'No contextual description available.'}</p>  
-          <h6>Source COS: ${cosContent}</h6>  
-          <div id="dynamicTable-${ceId}" class="tabulator-table"></div> <!-- Ensure ID is unique by appending ceId -->  
-          <hr>  
-          <form id="ceForm-${ceId}">  
-            ${generateFormFields(NODES[ceType]?.modal_config.fields, aiGeneratedData.fields)}  
-          </form>  
-          <div class="row mt-2">  
-            <div class="col">  
-              <button type="button" class="btn btn-success mb-2 w-100" id="addRowButton-${ceId}" style="padding-top: 10px;">Add ${ceType}</button>  
-            </div>  
-            <div class="col">  
-              <button type="button" class="btn btn-primary mb-2 w-100" id="generateRowButton-${ceId}" style="padding-top: 10px;">Generate ${ceType}</button>  
-            </div>  
-          </div>  
-        </div>  
-        <div class="modal-footer">  
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
-          <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save changes</button>  
-        </div>  
-      </div>  
-    </div>  
-  </div>  
-  `;  
-  
+function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseIndex, aiGeneratedData = { fields: {} }, tableData, tabulatorColumns, ssolGoal) {
+  const modalContainer = document.getElementById('dynamicModalContainer');
+  if (!modalContainer) {
+    console.error('Modal container element not found in the DOM');
+    return;
+  }
+
+  const phaseColors = ["#e91e63", "#00bcd4", "#9c27b0", "#ffc107", "#66bd0e"];
+  const phaseColor = phaseColors[phaseIndex % phaseColors.length];
+
+  const wrappedModalHtml = `
+  <div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header" style="background-color: ${phaseColor};">
+          <div class="filled-box"></div>
+          <h5 class="modal-title" id="ceModalLabel-${ceId}">
+            <span class="node-icon me-2" style="color: ${phaseColor};">
+              <i class="${NODES[ceType]?.icon || 'fa-solid fa-question-circle'}"></i>
+            </span>
+            <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()}</span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <h6>Source COS: ${cosContent}</h6>
+          <p>${aiGeneratedData.contextual_description || 'No contextual description available.'}</p>
+          <div id="dynamicTable-${ceId}" class="tabulator-table"></div>
+          <hr>
+          <form id="ceForm-${ceId}">
+            ${generateFormFields(NODES[ceType]?.modal_config.fields, aiGeneratedData.fields)}
+          </form>
+          <div class="row mt-2">
+            <div class="col">
+              <button type="button" class="btn btn-success mb-2 w-100" id="addRowButton-${ceId}" style="padding-top: 10px;">Add ${ceType}</button>
+            </div>
+            <div class="col">
+              <button type="button" class="btn btn-primary mb-2 w-100" id="generateRowButton-${ceId}" style="padding-top: 10px;">Generate ${ceType}</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+
   modalContainer.innerHTML = wrappedModalHtml;  
   const modalElement = modalContainer.querySelector(`#ceModal-${ceId}`);  
   if (modalElement) {  
@@ -121,23 +121,27 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
 }  
 
   
-function initializeTabulatorTable(tableSelector, tableData = [], tabulatorColumns = []) {  
+function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {  
   const tableElement = document.querySelector(tableSelector);  
   if (!tableElement) {  
     console.error('Table element not found:', tableSelector);  
     return;  
   }  
   
+  const shouldPaginate = tableData.length > 5;  
+  
   return new Tabulator(tableSelector, {  
     data: tableData.length ? tableData : [{}],  
     layout: "fitColumns",  
-    pagination: "local",  
+    pagination: shouldPaginate ? "local" : false, // Enable pagination only if shouldPaginate is true  
     paginationSize: 5,  
     movableColumns: true,  
     resizableRows: true,  
-    columns: tabulatorColumns.length ? tabulatorColumns : []  
+    columns: tabulatorColumns,  
+    paginationElement: shouldPaginate ? undefined : false, // Hide pagination controls if shouldPaginate is false  
   });  
 }  
+
   
 function clearFormFields(formSelector) {  
   const form = document.querySelector(formSelector);  
@@ -225,11 +229,22 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
   if (addRowButton) {  
     addRowButton.addEventListener('click', () => {  
       const table = modalElement._tabulator; // Retrieve the Tabulator instance  
-      const formData = new FormData(modalElement.querySelector(`#ceForm-${ceId}`));  
+      const form = modalElement.querySelector(`#ceForm-${ceId}`);  
+      const formData = new FormData(form);  
       const rowData = {};  
+      let isFormValid = true;  
+  
       formData.forEach((value, key) => {  
+        if (!value.trim()) {  
+          isFormValid = false; // Mark form as invalid if any field is empty  
+        }  
         rowData[key] = value || '';  // Ensure value is not null  
       });  
+  
+      if (!isFormValid) {  
+        alert('Please fill in all required fields before adding a row.');  
+        return;  
+      }  
   
       // Find the first empty row  
       const rows = table.getRows();  
@@ -242,6 +257,7 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
       }  
   
       clearFormFields(`#ceForm-${ceId}`);  
+      reinitializeTabulatorPagination(table); // Reinitialize pagination after adding a new row  
     });  
   }  
   
@@ -271,6 +287,20 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
       });  
       saveCEChanges(ceId, updatedData);  
     });  
+  }  
+}  
+
+function reinitializeTabulatorPagination(table) {  
+  const rowCount = table.getDataCount();  
+  const shouldPaginate = rowCount > 5;  
+  
+  table.setPagination(shouldPaginate ? "local" : false); // Enable pagination only if shouldPaginate is true  
+  table.setPaginationSize(5);  
+    
+  // Optionally, update the pagination controls visibility  
+  const paginationElement = table.getPaginationElement();  
+  if (paginationElement) {  
+    paginationElement.style.display = shouldPaginate ? 'block' : 'none';  
   }  
 }  
 

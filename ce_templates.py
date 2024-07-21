@@ -24,17 +24,33 @@ BASE_MODAL_TEMPLATE = """
       </div>  
       <!-- Modal Body -->  
       <div class="modal-body">  
-        {{ modal_content | safe }}  
+        <p>{{ ai_generated_data.get('contextual_description', 'No contextual description available.') }}</p>  
+        <p><strong>Source COS:</strong> {{ cos_content }}</p>  
+        <div id="dynamicTable-{{ ce_id }}" class="tabulator-table"></div>  
+        <hr>  
+        <form id="ceForm-{{ ce_id }}">  
+          {{ form_fields | safe }}  
+        </form>  
+        <div class="row mt-2">  
+          <div class="col">  
+            <button type="button" class="btn btn-success mb-2 w-100" id="addRowButton-{{ ce_id }}" style="padding-top: 10px;">Add {{ ce_type }}</button>  
+          </div>  
+          <div class="col">  
+            <button type="button" class="btn btn-primary mb-2 w-100" id="generateRowButton-{{ ce_id }}" style="padding-top: 10px;">Generate {{ ce_type }}</button>  
+          </div>  
+        </div>  
       </div>  
       <!-- Modal Footer -->  
       <div class="modal-footer">  
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>  
-        <button type="button" class="btn btn-primary">Save changes</button>  
+        <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="{{ ce_id }}">Save changes</button>  
       </div>  
     </div>  
   </div>  
 </div>  
 """  
+ 
+
 def generate_form_field(field_type, field_name, field_value='', placeholder='', options=None):  
     field_templates = {  
         'text': '<div class="form-group"><label for="{name}">{label}</label><input type="text" class="form-control" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}" data-placeholder="{placeholder}"/></div>',  
@@ -60,28 +76,30 @@ def generate_form_field(field_type, field_name, field_value='', placeholder='', 
     else:  
         return field_templates.get(field_type, field_templates['text']).format(name=field_name, label=label, value=field_value, placeholder=placeholder, checked=checked)  
 
-def generate_form_fields(fields_config, ai_generated_data=None):
-    form_fields_html = ""
-    for field in fields_config:
-        # Check if AI-generated data exists for the field
-        field_value = ai_generated_data.get(field['name'], '') if ai_generated_data else ''
-        field_html = generate_form_field(
-            field_type=field['type'],
-            field_name=field['name'],
-            field_value=field_value,
-            placeholder=field.get('placeholder', ''),
-            options=field.get('options', None)
-        )
-        form_fields_html += field_html
-    return form_fields_html
+def generate_form_fields(fields_config, ai_generated_data=None):  
+    form_fields_html = ""  
+    for field in fields_config:  
+        # Check if AI-generated data exists for the field  
+        field_value = ai_generated_data.get(field['name'], '') if ai_generated_data else ''  
+        field_html = generate_form_field(  
+            field_type=field['type'],  
+            field_name=field['name'],  
+            field_value=field_value,  
+            placeholder=field.get('placeholder', ''),  
+            options=field.get('options', None)  
+        )  
+        form_fields_html += field_html  
+    if not form_fields_html:  
+        form_fields_html = "No form fields available."  
+    return form_fields_html  
+  
+def generate_table_headers(fields_config):  
+    table_headers_html = ""  
+    for field in fields_config:  
+        header_label = field['name'].replace('_', ' ').title()  
+        table_headers_html += f"<th>{header_label}</th>"  
+    return table_headers_html  
 
-
-def generate_table_headers(fields_config):
-    table_headers_html = ""
-    for field in fields_config:
-        header_label = field['name'].replace('_', ' ').title()
-        table_headers_html += f"<th>{header_label}</th>"
-    return table_headers_html
 
 def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated_data=None, phase_name=None, phase_index=None):  
     current_app.logger.debug(f"Generating modal for CE type: {ce_type}")  
@@ -91,7 +109,7 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
     current_app.logger.debug(f"Phase name: {phase_name}")  
     current_app.logger.debug(f"Phase index: {phase_index}")  
   
-    # Use default node type if ce_type is not found in NODES  
+    # Default to "Default" node type if the given ce_type is not found in NODES  
     node_info = NODES.get(ce_type, NODES['Default'])  
     fields_config = node_info.get('modal_config', {}).get('fields', [])  
     tabulator_config = node_info.get('tabulator_config', {})  
@@ -105,6 +123,14 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
     node_name = ce_type.replace('_', ' ').title()  
     ai_context_description = ai_generated_data.get('contextual_description', 'No contextual description provided.')  
     cos_content_with_pills = replace_ce_tags_with_pills(cos_content)  
+  
+    current_app.logger.debug(f"Node Info: {node_info}")  
+    current_app.logger.debug(f"Form Fields: {form_fields}")  
+    current_app.logger.debug(f"Table Headers: {table_headers}")  
+    current_app.logger.debug(f"Table Data: {table_data}")  
+    current_app.logger.debug(f"Node Name: {node_name}")  
+    current_app.logger.debug(f"AI Context Description: {ai_context_description}")  
+    current_app.logger.debug(f"COS Content with Pills: {cos_content_with_pills}")  
   
     modal_content = render_template_string(  
         BASE_MODAL_TEMPLATE,  
@@ -124,7 +150,11 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
         ai_context_description=ai_context_description  
     )  
   
+    current_app.logger.debug(f"Rendered Modal Content: {modal_content}")  
+  
     return modal_content  
+
+ 
 
 def replace_ce_tags_with_pills(content):  
     soup = BeautifulSoup(content, 'html.parser')  
