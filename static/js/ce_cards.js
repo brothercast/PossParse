@@ -232,17 +232,17 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
       const form = modalElement.querySelector(`#ceForm-${ceId}`);  
       const formData = new FormData(form);  
       const rowData = {};  
-      let isFormValid = true;  
+      let isAnyFieldFilled = false;  
   
       formData.forEach((value, key) => {  
-        if (!value.trim()) {  
-          isFormValid = false; // Mark form as invalid if any field is empty  
+        if (value.trim()) {  
+          isAnyFieldFilled = true; // Mark form as valid if any field is filled  
         }  
         rowData[key] = value || '';  // Ensure value is not null  
       });  
   
-      if (!isFormValid) {  
-        alert('Please fill in all required fields before adding a row.');  
+      if (!isAnyFieldFilled) {  
+        alert('Please fill in at least one field before adding a row.');  
         return;  
       }  
   
@@ -289,6 +289,7 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
     });  
   }  
 }  
+
 
 function reinitializeTabulatorPagination(table) {  
   const rowCount = table.getDataCount();  
