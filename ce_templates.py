@@ -1,14 +1,14 @@
-# ce_templates.py
-from asyncio.log import logger
-import json
-import logging
-from store import ce_store
-from bs4 import BeautifulSoup
-from flask import render_template_string, current_app
-from utilities import generate_chat_response
-from ce_nodes import NODES, get_valid_node_types
-
-# Define a base template for the modal dialogs that will be populated dynamically
+# ce_templates.py  
+  
+import json  
+import logging  
+from store import ce_store  
+from bs4 import BeautifulSoup  
+from flask import render_template_string, current_app  
+from utilities import generate_chat_response  
+from ce_nodes import NODES, get_valid_node_types  
+  
+# Define a base template for the modal dialogs that will be populated dynamically  
 BASE_MODAL_TEMPLATE = """  
 <div class="modal fade" id="ceModal-{{ ce_id }}" tabindex="-1" aria-labelledby="ceModalLabel-{{ ce_id }}" aria-hidden="true">  
   <div class="modal-dialog modal-lg" role="document">  
@@ -50,7 +50,22 @@ BASE_MODAL_TEMPLATE = """
   </div>  
 </div>  
 """  
+DEFAULT_FIELDS_CONFIG = [  
+    {"type": "text", "name": "detail", "placeholder": "Detail"},  
+    {"type": "file", "name": "supporting_files", "placeholder": "Supporting Files"},  
+    {"type": "text", "name": "stakeholders", "placeholder": "Stakeholders"}  
+]  
+  
+DEFAULT_TABULATOR_CONFIG = {  
+    "columns": [  
+        {"title": "Detail", "field": "detail", "editor": "input"},  
+        {"title": "Supporting Files", "field": "supporting_files", "editor": "input"},  
+        {"title": "Stakeholders", "field": "stakeholders", "editor": "input"}  
+    ]  
+}  
+  
 def generate_form_field(field_type, field_name, field_value='', placeholder='', options=None):  
+    current_app.logger.debug(f"Generating form field: type={field_type}, name={field_name}, value={field_value}, placeholder={placeholder}")  
     field_templates = {  
         'text': '<div class="form-group"><label for="{name}">{label}</label><input type="text" class="form-control" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}" data-placeholder="{placeholder}"/></div>',  
         'number': '<div class="form-group"><label for="{name}">{label}</label><input type="number" class="form-control" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}" data-placeholder="{placeholder}"/></div>',  
@@ -74,11 +89,15 @@ def generate_form_field(field_type, field_name, field_value='', placeholder='', 
         return field_templates.get(field_type, field_templates['text']).format(name=field_name, label=label, value=field_value, placeholder=placeholder, options=options_html)  
     else:  
         return field_templates.get(field_type, field_templates['text']).format(name=field_name, label=label, value=field_value, placeholder=placeholder, checked=checked)  
-
+  
 def generate_form_fields(fields_config, ai_generated_data=None):  
+    if not fields_config:  
+        current_app.logger.error("No fields_config provided to generate form fields.")  
+        return "No form fields available."  
     current_app.logger.debug(f"Generating form fields with config: {fields_config}")  
     form_fields_html = ""  
     for field in fields_config:  
+        current_app.logger.debug(f"Generating field: {field}")  
         # Check if AI-generated data exists for the field  
         field_value = ai_generated_data.get(field['name'], '') if ai_generated_data else ''  
         field_html = generate_form_field(  
@@ -89,9 +108,8 @@ def generate_form_fields(fields_config, ai_generated_data=None):
             options=field.get('options', None)  
         )  
         form_fields_html += field_html  
-    if not form_fields_html:  
-        form_fields_html = "No form fields available."  
     return form_fields_html  
+ 
 
 def generate_table_headers(fields_config):  
     table_headers_html = ""  
@@ -99,7 +117,7 @@ def generate_table_headers(fields_config):
         header_label = field['name'].replace('_', ' ').title()  
         table_headers_html += f"<th>{header_label}</th>"  
     return table_headers_html  
-
+  
 def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated_data=None, phase_name=None, phase_index=None, ce_store=None):  
     current_app.logger.debug(f"Generating modal for CE type: {ce_type}")  
     current_app.logger.debug(f"CE data: {ce_data}")  
@@ -108,14 +126,26 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
     current_app.logger.debug(f"Phase name: {phase_name}")  
     current_app.logger.debug(f"Phase index: {phase_index}")  
   
-    # Default to "Default" node type if the given ce_type is not found in NODES  
-    node_info = NODES.get(ce_type, NODES['Default'])  
+    # Use default fields and configuration if the ce_type is not found in NODES  
+    if ce_type not in NODES:  
+        current_app.logger.warning(f"CE type '{ce_type}' not found in NODES. Using default fields.")  
+        node_info = {  
+            "icon": "fa-solid fa-question-circle",  
+            "modal_header_color": "#6c757d",  
+            "modal_config": {"fields": DEFAULT_FIELDS_CONFIG},  
+            "tabulator_config": DEFAULT_TABULATOR_CONFIG  
+        }  
+    else:  
+        node_info = NODES[ce_type]  
   
-    fields_config = node_info.get('modal_config', {}).get('fields', [])  
-    tabulator_config = node_info.get('tabulator_config', {})  
+    current_app.logger.debug(f"Node Info: {node_info}")  
+  
+    fields_config = node_info['modal_config']['fields']  
+    tabulator_config = node_info['tabulator_config']  
   
     # Check if saved form data exists in ce_data  
     saved_form_data = ce_data.get('form_data', {}) if ce_data else {}  
+    current_app.logger.debug(f"Saved form data: {saved_form_data}")  
     form_fields = generate_form_fields(fields_config, saved_form_data)  
     table_headers = generate_table_headers(fields_config)  
     table_data = ce_data.get('table_data', []) if ce_data else []  
@@ -124,7 +154,6 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
     ai_context_description = ai_generated_data.get('contextual_description', 'No contextual description provided.')  
     cos_content_with_pills = replace_ce_tags_with_pills(cos_content, ce_store)  
   
-    current_app.logger.debug(f"Node Info: {node_info}")  
     current_app.logger.debug(f"Form Fields: {form_fields}")  
     current_app.logger.debug(f"Table Headers: {table_headers}")  
     current_app.logger.debug(f"Table Data: {table_data}")  
@@ -139,7 +168,7 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
         form_fields=form_fields,  
         table_headers=table_headers,  
         table_data=table_data,  
-        tabulator_columns=tabulator_config.get('columns', []),  
+        tabulator_columns=tabulator_config['columns'],  
         ce_data=ce_data or {'id': 'unknown_ce_id'},  
         cos_content=cos_content_with_pills,  
         ai_generated_data=ai_generated_data,  
@@ -153,7 +182,7 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
     current_app.logger.debug(f"Rendered Modal Content: {modal_content}")  
   
     return modal_content  
-
+  
 def generate_fa_icon_for_node_type(node_type):  
     messages = [  
         {"role": "system", "content": "You are an AI that suggests a FontAwesome 6 Solid (fas) class icon based on the node type name. Output only the icon class in JSON format."},  
@@ -186,7 +215,7 @@ def generate_fa_icon_for_node_type(node_type):
         # Log any other exceptions  
         current_app.logger.error(f"Unexpected error: {e}")  
         raise  
-
+  
 def replace_ce_tags_with_pills(content, ce_store):  
     soup = BeautifulSoup(content, 'html.parser')  
     for ce_tag in soup.find_all('ce'):  
@@ -213,11 +242,11 @@ def replace_ce_tags_with_pills(content, ce_store):
         new_tag.append(ce_tag.string)  
         ce_tag.replace_with(new_tag)  
     return str(soup)  
-
-def get_ce_modal(ce_type):
-    modal_html = generate_dynamic_modal(ce_type)
-    return modal_html
-
+  
+def get_ce_modal(ce_type):  
+    modal_html = generate_dynamic_modal(ce_type)  
+    return modal_html  
+  
 def generate_ai_data(cos_text, ce_id, ce_type, ssol_goal):  
     node_info = NODES.get(ce_type, NODES['Default'])  
     ai_context = node_info.get('modal_config', {}).get('ai_context', '')  

@@ -119,20 +119,25 @@
 {% endblock %}  
   
 {% block scripts %}  
+<!-- Include necessary JS files -->  
 <script src="{{ url_for('static', filename='js/cos_table.js') }}"></script>  
 <script src="{{ url_for('static', filename='js/ce_table.js') }}"></script>  
 <script src="{{ url_for('static', filename='js/ce_cards.js') }}"></script>  
   
+<!-- Include Tabulator CSS and JS -->  
+<link href="https://unpkg.com/tabulator-tables@4.9.3/dist/css/tabulator.min.css" rel="stylesheet">  
+<script src="https://unpkg.com/tabulator-tables@4.9.3/dist/js/tabulator.min.js"></script>  
+  
+<!-- Initialize event listeners for COS table handling -->  
 <script>  
   document.addEventListener('DOMContentLoaded', () => {  
-    // Initialize event listeners for COS table handling  
     initializePhaseTableEventListeners();  
   });  
 </script>  
-<script type="text/javascript">  
+  
+<!-- Pass necessary data to JavaScript -->  
+<script>  
   const NODES = {{ nodes|tojson }};  
   const tableData = {};  // Define tableData here. Update this with actual data if needed.  
 </script>  
-<link href="https://unpkg.com/tabulator-tables@4.9.3/dist/css/tabulator.min.css" rel="stylesheet">  
-<script type="text/javascript" src="https://unpkg.com/tabulator-tables@4.9.3/dist/js/tabulator.min.js"></script>  
 {% endblock %}  

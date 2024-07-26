@@ -53,7 +53,23 @@ function handleCEPillClick(event) {
     })  
     .catch(error => console.error('Error fetching modal content:', error));  
 }  
+
+// Define default configurations for nodes not found in NODES  
+const DEFAULT_FIELDS_CONFIG = [  
+  { type: 'text', name: 'detail', placeholder: 'Detail' },  
+  { type: 'file', name: 'supporting_files', placeholder: 'Supporting Files' },  
+  { type: 'text', name: 'stakeholders', placeholder: 'Stakeholders' }  
+];  
   
+const DEFAULT_TABULATOR_CONFIG = {  
+  columns: [  
+    { title: 'Detail', field: 'detail', editor: 'input' },  
+    { title: 'Supporting Files', field: 'supporting_files', editor: 'input' },  
+    { title: 'Stakeholders', field: 'stakeholders', editor: 'input' }  
+  ]  
+};  
+  
+// Function to display the CE modal  
 function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseIndex, aiGeneratedData = { fields: {} }, tableData, tabulatorColumns, ssolGoal) {  
   const modalContainer = document.getElementById('dynamicModalContainer');  
   if (!modalContainer) {  
@@ -63,6 +79,9 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
   
   const phaseColors = ["#e91e63", "#00bcd4", "#9c27b0", "#ffc107", "#66bd0e"];  
   const phaseColor = phaseColors[phaseIndex % phaseColors.length];  
+  
+  const fieldsConfig = NODES[ceType]?.modal_config.fields || DEFAULT_FIELDS_CONFIG;  
+  const tabulatorConfig = NODES[ceType]?.tabulator_config.columns || DEFAULT_TABULATOR_CONFIG.columns;  
   
   const wrappedModalHtml = `  
   <div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">  
@@ -84,7 +103,7 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
           <div id="dynamicTable-${ceId}" class="tabulator-table"></div>  
           <hr>  
           <form id="ceForm-${ceId}">  
-            ${generateFormFields(NODES[ceType]?.modal_config.fields, aiGeneratedData.fields)}  
+            ${generateFormFields(fieldsConfig, aiGeneratedData.fields)}  
           </form>  
           <div class="row mt-2">  
             <div class="col">  
@@ -113,7 +132,7 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
   
     modalElement.addEventListener('shown.bs.modal', function () {  
       const tableElementId = `#dynamicTable-${ceId}`;  
-      const table = initializeTabulatorTable(tableElementId, tableData, tabulatorColumns);  
+      const table = initializeTabulatorTable(tableElementId, tableData, tabulatorConfig);  
       modalElement._tabulator = table;  
     });  
   
@@ -126,6 +145,7 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
     console.error(`Modal element not found in the DOM for CE ID: ${ceId}`);  
   }  
 }  
+
   
 function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {  
   const tableElement = document.querySelector(tableSelector);  
@@ -206,26 +226,63 @@ function populateFormFields(ceId, aiData) {
   }  
 }  
   
-  
+document.addEventListener('DOMContentLoaded', function () {  
+  setupEventListeners();  
+  const formFieldsContainer = document.getElementById('dynamicModalContainer');  
+  if (formFieldsContainer) {  
+    console.log("Form fields container found:", formFieldsContainer);  
+    formFieldsContainer.innerHTML = '';  // Ensure it's initialized correctly  
+  } else {  
+    console.error("Form fields container not found.");  
+  }  
+});  
+
 function generateFormFields(fieldsConfig, aiData) {  
+  console.log("generateFormFields called with fieldsConfig:", fieldsConfig);  
+  console.log("generateFormFields called with aiData:", aiData);  
+  
   if (!fieldsConfig) {  
+    console.error("No fieldsConfig provided.");  
     return 'No form fields available.';  
   }  
   
   return fieldsConfig.map(field => {  
-    return `  
-      <div class="form-group">  
-        <label for="${field.name}">${field.placeholder}</label>  
-        ${field.type === 'textarea' ? `  
-          <textarea class="form-control" id="${field.name}" name="${field.name}" placeholder="${field.placeholder}">${aiData[field.name] || ''}</textarea>  
-        ` : `  
-          <input type="${field.type}" class="form-control" id="${field.name}" name="${field.name}" placeholder="${field.placeholder}" value="${aiData[field.name] || ''}">  
-        `}  
-      </div>  
-    `;  
-  }).join('');  
-}     
+    console.log("Generating field:", field);  
   
+    const fieldValue = aiData[field.name] || '';  
+    const placeholder = field.placeholder || '';  
+  
+    if (field.type === 'textarea') {  
+      return `  
+        <div class="form-group">  
+          <label for="${field.name}">${placeholder}</label>  
+          <textarea class="form-control" id="${field.name}" name="${field.name}" placeholder="${placeholder}">${fieldValue}</textarea>  
+        </div>  
+      `;  
+    } else {  
+      return `  
+        <div class="form-group">  
+          <label for="${field.name}">${placeholder}</label>  
+          <input type="${field.type}" class="form-control" id="${field.name}" name="${field.name}" placeholder="${placeholder}" value="${fieldValue}">  
+        </div>  
+      `;  
+    }  
+  }).join('');  
+}  
+  
+// Debug logging to verify the generated form fields  
+document.addEventListener('DOMContentLoaded', function () {  
+  setupEventListeners();  
+  const formFieldsContainer = document.getElementById('dynamicModalContainer');  
+  if (formFieldsContainer) {  
+    console.log("Form fields container found:", formFieldsContainer);  
+    console.log("Generated form fields HTML:", formFieldsContainer.innerHTML);  
+  } else {  
+    console.error("Form fields container not found.");  
+  }  
+});  
+
+    
 function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseName, phaseIndex, ssolGoal) {  
   const addRowButton = modalElement.querySelector(`#addRowButton-${ceId}`);  
   const generateRowButton = modalElement.querySelector(`#generateRowButton-${ceId}`);  
@@ -299,8 +356,12 @@ function reinitializeTabulatorPagination(table) {
   const rowCount = table.getDataCount();  
   const shouldPaginate = rowCount > 5;  
   
-  // Use setPageMode instead of setPagination  
-  table.setPageMode(shouldPaginate ? "local" : false); // Enable pagination only if shouldPaginate is true  
+  if (typeof table.setPageMode === 'function') {  
+    table.setPageMode(shouldPaginate ? "local" : false); // Enable pagination only if shouldPaginate is true  
+  } else {  
+    console.error("Tabulator's setPageMode function is not available");  
+  }  
+  
   table.setPageSize(5);  
   
   // Optionally, update the pagination controls visibility  
@@ -309,6 +370,7 @@ function reinitializeTabulatorPagination(table) {
     paginationElement.style.display = shouldPaginate ? 'block' : 'none';  
   }  
 }  
+
 
   
 function saveCEChanges(ceId, updatedData) {  
