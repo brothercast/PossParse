@@ -56,18 +56,18 @@ function handleCEPillClick(event) {
 
 // Define default configurations for nodes not found in NODES  
 const DEFAULT_FIELDS_CONFIG = [  
-  { type: 'text', name: 'detail', placeholder: 'Detail' },  
-  { type: 'file', name: 'supporting_files', placeholder: 'Supporting Files' },  
+  { type: 'text', name: 'subject', placeholder: 'Subject' },  
+  { type: 'textarea', name: 'details', placeholder: 'Details' },  
   { type: 'text', name: 'stakeholders', placeholder: 'Stakeholders' }  
 ];  
   
 const DEFAULT_TABULATOR_CONFIG = {  
   columns: [  
-    { title: 'Detail', field: 'detail', editor: 'input' },  
-    { title: 'Supporting Files', field: 'supporting_files', editor: 'input' },  
+    { title: 'Subject', field: 'subject', editor: 'input' },  
+    { title: 'Details', field: 'details', editor: 'input' },  
     { title: 'Stakeholders', field: 'stakeholders', editor: 'input' }  
   ]  
-};  
+}; 
   
 // Function to display the CE modal  
 function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseIndex, aiGeneratedData = { fields: {} }, tableData, tabulatorColumns, ssolGoal) {  

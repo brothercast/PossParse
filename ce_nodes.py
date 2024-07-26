@@ -4,8 +4,8 @@ NODES = {
         "icon": "fa-solid fa-question-circle",  
         "modal_config": {  
             "fields": [  
-                {"type": "text", "name": "detail", "placeholder": "Detail"},  
-                {"type": "file", "name": "supporting_files", "placeholder": "Supporting Files"},  
+                {"type": "text", "name": "subject", "placeholder": "Subject"},  
+                {"type": "textarea", "name": "details", "placeholder": "Details"},  
                 {"type": "text", "name": "stakeholders", "placeholder": "Stakeholders"}  
             ],  
             "explanation": "Default Resource Node.",  
@@ -13,8 +13,8 @@ NODES = {
         },  
         "tabulator_config": {  
             "columns": [  
-                {"title": "Detail", "field": "detail", "editor": "input"},  
-                {"title": "Supporting Files", "field": "supporting_files", "editor": "input"},  
+                {"title": "Subject", "field": "subject", "editor": "input"},  
+                {"title": "Details", "field": "details", "editor": "input"},  
                 {"title": "Stakeholders", "field": "stakeholders", "editor": "input"}  
             ]  
         }  

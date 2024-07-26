@@ -647,7 +647,19 @@ body > main > div > div.row.outcome-header {
   vertical-align: middle;  
 }  
 
-
+/* Styles for Source COS text */  
+.source-cos-label {  
+  font-family: 'Unica One', sans-serif;  
+  font-weight: 500;  
+  font-size: 1.2em;  
+  color: #333;  
+}  
+  
+.source-cos-text {  
+  font-family: 'Jost', sans-serif;  
+  font-weight: 400;  
+  color: #333;  
+}  
 
 /* Tabulator table styling */  
 .tabulator {  

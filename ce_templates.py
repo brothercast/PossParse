@@ -25,8 +25,8 @@ BASE_MODAL_TEMPLATE = """
       </div>  
       <!-- Modal Body -->  
       <div class="modal-body">  
+        <p><span class="source-cos-label">Source COS:</span> <span class="source-cos-text">{{ cos_content }}</span></p>  
         <p>{{ ai_generated_data.get('contextual_description', 'No contextual description available.') }}</p>  
-        <p><strong>Source COS:</strong> {{ cos_content }}</p>  
         <div id="dynamicTable-{{ ce_id }}" class="tabulator-table"></div>  
         <hr>  
         <form id="ceForm-{{ ce_id }}">  
@@ -50,16 +50,17 @@ BASE_MODAL_TEMPLATE = """
   </div>  
 </div>  
 """  
+
 DEFAULT_FIELDS_CONFIG = [  
-    {"type": "text", "name": "detail", "placeholder": "Detail"},  
-    {"type": "file", "name": "supporting_files", "placeholder": "Supporting Files"},  
+    {"type": "text", "name": "subject", "placeholder": "Subject"},  
+    {"type": "textarea", "name": "details", "placeholder": "Details"},  
     {"type": "text", "name": "stakeholders", "placeholder": "Stakeholders"}  
 ]  
   
 DEFAULT_TABULATOR_CONFIG = {  
     "columns": [  
-        {"title": "Detail", "field": "detail", "editor": "input"},  
-        {"title": "Supporting Files", "field": "supporting_files", "editor": "input"},  
+        {"title": "Subject", "field": "subject", "editor": "input"},  
+        {"title": "Details", "field": "details", "editor": "input"},  
         {"title": "Stakeholders", "field": "stakeholders", "editor": "input"}  
     ]  
 }  
