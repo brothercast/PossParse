@@ -184,7 +184,7 @@ def get_ce_modal_route(ce_type):
                 raise ValueError(f"Missing required key: {key}")  
   
         # Fetch AI-generated data  
-                current_app.logger.info(f"Calling generate_ai_data with COS content: {data['cos_content']}, CE ID: {data['ce_id']}, CE Type: {ce_type}, SSOL Goal: {data['ssol_goal']}")  
+        current_app.logger.info(f"Calling generate_ai_data with COS content: {data['cos_content']}, CE ID: {data['ce_id']}, CE Type: {ce_type}, SSOL Goal: {data['ssol_goal']}")  
         ai_generated_data = generate_ai_data(data['cos_content'], data['ce_id'], ce_type, data['ssol_goal'])  
         current_app.logger.debug(f"AI Generated Data: {ai_generated_data}")  
   
@@ -197,7 +197,7 @@ def get_ce_modal_route(ce_type):
         tabulator_columns = node_info.get('tabulator_config', {}).get('columns', [])  
   
         # Generate modal content with all the necessary data  
-        modal_content = generate_dynamic_modal(ce_type, ce_data, data['cos_content'], ai_generated_data, data['phase_name'], data['phase_index'])  
+        modal_content = generate_dynamic_modal(ce_type, ce_data, data['cos_content'], ai_generated_data, data['phase_name'], data['phase_index'], ce_store)  
   
         return jsonify(  
             modal_html=modal_content,  
@@ -211,6 +211,7 @@ def get_ce_modal_route(ce_type):
     except Exception as e:  
         current_app.logger.error(f"Error getting modal content for CE type {ce_type}: {e}", exc_info=True)  
         return jsonify(error=str(e)), 500  
+
   
 @routes_bp.route('/analyze_cos/<string:cos_id>', methods=['GET'])  
 def analyze_cos_route(cos_id):  

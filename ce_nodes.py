@@ -18,7 +18,7 @@ NODES = {
                 {"title": "Stakeholders", "field": "stakeholders", "editor": "input"}  
             ]  
         }  
-    },   
+    },  
     "Research": {  
         "definition": "Aggregates and summarizes research materials and resources pertinent to the COS.",  
         "icon": "fa-solid fa-flask",  
@@ -26,7 +26,7 @@ NODES = {
             "fields": [  
                 {"type": "text", "name": "research_topic", "placeholder": "Research Topic"},  
                 {"type": "textarea", "name": "research_summary", "placeholder": "Research Summary"},  
-                {"type": "text", "name": "researcher_name", "placeholder": "Researcher Name"}  
+                {"type": "text", "name": "research_website", "placeholder": "Research Website"}  
             ],  
             "explanation": "Capture relevant research aspects of the node.",  
             "ai_context": "Provide detailed research information, studies, and academic resources relevant to the COS."  
@@ -35,7 +35,7 @@ NODES = {
             "columns": [  
                 {"title": "Research Topic", "field": "research_topic", "editor": "input"},  
                 {"title": "Research Summary", "field": "research_summary", "editor": "textarea"},  
-                {"title": "Researcher Name", "field": "researcher_name", "editor": "input"}  
+                {"title": "Research Website", "field": "research_website", "editor": "input"}  
             ]  
         }  
     },  
@@ -46,7 +46,8 @@ NODES = {
             "fields": [
                 {"type": "text", "name": "stakeholder_name", "placeholder": "Stakeholder Name"},
                 {"type": "textarea", "name": "stakeholder_role", "placeholder": "Stakeholder Role"},
-                {"type": "text", "name": "contact_info", "placeholder": "Contact Info"}
+                {"type": "email", "name": "stakeholder_email", "placeholder": "Stakeholder Email"},
+                {"type": "text", "name": "stakeholder_phone", "placeholder": "Stakeholder Phone"},
             ],
             "explanation": "Detail the roles and contact information of stakeholders related to the COS.",
             "ai_context": "Identify and provide details of stakeholders involved in the COS."
@@ -55,7 +56,8 @@ NODES = {
             "columns": [
                 {"title": "Stakeholder Name", "field": "stakeholder_name", "editor": "input"},
                 {"title": "Stakeholder Role", "field": "stakeholder_role", "editor": "textarea"},
-                {"title": "Contact Info", "field": "contact_info", "editor": "input"}
+                {"title": "Stakeholder Email", "field": "stakeholder_email", "editor": "input"},
+                {"title": "Stakeholder Phone", "field": "stakeholder_phone", "editor": "input"},
             ]
         }
     },

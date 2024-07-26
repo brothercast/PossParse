@@ -1,4 +1,5 @@
 # ce_templates.py
+from asyncio.log import logger
 import json
 import logging
 from store import ce_store
@@ -49,8 +50,6 @@ BASE_MODAL_TEMPLATE = """
   </div>  
 </div>  
 """  
- 
-
 def generate_form_field(field_type, field_name, field_value='', placeholder='', options=None):  
     field_templates = {  
         'text': '<div class="form-group"><label for="{name}">{label}</label><input type="text" class="form-control" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}" data-placeholder="{placeholder}"/></div>',  
@@ -77,6 +76,7 @@ def generate_form_field(field_type, field_name, field_value='', placeholder='', 
         return field_templates.get(field_type, field_templates['text']).format(name=field_name, label=label, value=field_value, placeholder=placeholder, checked=checked)  
 
 def generate_form_fields(fields_config, ai_generated_data=None):  
+    current_app.logger.debug(f"Generating form fields with config: {fields_config}")  
     form_fields_html = ""  
     for field in fields_config:  
         # Check if AI-generated data exists for the field  
@@ -92,7 +92,7 @@ def generate_form_fields(fields_config, ai_generated_data=None):
     if not form_fields_html:  
         form_fields_html = "No form fields available."  
     return form_fields_html  
-  
+
 def generate_table_headers(fields_config):  
     table_headers_html = ""  
     for field in fields_config:  
@@ -100,8 +100,7 @@ def generate_table_headers(fields_config):
         table_headers_html += f"<th>{header_label}</th>"  
     return table_headers_html  
 
-
-def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated_data=None, phase_name=None, phase_index=None):  
+def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated_data=None, phase_name=None, phase_index=None, ce_store=None):  
     current_app.logger.debug(f"Generating modal for CE type: {ce_type}")  
     current_app.logger.debug(f"CE data: {ce_data}")  
     current_app.logger.debug(f"COS content: {cos_content}")  
@@ -111,6 +110,7 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
   
     # Default to "Default" node type if the given ce_type is not found in NODES  
     node_info = NODES.get(ce_type, NODES['Default'])  
+  
     fields_config = node_info.get('modal_config', {}).get('fields', [])  
     tabulator_config = node_info.get('tabulator_config', {})  
   
@@ -122,7 +122,7 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
   
     node_name = ce_type.replace('_', ' ').title()  
     ai_context_description = ai_generated_data.get('contextual_description', 'No contextual description provided.')  
-    cos_content_with_pills = replace_ce_tags_with_pills(cos_content)  
+    cos_content_with_pills = replace_ce_tags_with_pills(cos_content, ce_store)  
   
     current_app.logger.debug(f"Node Info: {node_info}")  
     current_app.logger.debug(f"Form Fields: {form_fields}")  
@@ -154,9 +154,40 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
   
     return modal_content  
 
- 
+def generate_fa_icon_for_node_type(node_type):  
+    messages = [  
+        {"role": "system", "content": "You are an AI that suggests a FontAwesome 6 Solid (fas) class icon based on the node type name. Output only the icon class in JSON format."},  
+        {"role": "user", "content": f"What is the best FontAwesome icon class for the node type '{node_type}'?"}  
+    ]  
+    response_content = generate_chat_response(messages, role='Icon Generation', task='Fetch FontAwesome 6 Icon', temperature=0.37)  
+  
+    try:  
+        # Log the raw response content for debugging  
+        current_app.logger.debug(f"Raw response content: {response_content}")  
+  
+        # Parse the JSON string into a dictionary  
+        response_data = json.loads(response_content)  
+        # Make sure to match the keys exactly with the response content  
+        icon_class = response_data.get("iconClass")  # Changed from "icon" to "iconClass"  
+  
+        if not icon_class:  
+            # Log a warning if expected keys are missing  
+            current_app.logger.warning("Missing 'iconClass' in AI response.")  
+            raise ValueError("Failed to generate icon. Please try again.")  
+  
+        return icon_class  
+  
+    except json.JSONDecodeError as e:  
+        # Log the JSON parsing error  
+        current_app.logger.error(f"JSON parsing error: {e}")  
+        raise ValueError("Failed to parse JSON response. Please try again.")  
+  
+    except Exception as e:  
+        # Log any other exceptions  
+        current_app.logger.error(f"Unexpected error: {e}")  
+        raise  
 
-def replace_ce_tags_with_pills(content):  
+def replace_ce_tags_with_pills(content, ce_store):  
     soup = BeautifulSoup(content, 'html.parser')  
     for ce_tag in soup.find_all('ce'):  
         ce_uuid = ce_tag['id']  
@@ -168,7 +199,6 @@ def replace_ce_tags_with_pills(content):
             'class': 'badge rounded-pill bg-secondary ce-pill',  
             'data-ce-id': ce_uuid,  
             'data-ce-type': ce_type,  
-            'title': "Double-click to switch to this Conditional Element"  
         })  
   
         # Add green dot if the CE is new, otherwise add resource tally  
@@ -177,10 +207,10 @@ def replace_ce_tags_with_pills(content):
             new_tag.insert(0, dot)  
         else:  
             tally = soup.new_tag('span', attrs={'class': 'resource-tally'})  
-            tally.string = str(resource_count)  
+            tally.string = f"({resource_count})"  
             new_tag.insert(0, tally)  
   
-        new_tag.string = ce_tag.string  
+        new_tag.append(ce_tag.string)  
         ce_tag.replace_with(new_tag)  
     return str(soup)  
 
