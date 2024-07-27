@@ -185,7 +185,7 @@ def get_ce_modal_route(ce_type):
   
         # Fetch AI-generated data  
         current_app.logger.info(f"Calling generate_ai_data with COS content: {data['cos_content']}, CE ID: {data['ce_id']}, CE Type: {ce_type}, SSOL Goal: {data['ssol_goal']}")  
-        ai_generated_data = generate_ai_data(data['cos_content'], data['ce_id'], ce_type, data['ssol_goal'])  
+        ai_generated_data = generate_ai_data(data['cos_content'], data['ce_id'], ce_type, data['ssol_goal'], existing_ces=[])  # Provide an empty list by default  
         current_app.logger.debug(f"AI Generated Data: {ai_generated_data}")  
   
         # Fetch CE data including table data  
@@ -211,6 +211,7 @@ def get_ce_modal_route(ce_type):
     except Exception as e:  
         current_app.logger.error(f"Error getting modal content for CE type {ce_type}: {e}", exc_info=True)  
         return jsonify(error=str(e)), 500  
+
 
   
 @routes_bp.route('/analyze_cos/<string:cos_id>', methods=['GET'])  
@@ -269,12 +270,13 @@ def ai_query_endpoint():
         ce_id = data.get('ce_id')  
         ce_type = data.get('ce_type')  
         ssol_goal = data.get('ssol_goal')  
+        existing_ces = data.get('existing_ces', [])  # Include existing CEs  
   
         if not all([cos_text, ce_id, ce_type, ssol_goal]):  
             raise BadRequest('Missing required fields in JSON payload.')  
   
         # Generate AI data  
-        ai_response = generate_ai_data(cos_text, ce_id, ce_type, ssol_goal)  
+        ai_response = generate_ai_data(cos_text, ce_id, ce_type, ssol_goal, existing_ces)  
         current_app.logger.info(f"AI Response Data: {ai_response}")  # Add logging for AI response data  
         return jsonify(ai_response=ai_response), 200  
     except BadRequest as e:  

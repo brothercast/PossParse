@@ -169,7 +169,11 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
         form_fields=form_fields,  
         table_headers=table_headers,  
         table_data=table_data,  
-        tabulator_columns=tabulator_config['columns'],  
+        tabulator_columns=[  
+            # Add a checkbox column for row selection  
+            { 'formatter': 'rowSelection', 'titleFormatter': 'rowSelection', 'hozAlign': 'center', 'headerSort': False, 'cellClick': lambda e, cell: cell.getRow().toggleSelect() },  
+            *tabulator_config['columns'],  
+        ],  
         ce_data=ce_data or {'id': 'unknown_ce_id'},  
         cos_content=cos_content_with_pills,  
         ai_generated_data=ai_generated_data,  
@@ -182,7 +186,7 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
   
     current_app.logger.debug(f"Rendered Modal Content: {modal_content}")  
   
-    return modal_content  
+    return modal_content 
   
 def generate_fa_icon_for_node_type(node_type):  
     messages = [  
@@ -248,7 +252,10 @@ def get_ce_modal(ce_type):
     modal_html = generate_dynamic_modal(ce_type)  
     return modal_html  
   
-def generate_ai_data(cos_text, ce_id, ce_type, ssol_goal):  
+def generate_ai_data(cos_text, ce_id, ce_type, ssol_goal, existing_ces=None):  
+    if existing_ces is None:  
+        existing_ces = []  # Default to an empty list if no existing CEs are provided  
+  
     node_info = NODES.get(ce_type, NODES['Default'])  
     ai_context = node_info.get('modal_config', {}).get('ai_context', '')  
     modal_config_fields = node_info.get('modal_config', {}).get('fields', [])  
@@ -279,18 +286,19 @@ def generate_ai_data(cos_text, ce_id, ce_type, ssol_goal):
                 f"CE Type: {ce_type}\n"  
                 f"Context: {ai_context}\n"  
                 f"Form Field Labels: {', '.join(field_labels)}\n"  
+                f"Existing Conditional Elements: {json.dumps(existing_ces)}\n"  # Include existing CEs  
                 f"Based on the SSOL goal and the context provided by the parent COS and other conditional elements, "  
                 f"generate a JSON response with the following structure:\n"  
                 f"{{\n"  
                 f"  \"summary\": \"Summary of the Conditional Element\",\n"  
                 f"  \"contextual_description\": \"Contextual description of the CE\",\n"  
                 f"  \"fields\": {{\n"  
-                f"    \"field_label_1\": \"Value for field_label_1\",\n"  
-                f"    \"field_label_2\": \"Value for field_label_2\",\n"  
+                f"    \"field_label_1\": \"Unique value for field_label_1\",\n"  
+                f"    \"field_label_2\": \"Unique value for field_label_2\",\n"  
                 f"    ...\n"  
                 f"  }}\n"  
                 f"}}\n"  
-                f"Fill in the values for the form fields based on the COS and context provided."  
+                f"Ensure that the generated fields are unique and provide new information that complements the existing conditional elements."  
             )  
         }  
     ]  

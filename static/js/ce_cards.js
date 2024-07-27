@@ -100,17 +100,25 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
         <div class="modal-body">  
           <h5>Source COS: ${cosContent}</h5>  
           <p>${aiGeneratedData.contextual_description || 'No contextual description available.'}</p>  
-          <div id="dynamicTable-${ceId}" class="tabulator-table"></div>  
-          <hr>  
+          <div id="dynamicTable-${ceId}" class="tabulator-table mb-3"></div>  
+            
+          <!-- Buttons for row operations -->  
+          <div class="row justify-content-start mb-3">  
+            <div class="col-auto">  
+              <button type="button" class="btn btn-sm btn-danger" id="deleteSelectedRowsButton-${ceId}">Delete</button>  
+              <button type="button" class="btn btn-sm btn-secondary" id="duplicateSelectedRowsButton-${ceId}">Duplicate</button>  
+            </div>  
+          </div>  
+  
           <form id="ceForm-${ceId}">  
             ${generateFormFields(fieldsConfig, aiGeneratedData.fields)}  
           </form>  
           <div class="row mt-2">  
             <div class="col">  
-              <button type="button" class="btn btn-success mb-2 w-100" id="addRowButton-${ceId}" style="padding-top: 10px;">Add ${ceType}</button>  
+              <button type="button" class="btn btn-success w-100" id="addRowButton-${ceId}" style="padding-top: 10px;">Add ${ceType}</button>  
             </div>  
             <div class="col">  
-              <button type="button" class="btn btn-primary mb-2 w-100" id="generateRowButton-${ceId}" style="padding-top: 10px;">Generate ${ceType}</button>  
+              <button type="button" class="btn btn-primary w-100" id="generateRowButton-${ceId}" style="padding-top: 10px;">Generate ${ceType}</button>  
             </div>  
           </div>  
         </div>  
@@ -146,96 +154,6 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
   }  
 }  
 
-  
-function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {  
-  const tableElement = document.querySelector(tableSelector);  
-  if (!tableElement) {  
-    console.error('Table element not found:', tableSelector);  
-    return;  
-  }  
-  
-  const shouldPaginate = tableData.length > 5;  
-  
-  return new Tabulator(tableSelector, {  
-    data: tableData.length ? tableData : [{}],  
-    layout: "fitColumns",  
-    pagination: shouldPaginate ? "local" : false, // Enable pagination only if shouldPaginate is true  
-    paginationSize: 5,  
-    movableColumns: true,  
-    resizableRows: true,  
-    columns: tabulatorColumns,  
-    paginationElement: shouldPaginate ? undefined : false, // Hide pagination controls if shouldPaginate is false  
-  });  
-}  
-  
-function clearFormFields(formSelector) {  
-  const form = document.querySelector(formSelector);  
-  if (form) {  
-    form.querySelectorAll('input, textarea, select').forEach(field => {  
-      field.value = '';  // Clear the field value  
-      field.placeholder = field.getAttribute('data-placeholder') || field.placeholder;  // Reset the placeholder text  
-    });  
-  }  
-}  
-  
-function generateFieldsFromAI(ceId, ceType) {  
-  const form = document.querySelector(`#ceForm-${ceId}`);  
-  const cosContent = document.querySelector('.cos-content-cell').textContent.trim();  
-  const ssolGoal = document.querySelector('#ssol-goal').textContent.trim();  
-  
-  const requestData = {  
-    ce_id: ceId,  
-    ce_type: ceType,  
-    cos_content: cosContent,  
-    ssol_goal: ssolGoal  
-  };  
-  
-  console.log("Sending AI query request data:", requestData); // Add logging  
-  
-  fetch('/ai-query-endpoint', {  
-    method: 'POST',  
-    headers: {  
-      'Content-Type': 'application/json'  
-    },  
-    body: JSON.stringify(requestData)  
-  })  
-    .then(response => {  
-      console.log("AI query response status:", response.status); // Add logging  
-      return response.json();  
-    })  
-    .then(data => {  
-      console.log("AI query response data:", data); // Add logging  
-      if (data && data.ai_response) {  
-        populateFormFields(ceId, data.ai_response.fields);  
-      } else {  
-        throw new Error('AI response not found or error in response');  
-      }  
-    })  
-    .catch(error => console.error('Error generating fields from AI:', error));  
-}  
-  
-function populateFormFields(ceId, aiData) {  
-  const form = document.querySelector(`#ceForm-${ceId}`);  
-  if (form) {  
-    Object.keys(aiData).forEach(fieldName => {  
-      const input = form.querySelector(`[name="${fieldName}"]`);  
-      if (input) {  
-        input.value = aiData[fieldName];  
-      }  
-    });  
-  }  
-}  
-  
-document.addEventListener('DOMContentLoaded', function () {  
-  setupEventListeners();  
-  const formFieldsContainer = document.getElementById('dynamicModalContainer');  
-  if (formFieldsContainer) {  
-    console.log("Form fields container found:", formFieldsContainer);  
-    formFieldsContainer.innerHTML = '';  // Ensure it's initialized correctly  
-  } else {  
-    console.error("Form fields container not found.");  
-  }  
-});  
 
 function generateFormFields(fieldsConfig, aiData) {  
   console.log("generateFormFields called with fieldsConfig:", fieldsConfig);  
@@ -270,23 +188,152 @@ function generateFormFields(fieldsConfig, aiData) {
   }).join('');  
 }  
   
-// Debug logging to verify the generated form fields  
+function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {  
+  const tableElement = document.querySelector(tableSelector);  
+  if (!tableElement) {  
+    console.error('Table element not found:', tableSelector);  
+    return;  
+  }  
+  
+  const shouldPaginate = tableData.length > 5;  
+  
+  return new Tabulator(tableSelector, {  
+    data: tableData.length ? tableData : [{}],  
+    layout: "fitColumns",  
+    pagination: shouldPaginate ? "local" : false,  
+    paginationSize: 5,  
+    movableColumns: true,  
+    resizableRows: true,  
+    movableRows: true, // Enable user-movable rows  
+    selectable: true, // Enable row selection  
+    reactiveData: true, // Enable reactive data  
+    columns: [  
+      // Add a checkbox column for row selection  
+      { formatter: "rowSelection", titleFormatter: "rowSelection", hozAlign: "center", headerSort: false, width: 40, resizable: false, cellClick: function (e, cell) { cell.getRow().toggleSelect(); } },  
+      ...tabulatorColumns,  
+    ],  
+    rowHandle: {  
+      handle: '<div class="handle">☰</div>', // Custom handle icon  
+      position: 'left', // Position the handle on the left  
+    },  
+    placeholder: "No Data Available", // Placeholder text when no data is available  
+  });  
+}  
+  
+function clearFormFields(formSelector) {  
+  const form = document.querySelector(formSelector);  
+  if (form) {  
+    form.querySelectorAll('input, textarea, select').forEach(field => {  
+      field.value = '';  // Clear the field value  
+      field.placeholder = field.getAttribute('data-placeholder') || field.placeholder;  // Reset the placeholder text  
+    });  
+  }  
+}  
+  
+function generateFieldsFromAI(ceId, ceType, existingCEs) {  
+  const form = document.querySelector(`#ceForm-${ceId}`);  
+  const cosContent = document.querySelector('.cos-content-cell').textContent.trim();  
+  const ssolGoal = document.querySelector('#ssol-goal').textContent.trim();  
+  
+  const requestData = {  
+    ce_id: ceId,  
+    ce_type: ceType,  
+    cos_content: cosContent,  
+    ssol_goal: ssolGoal,  
+    existing_ces: existingCEs  // Include existing CEs  
+  };  
+  
+  console.log("Sending AI query request data:", requestData); // Add logging  
+  
+  fetch('/ai-query-endpoint', {  
+    method: 'POST',  
+    headers: {  
+      'Content-Type': 'application/json'  
+    },  
+    body: JSON.stringify(requestData)  
+  })  
+    .then(response => {  
+      console.log("AI query response status:", response.status); // Add logging  
+      return response.json();  
+    })  
+    .then(data => {  
+      console.log("AI query response data:", data); // Add logging  
+      if (data && data.ai_response) {  
+        populateFormFields(ceId, data.ai_response.fields);  
+      } else {  
+        throw new Error('AI response not found or error in response');  
+      }  
+    })  
+    .catch(error => console.error('Error generating fields from AI:', error));  
+}  
+
+  
+function populateFormFields(ceId, aiData) {  
+  const form = document.querySelector(`#ceForm-${ceId}`);  
+  if (form) {  
+    Object.keys(aiData).forEach(fieldName => {  
+      const input = form.querySelector(`[name="${fieldName}"]`);  
+      if (input) {  
+        input.value = aiData[fieldName];  
+      }  
+    });  
+  }  
+}  
+  
 document.addEventListener('DOMContentLoaded', function () {  
   setupEventListeners();  
   const formFieldsContainer = document.getElementById('dynamicModalContainer');  
   if (formFieldsContainer) {  
     console.log("Form fields container found:", formFieldsContainer);  
-    console.log("Generated form fields HTML:", formFieldsContainer.innerHTML);  
+    formFieldsContainer.innerHTML = '';  // Ensure it's initialized correctly  
   } else {  
     console.error("Form fields container not found.");  
   }  
 });  
 
-    
+function generateFieldsFromAI(ceId, ceType, existingCEs) {  
+  const form = document.querySelector(`#ceForm-${ceId}`);  
+  const cosContent = document.querySelector('.cos-content-cell').textContent.trim();  
+  const ssolGoal = document.querySelector('#ssol-goal').textContent.trim();  
+  
+  const requestData = {  
+    ce_id: ceId,  
+    ce_type: ceType,  
+    cos_content: cosContent,  
+    ssol_goal: ssolGoal,  
+    existing_ces: existingCEs  // Include existing CEs  
+  };  
+  
+  console.log("Sending AI query request data:", requestData); // Add logging  
+  
+  fetch('/ai-query-endpoint', {  
+    method: 'POST',  
+    headers: {  
+      'Content-Type': 'application/json'  
+    },  
+    body: JSON.stringify(requestData)  
+  })  
+    .then(response => {  
+      console.log("AI query response status:", response.status); // Add logging  
+      return response.json();  
+    })  
+    .then(data => {  
+      console.log("AI query response data:", data); // Add logging  
+      if (data && data.ai_response) {  
+        populateFormFields(ceId, data.ai_response.fields);  
+      } else {  
+        throw new Error('AI response not found or error in response');  
+      }  
+    })  
+    .catch(error => console.error('Error generating fields from AI:', error));  
+}  
+
 function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseName, phaseIndex, ssolGoal) {  
   const addRowButton = modalElement.querySelector(`#addRowButton-${ceId}`);  
   const generateRowButton = modalElement.querySelector(`#generateRowButton-${ceId}`);  
   const saveChangesButton = modalElement.querySelector('.btn-save-changes');  
+  const deleteSelectedRowsButton = modalElement.querySelector(`#deleteSelectedRowsButton-${ceId}`);  
+  const duplicateSelectedRowsButton = modalElement.querySelector(`#duplicateSelectedRowsButton-${ceId}`);  
   
   if (addRowButton) {  
     addRowButton.addEventListener('click', () => {  
@@ -329,11 +376,15 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
       const inputs = form.querySelectorAll('input, textarea, select');  
       let emptyFields = Array.from(inputs).filter(input => input.value.trim() === '');  
   
+      // Get existing CEs from the Tabulator table if available, otherwise pass an empty list  
+      const table = modalElement._tabulator; // Retrieve the Tabulator instance  
+      const existingCEs = table ? table.getData() : [];  
+  
       if (emptyFields.length > 0) {  
-        generateFieldsFromAI(ceId, ceType);  
+        generateFieldsFromAI(ceId, ceType, existingCEs);  
       } else {  
         if (confirm('There are already values in the fields. Do you want to overwrite them?')) {  
-          generateFieldsFromAI(ceId, ceType);  
+          generateFieldsFromAI(ceId, ceType, existingCEs);  
         }  
       }  
     });  
@@ -348,6 +399,25 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
         updatedData[key] = value || '';  // Ensure value is not null  
       });  
       saveCEChanges(ceId, updatedData);  
+    });  
+  }  
+  
+  if (deleteSelectedRowsButton) {  
+    deleteSelectedRowsButton.addEventListener('click', () => {  
+      const table = modalElement._tabulator;  
+      const selectedRows = table.getSelectedRows();  
+      selectedRows.forEach(row => row.delete());  
+    });  
+  }  
+  
+  if (duplicateSelectedRowsButton) {  
+    duplicateSelectedRowsButton.addEventListener('click', () => {  
+      const table = modalElement._tabulator;  
+      const selectedRows = table.getSelectedRows();  
+      selectedRows.forEach(row => {  
+        const rowData = row.getData();  
+        table.addRow(rowData, true); // Add duplicated row to the top  
+      });  
     });  
   }  
 }  
@@ -370,8 +440,6 @@ function reinitializeTabulatorPagination(table) {
     paginationElement.style.display = shouldPaginate ? 'block' : 'none';  
   }  
 }  
-
-
   
 function saveCEChanges(ceId, updatedData) {  
   const modalElement = document.querySelector(`#ceModal-${ceId}`);  
