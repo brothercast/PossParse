@@ -140,9 +140,9 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
   
     modalElement.addEventListener('shown.bs.modal', function () {  
       const tableElementId = `#dynamicTable-${ceId}`;  
-      const table = initializeTabulatorTable(tableElementId, tableData, tabulatorConfig);  
+      const table = initializeTabulatorTable(tableElementId, tableData, tabulatorColumns);  
       modalElement._tabulator = table;  
-    });  
+  });  
   
     modalElement.addEventListener('hidden.bs.modal', function () {  
       setupEventListeners(); // Reattach event listeners when modal is closed  
@@ -191,34 +191,34 @@ function generateFormFields(fieldsConfig, aiData) {
 function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {  
   const tableElement = document.querySelector(tableSelector);  
   if (!tableElement) {  
-    console.error('Table element not found:', tableSelector);  
-    return;  
+      console.error('Table element not found:', tableSelector);  
+      return;  
   }  
-  
+
+  // Determine whether to paginate based on data count  
   const shouldPaginate = tableData.length > 5;  
-  
+
   return new Tabulator(tableSelector, {  
-    data: tableData.length ? tableData : [{}],  
-    layout: "fitColumns",  
-    pagination: shouldPaginate ? "local" : false,  
-    paginationSize: 5,  
-    movableColumns: true,  
-    resizableRows: true,  
-    movableRows: true, // Enable user-movable rows  
-    selectable: true, // Enable row selection  
-    reactiveData: true, // Enable reactive data  
-    columns: [  
-      // Add a checkbox column for row selection  
-      { formatter: "rowSelection", titleFormatter: "rowSelection", hozAlign: "center", headerSort: false, width: 40, resizable: false, cellClick: function (e, cell) { cell.getRow().toggleSelect(); } },  
-      ...tabulatorColumns,  
-    ],  
-    rowHandle: {  
-      handle: '<div class="handle">☰</div>', // Custom handle icon  
-      position: 'left', // Position the handle on the left  
-    },  
-    placeholder: "No Data Available", // Placeholder text when no data is available  
+      data: tableData.length ? tableData : [{}],  
+      layout: "fitColumns",  
+      height: "150px",  // Initial height for accommodating one row  
+      maxHeight: "311px",  // Max height before pagination kicks in  
+      pagination: shouldPaginate ? "local" : false,  
+      paginationSize: 5,  
+      movableRows: true,  // Enable user-movable rows  
+      selectable: true,  // Enable row selection  
+      reactiveData: true,  // Enable reactive data  
+      columns: [  
+          { formatter: "handle", headerSort: false, width: 30, minWidth: 30 },  // Row handle  
+          { formatter: "rowSelection", titleFormatter: "rowSelection", hozAlign: "center", headerSort: false, width: 40, resizable: false, cellClick: (e, cell) => cell.getRow().toggleSelect() },  
+          ...tabulatorColumns,  
+      ],  
+      placeholder: "Add or Generate Data",  // Placeholder text when no data is available  
   });  
 }  
+
+ 
+
   
 function clearFormFields(formSelector) {  
   const form = document.querySelector(formSelector);  
@@ -360,9 +360,9 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
       let emptyRow = rows.find(row => Object.values(row.getData()).every(val => val === ''));  
   
       if (emptyRow) {  
-        emptyRow.update(rowData);  
+        emptyRow.update(rowData);  // Update the empty row with new data  
       } else {  
-        table.addRow(rowData, true); // Add row to the top  
+        table.addRow(rowData, true); // Add a new row if there's no empty row  
       }  
   
       clearFormFields(`#ceForm-${ceId}`);  
@@ -426,18 +426,48 @@ function reinitializeTabulatorPagination(table) {
   const rowCount = table.getDataCount();  
   const shouldPaginate = rowCount > 5;  
   
-  if (typeof table.setPageMode === 'function') {  
-    table.setPageMode(shouldPaginate ? "local" : false); // Enable pagination only if shouldPaginate is true  
+  if (typeof table.setPaginationMode === 'function') {  
+    table.setPaginationMode(shouldPaginate ? "local" : false); // Corrected method name  
   } else {  
-    console.error("Tabulator's setPageMode function is not available");  
+    console.error("Tabulator's setPaginationMode function is not available");  
   }  
   
   table.setPageSize(5);  
   
   // Optionally, update the pagination controls visibility  
-  const paginationElement = table.getPaginationElement();  
-  if (paginationElement) {  
-    paginationElement.style.display = shouldPaginate ? 'block' : 'none';  
+  const paginationElement = table.pagination; // Use the correct property to get the pagination element  
+  if (paginationElement && paginationElement.element) {  
+    paginationElement.element.style.display = shouldPaginate ? 'block' : 'none';  
+  }  
+}  
+  
+function clearFormFields(formSelector) {  
+  const form = document.querySelector(formSelector);  
+  if (form) {  
+    form.querySelectorAll('input, textarea, select').forEach(field => {  
+      field.value = '';  // Clear the field value  
+      field.placeholder = field.getAttribute('data-placeholder') || field.placeholder;  // Reset the placeholder text  
+    });  
+  }  
+}  
+
+  
+function reinitializeTabulatorPagination(table) {  
+  const rowCount = table.getDataCount();  
+  const shouldPaginate = rowCount > 5;  
+  
+  if (typeof table.setPaginationMode === 'function') {  
+    table.setPaginationMode(shouldPaginate ? "local" : false); // Corrected method name  
+  } else {  
+    console.error("Tabulator's setPaginationMode function is not available");  
+  }  
+  
+  table.setPageSize(5);  
+  
+  // Optionally, update the pagination controls visibility  
+  const paginationElement = table.pagination; // Use the correct property to get the pagination element  
+  if (paginationElement && paginationElement.element) {  
+    paginationElement.element.style.display = shouldPaginate ? 'block' : 'none';  
   }  
 }  
   

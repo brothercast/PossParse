@@ -23,23 +23,25 @@ BASE_MODAL_TEMPLATE = """
           <span aria-hidden="true">&times;</span>  
         </button>  
       </div>  
-      <!-- Modal Body -->  
-      <div class="modal-body">  
+        <!-- Modal Body -->  
+        <div class="modal-body">  
         <p><span class="source-cos-label">Source COS:</span> <span class="source-cos-text">{{ cos_content }}</span></p>  
         <p>{{ ai_generated_data.get('contextual_description', 'No contextual description available.') }}</p>  
-        <div id="dynamicTable-{{ ce_id }}" class="tabulator-table"></div>  
+        <div id="dynamicTable-{{ ce_id }}" class="tabulator-table" style="height: 150px; max-height: 311px;"></div>  
         <hr>  
         <form id="ceForm-{{ ce_id }}">  
-          {{ form_fields | safe }}  
+            {{ form_fields | safe }}  
         </form>  
         <div class="row mt-2">  
-          <div class="col">  
-            <button type="button" class="btn btn-success mb-2 w-100" id="addRowButton-{{ ce_id }}" style="padding-top: 10px;">Add {{ ce_type }}</button>  
-          </div>  
-          <div class="col">  
-            <button type="button" class="btn btn-primary mb-2 w-100" id="generateRowButton-{{ ce_id }}" style="padding-top: 10px;">Generate {{ ce_type }}</button>  
-          </div>  
+            <div class="col">  
+                <button type="button" class="btn btn-success mb-2 w-100" id="addRowButton-{{ ce_id }}" style="padding-top: 10px;">Add {{ ce_type }}</button>  
+            </div>  
+            <div class="col">  
+                <button type="button" class="btn btn-primary mb-2 w-100" id="generateRowButton-{{ ce_id }}" style="padding-top: 10px;">Generate {{ ce_type }}</button>  
+            </div>  
         </div>  
+    </div>  
+    
       </div>  
       <!-- Modal Footer -->  
       <div class="modal-footer">  
