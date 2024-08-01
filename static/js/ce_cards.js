@@ -205,20 +205,35 @@ function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {
     movableColumns: true,  
     resizableRows: true,  
     movableRows: true, // Enable user-movable rows  
-    selectable: true, // Enable row selection  
+    selectable: true,  // Enable row selection  
     reactiveData: true, // Enable reactive data  
     columns: [  
-      // Add a checkbox column for row selection  
-      { formatter: "rowSelection", titleFormatter: "rowSelection", hozAlign: "center", headerSort: false, width: 40, resizable: false, cellClick: function (e, cell) { cell.getRow().toggleSelect(); } },  
+      {  
+        title: "",  
+        width: 30,  
+        rowHandle: true,  
+        formatter: "handle",  
+        headerSort: false,  
+        resizable: false,  
+        hozAlign: "center"  
+      },  
+      {  
+        formatter: "rowSelection",  
+        titleFormatter: "rowSelection",  
+        hozAlign: "center",  
+        headerSort: false,  
+        width: 40,  
+        resizable: false,  
+        cellClick: function (e, cell) {  
+          cell.getRow().toggleSelect();  
+        }  
+      },  
       ...tabulatorColumns,  
     ],  
-    rowHandle: {  
-      handle: '<div class="handle">☰</div>', // Custom handle icon  
-      position: 'left', // Position the handle on the left  
-    },  
     placeholder: "No Data Available", // Placeholder text when no data is available  
   });  
-}  
+} 
+
   
 function clearFormFields(formSelector) {  
   const form = document.querySelector(formSelector);  
