@@ -667,7 +667,13 @@ body > main > div > div.row.outcome-header {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);  
   margin-bottom: 20px;  
 }  
-  
+
+.tabulator-table {  
+  height: 150px;  
+  max-height: 311px;  
+  overflow: auto;  
+}  
+
 .tabulator-header {  
   font-family: 'Jost', sans-serif;  
   font-weight: 600;  

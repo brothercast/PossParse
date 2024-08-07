@@ -23,23 +23,25 @@ BASE_MODAL_TEMPLATE = """
           <span aria-hidden="true">&times;</span>  
         </button>  
       </div>  
-      <!-- Modal Body -->  
-      <div class="modal-body">  
+        <!-- Modal Body -->  
+        <div class="modal-body">  
         <p><span class="source-cos-label">Source COS:</span> <span class="source-cos-text">{{ cos_content }}</span></p>  
         <p>{{ ai_generated_data.get('contextual_description', 'No contextual description available.') }}</p>  
-        <div id="dynamicTable-{{ ce_id }}" class="tabulator-table"></div>  
+        <div id="dynamicTable-{{ ce_id }}" class="tabulator-table" style="height: 150px; max-height: 311px;"></div>  
         <hr>  
         <form id="ceForm-{{ ce_id }}">  
-          {{ form_fields | safe }}  
+            {{ form_fields | safe }}  
         </form>  
         <div class="row mt-2">  
-          <div class="col">  
-            <button type="button" class="btn btn-success mb-2 w-100" id="addRowButton-{{ ce_id }}" style="padding-top: 10px;">Add {{ ce_type }}</button>  
-          </div>  
-          <div class="col">  
-            <button type="button" class="btn btn-primary mb-2 w-100" id="generateRowButton-{{ ce_id }}" style="padding-top: 10px;">Generate {{ ce_type }}</button>  
-          </div>  
+            <div class="col">  
+                <button type="button" class="btn btn-success mb-2 w-100" id="addRowButton-{{ ce_id }}" style="padding-top: 10px;">Add {{ ce_type }}</button>  
+            </div>  
+            <div class="col">  
+                <button type="button" class="btn btn-primary mb-2 w-100" id="generateRowButton-{{ ce_id }}" style="padding-top: 10px;">Generate {{ ce_type }}</button>  
+            </div>  
         </div>  
+    </div>  
+    
       </div>  
       <!-- Modal Footer -->  
       <div class="modal-footer">  
@@ -147,7 +149,7 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
     # Check if saved form data exists in ce_data  
     saved_form_data = ce_data.get('form_data', {}) if ce_data else {}  
     current_app.logger.debug(f"Saved form data: {saved_form_data}")  
-    form_fields = generate_form_fields(fields_config, saved_form_data)  
+    form_fields = generate_form_fields(fields_config, saved_form_data or ai_generated_data.get('fields', {}))  
     table_headers = generate_table_headers(fields_config)  
     table_data = ce_data.get('table_data', []) if ce_data else []  
   
@@ -186,7 +188,7 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
   
     current_app.logger.debug(f"Rendered Modal Content: {modal_content}")  
   
-    return modal_content 
+    return modal_content
   
 def generate_fa_icon_for_node_type(node_type):  
     messages = [  

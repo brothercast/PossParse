@@ -253,7 +253,7 @@ def get_ce_type(ce_content):
         {"role": "system", "content": "You are responsible for identifying the appropriate card type for the given conditional element."},  
         {"role": "user", "content": ce_content},  
     ]  
-    response_text = generate_chat_response(messages, role='Conditional Element (CE) Node Type Identification', task='Identify CE Type', temperature=0.6)  
+    response_text = generate_chat_response(messages, role='Conditional Element (CE) Node Type Identification', task='Identify CE Type', temperature=0.8)  
   
     try:  
         response_data = json.loads(response_text)  
