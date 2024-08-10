@@ -107,46 +107,64 @@ body:before {
   letter-spacing: 0.7em;
 }
 
-.loading-spinner-overlay {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: rgba(255, 255, 255, 0.8);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-  padding: 35px;
-  border-radius: 5px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
-}
+.loading-spinner-overlay {  
+  position: fixed;  
+  top: 0;  
+  left: 0;  
+  width: 100%;  
+  height: 100%;  
+  background-color: rgba(255, 255, 255, 0.8);  
+  display: flex;  
+  justify-content: center;  
+  align-items: center;  
+  z-index: 9999;  
+}  
+  
+.spinner-box {  
+  width: 50vw; /* Responsive width for the box */  
+  max-width: 550px; /* Maximum width for the box */  
+  height: 30vh; /* Responsive height for the box */  
+  max-height: 175px; /* Maximum height for the box */  
+  background-color: rgba(255, 255, 255, 0.9); /* Slightly higher opacity for the box background */  
+  display: flex;  
+  justify-content: center;  
+  align-items: center;  
+  border-radius: 10px;  
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);  
+  padding: 20px; /* Added padding for better spacing */  
+}  
+  
+.spinner-container {  
+  display: flex;  
+  flex-direction: column;  
+  align-items: center;  
+}  
+  
+.spinner-text {  
+  margin-top: 20px; /* Increased margin for better spacing */  
+  font-family: 'Unica One', sans-serif;  
+  text-transform: uppercase;  
+  color: rgba(0, 0, 0, 0.75);  
+  letter-spacing: 0.4em; /* Adjusted letter spacing for better fit */  
+  text-align: center; /* Center align text */  
+  white-space: nowrap; /* Prevent text wrapping */  
+}  
+  
+.loading-spinner-overlay.fade-in {  
+  animation: fadeInBlur 0.5s ease-in-out forwards;  
+}  
+  
+@keyframes fadeInBlur {  
+  0% {  
+    opacity: 0;  
+    filter: blur(5px);  
+  }  
+  100% {  
+    opacity: 1;  
+    filter: blur(0);  
+  }  
+}  
 
-.spinner-text {
-  margin-top: 10px;
-}
-
-.spinner-text {
-  font-family: 'Unica One', sans-serif;
-  text-transform: uppercase;
-  color: rgba(0, 0, 0, 0.75);
-  letter-spacing: 0.7em;
-}
-
-.loading-spinner-overlay.fade-in {
-  animation: fadeInBlur 0.5s ease-in-out forwards;
-}
-
-@keyframes fadeInBlur {
-  0% {
-    opacity: 0;
-    filter: blur(5px);
-  }
-  100% {
-    opacity: 1;
-    filter: blur(0);
-  }
-}
 
 #generate-new-goals .refresh-icon {
   display: inline-block;
@@ -667,13 +685,13 @@ body > main > div > div.row.outcome-header {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);  
   margin-bottom: 20px;  
 }  
-
+  
 .tabulator-table {  
   height: 150px;  
   max-height: 311px;  
   overflow: auto;  
 }  
-
+  
 .tabulator-header {  
   font-family: 'Jost', sans-serif;  
   font-weight: 600;  
@@ -706,6 +724,13 @@ body > main > div > div.row.outcome-header {
 .tabulator-cell {  
   padding: 10px;  
   border: none;  
+  white-space: normal; /* Allow text to wrap */  
+  overflow: visible;   /* Ensure content is visible */  
+  height: auto;        /* Set initial height to auto */  
+}  
+  
+.tabulator-row {  
+  height: auto !important; /* Allow row height to adjust */  
 }  
   
 /* Specific phase colors for Tabulator */  

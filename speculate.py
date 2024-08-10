@@ -175,12 +175,12 @@ def extract_conditional_elements(response_text, original_content):
         return {'content_with_ce': original_content, 'ces': []}  
 
 
-def update_cos_by_id(cos_id, updated_data):        
-    from app import db, USE_DATABASE 
-    try:        
+def update_cos_by_id(cos_id, updated_data):  
+    from app import db, USE_DATABASE  
+    try:  
         # If using database, convert UUID to string for query  
-        cos_id_str = str(cos_id) if isinstance(cos_id, UUID) else cos_id    
-            
+        cos_id_str = str(cos_id) if isinstance(cos_id, UUID) else cos_id  
+  
         # Update the COS entry with new data  
         if USE_DATABASE:  
             # Database operation  
@@ -199,19 +199,20 @@ def update_cos_by_id(cos_id, updated_data):
                 # COS not found, log a warning  
                 current_app.logger.warning(f"COS with ID {cos_id_str} not found in the in-memory store.")  
                 return {'success': False, 'message': f"COS with ID {cos_id_str} not found."}  
-              
+  
             for key, value in updated_data.items():  
                 cos[key] = value  
             cos_store[cos_id_str] = cos  # Store the updated COS back in the store  
-                
+  
             # Log the successful update and return the updated COS  
             current_app.logger.info(f"COS with ID {cos_id_str} successfully updated.")  
             return {'success': True, 'cos': cos}  # Return the updated COS for client-side use  
-        
-    except Exception as e:        
+  
+    except Exception as e:  
         # Log the error and return an error message  
         current_app.logger.error(f"Unexpected error during COS update: {e}", exc_info=True)  
         return {'success': False, 'message': f"Unexpected error occurred: {e}"}  
+
 
 def delete_cos_by_id(cos_id, ssol_id=None):    
     from app import USE_DATABASE 

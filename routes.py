@@ -151,6 +151,7 @@ def update_cos_route(cos_id):
     except Exception as e:  
         current_app.logger.error(f"Error updating COS with ID {cos_id}: {e}", exc_info=True)  
         return jsonify(error="An unexpected error occurred while updating the COS."), 500  
+
   
 @routes_bp.route('/delete_cos/<uuid:cos_id>', methods=['DELETE'])  
 def delete_cos_route(cos_id):  

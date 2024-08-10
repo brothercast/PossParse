@@ -231,8 +231,39 @@ function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {
       ...tabulatorColumns,  
     ],  
     placeholder: "No Data Available", // Placeholder text when no data is available  
+    rowFormatter: function (row) {  
+      // Get the row element  
+      const rowElement = row.getElement();  
+  
+      // Get the cell elements  
+      const cells = rowElement.querySelectorAll('.tabulator-cell');  
+  
+      // Calculate the maximum height needed for the row  
+      let maxHeight = 0;  
+      cells.forEach(cell => {  
+        // Reset cell height to auto to get the full height of the content  
+        cell.style.height = 'auto';  
+  
+        // Get the height of the cell content  
+        const cellHeight = cell.scrollHeight;  
+  
+        // Update maxHeight if this cell's height is greater  
+        if (cellHeight > maxHeight) {  
+          maxHeight = cellHeight;  
+        }  
+      });  
+  
+      // Set the row height to the maximum height needed  
+      rowElement.style.height = `${maxHeight}px`;  
+  
+      // Set the cell height to 100% to fill the row  
+      cells.forEach(cell => {  
+        cell.style.height = '100%';  
+      });  
+    }  
   });  
-} 
+}  
+  
 
   
 function clearFormFields(formSelector) {  
@@ -440,19 +471,22 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
 function reinitializeTabulatorPagination(table) {  
   const rowCount = table.getDataCount();  
   const shouldPaginate = rowCount > 5;  
-  
+
   if (typeof table.setPageMode === 'function') {  
-    table.setPageMode(shouldPaginate ? "local" : false); // Enable pagination only if shouldPaginate is true  
+      table.setPageMode(shouldPaginate ? "local" : false);  
   } else {  
-    console.error("Tabulator's setPageMode function is not available");  
+      console.error("Tabulator's setPageMode function is not available");  
   }  
-  
+
   table.setPageSize(5);  
-  
-  // Optionally, update the pagination controls visibility  
-  const paginationElement = table.getPaginationElement();  
-  if (paginationElement) {  
-    paginationElement.style.display = shouldPaginate ? 'block' : 'none';  
+
+  if (typeof table.getPaginationElement === 'function') {  
+      const paginationElement = table.getPaginationElement();  
+      if (paginationElement) {  
+          paginationElement.style.display = shouldPaginate ? 'block' : 'none';  
+      }  
+  } else {  
+      console.error("Tabulator's getPaginationElement function is not available");  
   }  
 }  
   

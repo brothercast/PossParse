@@ -61,7 +61,6 @@ class Logger:
   
         print(formatted_message)  
   
-  
 def generate_chat_response(messages, role, task, temperature=0.75, retries=3, backoff_factor=2):  
     last_exception = None  
     for retry_attempt in range(retries):  
