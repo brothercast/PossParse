@@ -651,18 +651,14 @@ body > main > div > div.row.outcome-header {
 }  
 
 .green-dot {  
-  height: 10px;  
-  width: 10px;  
-  background-color: #28a745;  
-  border-radius: 50%;  
-  display: inline-block;  
+  color: green;  
   margin-right: 5px;  
-  vertical-align: middle;  
-}  
+}
 
 .resource-tally {  
   margin-left: 5px;  
-  vertical-align: middle;  
+  vertical-align: right;
+  color: #ffffff;  
 }  
 
 /* Styles for Source COS text */  

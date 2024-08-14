@@ -9,65 +9,70 @@ function setupEventListeners() {
   });  
 }  
   
+import { showLoadingSpinner, hideLoadingSpinner } from './base_functions.js'; // Adjust the path as necessary  
+  
 function handleCEPillClick(event) {  
-  event.preventDefault();  
-  event.stopPropagation();  
+    event.preventDefault();  
+    event.stopPropagation();  
   
-  const existingModal = document.querySelector('.modal.fade.show');  
-  if (existingModal) {  
-    existingModal.remove();  
-  }  
+    // Remove any existing modal  
+    const existingModal = document.querySelector('.modal.fade.show');  
+    if (existingModal) {  
+        existingModal.remove();  
+    }  
   
-  const ceId = event.target.dataset.ceId;  
-  const ceType = event.target.dataset.ceType || "Default";  
-  const cosContent = event.target.closest('tr').querySelector('.cos-content-cell').textContent.trim();  
-  const phaseElement = event.target.closest('.accordion-item');  
-  const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();  
-  const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement);  
-  const ssolGoal = document.querySelector('#ssol-goal').textContent.trim();  
+    const ceId = event.target.dataset.ceId;  
+    const ceType = event.target.dataset.ceType || "Default";  
+    const cosContent = event.target.closest('tr').querySelector('.cos-content-cell').textContent.trim();  
+    const phaseElement = event.target.closest('.accordion-item');  
+    const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();  
+    const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement);  
+    const ssolGoal = document.querySelector('#ssol-goal').textContent.trim();  
   
-  const requestData = {  
-    ce_id: ceId,  
-    cos_content: cosContent,  
-    phase_name: phaseName,  
-    phase_index: phaseIndex,  
-    ssol_goal: ssolGoal  
-  };  
+    // Prepare the request data  
+    const requestData = {  
+        ce_id: ceId,  
+        cos_content: cosContent,  
+        phase_name: phaseName,  
+        phase_index: phaseIndex,  
+        ssol_goal: ssolGoal  
+    };  
   
-  fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {  
-    method: 'POST',  
-    headers: {  
-      'Content-Type': 'application/json'  
-    },  
-    body: JSON.stringify(requestData)  
-  })  
-    .then(response => response.json())  
-    .then(data => {  
-      if (data && data.modal_html) {  
-        const aiGeneratedData = data.ai_generated_data || { fields: {} };  
-        displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex, aiGeneratedData, data.table_data, data.tabulator_columns, ssolGoal);  
-      } else {  
-        console.error(`CE type "${ceType}" not found in response`);  
-        // Handle missing CE type gracefully (e.g., display an error message or a default modal)  
-      }  
+    // Show loading spinner while fetching data  
+    showLoadingSpinner('Loading CE data...');  
+  
+    // Fetch data for the CE modal  
+    fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {  
+        method: 'POST',  
+        headers: {  
+            'Content-Type': 'application/json'  
+        },  
+        body: JSON.stringify(requestData)  
     })  
-    .catch(error => console.error('Error fetching modal content:', error));  
+    .then(response => {  
+        if (!response.ok) {  
+            throw new Error(`Error fetching CE modal: ${response.statusText}`);  
+        }  
+        return response.json();  
+    })  
+    .then(data => {  
+        hideLoadingSpinner(); // Hide the spinner after receiving the response  
+  
+        if (data && data.modal_html) {  
+            // Call the function to display the modal with the received HTML content  
+            displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex, data.ai_generated_data, data.table_data, data.tabulator_columns, ssolGoal);  
+        } else {  
+            console.error('CE modal HTML content not found in the response');  
+            alert('Failed to load CE data. Please try again.');  
+        }  
+    })  
+    .catch(error => {  
+        hideLoadingSpinner(); // Hide the spinner in case of error  
+        console.error('Error fetching modal content:', error);  
+        alert('An error occurred while loading the CE data. Please try again.');  
+    });  
 }  
 
-// Define default configurations for nodes not found in NODES  
-const DEFAULT_FIELDS_CONFIG = [  
-  { type: 'text', name: 'subject', placeholder: 'Subject' },  
-  { type: 'textarea', name: 'details', placeholder: 'Details' },  
-  { type: 'text', name: 'stakeholders', placeholder: 'Stakeholders' }  
-];  
-  
-const DEFAULT_TABULATOR_CONFIG = {  
-  columns: [  
-    { title: 'Subject', field: 'subject', editor: 'input' },  
-    { title: 'Details', field: 'details', editor: 'input' },  
-    { title: 'Stakeholders', field: 'stakeholders', editor: 'input' }  
-  ]  
-}; 
   
 // Function to display the CE modal  
 function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseIndex, aiGeneratedData = { fields: {} }, tableData, tabulatorColumns, ssolGoal) {  
@@ -153,7 +158,6 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
     console.error(`Modal element not found in the DOM for CE ID: ${ceId}`);  
   }  
 }  
-
 
 function generateFormFields(fieldsConfig, aiData) {  
   console.log("generateFormFields called with fieldsConfig:", fieldsConfig);  
@@ -275,45 +279,7 @@ function clearFormFields(formSelector) {
     });  
   }  
 }  
-  
-function generateFieldsFromAI(ceId, ceType, existingCEs) {  
-  const form = document.querySelector(`#ceForm-${ceId}`);  
-  const cosContent = document.querySelector('.cos-content-cell').textContent.trim();  
-  const ssolGoal = document.querySelector('#ssol-goal').textContent.trim();  
-  
-  const requestData = {  
-    ce_id: ceId,  
-    ce_type: ceType,  
-    cos_content: cosContent,  
-    ssol_goal: ssolGoal,  
-    existing_ces: existingCEs  // Include existing CEs  
-  };  
-  
-  console.log("Sending AI query request data:", requestData); // Add logging  
-  
-  fetch('/ai-query-endpoint', {  
-    method: 'POST',  
-    headers: {  
-      'Content-Type': 'application/json'  
-    },  
-    body: JSON.stringify(requestData)  
-  })  
-    .then(response => {  
-      console.log("AI query response status:", response.status); // Add logging  
-      return response.json();  
-    })  
-    .then(data => {  
-      console.log("AI query response data:", data); // Add logging  
-      if (data && data.ai_response) {  
-        populateFormFields(ceId, data.ai_response.fields);  
-      } else {  
-        throw new Error('AI response not found or error in response');  
-      }  
-    })  
-    .catch(error => console.error('Error generating fields from AI:', error));  
-}  
-
-  
+   
 function populateFormFields(ceId, aiData) {  
   const form = document.querySelector(`#ceForm-${ceId}`);  
   if (form) {  
@@ -490,44 +456,79 @@ function reinitializeTabulatorPagination(table) {
   }  
 }  
   
-function saveCEChanges(ceId, updatedData) {  
+function saveCEChanges(ceId) {  
   const modalElement = document.querySelector(`#ceModal-${ceId}`);  
   const table = modalElement._tabulator;  
-  const tableData = table ? table.getData() : [];  // Get the data from the Tabulator table  
-  
-  // Include the table data in the updated data  
-  updatedData.table_data = tableData;  
-  
+  const tableData = table ? table.getData() : []; // Get the data from the Tabulator table  
+
+  const updatedData = {  
+      table_data: tableData,  
+      form_data: getFormData(modalElement.querySelector(`#ceForm-${ceId}`))  
+  };  
+
   fetch(`/update_ce/${encodeURIComponent(ceId)}`, {  
-    method: 'PUT',  
-    headers: {  
-      'Content-Type': 'application/json'  
-    },  
-    body: JSON.stringify(updatedData)  
+      method: 'PUT',  
+      headers: {  
+          'Content-Type': 'application/json'  
+      },  
+      body: JSON.stringify(updatedData)  
   })  
-    .then(response => response.json())  
-    .then(data => {  
+  .then(response => response.json())  
+  .then(data => {  
       if (data.success) {  
-        console.log(`CE ID ${ceId} updated successfully`);  
-        bootstrap.Modal.getInstance(modalElement).hide();  
-  
-        // Reattach event listeners to CE pills  
-        setupEventListeners();  
+          console.log(`CE ID ${ceId} updated successfully`);  
+          bootstrap.Modal.getInstance(modalElement).hide();  
+          updateCEPill(ceId, tableData.length); // Update the CE pill with the number of rows  
+          setupEventListeners(); // Reattach event listeners to CE pills  
       } else {  
-        throw new Error(data.error || 'An error occurred while updating the CE.');  
+          throw new Error(data.error || 'An error occurred while updating the CE.');  
       }  
-    })  
-    .catch(error => {  
+  })  
+  .catch(error => {  
       console.error('Error updating CE:', error);  
       alert('An error occurred while updating the CE. Please try again.');  
-    });  
+  });  
 }  
+
+function getFormData(form) {  
+  const formData = new FormData(form);  
+  const data = {};  
+  formData.forEach((value, key) => {  
+      data[key] = value || '';  // Ensure value is not null  
+  });  
+  return data;  
+}  
+
   
 function updateCERow(ceId, formData) {  
   const cePill = document.querySelector(`.ce-pill[data-ce-id="${ceId}"]`);  
   if (cePill) {  
     cePill.textContent = formData['ceContent'];  
     cePill.dataset.ceType = formData['ceType'];  
+  }  
+}  
+
+function updateCEPill(ceId, resourceCount) {  
+  const cePill = document.querySelector(`.ce-pill[data-ce-id="${ceId}"]`);  
+  if (cePill) {  
+    const ceText = cePill.textContent.trim();  
+    cePill.innerHTML = ''; // Clear existing content  
+  
+    if (resourceCount === 0) {  
+      const dot = document.createElement('i');  
+      dot.className = 'fa-solid fa-circle green-dot';  
+      cePill.appendChild(dot);  
+    }  
+  
+    const textNode = document.createTextNode(ceText.replace(/\(\d+\)$/, '').trim()); // Remove any existing number  
+    cePill.appendChild(textNode);  
+  
+    if (resourceCount > 0) {  
+      const tally = document.createElement('span');  
+      tally.className = 'badge bg-secondary resource-tally';  
+      tally.textContent = `${resourceCount}`;  
+      cePill.appendChild(tally);  
+    }  
   }  
 }  
   

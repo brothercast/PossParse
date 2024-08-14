@@ -225,7 +225,10 @@ export function updateGoalCards(data, userInputCell) {
   }  
 }  
   
+console.log("base_functions.js has been loaded");  
+  
 export function showLoadingSpinner(message = 'Speculating Structured Solution...') {  
+  console.log("showLoadingSpinner called with message:", message);  
   const spinner = document.getElementById('loading-spinner');  
   const spinnerText = document.getElementById('spinner-text');  
   if (spinner && spinnerText) {  
@@ -236,6 +239,7 @@ export function showLoadingSpinner(message = 'Speculating Structured Solution...
 }  
   
 export function hideLoadingSpinner() {  
+  console.log("hideLoadingSpinner called");  
   const spinner = document.getElementById('loading-spinner');  
   if (spinner) {  
     spinner.classList.add('d-none');  

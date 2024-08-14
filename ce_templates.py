@@ -239,12 +239,12 @@ def replace_ce_tags_with_pills(content, ce_store):
   
         # Add green dot if the CE is new, otherwise add resource tally  
         if resource_count == 0:  
-            dot = soup.new_tag('span', attrs={'class': 'green-dot'})  
+            dot = soup.new_tag('i', attrs={'class': 'fa-solid fa-circle green-dot'})  
             new_tag.insert(0, dot)  
         else:  
-            tally = soup.new_tag('span', attrs={'class': 'resource-tally'})  
-            tally.string = f"({resource_count})"  
-            new_tag.insert(0, tally)  
+            tally = soup.new_tag('span', attrs={'class': 'badge bg-secondary resource-tally'})  
+            tally.string = f"{resource_count}"  
+            new_tag.append(tally)  
   
         new_tag.append(ce_tag.string)  
         ce_tag.replace_with(new_tag)  

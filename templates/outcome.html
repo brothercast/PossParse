@@ -120,9 +120,10 @@
   
 {% block scripts %}  
 <!-- Include necessary JS files -->  
+<script src="{{ url_for('static', filename='js/base_functions.js') }}" type="module"></script>  
 <script src="{{ url_for('static', filename='js/cos_table.js') }}"></script>  
 <script src="{{ url_for('static', filename='js/ce_table.js') }}"></script>  
-<script src="{{ url_for('static', filename='js/ce_cards.js') }}"></script>  
+<script src="{{ url_for('static', filename='js/ce_cards.js') }}" type="module"></script>  
   
 <!-- Include Tabulator CSS and JS -->  
 <link href="https://unpkg.com/tabulator-tables@4.9.3/dist/css/tabulator.min.css" rel="stylesheet">  
@@ -132,6 +133,11 @@
 <script>  
   document.addEventListener('DOMContentLoaded', () => {  
     initializePhaseTableEventListeners();  
+    showLoadingSpinner('Loading data...'); // Show spinner when page is loading  
+  
+    window.addEventListener('load', () => {  
+      hideLoadingSpinner(); // Hide spinner when page is fully loaded  
+    });  
   });  
 </script>  
   
