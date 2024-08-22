@@ -2,125 +2,132 @@
   
 {% block content %}  
 <div class="container">  
-  <div class="row outcome-header">  
-    <div class="col-md-4 text-center">  
-      {% if ssol.generated_image_path %}  
-        <img src="{{ url_for('static', filename=ssol.generated_image_path) }}" alt="Generated Image" class="rounded mb-3 generated-image" style="width: 100%; max-width: 300px;">  
-      {% endif %}  
-      <h2>Domain</h2>  
-      <i class="{{ ssol.domain_icon }} fa-3x mb-3"></i>  
-      <p class="domain domain-text text-center">{{ ssol.domain | title }}</p>  
-      <h2>Fulfilled Goal</h2>  
-      <p><strong>{{ ssol.selected_goal | safe }}</strong></p>  
-      <div id="ssol-goal" style="display: none;">{{ ssol.selected_goal | safe }}</div>  
-      <div class="text-center mt-4">  
-        <button id="save-as-pdf-button" data-ssol-id="{{ ssol_id }}" class="btn btn-info" title="Save as PDF">  
-          <i class="fas fa-download me-2"></i>PDF  
-        </button>  
-      </div>  
-    </div>  
-    <div class="col-md-8">  
-      <h1>Preliminary Structured Solution</h1>  
-      <p id="ssol-summary">{{ ssol.ssol_summary | safe }}</p>  
-    </div>  
-  </div>  
-</div>  
-  
-<div class="row">  
-  <h1>Phases & Conditions of Satisfaction</h1>  
-  <div class="col">  
-    <div class="accordion mt-4" id="phase-accordion">  
-      {% for phase_name, cos_list in ssol.phases.items() %}  
-      <div class="accordion-item">  
-        <h2 class="accordion-header phase-colors" id="heading-{{ phase_name | replace(' ', '_') }}">  
-          <button  
-            class="accordion-button"  
-            type="button"  
-            data-bs-toggle="collapse"  
-            data-bs-target="#collapse-{{ phase_name | replace(' ', '_') }}"  
-            aria-expanded="true"  
-            aria-controls="collapse-{{ phase_name | replace(' ', '_') }}"  
-            style="background-color: var(--phase-{{ loop.index0 }});">  
-            {{ phase_name | title }} PHASE  
-          </button>  
-        </h2>  
-        <div  
-          id="collapse-{{ phase_name | replace(' ', '_') }}"  
-          class="accordion-collapse collapse show"  
-          aria-labelledby="heading-{{ phase_name | replace(' ', '_') }}"  
-          data-bs-parent="#phase-accordion">  
-          <div class="accordion-body" data-ssol-id="{{ ssol_id }}" style="border: 2px solid var(--phase-{{ loop.index0 }});">  
-            {% if cos_list %}  
-            <table class="table table-striped phase-table" id="{{ phase_name | replace(' ', '_') }}-table">  
-              <thead>  
-                <tr>  
-                  <th scope="col">Status</th>  
-                  <th scope="col">Condition of Satisfaction</th>  
-                  <th scope="col">Accountable Party</th>  
-                  <th scope="col">Completion Date</th>  
-                  <th scope="col" class="text-end actions-header">Actions</th>  
-                </tr>  
-              </thead>  
-              <tbody>  
-                {% for cos in cos_list %}  
-                  <tr class="cos-row" data-cos-id="{{ cos.id }}" data-editing="false">  
-                    <td class="status-cell">  
-                      <span class="status-pill {{ cos.status | get_badge_class_from_status }} ">{{ cos.status | upper }}</span>  
-                    </td>  
-                    <td class="cos-content-cell">{{ cos.content | safe }}</td>  
-                    <td class="cos-accountable-party-cell">{{ cos.accountable_party }}</td>  
-                    <td class="cos-completion-date-cell">{{ cos.completion_date }}</td>  
-                    <td class="text-end actions-cell">  
-                      <div class="cos-actions">  
-                        <button class="btn btn-sm btn-primary edit-cos-button">Edit</button>  
-                        <button class="btn btn-sm btn-success update-cos-button d-none">Update</button>  
-                        <button class="btn btn-sm btn-secondary cancel-cos-button d-none">Cancel</button>  
-                        <button class="btn btn-sm btn-danger delete-cos-button">Delete</button>  
-                        <button class="btn btn-sm btn-info analyze-cos-button" data-cos-id="{{ cos.id }}">Analyze</button>  
-                      </div>  
-                    </td>  
-                  </tr>  
-                {% endfor %}  
-              </tbody>  
-            </table>  
-            <button class="btn btn-success btn-sm add-cos" data-bs-toggle="modal" data-bs-target="#addCOSModal" data-phase="{{ phase_name | replace(' ', '_') }}">Add Condition of Satisfaction</button>  
-            {% else %}  
-            <p>No Conditions of Satisfaction found for this phase.</p>  
+    <div class="row outcome-header">  
+        <div class="col-md-4 text-center">  
+            {% if ssol.generated_image_path %}  
+                <img src="{{ url_for('static', filename=ssol.generated_image_path) }}" alt="Generated Image" class="rounded mb-3 generated-image" style="width: 100%; max-width: 300px;">  
             {% endif %}  
-          </div>  
+            <h2>Domain</h2>  
+            <i class="{{ ssol.domain_icon }} fa-3x mb-3"></i>  
+            <p class="domain domain-text text-center">{{ ssol.domain | title }}</p>  
+            <h2>Fulfilled Goal</h2>  
+            <p><strong>{{ ssol.selected_goal | safe }}</strong></p>  
+            <div id="ssol-goal" style="display: none;">{{ ssol.selected_goal | safe }}</div>  
+            <div class="text-center mt-4">  
+                <button id="save-as-pdf-button" data-ssol-id="{{ ssol_id }}" class="btn btn-info" title="Save as PDF">  
+                    <i class="fas fa-download me-2"></i>PDF  
+                </button>  
+            </div>  
         </div>  
-      </div>  
-      {% endfor %}  
+        <div class="col-md-8">  
+            <h1>Preliminary Structured Solution</h1>  
+            <p id="ssol-summary">{{ ssol.ssol_summary | safe }}</p>  
+        </div>  
     </div>  
-  </div>  
-</div>  
   
-<!-- Error Modal -->  
-<div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">  
-  <div class="modal-dialog">  
-    <div class="modal-content">  
-      <div class="modal-header">  
-        <h5 class="modal-title" id="errorModalLabel">Error</h5>  
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
-      </div>  
-      <div class="modal-body">  
-        {{ error_message }}  
-      </div>  
-      <div class="modal-footer">  
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
-      </div>  
+    <div class="row">  
+        <h1>Phases & Conditions of Satisfaction</h1>  
+        <div class="col">  
+            <div class="accordion mt-4" id="phase-accordion">  
+                {% for phase_name, cos_list in ssol.phases.items() %}  
+                <div class="accordion-item">  
+                    <h2 class="accordion-header phase-colors" id="heading-{{ phase_name | replace(' ', '_') }}">  
+                        <button  
+                            class="accordion-button"  
+                            type="button"  
+                            data-bs-toggle="collapse"  
+                            data-bs-target="#collapse-{{ phase_name | replace(' ', '_') }}"  
+                            aria-expanded="true"  
+                            aria-controls="collapse-{{ phase_name | replace(' ', '_') }}"  
+                            style="background-color: var(--phase-{{ loop.index0 }});">  
+                            {{ phase_name | title }} PHASE  
+                        </button>  
+                    </h2>  
+                    <div  
+                        id="collapse-{{ phase_name | replace(' ', '_') }}"  
+                        class="accordion-collapse collapse show"  
+                        aria-labelledby="heading-{{ phase_name | replace(' ', '_') }}"  
+                        data-bs-parent="#phase-accordion">  
+                        <div class="accordion-body" data-ssol-id="{{ ssol_id }}" style="border: 2px solid var(--phase-{{ loop.index0 }});">  
+                            {% if cos_list %}  
+                            <table class="table table-striped phase-table" id="{{ phase_name | replace(' ', '_') }}-table">  
+                                <thead>  
+                                    <tr>  
+                                        <th scope="col">Status</th>  
+                                        <th scope="col">Condition of Satisfaction</th>  
+                                        <th scope="col">Accountable Party</th>  
+                                        <th scope="col">Completion Date</th>  
+                                        <th scope="col" class="text-end actions-header">Actions</th>  
+                                    </tr>  
+                                </thead>  
+                                <tbody>  
+                                    {% for cos in cos_list %}  
+                                    <tr class="cos-row" data-cos-id="{{ cos.id }}" data-editing="false">  
+                                        <td class="status-cell">  
+                                            <span class="status-pill {{ cos.status | get_badge_class_from_status }}">{{ cos.status | upper }}</span>  
+                                        </td>  
+                                        <td class="cos-content-cell">{{ cos.content | safe }}</td>  
+                                        <td class="cos-accountable-party-cell">{{ cos.accountable_party }}</td>  
+                                        <td class="cos-completion-date-cell">{{ cos.completion_date }}</td>  
+                                        <td class="text-end actions-cell">  
+                                            <div class="cos-actions">  
+                                                <button class="btn btn-sm btn-primary edit-cos-button">Edit</button>  
+                                                <button class="btn btn-sm btn-success update-cos-button d-none">Update</button>  
+                                                <button class="btn btn-sm btn-secondary cancel-cos-button d-none">Cancel</button>  
+                                                <button class="btn btn-sm btn-danger delete-cos-button">Delete</button>  
+                                                <button class="btn btn-sm btn-info analyze-cos-button" data-cos-id="{{ cos.id }}">Analyze</button>  
+                                            </div>  
+                                        </td>  
+                                    </tr>  
+                                    {% endfor %}  
+                                </tbody>  
+                            </table>  
+                            <button class="btn btn-success btn-sm add-cos" data-bs-toggle="modal" data-bs-target="#addCOSModal" data-phase="{{ phase_name | replace(' ', '_') }}">Add Condition of Satisfaction</button>  
+                            {% else %}  
+                            <p>No Conditions of Satisfaction found for this phase.</p>  
+                            {% endif %}  
+                        </div>  
+                    </div>  
+                </div>  
+                {% endfor %}  
+            </div>  
+        </div>  
     </div>  
-  </div>  
-</div>  
   
-<!-- Placeholder for dynamic modals -->  
-<div id="dynamicModalContainer"></div>  
+    <!-- Error Modal -->  
+    <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">  
+        <div class="modal-dialog">  
+            <div class="modal-content">  
+                <div class="modal-header">  
+                    <h5 class="modal-title" id="errorModalLabel">Error</h5>  
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
+                </div>  
+                <div class="modal-body">{{ error_message }}</div>  
+                <div class="modal-footer">  
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
+                </div>  
+            </div>  
+        </div>  
+    </div>  
+  
+    <!-- Placeholder for dynamic modals -->  
+    <div id="dynamicModalContainer"></div>  
 </div>  
 {% endblock %}  
   
 {% block scripts %}  
-<!-- Include necessary JS files -->  
-<script src="{{ url_for('static', filename='js/base_functions.js') }}" type="module"></script>  
+<!-- Necessary JS files -->  
+<script type="module">  
+  import { showLoadingSpinner, hideLoadingSpinner } from './static/js/base_functions.js';  
+    
+  document.addEventListener('DOMContentLoaded', () => {  
+    showLoadingSpinner('Loading data...'); // Show spinner when the page is loading  
+  
+    window.addEventListener('load', () => {  
+      hideLoadingSpinner(); // Hide spinner when the page is fully loaded  
+    });  
+  });  
+</script>  
 <script src="{{ url_for('static', filename='js/cos_table.js') }}"></script>  
 <script src="{{ url_for('static', filename='js/ce_table.js') }}"></script>  
 <script src="{{ url_for('static', filename='js/ce_cards.js') }}" type="module"></script>  
@@ -131,19 +138,14 @@
   
 <!-- Initialize event listeners for COS table handling -->  
 <script>  
-  document.addEventListener('DOMContentLoaded', () => {  
-    initializePhaseTableEventListeners();  
-    showLoadingSpinner('Loading data...'); // Show spinner when page is loading  
-  
-    window.addEventListener('load', () => {  
-      hideLoadingSpinner(); // Hide spinner when page is fully loaded  
+    document.addEventListener('DOMContentLoaded', () => {  
+        initializePhaseTableEventListeners();  
     });  
-  });  
 </script>  
   
 <!-- Pass necessary data to JavaScript -->  
 <script>  
-  const NODES = {{ nodes|tojson }};  
-  const tableData = {};  // Define tableData here. Update this with actual data if needed.  
+    const NODES = {{ nodes|tojson }};  
+    const tableData = {};  // Define tableData here. Update this with actual data if needed.  
 </script>  
 {% endblock %}  

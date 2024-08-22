@@ -231,22 +231,32 @@ def replace_ce_tags_with_pills(content, ce_store):
         ce_data = ce_store.get(ce_uuid, {})  
         resource_count = len(ce_data.get('table_data', []))  
   
-        new_tag = soup.new_tag('span', attrs={  
-            'class': 'badge rounded-pill bg-secondary ce-pill',  
+        new_tag = soup.new_tag('button', attrs={  
+            'type': 'button',  
+            'class': 'btn btn-primary ce-pill position-relative',  
             'data-ce-id': ce_uuid,  
             'data-ce-type': ce_type,  
         })  
   
-        # Add green dot if the CE is new, otherwise add resource tally  
-        if resource_count == 0:  
-            dot = soup.new_tag('i', attrs={'class': 'fa-solid fa-circle green-dot'})  
-            new_tag.insert(0, dot)  
-        else:  
-            tally = soup.new_tag('span', attrs={'class': 'badge bg-secondary resource-tally'})  
-            tally.string = f"{resource_count}"  
-            new_tag.append(tally)  
+        # Add the Conditional Element text  
+        ce_text = soup.new_tag('span')  
+        ce_text.string = ce_tag.string  
+        new_tag.append(ce_text)  
   
-        new_tag.append(ce_tag.string)  
+        # Add the green dot indicator if the CE is new  
+        if 'is_new' in ce_data and ce_data['is_new']:  
+            green_dot = soup.new_tag('span', attrs={'class': 'position-absolute top-0 start-0 translate-middle p-2 bg-success border border-light rounded-circle'})  
+            visually_hidden_text = soup.new_tag('span', attrs={'class': 'visually-hidden'})  
+            visually_hidden_text.string = 'New CE'  
+            green_dot.append(visually_hidden_text)  
+            new_tag.append(green_dot)  
+  
+        # Add the counter in a separate span with badge classes  
+        if resource_count > 0:  
+            counter_tag = soup.new_tag('span', attrs={'class': 'badge bg-light position-absolute top-0 start-100 translate-middle p-2 rounded-circle'})  
+            counter_tag.string = str(resource_count)  
+            new_tag.append(counter_tag)  
+  
         ce_tag.replace_with(new_tag)  
     return str(soup)  
   

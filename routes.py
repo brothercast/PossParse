@@ -214,6 +214,7 @@ def get_ce_modal_route(ce_type):
         return jsonify(error=str(e)), 500  
 
 
+
   
 @routes_bp.route('/analyze_cos/<string:cos_id>', methods=['GET'])  
 def analyze_cos_route(cos_id):  

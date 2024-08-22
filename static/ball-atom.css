@@ -1,7 +1,6 @@
 /*! * Load Awesome v1.1.0 (http://github.danielcardoso.net/load-awesome/) * Copyright 2015 Daniel Cardoso <@DanielCardoso> * Licensed under MIT */  
   
-.la-ball-atom,  
-.la-ball-atom > div {  
+.la-ball-atom, .la-ball-atom > div {  
   position: relative;  
   -webkit-box-sizing: border-box;  
   -moz-box-sizing: border-box;  
@@ -12,6 +11,7 @@
   display: block;  
   font-size: 0;  
   color: #fff;  
+  animation: rotate-spinner 2s linear infinite; /* Add this line */  
 }  
   
 .la-ball-atom.la-dark {  
@@ -330,5 +330,15 @@
   50% {  
     -o-transform: translate(-50%, -50%) scale(.8, .8);  
     transform: translate(-50%, -50%) scale(.8, .8);  
+  }  
+}  
+  
+/* Define keyframes for rotating the spinner */  
+@keyframes rotate-spinner {  
+  0% {  
+    transform: rotate(0deg);  
+  }  
+  100% {  
+    transform: rotate(360deg);  
   }  
 }  

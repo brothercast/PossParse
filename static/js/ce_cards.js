@@ -1,3 +1,9 @@
+import { showLoadingSpinner, hideLoadingSpinner } from './base_functions.js';  
+
+if (typeof ce_store === 'undefined') {  
+  var ce_store = {};  
+}  
+  
 document.addEventListener('DOMContentLoaded', function () {  
   setupEventListeners();  
 });  
@@ -9,72 +15,69 @@ function setupEventListeners() {
   });  
 }  
   
-import { showLoadingSpinner, hideLoadingSpinner } from './base_functions.js'; // Adjust the path as necessary  
-  
 function handleCEPillClick(event) {  
-    event.preventDefault();  
-    event.stopPropagation();  
+  event.preventDefault();  
+  event.stopPropagation();  
   
-    // Remove any existing modal  
-    const existingModal = document.querySelector('.modal.fade.show');  
-    if (existingModal) {  
-        existingModal.remove();  
-    }  
+  const existingModal = document.querySelector('.modal.fade.show');  
+  if (existingModal) {  
+    existingModal.remove();  
+  }  
   
-    const ceId = event.target.dataset.ceId;  
-    const ceType = event.target.dataset.ceType || "Default";  
-    const cosContent = event.target.closest('tr').querySelector('.cos-content-cell').textContent.trim();  
-    const phaseElement = event.target.closest('.accordion-item');  
-    const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();  
-    const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement);  
-    const ssolGoal = document.querySelector('#ssol-goal').textContent.trim();  
+  const ceId = event.target.dataset.ceId;  
+  const ceType = event.target.dataset.ceType || "Default";  
+  const cosContent = event.target.closest('tr').querySelector('.cos-content-cell').textContent.trim();  
+  const phaseElement = event.target.closest('.accordion-item');  
+  const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();  
+  const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement);  
+  const ssolGoal = document.querySelector('#ssol-goal').textContent.trim();  
   
-    // Prepare the request data  
-    const requestData = {  
-        ce_id: ceId,  
-        cos_content: cosContent,  
-        phase_name: phaseName,  
-        phase_index: phaseIndex,  
-        ssol_goal: ssolGoal  
-    };  
+  const requestData = {  
+    ce_id: ceId,  
+    cos_content: cosContent,  
+    phase_name: phaseName,  
+    phase_index: phaseIndex,  
+    ssol_goal: ssolGoal  
+  };  
   
-    // Show loading spinner while fetching data  
-    showLoadingSpinner('Loading CE data...');  
-  
-    // Fetch data for the CE modal  
-    fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {  
-        method: 'POST',  
-        headers: {  
-            'Content-Type': 'application/json'  
-        },  
-        body: JSON.stringify(requestData)  
-    })  
-    .then(response => {  
-        if (!response.ok) {  
-            throw new Error(`Error fetching CE modal: ${response.statusText}`);  
-        }  
-        return response.json();  
-    })  
+  showLoadingSpinner(`Loading ${ceType} data...`);  
+  fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {  
+    method: 'POST',  
+    headers: {  
+      'Content-Type': 'application/json'  
+    },  
+    body: JSON.stringify(requestData)  
+  })  
+    .then(response => response.json())  
     .then(data => {  
-        hideLoadingSpinner(); // Hide the spinner after receiving the response  
-  
-        if (data && data.modal_html) {  
-            // Call the function to display the modal with the received HTML content  
-            displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex, data.ai_generated_data, data.table_data, data.tabulator_columns, ssolGoal);  
-        } else {  
-            console.error('CE modal HTML content not found in the response');  
-            alert('Failed to load CE data. Please try again.');  
-        }  
+      hideLoadingSpinner();  
+      if (data && data.modal_html) {  
+        const aiGeneratedData = data.ai_generated_data || { fields: {} };  
+        displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex, aiGeneratedData, data.table_data, data.tabulator_columns, ssolGoal);  
+      } else {  
+        console.error(`CE type "${ceType}" not found in response`);  
+      }  
     })  
     .catch(error => {  
-        hideLoadingSpinner(); // Hide the spinner in case of error  
-        console.error('Error fetching modal content:', error);  
-        alert('An error occurred while loading the CE data. Please try again.');  
+      hideLoadingSpinner();  
+      console.error('Error fetching modal content:', error);  
     });  
 }  
-
   
-// Function to display the CE modal  
+const DEFAULT_FIELDS_CONFIG = [  
+  { type: 'text', name: 'subject', placeholder: 'Subject' },  
+  { type: 'textarea', name: 'details', placeholder: 'Details' },  
+  { type: 'text', name: 'stakeholders', placeholder: 'Stakeholders' }  
+];  
+  
+const DEFAULT_TABULATOR_CONFIG = {  
+  columns: [  
+    { title: 'Subject', field: 'subject', editor: 'input' },  
+    { title: 'Details', field: 'details', editor: 'input' },  
+    { title: 'Stakeholders', field: 'stakeholders', editor: 'input' }  
+  ]  
+};  
+  
 function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseIndex, aiGeneratedData = { fields: {} }, tableData, tabulatorColumns, ssolGoal) {  
   const modalContainer = document.getElementById('dynamicModalContainer');  
   if (!modalContainer) {  
@@ -106,8 +109,7 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
           <h5>Source COS: ${cosContent}</h5>  
           <p>${aiGeneratedData.contextual_description || 'No contextual description available.'}</p>  
           <div id="dynamicTable-${ceId}" class="tabulator-table mb-3"></div>  
-            
-          <!-- Buttons for row operations -->  
+  
           <div class="row justify-content-start mb-3">  
             <div class="col-auto">  
               <button type="button" class="btn btn-sm btn-danger" id="deleteSelectedRowsButton-${ceId}">Delete</button>  
@@ -158,7 +160,7 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
     console.error(`Modal element not found in the DOM for CE ID: ${ceId}`);  
   }  
 }  
-
+  
 function generateFormFields(fieldsConfig, aiData) {  
   console.log("generateFormFields called with fieldsConfig:", fieldsConfig);  
   console.log("generateFormFields called with aiData:", aiData);  
@@ -195,80 +197,64 @@ function generateFormFields(fieldsConfig, aiData) {
 function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {  
   const tableElement = document.querySelector(tableSelector);  
   if (!tableElement) {  
-    console.error('Table element not found:', tableSelector);  
-    return;  
+      console.error('Table element not found:', tableSelector);  
+      return;  
   }  
   
   const shouldPaginate = tableData.length > 5;  
   
   return new Tabulator(tableSelector, {  
-    data: tableData.length ? tableData : [{}],  
-    layout: "fitColumns",  
-    pagination: shouldPaginate ? "local" : false,  
-    paginationSize: 5,  
-    movableColumns: true,  
-    resizableRows: true,  
-    movableRows: true, // Enable user-movable rows  
-    selectable: true,  // Enable row selection  
-    reactiveData: true, // Enable reactive data  
-    columns: [  
-      {  
-        title: "",  
-        width: 30,  
-        rowHandle: true,  
-        formatter: "handle",  
-        headerSort: false,  
-        resizable: false,  
-        hozAlign: "center"  
-      },  
-      {  
-        formatter: "rowSelection",  
-        titleFormatter: "rowSelection",  
-        hozAlign: "center",  
-        headerSort: false,  
-        width: 40,  
-        resizable: false,  
-        cellClick: function (e, cell) {  
-          cell.getRow().toggleSelect();  
-        }  
-      },  
-      ...tabulatorColumns,  
-    ],  
-    placeholder: "No Data Available", // Placeholder text when no data is available  
-    rowFormatter: function (row) {  
-      // Get the row element  
-      const rowElement = row.getElement();  
-  
-      // Get the cell elements  
-      const cells = rowElement.querySelectorAll('.tabulator-cell');  
-  
-      // Calculate the maximum height needed for the row  
-      let maxHeight = 0;  
-      cells.forEach(cell => {  
-        // Reset cell height to auto to get the full height of the content  
-        cell.style.height = 'auto';  
-  
-        // Get the height of the cell content  
-        const cellHeight = cell.scrollHeight;  
-  
-        // Update maxHeight if this cell's height is greater  
-        if (cellHeight > maxHeight) {  
-          maxHeight = cellHeight;  
-        }  
-      });  
-  
-      // Set the row height to the maximum height needed  
-      rowElement.style.height = `${maxHeight}px`;  
-  
-      // Set the cell height to 100% to fill the row  
-      cells.forEach(cell => {  
-        cell.style.height = '100%';  
-      });  
-    }  
+      data: tableData.length ? tableData : [{}],  
+      layout: "fitColumns",  
+      pagination: shouldPaginate ? "local" : false,  
+      paginationSize: 5,  
+      movableColumns: true,  
+      resizableRows: true,  
+      movableRows: true, // Enable user-movable rows  
+      selectable: true,  // Enable row selection  
+      reactiveData: true, // Enable reactive data  
+      columns: [  
+          {  
+              title: "",  
+              width: 30,  
+              rowHandle: true,  
+              formatter: "handle",  
+              headerSort: false,  
+              resizable: false,  
+              hozAlign: "center"  
+          },  
+          {  
+              formatter: "rowSelection",  
+              titleFormatter: "rowSelection",  
+              hozAlign: "center",  
+              headerSort: false,  
+              width: 40,  
+              resizable: false,  
+              cellClick: function (e, cell) {  
+                  cell.getRow().toggleSelect();  
+              }  
+          },  
+          ...tabulatorColumns,  
+      ],  
+      placeholder: "No Data Available", // Placeholder text when no data is available  
+      rowFormatter: function (row) {  
+          const rowElement = row.getElement();  
+          const cells = rowElement.querySelectorAll('.tabulator-cell');  
+          let maxHeight = 0;  
+          cells.forEach(cell => {  
+              cell.style.height = 'auto';  
+              const cellHeight = cell.scrollHeight;  
+              if (cellHeight > maxHeight) {  
+                  maxHeight = cellHeight;  
+              }  
+          });  
+          rowElement.style.height = `${maxHeight}px`;  
+          cells.forEach(cell => {  
+              cell.style.height = '100%';  
+          });  
+      }  
   });  
 }  
-  
-
   
 function clearFormFields(formSelector) {  
   const form = document.querySelector(formSelector);  
@@ -279,7 +265,7 @@ function clearFormFields(formSelector) {
     });  
   }  
 }  
-   
+  
 function populateFormFields(ceId, aiData) {  
   const form = document.querySelector(`#ceForm-${ceId}`);  
   if (form) {  
@@ -302,7 +288,7 @@ document.addEventListener('DOMContentLoaded', function () {
     console.error("Form fields container not found.");  
   }  
 });  
-
+  
 function generateFieldsFromAI(ceId, ceType, existingCEs) {  
   const form = document.querySelector(`#ceForm-${ceId}`);  
   const cosContent = document.querySelector('.cos-content-cell').textContent.trim();  
@@ -318,6 +304,7 @@ function generateFieldsFromAI(ceId, ceType, existingCEs) {
   
   console.log("Sending AI query request data:", requestData); // Add logging  
   
+  showLoadingSpinner(`Generating ${ceType}...`);  
   fetch('/ai-query-endpoint', {  
     method: 'POST',  
     headers: {  
@@ -330,6 +317,7 @@ function generateFieldsFromAI(ceId, ceType, existingCEs) {
       return response.json();  
     })  
     .then(data => {  
+      hideLoadingSpinner();  
       console.log("AI query response data:", data); // Add logging  
       if (data && data.ai_response) {  
         populateFormFields(ceId, data.ai_response.fields);  
@@ -337,7 +325,20 @@ function generateFieldsFromAI(ceId, ceType, existingCEs) {
         throw new Error('AI response not found or error in response');  
       }  
     })  
-    .catch(error => console.error('Error generating fields from AI:', error));  
+    .catch(error => {  
+      hideLoadingSpinner();  
+      console.error('Error generating fields from AI:', error);  
+    });  
+}  
+  
+function extractCosContentForEditing(cosContentCell) {  
+  const badgeElements = cosContentCell.querySelectorAll('.badge, .position-absolute');  
+  badgeElements.forEach((badge) => {  
+    const ceContent = badge.previousSibling.textContent;  
+    badge.previousSibling.textContent = ceContent;  // Restore original text without badge  
+    badge.remove();  // Remove the badge element  
+  });  
+  return cosContentCell.innerHTML;  // This now contains the editable content with original CE text  
 }  
 
 function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseName, phaseIndex, ssolGoal) {  
@@ -437,15 +438,15 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
 function reinitializeTabulatorPagination(table) {  
   const rowCount = table.getDataCount();  
   const shouldPaginate = rowCount > 5;  
-
+  
   if (typeof table.setPageMode === 'function') {  
       table.setPageMode(shouldPaginate ? "local" : false);  
   } else {  
       console.error("Tabulator's setPageMode function is not available");  
   }  
-
+  
   table.setPageSize(5);  
-
+  
   if (typeof table.getPaginationElement === 'function') {  
       const paginationElement = table.getPaginationElement();  
       if (paginationElement) {  
@@ -460,12 +461,12 @@ function saveCEChanges(ceId) {
   const modalElement = document.querySelector(`#ceModal-${ceId}`);  
   const table = modalElement._tabulator;  
   const tableData = table ? table.getData() : []; // Get the data from the Tabulator table  
-
+  
   const updatedData = {  
       table_data: tableData,  
       form_data: getFormData(modalElement.querySelector(`#ceForm-${ceId}`))  
   };  
-
+  
   fetch(`/update_ce/${encodeURIComponent(ceId)}`, {  
       method: 'PUT',  
       headers: {  
@@ -489,7 +490,7 @@ function saveCEChanges(ceId) {
       alert('An error occurred while updating the CE. Please try again.');  
   });  
 }  
-
+  
 function getFormData(form) {  
   const formData = new FormData(form);  
   const data = {};  
@@ -498,7 +499,6 @@ function getFormData(form) {
   });  
   return data;  
 }  
-
   
 function updateCERow(ceId, formData) {  
   const cePill = document.querySelector(`.ce-pill[data-ce-id="${ceId}"]`);  
@@ -507,28 +507,34 @@ function updateCERow(ceId, formData) {
     cePill.dataset.ceType = formData['ceType'];  
   }  
 }  
-
+  
 function updateCEPill(ceId, resourceCount) {  
   const cePill = document.querySelector(`.ce-pill[data-ce-id="${ceId}"]`);  
   if (cePill) {  
-    const ceText = cePill.textContent.trim();  
-    cePill.innerHTML = ''; // Clear existing content  
+      const ceText = cePill.textContent.trim();  
+      cePill.innerHTML = ''; // Clear existing content  
   
-    if (resourceCount === 0) {  
-      const dot = document.createElement('i');  
-      dot.className = 'fa-solid fa-circle green-dot';  
-      cePill.appendChild(dot);  
-    }  
+      // Add the green dot for new CEs  
+      const ceData = ce_store[ceId];  
+      if (ceData && ceData.is_new) {  
+          const greenDot = document.createElement('span');  
+          greenDot.className = 'position-absolute top-0 start-0 translate-middle p-2 bg-success border border-light rounded-circle';  
+          const visuallyHiddenText = document.createElement('span');  
+          visuallyHiddenText.className = 'visually-hidden';  
+          visuallyHiddenText.textContent = 'New CE';  
+          greenDot.appendChild(visuallyHiddenText);  
+          cePill.appendChild(greenDot);  
+      }  
   
-    const textNode = document.createTextNode(ceText.replace(/\(\d+\)$/, '').trim()); // Remove any existing number  
-    cePill.appendChild(textNode);  
+      const textNode = document.createTextNode(ceText.replace(/\(\d+\)$/, '').trim()); // Remove any existing number  
+      cePill.appendChild(textNode);  
   
-    if (resourceCount > 0) {  
-      const tally = document.createElement('span');  
-      tally.className = 'badge bg-secondary resource-tally';  
-      tally.textContent = `${resourceCount}`;  
-      cePill.appendChild(tally);  
-    }  
+      if (resourceCount > 0) {  
+          const tally = document.createElement('span');  
+          tally.className = 'badge bg-light position-absolute top-0 start-100 translate-middle p-2 rounded-circle';  
+          tally.textContent = `${resourceCount}`;  
+          cePill.appendChild(tally);  
+      }  
   }  
 }  
   
@@ -543,7 +549,6 @@ function generateDynamicForm(ceData) {
         <label for="ceType">Type</label>  
         <select class="form-control" id="ceType" required>${generateSelectOptions(ceData.node_type)}</select>  
       </div>  
-      <!-- Add additional fields as needed -->  
     </form>  
   `;  
 }  
