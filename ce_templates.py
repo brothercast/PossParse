@@ -10,47 +10,53 @@ from ce_nodes import NODES, get_valid_node_types
   
 # Define a base template for the modal dialogs that will be populated dynamically  
 BASE_MODAL_TEMPLATE = """  
-<div class="modal fade" id="ceModal-{{ ce_id }}" tabindex="-1" aria-labelledby="ceModalLabel-{{ ce_id }}" aria-hidden="true">  
-  <div class="modal-dialog modal-lg" role="document">  
-    <div class="modal-content" data-phase-index="{{ phase_index }}">  
-      <!-- Modal Header -->  
-      <div class="modal-header">  
-        <h5 class="modal-title" id="ceModalLabel-{{ ce_id }}" style="color: {{ node_info['modal_header_color'] }};">  
-          <i class="{{ node_info['icon'] }}"></i>  
-          {{ ce_type.replace('_', ' ').title() }} // {{ phase_name.title() }}  
-        </h5>  
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">  
-          <span aria-hidden="true">&times;</span>  
-        </button>  
-      </div>  
-        <!-- Modal Body -->  
-        <div class="modal-body">  
-        <p><span class="source-cos-label">Source COS:</span> <span class="source-cos-text">{{ cos_content }}</span></p>  
-        <p>{{ ai_generated_data.get('contextual_description', 'No contextual description available.') }}</p>  
-        <div id="dynamicTable-{{ ce_id }}" class="tabulator-table" style="height: 150px; max-height: 311px;"></div>  
-        <hr>  
-        <form id="ceForm-{{ ce_id }}">  
-            {{ form_fields | safe }}  
-        </form>  
-        <div class="row mt-2">  
-            <div class="col">  
-                <button type="button" class="btn btn-success mb-2 w-100" id="addRowButton-{{ ce_id }}" style="padding-top: 10px;">Add {{ ce_type }}</button>  
-            </div>  
-            <div class="col">  
-                <button type="button" class="btn btn-primary mb-2 w-100" id="generateRowButton-{{ ce_id }}" style="padding-top: 10px;">Generate {{ ce_type }}</button>  
-            </div>  
-        </div>  
-    </div>  
-    
-      </div>  
-      <!-- Modal Footer -->  
-      <div class="modal-footer">  
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>  
-        <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="{{ ce_id }}">Save changes</button>  
-      </div>  
-    </div>  
-  </div>  
-</div>  
+<div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header" style="background-color: ${phaseColor};">
+        <div class="filled-box"></div>
+        <h5 class="modal-title" id="ceModalLabel-${ceId}">
+          <span class="node-icon me-2" style="color: ${phaseColor};">
+            <i class="${NODES[ceType]?.icon || 'fa-solid fa-question-circle'}"></i>
+          </span>
+          <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex align-items-center mb-3">
+          <h5 class="mb-0 me-2" style="font-family: 'Unica One', cursive;">Source COS:</h5>
+          <div class="cos-content">${generateCOSContent(cosContent)}</div>
+        </div>
+        <p>${aiGeneratedData.contextual_description || 'No contextual description available.'}</p>
+        <div id="dynamicTable-${ceId}" class="tabulator-table mb-3"></div>
+
+        <div class="row justify-content-start mb-3">
+          <div class="col-auto">
+            <button type="button" class="btn btn-sm btn-danger" id="deleteSelectedRowsButton-${ceId}">Delete</button>
+            <button type="button" class="btn btn-sm btn-secondary" id="duplicateSelectedRowsButton-${ceId}">Duplicate</button>
+          </div>
+        </div>
+
+        <form id="ceForm-${ceId}">
+          ${generateFormFields(fieldsConfig, ai_generated_data.fields)}
+        </form>
+        <div class="row mt-2">
+          <div class="col">
+            <button type="button" class="btn btn-success w-100" id="addRowButton-${ceId}" style="padding-top: 10px;">Add ${ceType}</button>
+          </div>
+          <div class="col">
+            <button type="button" class="btn btn-primary w-100" id="generateRowButton-${ceId}" style="padding-top: 10px;">Generate ${ceType}</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
 """  
 
 DEFAULT_FIELDS_CONFIG = [  
@@ -129,26 +135,11 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
     current_app.logger.debug(f"Phase name: {phase_name}")  
     current_app.logger.debug(f"Phase index: {phase_index}")  
   
-    # Use default fields and configuration if the ce_type is not found in NODES  
-    if ce_type not in NODES:  
-        current_app.logger.warning(f"CE type '{ce_type}' not found in NODES. Using default fields.")  
-        node_info = {  
-            "icon": "fa-solid fa-question-circle",  
-            "modal_header_color": "#6c757d",  
-            "modal_config": {"fields": DEFAULT_FIELDS_CONFIG},  
-            "tabulator_config": DEFAULT_TABULATOR_CONFIG  
-        }  
-    else:  
-        node_info = NODES[ce_type]  
-  
-    current_app.logger.debug(f"Node Info: {node_info}")  
-  
+    node_info = NODES.get(ce_type, NODES['Default'])  
     fields_config = node_info['modal_config']['fields']  
     tabulator_config = node_info['tabulator_config']  
   
-    # Check if saved form data exists in ce_data  
     saved_form_data = ce_data.get('form_data', {}) if ce_data else {}  
-    current_app.logger.debug(f"Saved form data: {saved_form_data}")  
     form_fields = generate_form_fields(fields_config, saved_form_data or ai_generated_data.get('fields', {}))  
     table_headers = generate_table_headers(fields_config)  
     table_data = ce_data.get('table_data', []) if ce_data else []  
@@ -157,12 +148,7 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
     ai_context_description = ai_generated_data.get('contextual_description', 'No contextual description provided.')  
     cos_content_with_pills = replace_ce_tags_with_pills(cos_content, ce_store)  
   
-    current_app.logger.debug(f"Form Fields: {form_fields}")  
-    current_app.logger.debug(f"Table Headers: {table_headers}")  
-    current_app.logger.debug(f"Table Data: {table_data}")  
-    current_app.logger.debug(f"Node Name: {node_name}")  
-    current_app.logger.debug(f"AI Context Description: {ai_context_description}")  
-    current_app.logger.debug(f"COS Content with Pills: {cos_content_with_pills}")  
+    full_cos_text = extract_full_cos_text(cos_content)  # Define the full_cos_text variable here  
   
     modal_content = render_template_string(  
         BASE_MODAL_TEMPLATE,  
@@ -172,24 +158,26 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
         table_headers=table_headers,  
         table_data=table_data,  
         tabulator_columns=[  
-            # Add a checkbox column for row selection  
             { 'formatter': 'rowSelection', 'titleFormatter': 'rowSelection', 'hozAlign': 'center', 'headerSort': False, 'cellClick': lambda e, cell: cell.getRow().toggleSelect() },  
             *tabulator_config['columns'],  
         ],  
         ce_data=ce_data or {'id': 'unknown_ce_id'},  
         cos_content=cos_content_with_pills,  
+        full_cos_text=full_cos_text,  # Use the defined full_cos_text variable here  
         ai_generated_data=ai_generated_data,  
         phase_name=phase_name,  
         phase_index=phase_index,  
         node_name=node_name,  
         ce_id=ce_data.get('id', 'unknown_ce_id') if ce_data else 'unknown_ce_id',  
-        ai_context_description=ai_context_description  
+        ai_context_description=ai_generated_data.get('contextual_description', 'No contextual description provided.')  
     )  
   
-    current_app.logger.debug(f"Rendered Modal Content: {modal_content}")  
-  
-    return modal_content
-  
+    return modal_content  
+
+def extract_full_cos_text(cos_content):
+    soup = BeautifulSoup(cos_content, 'html.parser')
+    return ' '.join(soup.stripped_strings)
+
 def generate_fa_icon_for_node_type(node_type):  
     messages = [  
         {"role": "system", "content": "You are an AI that suggests a FontAwesome 6 Solid (fas) class icon based on the node type name. Output only the icon class in JSON format."},  
@@ -231,35 +219,34 @@ def replace_ce_tags_with_pills(content, ce_store):
         ce_data = ce_store.get(ce_uuid, {})  
         resource_count = len(ce_data.get('table_data', []))  
   
-        new_tag = soup.new_tag('button', attrs={  
-            'type': 'button',  
-            'class': 'btn btn-primary ce-pill position-relative',  
+        new_tag = soup.new_tag('span', attrs={  
+            'class': 'badge rounded-pill bg-secondary ce-pill position-relative',  
             'data-ce-id': ce_uuid,  
             'data-ce-type': ce_type,  
         })  
+        new_tag.string = ce_tag.string  
   
-        # Add the Conditional Element text  
-        ce_text = soup.new_tag('span')  
-        ce_text.string = ce_tag.string  
-        new_tag.append(ce_text)  
+        # Add the counter in a separate span with badge classes  
+        if resource_count > 0:  
+            counter_tag = soup.new_tag('span', attrs={  
+                'class': 'badge bg-light text-dark ms-2'  
+            })  
+            counter_tag.string = str(resource_count)  
+            new_tag.append(counter_tag)  
   
         # Add the green dot indicator if the CE is new  
-        if 'is_new' in ce_data and ce_data['is_new']:  
-            green_dot = soup.new_tag('span', attrs={'class': 'position-absolute top-0 start-0 translate-middle p-2 bg-success border border-light rounded-circle'})  
+        if ce_data.get('is_new'):  
+            green_dot = soup.new_tag('span', attrs={  
+                'class': 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle'  
+            })  
             visually_hidden_text = soup.new_tag('span', attrs={'class': 'visually-hidden'})  
             visually_hidden_text.string = 'New CE'  
             green_dot.append(visually_hidden_text)  
             new_tag.append(green_dot)  
   
-        # Add the counter in a separate span with badge classes  
-        if resource_count > 0:  
-            counter_tag = soup.new_tag('span', attrs={'class': 'badge bg-light position-absolute top-0 start-100 translate-middle p-2 rounded-circle'})  
-            counter_tag.string = str(resource_count)  
-            new_tag.append(counter_tag)  
-  
         ce_tag.replace_with(new_tag)  
     return str(soup)  
-  
+
 def get_ce_modal(ce_type):  
     modal_html = generate_dynamic_modal(ce_type)  
     return modal_html  

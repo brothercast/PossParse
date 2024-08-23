@@ -113,7 +113,7 @@ body:before {
   left: 0;  
   width: 100%;  
   height: 100%;  
-  background-color: rgba(255, 255, 255, 0.8);  
+  background-color: rgba(255, 255, 255, 0.3);  
   display: flex;  
   justify-content: center;  
   align-items: center;  
@@ -369,10 +369,11 @@ body > main > div > div.row.outcome-header {
   text-align: center;  
   text-shadow: 1px 1px 0px #000000;  
   padding: .25em .6em; /* Adjust padding as needed */  
-  font-size: 0.85em; 
+  font-size: 0.85em;  
   border-radius: 10rem; /* Adjust for rounded corners */  
   /* Additional styles specific to CE pills if needed */  
 }  
+
 
 .badge-primary,
 .badge-primary:not(.dropdown-toggle).dropdown-item:focus,
