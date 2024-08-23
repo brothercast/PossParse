@@ -184,49 +184,49 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
   }  
 }  
 
-
-
 function generateCOSContent(cosContent) {  
   const parser = new DOMParser();  
   const doc = parser.parseFromString(cosContent, 'text/html');  
   const ceTags = doc.querySelectorAll('ce');  
-  
+
   ceTags.forEach(ceTag => {  
-    const ceId = ceTag.getAttribute('id');  
-    const ceType = ceTag.getAttribute('type');  
-    const ceText = ceTag.textContent;  
-    const ceData = ce_store[ceId] || {};  
-  
-    const pill = document.createElement('span');  
-    pill.className = 'badge rounded-pill bg-secondary ce-pill position-relative';  
-    pill.dataset.ceId = ceId;  
-    pill.dataset.ceType = ceType;  
-    pill.textContent = ceText;  
-  
-    if (ceData.is_new) {  
-      const greenDot = document.createElement('span');  
-      greenDot.className = 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle';  
-      const visuallyHiddenText = document.createElement('span');  
-      visuallyHiddenText.className = 'visually-hidden';  
-      visuallyHiddenText.textContent = 'New CE';  
-      greenDot.appendChild(visuallyHiddenText);  
-      pill.appendChild(greenDot);  
-    }  
-  
-    const resourceCount = ceData.table_data ? ceData.table_data.length : 0;  
-    if (resourceCount > 0) {  
-      const tally = document.createElement('span');  
-      tally.className = 'badge bg-light text-dark ms-2';  
-      tally.textContent = resourceCount.toString();  
-      pill.appendChild(tally);  
-    }  
-  
-    ceTag.replaceWith(pill);  
+      const ceId = ceTag.getAttribute('id');  
+      const ceType = ceTag.getAttribute('type');  
+      const ceText = ceTag.textContent;  
+      const ceData = ce_store[ceId] || {};  
+
+      const pill = document.createElement('span');  
+      pill.className = 'badge rounded-pill bg-secondary ce-pill position-relative';  
+      pill.dataset.ceId = ceId;  
+      pill.dataset.ceType = ceType;  
+      pill.textContent = ceText;  
+
+      if (ceData.is_new) {  
+          const greenDot = document.createElement('span');  
+          greenDot.className = 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle';  
+          const visuallyHiddenText = document.createElement('span');  
+          visuallyHiddenText.className = 'visually-hidden';  
+          visuallyHiddenText.textContent = 'New CE';  
+          greenDot.appendChild(visuallyHiddenText);  
+          pill.appendChild(greenDot);  
+      }  
+
+      // Filter out rows with all null values  
+      const nonNullRows = ceData.table_data ? ceData.table_data.filter(row => Object.values(row).some(value => value !== null && value !== '')) : [];  
+
+      const resourceCount = nonNullRows.length;  
+      if (resourceCount > 0) {  
+          const tally = document.createElement('span');  
+          tally.className = 'badge bg-light text-dark ms-2 counter';  
+          tally.textContent = resourceCount.toString();  
+          pill.appendChild(tally);  
+      }  
+
+      ceTag.replaceWith(pill);  
   });  
-  
+
   return doc.body.innerHTML;  
 }  
-
 
 
 
@@ -269,19 +269,17 @@ function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {
       console.error('Table element not found:', tableSelector);  
       return;  
   }  
-  
-  const shouldPaginate = tableData.length > 5;  
-  
+
+  // Initialize with four blank rows  
+  const initialData = tableData.length ? tableData : [{}, {}, {}, {}];  
+
   return new Tabulator(tableSelector, {  
-      data: tableData.length ? tableData : [{}],  
+      data: initialData,  
       layout: "fitColumns",  
-      pagination: shouldPaginate ? "local" : false,  
-      paginationSize: 5,  
       movableColumns: true,  
       resizableRows: true,  
-      movableRows: true, // Enable user-movable rows  
-      selectable: true,  // Enable row selection  
-      reactiveData: true, // Enable reactive data  
+      selectable: true,  
+      reactiveData: true,  
       columns: [  
           {  
               title: "",  
@@ -305,7 +303,7 @@ function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {
           },  
           ...tabulatorColumns,  
       ],  
-      placeholder: "No Data Available", // Placeholder text when no data is available  
+      placeholder: "No Data Available",  
       rowFormatter: function (row) {  
           const rowElement = row.getElement();  
           const cells = rowElement.querySelectorAll('.tabulator-cell');  
@@ -324,7 +322,7 @@ function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {
       }  
   });  
 }  
-  
+ 
 function clearFormFields(formSelector) {  
   const form = document.querySelector(formSelector);  
   if (form) {  
@@ -416,93 +414,118 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
   const saveChangesButton = modalElement.querySelector('.btn-save-changes');  
   const deleteSelectedRowsButton = modalElement.querySelector(`#deleteSelectedRowsButton-${ceId}`);  
   const duplicateSelectedRowsButton = modalElement.querySelector(`#duplicateSelectedRowsButton-${ceId}`);  
-  
+
   if (addRowButton) {  
-    addRowButton.addEventListener('click', () => {  
-      const table = modalElement._tabulator; // Retrieve the Tabulator instance  
-      const form = modalElement.querySelector(`#ceForm-${ceId}`);  
-      const formData = new FormData(form);  
-      const rowData = {};  
-      let isAnyFieldFilled = false;  
-  
-      formData.forEach((value, key) => {  
-        if (value.trim()) {  
-          isAnyFieldFilled = true; // Mark form as valid if any field is filled  
-        }  
-        rowData[key] = value || '';  // Ensure value is not null  
+      addRowButton.addEventListener('click', () => {  
+          const table = modalElement._tabulator;  
+          const form = modalElement.querySelector(`#ceForm-${ceId}`);  
+          const formData = new FormData(form);  
+          const rowData = {};  
+          let isAnyFieldFilled = false;  
+
+          formData.forEach((value, key) => {  
+              if (value.trim()) {  
+                  isAnyFieldFilled = true;  
+              }  
+              rowData[key] = value || '';  
+          });  
+
+          if (!isAnyFieldFilled) {  
+              alert('Please fill in at least one field before adding a row.');  
+              return;  
+          }  
+
+          // Find the first empty row  
+          const rows = table.getRows();  
+          let emptyRow = rows.find(row => Object.values(row.getData()).every(val => val === ''));  
+
+          if (emptyRow) {  
+              emptyRow.update(rowData);  
+          } else {  
+              table.addRow(rowData, true);  
+          }  
+
+          clearFormFields(`#ceForm-${ceId}`);  
       });  
-  
-      if (!isAnyFieldFilled) {  
-        alert('Please fill in at least one field before adding a row.');  
-        return;  
-      }  
-  
-      // Find the first empty row  
-      const rows = table.getRows();  
-      let emptyRow = rows.find(row => Object.values(row.getData()).every(val => val === ''));  
-  
-      if (emptyRow) {  
-        emptyRow.update(rowData);  
-      } else {  
-        table.addRow(rowData, true); // Add row to the top  
-      }  
-  
-      clearFormFields(`#ceForm-${ceId}`);  
-      reinitializeTabulatorPagination(table); // Reinitialize pagination after adding a new row  
-    });  
   }  
-  
+
   if (generateRowButton) {  
-    generateRowButton.addEventListener('click', () => {  
-      const form = modalElement.querySelector(`#ceForm-${ceId}`);  
-      const inputs = form.querySelectorAll('input, textarea, select');  
-      let emptyFields = Array.from(inputs).filter(input => input.value.trim() === '');  
-  
-      // Get existing CEs from the Tabulator table if available, otherwise pass an empty list  
-      const table = modalElement._tabulator; // Retrieve the Tabulator instance  
-      const existingCEs = table ? table.getData() : [];  
-  
-      if (emptyFields.length > 0) {  
-        generateFieldsFromAI(ceId, ceType, existingCEs);  
-      } else {  
-        if (confirm('There are already values in the fields. Do you want to overwrite them?')) {  
-          generateFieldsFromAI(ceId, ceType, existingCEs);  
-        }  
-      }  
-    });  
+      generateRowButton.addEventListener('click', () => {  
+          const form = modalElement.querySelector(`#ceForm-${ceId}`);  
+          const inputs = form.querySelectorAll('input, textarea, select');  
+          let emptyFields = Array.from(inputs).filter(input => input.value.trim() === '');  
+
+          const table = modalElement._tabulator;  
+          const existingCEs = table ? table.getData() : [];  
+
+          if (emptyFields.length > 0) {  
+              generateFieldsFromAI(ceId, ceType, existingCEs);  
+          } else {  
+              if (confirm('There are already values in the fields. Do you want to overwrite them?')) {  
+                  generateFieldsFromAI(ceId, ceType, existingCEs);  
+              }  
+          }  
+      });  
   }  
-  
+
   if (saveChangesButton) {  
-    saveChangesButton.addEventListener('click', () => {  
-      const table = modalElement._tabulator; // Retrieve the Tabulator instance  
-      const formData = new FormData(modalElement.querySelector(`#ceForm-${ceId}`));  
-      const updatedData = {};  
-      formData.forEach((value, key) => {  
-        updatedData[key] = value || '';  // Ensure value is not null  
+      saveChangesButton.addEventListener('click', () => {  
+          const table = modalElement._tabulator;  
+          const tableData = table ? table.getData() : [];  
+
+          // Filter out rows with all null values  
+          const nonNullRows = tableData.filter(row => Object.values(row).some(value => value !== null && value !== ''));  
+
+          const updatedData = {  
+              table_data: tableData,  
+              form_data: getFormData(modalElement.querySelector(`#ceForm-${ceId}`))  
+          };  
+
+          fetch(`/update_ce/${encodeURIComponent(ceId)}`, {  
+              method: 'PUT',  
+              headers: {  
+                  'Content-Type': 'application/json'  
+              },  
+              body: JSON.stringify(updatedData)  
+          })  
+          .then(response => response.json())  
+          .then(data => {  
+              if (data.success) {  
+                  console.log(`CE ID ${ceId} updated successfully`);  
+                  bootstrap.Modal.getInstance(modalElement).hide();  
+                  updateCEPill(ceId, nonNullRows.length); // Update the CE pill with the number of non-null rows  
+                  setupEventListeners(); // Reattach event listeners to CE pills  
+              } else {  
+                  throw new Error(data.error || 'An error occurred while updating the CE.');  
+              }  
+          })  
+          .catch(error => {  
+              console.error('Error updating CE:', error);  
+              alert('An error occurred while updating the CE. Please try again.');  
+          });  
       });  
-      saveCEChanges(ceId, updatedData);  
-    });  
   }  
-  
+
   if (deleteSelectedRowsButton) {  
-    deleteSelectedRowsButton.addEventListener('click', () => {  
-      const table = modalElement._tabulator;  
-      const selectedRows = table.getSelectedRows();  
-      selectedRows.forEach(row => row.delete());  
-    });  
-  }  
-  
-  if (duplicateSelectedRowsButton) {  
-    duplicateSelectedRowsButton.addEventListener('click', () => {  
-      const table = modalElement._tabulator;  
-      const selectedRows = table.getSelectedRows();  
-      selectedRows.forEach(row => {  
-        const rowData = row.getData();  
-        table.addRow(rowData, true); // Add duplicated row to the top  
+      deleteSelectedRowsButton.addEventListener('click', () => {  
+          const table = modalElement._tabulator;  
+          const selectedRows = table.getSelectedRows();  
+          selectedRows.forEach(row => row.delete());  
       });  
-    });  
+  }  
+
+  if (duplicateSelectedRowsButton) {  
+      duplicateSelectedRowsButton.addEventListener('click', () => {  
+          const table = modalElement._tabulator;  
+          const selectedRows = table.getSelectedRows();  
+          selectedRows.forEach(row => {  
+              const rowData = row.getData();  
+              table.addRow(rowData, true);  
+          });  
+      });  
   }  
 }  
+
   
 function reinitializeTabulatorPagination(table) {  
   const rowCount = table.getDataCount();  
@@ -527,39 +550,42 @@ function reinitializeTabulatorPagination(table) {
 }  
   
 function saveCEChanges(ceId) {  
-  const modalElement = document.querySelector(`#ceModal-${ceId}`);
-    const fullCosText = modalElement.dataset.fullCosText;  
+  const modalElement = document.querySelector(`#ceModal-${ceId}`);  
   const table = modalElement._tabulator;  
-  const tableData = table ? table.getData() : []; // Get the data from the Tabulator table  
-  
+  const tableData = table ? table.getData() : [];  
+
+  // Filter out rows with all null values  
+  const nonNullRows = tableData.filter(row => Object.values(row).some(value => value !== null && value !== ''));  
+
   const updatedData = {  
       table_data: tableData,  
       form_data: getFormData(modalElement.querySelector(`#ceForm-${ceId}`))  
   };  
-  
-  fetch(`/update_ce/${encodeURIComponent(ceId)}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(updatedData)
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      console.log(`CE ID ${ceId} updated successfully`);
-      bootstrap.Modal.getInstance(modalElement).hide();
-      updateCEPill(ceId, tableData.length); // Update the CE pill with the number of rows
-      setupEventListeners(); // Reattach event listeners to CE pills
-    } else {
-      throw new Error(data.error || 'An error occurred while updating the CE.');
-    }
-  })
-  .catch(error => {
-    console.error('Error updating CE:', error);
-    alert('An error occurred while updating the CE. Please try again.');
-  });
-}
+
+  fetch(`/update_ce/${encodeURIComponent(ceId)}`, {  
+      method: 'PUT',  
+      headers: {  
+          'Content-Type': 'application/json'  
+      },  
+      body: JSON.stringify(updatedData)  
+  })  
+  .then(response => response.json())  
+  .then(data => {  
+      if (data.success) {  
+          console.log(`CE ID ${ceId} updated successfully`);  
+          bootstrap.Modal.getInstance(modalElement).hide();  
+          updateCEPill(ceId, nonNullRows.length); // Update the CE pill with the number of non-null rows  
+          setupEventListeners(); // Reattach event listeners to CE pills  
+      } else {  
+          throw new Error(data.error || 'An error occurred while updating the CE.');  
+      }  
+  })  
+  .catch(error => {  
+      console.error('Error updating CE:', error);  
+      alert('An error occurred while updating the CE. Please try again.');  
+  });  
+}  
+
   
 function getFormData(form) {  
   const formData = new FormData(form);  

@@ -367,11 +367,20 @@ body > main > div > div.row.outcome-header {
   display: inline-block; /* or other display property as needed */  
   color: #fff !important;  
   text-align: center;  
-  text-shadow: 1px 1px 0px #000000;  
+  text-shadow: 1px 1px 0px #000000; /* Drop shadow for CE text */  
   padding: .25em .6em; /* Adjust padding as needed */  
   font-size: 0.85em;  
   border-radius: 10rem; /* Adjust for rounded corners */  
   /* Additional styles specific to CE pills if needed */  
+}  
+
+.ce-pill .counter {  
+  background-color: #f8f9fa !important; /* Light background for the counter */  
+  color: #212529 !important; /* Dark text for the counter */  
+  text-shadow: none !important; /* Remove drop shadow for counter */  
+  border-radius: 10rem !important;  
+  margin-left: 3px !important;  
+  padding: 5px 5px !important;  
 }  
 
 
