@@ -229,7 +229,7 @@ def replace_ce_tags_with_pills(content, ce_store):
         # Add the counter in a separate span with badge classes  
         if resource_count > 0:  
             counter_tag = soup.new_tag('span', attrs={  
-                'class': 'badge bg-light text-dark ms-2'  
+                'class': 'badge rounded-pill bg-light text-dark ms-2'  
             })  
             counter_tag.string = str(resource_count)  
             new_tag.append(counter_tag)  

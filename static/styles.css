@@ -350,25 +350,26 @@ body > main > div > div.row.outcome-header {
   /* Add more colors if needed */
 }
 
-.status-pill {            
-  display: inline-block; /* or other display property as needed */        
-  color: #fff !important;      
-  text-align: center;    
-  text-transform: uppercase; /* Converts text to uppercase */            
-  font-size: 0.65em; /* Scale down the font size to 75% */        
-  text-shadow: 1px 1px 0px #000000;    
-  padding: .15em .6em; /* Adjust padding as needed */  
-  border-radius: 10rem; /* Adjust for rounded corners */  
-  margin-top: 8px;    
-  margin-right: 8px;  
-}  
-
-.ce-pill {  
+.status-pill {  
   display: inline-block; /* or other display property as needed */  
   color: #fff !important;  
   text-align: center;  
+  text-transform: uppercase; /* Converts text to uppercase */  
+  font-size: 0.75em; /* Scale down the font size to 75% */  
+  text-shadow: 1px 1px 0px #000000;  
+  padding: .15em .6em; /* Adjust padding as needed */  
+  border-radius: 10rem; /* Adjust for rounded corners */  
+  margin-right: 8px;  
+  vertical-align: middle; /* Align vertically in the middle */  
+}  
+
+.ce-pill {  
+  display: inline-flex; /* Use inline-flex to align items properly */  
+  align-items: center; /* Vertically center items */  
+  color: #fff !important;  
+  text-align: center;  
   text-shadow: 1px 1px 0px #000000; /* Drop shadow for CE text */  
-  padding: .25em .6em; /* Adjust padding as needed */  
+  padding: .2em .5em; /* Slightly reduce padding */  
   font-size: 0.85em;  
   border-radius: 10rem; /* Adjust for rounded corners */  
   /* Additional styles specific to CE pills if needed */  
@@ -378,10 +379,15 @@ body > main > div > div.row.outcome-header {
   background-color: #f8f9fa !important; /* Light background for the counter */  
   color: #212529 !important; /* Dark text for the counter */  
   text-shadow: none !important; /* Remove drop shadow for counter */  
-  border-radius: 10rem !important;  
-  margin-left: 3px !important;  
-  padding: 5px 5px !important;  
-}  
+  font-size: 0.7em; /* Keep reduced font size for the counter */  
+  padding: 0.05em 0.3em; /* Reduce padding for the counter */  
+  margin-left: 0.12em; /* Reduce margin to bring the counter closer to the text */  
+  border-radius: 10rem; /* Keep the rounded corners consistent */  
+  display: inline-flex; /* Ensure counter is inline with text */  
+  align-items: center; /* Vertically center items */  
+  justify-content: center; /* Horizontally center items */  
+  line-height: 1; /* Ensure proper line height */  
+}   
 
 
 .badge-primary,

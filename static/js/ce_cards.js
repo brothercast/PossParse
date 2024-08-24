@@ -217,7 +217,7 @@ function generateCOSContent(cosContent) {
       const resourceCount = nonNullRows.length;  
       if (resourceCount > 0) {  
           const tally = document.createElement('span');  
-          tally.className = 'badge bg-light text-dark ms-2 counter';  
+          tally.className = 'badge rounded-pill bg-light text-dark ms-2 ce-pill counter';  
           tally.textContent = resourceCount.toString();  
           pill.appendChild(tally);  
       }  
@@ -227,7 +227,6 @@ function generateCOSContent(cosContent) {
 
   return doc.body.innerHTML;  
 }  
-
 
 
 function generateFormFields(fieldsConfig, aiData) {  
@@ -616,7 +615,7 @@ function updateCEPill(ceId, resourceCount) {
 
     if (resourceCount > 0) {
       const tally = document.createElement('span');
-      tally.className = 'badge bg-light text-dark ms-2';
+      tally.className = 'badge rounded-pill bg-light text-dark ms-2 counter';
       tally.textContent = resourceCount.toString();
       cePill.appendChild(tally);
     }
@@ -635,6 +634,7 @@ function updateCEPill(ceId, resourceCount) {
   });
 }
 
+/* Pretty sure orphaned a long time ago, poor kid....
 function generateDynamicForm(ceData) {  
   return `  
     <form id="ceForm" data-ce-id="${ceData.id}">  
@@ -648,7 +648,7 @@ function generateDynamicForm(ceData) {
       </div>  
     </form>  
   `;  
-}  
+}   */
   
 function generateSelectOptions(selectedType) {  
   return Object.entries(NODES).map(([type, { definition }]) => {  
