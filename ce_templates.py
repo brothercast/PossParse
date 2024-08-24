@@ -1,5 +1,5 @@
 # ce_templates.py  
-  
+
 import json  
 import logging  
 from store import ce_store  
@@ -7,56 +7,54 @@ from bs4 import BeautifulSoup
 from flask import render_template_string, current_app  
 from utilities import generate_chat_response  
 from ce_nodes import NODES, get_valid_node_types  
-  
+
 # Define a base template for the modal dialogs that will be populated dynamically  
 BASE_MODAL_TEMPLATE = """  
-<div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">
-  <div class="modal-dialog modal-lg" role="document">
-    <div class="modal-content">
-      <div class="modal-header" style="background-color: ${phaseColor};">
-        <div class="filled-box"></div>
-        <h5 class="modal-title" id="ceModalLabel-${ceId}">
-          <span class="node-icon me-2" style="color: ${phaseColor};">
-            <i class="${NODES[ceType]?.icon || 'fa-solid fa-question-circle'}"></i>
-          </span>
-          <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()}</span>
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="d-flex align-items-center mb-3">
-          <h5 class="mb-0 me-2" style="font-family: 'Unica One', cursive;">Source COS:</h5>
-          <div class="cos-content">${generateCOSContent(cosContent)}</div>
-        </div>
-        <p>${aiGeneratedData.contextual_description || 'No contextual description available.'}</p>
-        <div id="dynamicTable-${ceId}" class="tabulator-table mb-3"></div>
-
-        <div class="row justify-content-start mb-3">
-          <div class="col-auto">
-            <button type="button" class="btn btn-sm btn-danger" id="deleteSelectedRowsButton-${ceId}">Delete</button>
-            <button type="button" class="btn btn-sm btn-secondary" id="duplicateSelectedRowsButton-${ceId}">Duplicate</button>
-          </div>
-        </div>
-
-        <form id="ceForm-${ceId}">
-          ${generateFormFields(fieldsConfig, ai_generated_data.fields)}
-        </form>
-        <div class="row mt-2">
-          <div class="col">
-            <button type="button" class="btn btn-success w-100" id="addRowButton-${ceId}" style="padding-top: 10px;">Add ${ceType}</button>
-          </div>
-          <div class="col">
-            <button type="button" class="btn btn-primary w-100" id="generateRowButton-${ceId}" style="padding-top: 10px;">Generate ${ceType}</button>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save changes</button>
-      </div>
-    </div>
-  </div>
-</div>
+<div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">  
+  <div class="modal-dialog modal-lg" role="document">  
+    <div class="modal-content">  
+      <div class="modal-header" style="background-color: ${phaseColor};">  
+        <div class="filled-box"></div>  
+        <h5 class="modal-title" id="ceModalLabel-${ceId}">  
+          <span class="node-icon me-2" style="color: ${phaseColor};">  
+            <i class="${NODES[ceType]?.icon || 'fa-solid fa-question-circle'}"></i>  
+          </span>  
+          <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()}</span>  
+        </h5>  
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
+      </div>  
+      <div class="modal-body">  
+        <h2 class="d-inline">Source COS:</h2>  
+        <h5 class="d-inline">${cos_content_with_pills}</h5>  <!-- Ensure this is updated to use cos_content_with_pills -->  
+        <p>${ai_generated_data.contextual_description || 'No contextual description available.'}</p>  
+        <div id="dynamicTable-${ceId}" class="tabulator-table mb-3"></div>  
+  
+        <div class="row justify-content-start mb-3">  
+          <div class="col-auto">  
+            <button type="button" class="btn btn-sm btn-danger" id="deleteSelectedRowsButton-${ceId}">Delete</button>  
+            <button type="button" class="btn btn-sm btn-secondary" id="duplicateSelectedRowsButton-${ceId}">Duplicate</button>  
+          </div>  
+        </div>  
+  
+        <form id="ceForm-${ceId}">  
+          ${generate_form_fields(fields_config, ai_generated_data.fields)}  
+        </form>  
+        <div class="row mt-2">  
+          <div class="col">  
+            <button type="button" class="btn btn-success w-100" id="addRowButton-${ceId}" style="padding-top: 10px;">Add ${ceType}</button>  
+          </div>  
+          <div class="col">  
+            <button type="button" class="btn btn-primary w-100" id="generateRowButton-${ceId}" style="padding-top: 10px;">Generate ${ceType}</button>  
+          </div>  
+        </div>  
+      </div>  
+      <div class="modal-footer">  
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
+        <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save changes</button>  
+      </div>  
+    </div>  
+  </div>  
+</div>  
 """  
 
 DEFAULT_FIELDS_CONFIG = [  
@@ -162,7 +160,7 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
             *tabulator_config['columns'],  
         ],  
         ce_data=ce_data or {'id': 'unknown_ce_id'},  
-        cos_content=cos_content_with_pills,  
+        cos_content_with_pills=cos_content_with_pills,  # Use updated cos_content_with_pills here  
         full_cos_text=full_cos_text,  # Use the defined full_cos_text variable here  
         ai_generated_data=ai_generated_data,  
         phase_name=phase_name,  
@@ -173,6 +171,8 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
     )  
   
     return modal_content  
+
+
 
 def extract_full_cos_text(cos_content):
     soup = BeautifulSoup(cos_content, 'html.parser')
@@ -246,6 +246,7 @@ def replace_ce_tags_with_pills(content, ce_store):
   
         ce_tag.replace_with(new_tag)  
     return str(soup)  
+
 
 def get_ce_modal(ce_type):  
     modal_html = generate_dynamic_modal(ce_type)  

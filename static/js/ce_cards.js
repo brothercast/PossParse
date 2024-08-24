@@ -105,54 +105,55 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
   const fieldsConfig = NODES[ceType]?.modal_config.fields || DEFAULT_FIELDS_CONFIG;  
   const tabulatorConfig = NODES[ceType]?.tabulator_config.columns || DEFAULT_TABULATOR_CONFIG.columns;  
   
+  // Use the existing function to replace CE tags with pills  
+  const cosContentWithPills = replace_ce_tags_with_pills(cosContent, ce_store);  
+  
   const wrappedModalHtml = `  
-    <div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">  
-      <div class="modal-dialog modal-lg" role="document">  
-        <div class="modal-content">  
-          <div class="modal-header" style="background-color: ${phaseColor};">  
-            <div class="filled-box"></div>  
-            <h5 class="modal-title" id="ceModalLabel-${ceId}">  
-              <span class="node-icon me-2" style="color: ${phaseColor};">  
-                <i class="${NODES[ceType]?.icon || 'fa-solid fa-question-circle'}"></i>  
-              </span>  
-              <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()}</span>  
-            </h5>  
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
-          </div>  
-          <div class="modal-body">  
-            <h5>Source COS:</h5>  
-            <div class="cos-content">  
-              ${generateCOSContent(cosContent)}  
-            </div>  
-            <p>${aiGeneratedData.contextual_description || 'No contextual description available.'}</p>  
-            <div id="dynamicTable-${ceId}" class="tabulator-table mb-3"></div>  
+  <div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">  
+  <div class="modal-dialog modal-lg" role="document">  
+    <div class="modal-content">  
+      <div class="modal-header" style="background-color: ${phaseColor};">  
+        <div class="filled-box"></div>  
+        <h5 class="modal-title" id="ceModalLabel-${ceId}">  
+          <span class="node-icon me-2" style="color: ${phaseColor};">  
+            <i class="${NODES[ceType]?.icon || 'fa-solid fa-question-circle'}"></i>  
+          </span>  
+          <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()}</span>  
+        </h5>  
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
+      </div>  
+      <div class="modal-body">  
+        <p><span class="context-label">Source COS:</span><span class="context-text">${cosContentWithPills}</span></p>  
+        <p><span class="context-label">${ceType}:</span><span class="context-text">${aiGeneratedData.contextual_description || 'No contextual description available.'}</span></p>  
+        <div id="dynamicTable-${ceId}" class="tabulator-table mb-3"></div>  
   
-            <div class="row justify-content-start mb-3">  
-              <div class="col-auto">  
-                <button type="button" class="btn btn-sm btn-danger" id="deleteSelectedRowsButton-${ceId}">Delete</button>  
-                <button type="button" class="btn btn-sm btn-secondary" id="duplicateSelectedRowsButton-${ceId}">Duplicate</button>  
-              </div>  
-            </div>  
-  
-            <form id="ceForm-${ceId}">  
-              ${generateFormFields(fieldsConfig, aiGeneratedData.fields)}  
-            </form>  
-            <div class="row mt-2">  
-              <div class="col">  
-                <button type="button" class="btn btn-success w-100" id="addRowButton-${ceId}" style="padding-top: 10px;">Add ${ceType}</button>  
-              </div>  
-              <div class="col">  
-                <button type="button" class="btn btn-primary w-100" id="generateRowButton-${ceId}" style="padding-top: 10px;">Generate ${ceType}</button>  
-              </div>  
-            </div>  
+        <div class="row justify-content-start mb-3">  
+          <div class="col-auto">  
+            <button type="button" class="btn btn-sm btn-danger" id="deleteSelectedRowsButton-${ceId}">Delete</button>  
+            <button type="button" class="btn btn-sm btn-secondary" id="duplicateSelectedRowsButton-${ceId}">Duplicate</button>  
           </div>  
-          <div class="modal-footer">  
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
-            <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save changes</button>  
+        </div>  
+  
+        <form id="ceForm-${ceId}">  
+          ${generateFormFields(fieldsConfig, aiGeneratedData.fields)}  
+        </form>  
+        <div class="row mt-2">  
+          <div class="col">  
+            <button type="button" class="btn btn-success w-100" id="addRowButton-${ceId}" style="padding-top: 10px;">Add ${ceType}</button>  
+          </div>  
+          <div class="col">  
+            <button type="button" class="btn btn-primary w-100" id="generateRowButton-${ceId}" style="padding-top: 10px;">Generate ${ceType}</button>  
           </div>  
         </div>  
       </div>  
+      <div class="modal-footer">  
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
+        <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save changes</button>  
+      </div>  
     </div>  
+  </div>  
+</div>  
+  
   `;  
   
   modalContainer.innerHTML = wrappedModalHtml;  
@@ -161,12 +162,6 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
   if (modalElement) {  
     const modal = new bootstrap.Modal(modalElement);  
     modal.show();  
-  
-    const fullCosTextElement = modalElement.querySelector('.full-cos-text');  
-    if (fullCosTextElement) {  
-      const fullCosText = fullCosTextElement.textContent;  
-      modalElement.dataset.fullCosText = fullCosText;  
-    }  
   
     modalElement.addEventListener('shown.bs.modal', function () {  
       const tableElementId = `#dynamicTable-${ceId}`;  
@@ -183,6 +178,50 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
     console.error(`Modal element not found in the DOM for CE ID: ${ceId}`);  
   }  
 }  
+  
+  
+function replace_ce_tags_with_pills(content, ce_store) {  
+  const parser = new DOMParser();  
+  const doc = parser.parseFromString(content, 'text/html');  
+  const ceTags = doc.querySelectorAll('ce');  
+  
+  ceTags.forEach(ceTag => {  
+    const ceId = ceTag.getAttribute('id');  
+    const ceType = ceTag.getAttribute('type');  
+    const ceText = ceTag.textContent;  
+    const ceData = ce_store[ceId] || {};  
+  
+    const pill = document.createElement('span');  
+    pill.className = 'badge rounded-pill bg-secondary ce-pill position-relative';  
+    pill.dataset.ceId = ceId;  
+    pill.dataset.ceType = ceType;  
+    pill.textContent = ceText;  
+  
+    if (ceData.is_new) {  
+      const greenDot = document.createElement('span');  
+      greenDot.className = 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle';  
+      const visuallyHiddenText = document.createElement('span');  
+      visuallyHiddenText.className = 'visually-hidden';  
+      visuallyHiddenText.textContent = 'New CE';  
+      greenDot.appendChild(visuallyHiddenText);  
+      pill.appendChild(greenDot);  
+    }  
+  
+    const nonNullRows = ceData.table_data ? ceData.table_data.filter(row => Object.values(row).some(value => value !== null && value !== '')) : [];  
+    const resourceCount = nonNullRows.length;  
+    if (resourceCount > 0) {  
+      const tally = document.createElement('span');  
+      tally.className = 'badge rounded-pill bg-light text-dark ms-2 ce-pill counter';  
+      tally.textContent = resourceCount.toString();  
+      pill.appendChild(tally);  
+    }  
+  
+    ceTag.replaceWith(pill);  
+  });  
+  
+  return doc.body.innerHTML;  
+}  
+
 
 function generateCOSContent(cosContent) {  
   const parser = new DOMParser();  

@@ -613,6 +613,42 @@ body > main > div > div.row.outcome-header {
   color: white;  
 }  
 
+
+
+.modal-header {  
+  font-family: 'Unica One', sans-serif;  
+  font-size: 0.5rem;  /* Adjusted font size */  
+  color: #333;  /* Adjust color if needed */ 
+  text-transform: uppercase;  
+  margin-bottom: 0.5rem;  /* Adjust spacing */  
+}  
+
+.modal-body .context-label {  
+  font-family: 'Unica One', sans-serif;  
+  font-size: 1.5rem;  /* Adjusted font size */  
+  font-weight: bold;  /* Bold font */  
+  color: #333;  /* Adjust color if needed */  
+  margin-right: 0.5rem;  /* Adjust spacing */
+  text-transform: uppercase;   
+  display: inline;  /* Ensure it stands out as a label */  
+}  
+
+/* Style for the COS text and AI context */  
+.modal-body .context-text {  
+  display: inline;  /* Ensure it is on the same line as the label */  
+  font-size: 1rem;  /* Adjust font size if needed */  
+  color: #333;  /* Adjust color if needed */  
+}  
+
+.modal-body .ai-context-label {  
+  font-family: 'Unica One', sans-serif;  
+  font-size: 1.5rem;  /* Adjust font size */  
+  color: #333;  /* Adjust color if needed */  
+  margin-bottom: 0.5rem;  /* Adjust spacing */  
+  text-transform: uppercase; 
+  display: block;  /* Ensure it stands out as a label */  
+}  
+
 .phase-colors {  
   --phase-0: #e91e63;  
   --phase-1: #00bcd4;  
@@ -666,16 +702,9 @@ body > main > div > div.row.outcome-header {
   border: 2px solid var(--phase-4) !important;  
 }  
 
-.green-dot {  
-  color: green;  
-  margin-right: 5px;  
-}
+ 
 
-.resource-tally {  
-  margin-left: 5px;  
-  vertical-align: right;
-  color: #ffffff;  
-}  
+
 
 /* Styles for Source COS text */  
 .source-cos-label {  
