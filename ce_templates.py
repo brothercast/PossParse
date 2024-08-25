@@ -8,7 +8,6 @@ from flask import render_template_string, current_app
 from utilities import generate_chat_response  
 from ce_nodes import NODES, get_valid_node_types  
 
-# Define a base template for the modal dialogs that will be populated dynamically  
 BASE_MODAL_TEMPLATE = """  
 <div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">  
   <div class="modal-dialog modal-lg" role="document">  
@@ -24,9 +23,8 @@ BASE_MODAL_TEMPLATE = """
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
       </div>  
       <div class="modal-body">  
-        <h2 class="d-inline">Source COS:</h2>  
-        <h5 class="d-inline">${cos_content_with_pills}</h5>  <!-- Ensure this is updated to use cos_content_with_pills -->  
-        <p>${ai_generated_data.contextual_description || 'No contextual description available.'}</p>  
+        <p><span class="context-label">Source COS:</span><span class="context-text">${cos_content_with_pills}</span></p>  
+        <p><span class="context-label">${ceType}:</span><span class="context-text">${ai_generated_data.contextual_description || 'No contextual description available.'}</span></p>  
         <div id="dynamicTable-${ceId}" class="tabulator-table mb-3"></div>  
   
         <div class="row justify-content-start mb-3">  
@@ -144,9 +142,9 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
   
     node_name = ce_type.replace('_', ' ').title()  
     ai_context_description = ai_generated_data.get('contextual_description', 'No contextual description provided.')  
+      
+    # Process the COS content to replace CE tags with CE pills  
     cos_content_with_pills = replace_ce_tags_with_pills(cos_content, ce_store)  
-  
-    full_cos_text = extract_full_cos_text(cos_content)  # Define the full_cos_text variable here  
   
     modal_content = render_template_string(  
         BASE_MODAL_TEMPLATE,  
@@ -160,8 +158,7 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
             *tabulator_config['columns'],  
         ],  
         ce_data=ce_data or {'id': 'unknown_ce_id'},  
-        cos_content_with_pills=cos_content_with_pills,  # Use updated cos_content_with_pills here  
-        full_cos_text=full_cos_text,  # Use the defined full_cos_text variable here  
+        cos_content_with_pills=cos_content_with_pills,  # Use processed COS content with CE pills  
         ai_generated_data=ai_generated_data,  
         phase_name=phase_name,  
         phase_index=phase_index,  
@@ -217,12 +214,16 @@ def replace_ce_tags_with_pills(content, ce_store):
         ce_uuid = ce_tag['id']  
         ce_type = ce_tag['type']  
         ce_data = ce_store.get(ce_uuid, {})  
-        resource_count = len(ce_data.get('table_data', []))  
+  
+        # Filter out rows with all null values  
+        non_null_rows = [row for row in ce_data.get('table_data', []) if any(value for value in row.values())]  
+        resource_count = len(non_null_rows)  
   
         new_tag = soup.new_tag('span', attrs={  
             'class': 'badge rounded-pill bg-secondary ce-pill position-relative',  
             'data-ce-id': ce_uuid,  
             'data-ce-type': ce_type,  
+            'title': 'Double-tap to open Conditional Element'  
         })  
         new_tag.string = ce_tag.string  
   
@@ -246,7 +247,7 @@ def replace_ce_tags_with_pills(content, ce_store):
   
         ce_tag.replace_with(new_tag)  
     return str(soup)  
-
+ 
 
 def get_ce_modal(ce_type):  
     modal_html = generate_dynamic_modal(ce_type)  

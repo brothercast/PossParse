@@ -1,5 +1,7 @@
+// ce_cards.js  
+  
 import { showLoadingSpinner, hideLoadingSpinner } from './base_functions.js';  
-
+  
 if (typeof ce_store === 'undefined') {  
   var ce_store = {};  
 }  
@@ -12,10 +14,11 @@ function setupEventListeners() {
   document.querySelectorAll('.ce-pill').forEach(pill => {  
     pill.removeEventListener('click', handleCEPillClick); // Remove any existing event listeners  
     pill.addEventListener('click', handleCEPillClick);  
+    pill.addEventListener('dblclick', handleCEPillDoubleClick); // Add double-click event listener  
+    pill.setAttribute('title', 'Double-tap to open Conditional Element'); // Add tooltip  
   });  
 }  
   
-// ce_cards.js  
 function handleCEPillClick(event) {  
   event.preventDefault();  
   event.stopPropagation();  
@@ -27,7 +30,8 @@ function handleCEPillClick(event) {
   
   const ceId = event.target.dataset.ceId;  
   const ceType = event.target.dataset.ceType || "Default";  
-  const cosContent = event.target.closest('tr').querySelector('.cos-content-cell').textContent.trim();  
+  const cosContentCell = event.target.closest('tr').querySelector('.cos-content-cell');  
+  const cosContent = cosContentCell ? cosContentCell.innerHTML : ''; // Use innerHTML instead of textContent  
   const phaseElement = event.target.closest('.accordion-item');  
   const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();  
   const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement);  
@@ -77,6 +81,48 @@ document.addEventListener('DOMContentLoaded', function () {
   setupEventListeners();  
 });  
 
+function handleCEPillDoubleClick(event) {  
+  event.preventDefault();  
+  event.stopPropagation();  
+  const ceId = event.target.dataset.ceId;  
+  const ceType = event.target.dataset.ceType || "Default";  
+  const cosContent = event.target.closest('tr').querySelector('.cos-content-cell').textContent.trim();  
+  const phaseElement = event.target.closest('.accordion-item');  
+  const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();  
+  const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement);  
+  const ssolGoal = document.querySelector('#ssol-goal').textContent.trim();  
+  
+  const requestData = {  
+    ce_id: ceId,  
+    cos_content: cosContent,  
+    phase_name: phaseName,  
+    phase_index: phaseIndex,  
+    ssol_goal: ssolGoal  
+  };  
+  
+  showLoadingSpinner(`Loading ${ceType} data...`);  
+  fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {  
+    method: 'POST',  
+    headers: {  
+      'Content-Type': 'application/json'  
+    },  
+    body: JSON.stringify(requestData)  
+  })  
+    .then(response => response.json())  
+    .then(data => {  
+      hideLoadingSpinner();  
+      if (data && data.modal_html) {  
+        const aiGeneratedData = data.ai_generated_data || { fields: {} };  
+        displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex, aiGeneratedData, data.table_data, data.tabulator_columns, ssolGoal);  
+      } else {  
+        console.error(`CE type "${ceType}" not found in response`);  
+      }  
+    })  
+    .catch(error => {  
+      hideLoadingSpinner();  
+      console.error('Error fetching modal content:', error);  
+    });  
+}  
   
 const DEFAULT_FIELDS_CONFIG = [  
   { type: 'text', name: 'subject', placeholder: 'Subject' },  
@@ -105,7 +151,7 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
   const fieldsConfig = NODES[ceType]?.modal_config.fields || DEFAULT_FIELDS_CONFIG;  
   const tabulatorConfig = NODES[ceType]?.tabulator_config.columns || DEFAULT_TABULATOR_CONFIG.columns;  
   
-  // Use the existing function to replace CE tags with pills  
+  // Process the COS content to replace CE tags with pills  
   const cosContentWithPills = replace_ce_tags_with_pills(cosContent, ce_store);  
   
   const wrappedModalHtml = `  
@@ -123,7 +169,7 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
       </div>  
       <div class="modal-body">  
-        <p><span class="context-label">Source COS:</span><span class="context-text">${cosContentWithPills}</span></p>  
+        <p><span class="context-label">Source COS:</span>${cosContentWithPills}</p>  
         <p><span class="context-label">${ceType}:</span><span class="context-text">${aiGeneratedData.contextual_description || 'No contextual description available.'}</span></p>  
         <div id="dynamicTable-${ceId}" class="tabulator-table mb-3"></div>  
   
@@ -153,7 +199,6 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
     </div>  
   </div>  
 </div>  
-  
   `;  
   
   modalContainer.innerHTML = wrappedModalHtml;  
@@ -165,7 +210,7 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
   
     modalElement.addEventListener('shown.bs.modal', function () {  
       const tableElementId = `#dynamicTable-${ceId}`;  
-      const table = initializeTabulatorTable(tableElementId, tableData, tabulatorConfig);  
+      const table = initializeTabulatorTable(tableElementId, tableData, tabulatorConfig, ceType);  
       modalElement._tabulator = table;  
     });  
   
@@ -178,8 +223,7 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
     console.error(`Modal element not found in the DOM for CE ID: ${ceId}`);  
   }  
 }  
-  
-  
+
 function replace_ce_tags_with_pills(content, ce_store) {  
   const parser = new DOMParser();  
   const doc = parser.parseFromString(content, 'text/html');  
@@ -196,6 +240,7 @@ function replace_ce_tags_with_pills(content, ce_store) {
     pill.dataset.ceId = ceId;  
     pill.dataset.ceType = ceType;  
     pill.textContent = ceText;  
+    pill.title = "Double-tap to open Conditional Element";  
   
     if (ceData.is_new) {  
       const greenDot = document.createElement('span');  
@@ -222,24 +267,23 @@ function replace_ce_tags_with_pills(content, ce_store) {
   return doc.body.innerHTML;  
 }  
 
-
 function generateCOSContent(cosContent) {  
   const parser = new DOMParser();  
   const doc = parser.parseFromString(cosContent, 'text/html');  
   const ceTags = doc.querySelectorAll('ce');  
-
+  
   ceTags.forEach(ceTag => {  
       const ceId = ceTag.getAttribute('id');  
       const ceType = ceTag.getAttribute('type');  
       const ceText = ceTag.textContent;  
       const ceData = ce_store[ceId] || {};  
-
+  
       const pill = document.createElement('span');  
       pill.className = 'badge rounded-pill bg-secondary ce-pill position-relative';  
       pill.dataset.ceId = ceId;  
       pill.dataset.ceType = ceType;  
       pill.textContent = ceText;  
-
+  
       if (ceData.is_new) {  
           const greenDot = document.createElement('span');  
           greenDot.className = 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle';  
@@ -249,10 +293,10 @@ function generateCOSContent(cosContent) {
           greenDot.appendChild(visuallyHiddenText);  
           pill.appendChild(greenDot);  
       }  
-
+  
       // Filter out rows with all null values  
       const nonNullRows = ceData.table_data ? ceData.table_data.filter(row => Object.values(row).some(value => value !== null && value !== '')) : [];  
-
+  
       const resourceCount = nonNullRows.length;  
       if (resourceCount > 0) {  
           const tally = document.createElement('span');  
@@ -260,13 +304,12 @@ function generateCOSContent(cosContent) {
           tally.textContent = resourceCount.toString();  
           pill.appendChild(tally);  
       }  
-
+  
       ceTag.replaceWith(pill);  
   });  
-
+  
   return doc.body.innerHTML;  
 }  
-
 
 function generateFormFields(fieldsConfig, aiData) {  
   console.log("generateFormFields called with fieldsConfig:", fieldsConfig);  
@@ -301,64 +344,67 @@ function generateFormFields(fieldsConfig, aiData) {
   }).join('');  
 }  
   
-function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns) {  
+function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns, ceType) {  
   const tableElement = document.querySelector(tableSelector);  
   if (!tableElement) {  
-      console.error('Table element not found:', tableSelector);  
-      return;  
+    console.error('Table element not found:', tableSelector);  
+    return;  
   }  
-
-  // Initialize with four blank rows  
-  const initialData = tableData.length ? tableData : [{}, {}, {}, {}];  
-
-  return new Tabulator(tableSelector, {  
-      data: initialData,  
-      layout: "fitColumns",  
-      movableColumns: true,  
-      resizableRows: true,  
-      selectable: true,  
-      reactiveData: true,  
-      columns: [  
-          {  
-              title: "",  
-              width: 30,  
-              rowHandle: true,  
-              formatter: "handle",  
-              headerSort: false,  
-              resizable: false,  
-              hozAlign: "center"  
-          },  
-          {  
-              formatter: "rowSelection",  
-              titleFormatter: "rowSelection",  
-              hozAlign: "center",  
-              headerSort: false,  
-              width: 40,  
-              resizable: false,  
-              cellClick: function (e, cell) {  
-                  cell.getRow().toggleSelect();  
-              }  
-          },  
-          ...tabulatorColumns,  
-      ],  
-      placeholder: "No Data Available",  
-      rowFormatter: function (row) {  
-          const rowElement = row.getElement();  
-          const cells = rowElement.querySelectorAll('.tabulator-cell');  
-          let maxHeight = 0;  
-          cells.forEach(cell => {  
-              cell.style.height = 'auto';  
-              const cellHeight = cell.scrollHeight;  
-              if (cellHeight > maxHeight) {  
-                  maxHeight = cellHeight;  
-              }  
-          });  
-          rowElement.style.height = `${maxHeight}px`;  
-          cells.forEach(cell => {  
-              cell.style.height = '100%';  
-          });  
-      }  
+  
+  // Initialize with an empty data set  
+  const initialData = tableData.length ? tableData : [];  
+  
+  const table = new Tabulator(tableSelector, {  
+    data: initialData,  
+    layout: "fitColumns",  
+    movableColumns: true,  
+    resizableRows: true,  
+    selectable: true,  
+    reactiveData: true,  
+    placeholder: `Add or Generate ${ceType}`, // Dynamically set the placeholder message  
+    columns: [  
+      {  
+        title: "",  
+        width: 30,  
+        rowHandle: true,  
+        formatter: "handle",  
+        headerSort: false,  
+        resizable: false,  
+        hozAlign: "center"  
+      },  
+      {  
+        formatter: "rowSelection",  
+        titleFormatter: "rowSelection",  
+        hozAlign: "center",  
+        headerSort: false,  
+        width: 40,  
+        resizable: false,  
+        cellClick: function (e, cell) {  
+          cell.getRow().toggleSelect();  
+        }  
+      },  
+      ...tabulatorColumns,  
+    ],  
+    placeholder: `Add or Generate ${ceType}`, // Dynamically set the placeholder message  
+    rowFormatter: function (row) {  
+      const rowElement = row.getElement();  
+      const cells = rowElement.querySelectorAll('.tabulator-cell');  
+      let maxHeight = 0;  
+      cells.forEach(cell => {  
+        cell.style.height = 'auto';  
+        const cellHeight = cell.scrollHeight;  
+        if (cellHeight > maxHeight) {  
+          maxHeight = cellHeight;  
+        }  
+      });  
+      rowElement.style.height = `${maxHeight}px`;  
+      cells.forEach(cell => {  
+        cell.style.height = '100%';  
+      });  
+    }  
   });  
+  
+  return table;  
 }  
  
 function clearFormFields(formSelector) {  
@@ -446,183 +492,150 @@ function extractCosContentForEditing(cosContentCell) {
   return cosContentCell.innerHTML;  // This now contains the editable content with original CE text  
 }  
 
+// ce_cards.js  
+  
 function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseName, phaseIndex, ssolGoal) {  
   const addRowButton = modalElement.querySelector(`#addRowButton-${ceId}`);  
   const generateRowButton = modalElement.querySelector(`#generateRowButton-${ceId}`);  
   const saveChangesButton = modalElement.querySelector('.btn-save-changes');  
   const deleteSelectedRowsButton = modalElement.querySelector(`#deleteSelectedRowsButton-${ceId}`);  
   const duplicateSelectedRowsButton = modalElement.querySelector(`#duplicateSelectedRowsButton-${ceId}`);  
-
+    
+  let hasUnsavedChanges = false;  
+  
   if (addRowButton) {  
-      addRowButton.addEventListener('click', () => {  
-          const table = modalElement._tabulator;  
-          const form = modalElement.querySelector(`#ceForm-${ceId}`);  
-          const formData = new FormData(form);  
-          const rowData = {};  
-          let isAnyFieldFilled = false;  
-
-          formData.forEach((value, key) => {  
-              if (value.trim()) {  
-                  isAnyFieldFilled = true;  
-              }  
-              rowData[key] = value || '';  
-          });  
-
-          if (!isAnyFieldFilled) {  
-              alert('Please fill in at least one field before adding a row.');  
-              return;  
-          }  
-
-          // Find the first empty row  
-          const rows = table.getRows();  
-          let emptyRow = rows.find(row => Object.values(row.getData()).every(val => val === ''));  
-
-          if (emptyRow) {  
-              emptyRow.update(rowData);  
-          } else {  
-              table.addRow(rowData, true);  
-          }  
-
-          clearFormFields(`#ceForm-${ceId}`);  
-      });  
-  }  
-
-  if (generateRowButton) {  
-      generateRowButton.addEventListener('click', () => {  
-          const form = modalElement.querySelector(`#ceForm-${ceId}`);  
-          const inputs = form.querySelectorAll('input, textarea, select');  
-          let emptyFields = Array.from(inputs).filter(input => input.value.trim() === '');  
-
-          const table = modalElement._tabulator;  
-          const existingCEs = table ? table.getData() : [];  
-
-          if (emptyFields.length > 0) {  
-              generateFieldsFromAI(ceId, ceType, existingCEs);  
-          } else {  
-              if (confirm('There are already values in the fields. Do you want to overwrite them?')) {  
-                  generateFieldsFromAI(ceId, ceType, existingCEs);  
-              }  
-          }  
-      });  
-  }  
-
-  if (saveChangesButton) {  
-      saveChangesButton.addEventListener('click', () => {  
-          const table = modalElement._tabulator;  
-          const tableData = table ? table.getData() : [];  
-
-          // Filter out rows with all null values  
-          const nonNullRows = tableData.filter(row => Object.values(row).some(value => value !== null && value !== ''));  
-
-          const updatedData = {  
-              table_data: tableData,  
-              form_data: getFormData(modalElement.querySelector(`#ceForm-${ceId}`))  
-          };  
-
-          fetch(`/update_ce/${encodeURIComponent(ceId)}`, {  
-              method: 'PUT',  
-              headers: {  
-                  'Content-Type': 'application/json'  
-              },  
-              body: JSON.stringify(updatedData)  
-          })  
-          .then(response => response.json())  
-          .then(data => {  
-              if (data.success) {  
-                  console.log(`CE ID ${ceId} updated successfully`);  
-                  bootstrap.Modal.getInstance(modalElement).hide();  
-                  updateCEPill(ceId, nonNullRows.length); // Update the CE pill with the number of non-null rows  
-                  setupEventListeners(); // Reattach event listeners to CE pills  
-              } else {  
-                  throw new Error(data.error || 'An error occurred while updating the CE.');  
-              }  
-          })  
-          .catch(error => {  
-              console.error('Error updating CE:', error);  
-              alert('An error occurred while updating the CE. Please try again.');  
-          });  
-      });  
-  }  
-
-  if (deleteSelectedRowsButton) {  
-      deleteSelectedRowsButton.addEventListener('click', () => {  
-          const table = modalElement._tabulator;  
-          const selectedRows = table.getSelectedRows();  
-          selectedRows.forEach(row => row.delete());  
-      });  
-  }  
-
-  if (duplicateSelectedRowsButton) {  
-      duplicateSelectedRowsButton.addEventListener('click', () => {  
-          const table = modalElement._tabulator;  
-          const selectedRows = table.getSelectedRows();  
-          selectedRows.forEach(row => {  
-              const rowData = row.getData();  
-              table.addRow(rowData, true);  
-          });  
-      });  
-  }  
-}  
-
+    addRowButton.addEventListener('click', () => {  
+      const table = modalElement._tabulator;  
+      const form = modalElement.querySelector(`#ceForm-${ceId}`);  
+      const formData = new FormData(form);  
+      const rowData = {};  
+      let isAnyFieldFilled = false;  
   
-function reinitializeTabulatorPagination(table) {  
-  const rowCount = table.getDataCount();  
-  const shouldPaginate = rowCount > 5;  
+      formData.forEach((value, key) => {  
+        if (value.trim()) {  
+          isAnyFieldFilled = true;  
+        }  
+        rowData[key] = value || '';  
+      });  
   
-  if (typeof table.setPageMode === 'function') {  
-      table.setPageMode(shouldPaginate ? "local" : false);  
-  } else {  
-      console.error("Tabulator's setPageMode function is not available");  
-  }  
-  
-  table.setPageSize(5);  
-  
-  if (typeof table.getPaginationElement === 'function') {  
-      const paginationElement = table.getPaginationElement();  
-      if (paginationElement) {  
-          paginationElement.style.display = shouldPaginate ? 'block' : 'none';  
+      if (!isAnyFieldFilled) {  
+        alert('Please fill in at least one field before adding a row.');  
+        return;  
       }  
-  } else {  
-      console.error("Tabulator's getPaginationElement function is not available");  
-  }  
-}  
   
+      const rows = table.getRows();  
+      let emptyRow = rows.find(row => Object.values(row.getData()).every(val => val === ''));  
+  
+      if (emptyRow) {  
+        emptyRow.update(rowData);  
+      } else {  
+        table.addRow(rowData, true);  
+      }  
+  
+      clearFormFields(`#ceForm-${ceId}`);  
+      hasUnsavedChanges = true;  
+    });  
+  }  
+  
+  if (generateRowButton) {  
+    generateRowButton.addEventListener('click', () => {  
+      const form = modalElement.querySelector(`#ceForm-${ceId}`);  
+      const inputs = form.querySelectorAll('input, textarea, select');  
+      let emptyFields = Array.from(inputs).filter(input => input.value.trim() === '');  
+  
+      const table = modalElement._tabulator;  
+      const existingCEs = table ? table.getData() : [];  
+  
+      if (emptyFields.length > 0) {  
+        generateFieldsFromAI(ceId, ceType, existingCEs);  
+      } else {  
+        if (confirm('There are already values in the fields. Do you want to overwrite them?')) {  
+          generateFieldsFromAI(ceId, ceType, existingCEs);  
+        }  
+      }  
+      hasUnsavedChanges = true;  
+    });  
+  }  
+  
+  if (saveChangesButton) {  
+    saveChangesButton.addEventListener('click', () => {  
+      saveCEChanges(ceId);  
+      hasUnsavedChanges = false;  
+    });  
+  }  
+  
+  if (deleteSelectedRowsButton) {  
+    deleteSelectedRowsButton.addEventListener('click', () => {  
+      const table = modalElement._tabulator;  
+      const selectedRows = table.getSelectedRows();  
+      selectedRows.forEach(row => row.delete());  
+      hasUnsavedChanges = true;  
+    });  
+  }  
+  
+  if (duplicateSelectedRowsButton) {  
+    duplicateSelectedRowsButton.addEventListener('click', () => {  
+      const table = modalElement._tabulator;  
+      const selectedRows = table.getSelectedRows();  
+      selectedRows.forEach(row => {  
+        const rowData = row.getData();  
+        table.addRow(rowData, true);  
+      });  
+      hasUnsavedChanges = true;  
+    });  
+  }  
+  
+  modalElement.addEventListener('hidden.bs.modal', function () {  
+    if (hasUnsavedChanges && !confirm('You have unsaved changes. Do you really want to close?')) {  
+      const modal = new bootstrap.Modal(modalElement);  
+      modal.show();  
+    } else {  
+      setupEventListeners(); // Reattach event listeners when modal is closed  
+    }  
+  });  
+}  
+
+    
 function saveCEChanges(ceId) {  
   const modalElement = document.querySelector(`#ceModal-${ceId}`);  
   const table = modalElement._tabulator;  
   const tableData = table ? table.getData() : [];  
-
-  // Filter out rows with all null values  
-  const nonNullRows = tableData.filter(row => Object.values(row).some(value => value !== null && value !== ''));  
-
+  
+  // Filter out rows with all null or empty values  
+  const nonNullRows = tableData.filter(row =>   
+    Object.values(row).some(value => value !== null &&   
+    (typeof value === 'string' ? value.trim() !== '' : value !== ''))  
+  );  
+  
   const updatedData = {  
-      table_data: tableData,  
-      form_data: getFormData(modalElement.querySelector(`#ceForm-${ceId}`))  
+    table_data: nonNullRows,  
+    form_data: getFormData(modalElement.querySelector(`#ceForm-${ceId}`))  
   };  
-
+  
   fetch(`/update_ce/${encodeURIComponent(ceId)}`, {  
-      method: 'PUT',  
-      headers: {  
-          'Content-Type': 'application/json'  
-      },  
-      body: JSON.stringify(updatedData)  
+    method: 'PUT',  
+    headers: {  
+      'Content-Type': 'application/json'  
+    },  
+    body: JSON.stringify(updatedData)  
   })  
   .then(response => response.json())  
   .then(data => {  
-      if (data.success) {  
-          console.log(`CE ID ${ceId} updated successfully`);  
-          bootstrap.Modal.getInstance(modalElement).hide();  
-          updateCEPill(ceId, nonNullRows.length); // Update the CE pill with the number of non-null rows  
-          setupEventListeners(); // Reattach event listeners to CE pills  
-      } else {  
-          throw new Error(data.error || 'An error occurred while updating the CE.');  
-      }  
+    if (data.success) {  
+      console.log(`CE ID ${ceId} updated successfully`);  
+      bootstrap.Modal.getInstance(modalElement).hide();  
+      updateCEPills(ceId, nonNullRows.length); // Update all CE pills with the same ID  
+      setupEventListeners(); // Reattach event listeners to CE pills  
+    } else {  
+      throw new Error(data.error || 'An error occurred while updating the CE.');  
+    }  
   })  
   .catch(error => {  
-      console.error('Error updating CE:', error);  
-      alert('An error occurred while updating the CE. Please try again.');  
+    console.error('Error updating CE:', error);  
+    alert('An error occurred while updating the CE. Please try again.');  
   });  
 }  
+
 
   
 function getFormData(form) {  
@@ -634,67 +647,64 @@ function getFormData(form) {
   return data;  
 }  
   
-function updateCERow(ceId, formData) {  
+/* function updateCERow(ceId, formData) {  
   const cePill = document.querySelector(`.ce-pill[data-ce-id="${ceId}"]`);  
   if (cePill) {  
     cePill.textContent = formData['ceContent'];  
     cePill.dataset.ceType = formData['ceType'];  
   }  
-}  
-  
-function updateCEPill(ceId, resourceCount) {
-  const cePills = document.querySelectorAll(`.ce-pill[data-ce-id="${ceId}"]`);
-  cePills.forEach(cePill => {
-    const ceText = cePill.textContent.trim();
-    cePill.innerHTML = ''; // Clear existing content
-
-    // Add the CE text
-    const textNode = document.createTextNode(ceText.replace(/\(\d+\)$/, '').trim());
-    cePill.appendChild(textNode);
-
-    if (resourceCount > 0) {
-      const tally = document.createElement('span');
-      tally.className = 'badge rounded-pill bg-light text-dark ms-2 counter';
-      tally.textContent = resourceCount.toString();
-      cePill.appendChild(tally);
-    }
-
-    // Add the green dot for new CEs
-    const ceData = ce_store[ceId];
-    if (ceData && ceData.is_new) {
-      const greenDot = document.createElement('span');
-      greenDot.className = 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle';
-      const visuallyHiddenText = document.createElement('span');
-      visuallyHiddenText.className = 'visually-hidden';
-      visuallyHiddenText.textContent = 'New CE';
-      greenDot.appendChild(visuallyHiddenText);
-      cePill.appendChild(greenDot);
-    }
-  });
-}
-
-/* Pretty sure orphaned a long time ago, poor kid....
-function generateDynamicForm(ceData) {  
-  return `  
-    <form id="ceForm" data-ce-id="${ceData.id}">  
-      <div class="form-group">  
-        <label for="ceContent">Content</label>  
-        <textarea class="form-control" id="ceContent" required>${ceData.content}</textarea>  
-      </div>  
-      <div class="form-group">  
-        <label for="ceType">Type</label>  
-        <select class="form-control" id="ceType" required>${generateSelectOptions(ceData.node_type)}</select>  
-      </div>  
-    </form>  
-  `;  
 }   */
+  
+  function updateCEPills(ceId, resourceCount) {
+    const cePills = document.querySelectorAll(`.ce-pill[data-ce-id="${ceId}"]`);
+    cePills.forEach(cePill => {
+      const ceText = cePill.textContent.replace(/\(\d+\)$/, '').trim();
+      cePill.innerHTML = ''; // Clear existing content
+  
+      // Add the CE text
+      const textNode = document.createTextNode(ceText);
+      cePill.appendChild(textNode);
+  
+      if (resourceCount > 0) {
+        const tally = document.createElement('span');
+        tally.className = 'badge rounded-pill bg-light text-dark ms-2 counter';
+        tally.textContent = resourceCount.toString();
+        cePill.appendChild(tally);
+      }
+  
+      // Add the green dot for new CEs
+      const ceData = ce_store[ceId];
+      if (ceData && ceData.is_new) {
+        const greenDot = document.createElement('span');
+        greenDot.className = 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle';
+        const visuallyHiddenText = document.createElement('span');
+        visuallyHiddenText.className = 'visually-hidden';
+        visuallyHiddenText.textContent = 'New CE';
+        greenDot.appendChild(visuallyHiddenText);
+        cePill.appendChild(greenDot);
+      }
+  
+      // Reattach click event listener
+      cePill.addEventListener('click', (event) => handleCEPillClick(event));
+    });
+  }
+  
+  // Ensure this function is called after any changes to CE data
+  function refreshAllCEPills() {
+    Object.entries(ce_store).forEach(([ceId, ceData]) => {
+      const nonBlankRows = ceData.table_data ? ceData.table_data.filter(row => Object.values(row).some(value => value !== null && value.trim() !== '')) : [];
+      updateCEPills(ceId, nonBlankRows.length);
+    });
+  }
+  
+  // Call this function after initializing the page and after any bulk updates to CE data
+  document.addEventListener('DOMContentLoaded', function () {
+    setupEventListeners();
+    refreshAllCEPills();
+  });
   
 function generateSelectOptions(selectedType) {  
   return Object.entries(NODES).map(([type, { definition }]) => {  
     return `<option value="${type}" ${type === selectedType ? "selected" : ""}>${definition}</option>`;  
   }).join('');  
 }  
-  
-document.addEventListener('DOMContentLoaded', function () {  
-  setupEventListeners();  
-});  
