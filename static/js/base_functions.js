@@ -227,22 +227,28 @@ export function updateGoalCards(data, userInputCell) {
   
 console.log("base_functions.js has been loaded");  
   
-export function showLoadingSpinner(message = 'Speculating Structured Solution...') {  
+export function showLoadingSpinner(message = 'Speculating Structured Solution...', iconClass = 'fas fa-spinner') {  
   console.log("showLoadingSpinner called with message:", message);  
   const spinner = document.getElementById('loading-spinner');  
   const spinnerText = document.getElementById('spinner-text');  
+  const iconContainer = document.querySelector('.fa-icon-container .fa-icon');  
+
+  if (iconContainer) {  
+      iconContainer.className = `fa-icon ${iconClass}`;  
+  }  
+
   if (spinner && spinnerText) {  
-    spinnerText.textContent = message;  
-    spinner.classList.remove('d-none');  
-    spinner.classList.add('fade-in');  
+      spinnerText.textContent = message;  
+      spinner.classList.remove('d-none');  
+      spinner.classList.add('fade-in');  
   }  
 }  
-  
+
 export function hideLoadingSpinner() {  
   console.log("hideLoadingSpinner called");  
   const spinner = document.getElementById('loading-spinner');  
   if (spinner) {  
-    spinner.classList.add('d-none');  
-    spinner.classList.remove('fade-in');  
+      spinner.classList.add('d-none');  
+      spinner.classList.remove('fade-in');  
   }  
-}  
+} 
