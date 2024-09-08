@@ -119,7 +119,7 @@ body:before {
   align-items: center;  
   z-index: 9999;  
 }  
-  
+
 .spinner-box {  
   width: 50vw; /* Responsive width for the box */  
   max-width: 550px; /* Maximum width for the box */  
@@ -133,13 +133,13 @@ body:before {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);  
   padding: 20px; /* Added padding for better spacing */  
 }  
-  
+
 .spinner-container {  
   display: flex;  
   flex-direction: column;  
   align-items: center;  
 }  
-  
+
 .spinner-text {  
   margin-top: 20px; /* Increased margin for better spacing */  
   font-family: 'Unica One', sans-serif;  
@@ -149,21 +149,37 @@ body:before {
   text-align: center; /* Center align text */  
   white-space: nowrap; /* Prevent text wrapping */  
 }  
-  
+
 .loading-spinner-overlay.fade-in {  
   animation: fadeInBlur 0.5s ease-in-out forwards;  
 }  
-  
-@keyframes fadeInBlur {  
+
+.loading-spinner-overlay.fade-out {  
+  animation: fadeOutBlur 0.5s ease-in-out forwards;  
+}  
+
+@keyframes fadeOutBlur {  
   0% {  
-    opacity: 0;  
-    filter: blur(5px);  
+      opacity: 1;  
+      filter: blur(0px);  
   }  
   100% {  
-    opacity: 1;  
-    filter: blur(0);  
+      opacity: 0;  
+      filter: blur(5px);  
   }  
 }  
+
+@keyframes fadeInBlur {  
+  0% {  
+      opacity: 0;  
+      filter: blur(5px);  
+  }  
+  100% {  
+      opacity: 1;  
+      filter: blur(0);  
+  }  
+}  
+
 
 
 #generate-new-goals .refresh-icon {
@@ -548,6 +564,36 @@ body > main > div > div.row.outcome-header {
 }
 
 /* Modal Custom Styling */  
+.modal.fade-in {  
+  animation: fadeIn 0.5s forwards;  
+}  
+
+.modal.fade-out {  
+  animation: fadeOut 0.5s forwards;  
+}  
+
+@keyframes fadeIn {  
+  0% {  
+      opacity: 0;  
+      transform: scale(0.9);  
+  }  
+  100% {  
+      opacity: 1;  
+      transform: scale(1);  
+  }  
+}  
+
+@keyframes fadeOut {  
+  0% {  
+      opacity: 1;  
+      transform: scale(1);  
+  }  
+  100% {  
+      opacity: 0;  
+      transform: scale(0.9);  
+  }  
+}  
+
 .modal-header-text {  
   text-transform: uppercase;  
   font-family: 'Unica One', sans-serif;  

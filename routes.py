@@ -214,7 +214,6 @@ def get_ce_modal_route(ce_type):
         return jsonify(error=str(e)), 500  
 
 
-
   
 @routes_bp.route('/analyze_cos/<string:cos_id>', methods=['GET'])  
 def analyze_cos_route(cos_id):  
@@ -338,6 +337,10 @@ def debug_log_in_memory_ce_entries():
         return jsonify({"message": "Error logging in-memory CE entries", "error": str(e)}), 500  
   
 # Other utility functions  
+@routes_bp.route('/api/ce_store', methods=['GET'])  
+def get_ce_store():  
+    return jsonify(ce_store)  
+
 def log_ce_entries():  
     ce_entries = CE.query.all()  
     for ce in ce_entries:  
@@ -410,20 +413,21 @@ def save_ce_data():
         current_app.logger.error(f"Error saving CE data: {e}")  
         return jsonify(success=False, error=str(e)), 500  
   
-@routes_bp.route('/debug/generate_ai_data', methods=['POST'])  
-def debug_generate_ai_data():  
-    try:  
-        data = request.get_json()  
-        ce_id = data.get('ce_id')  
-        cos_content = data.get('cos_content')  
-        ce_type = data.get('ce_type')  
-        ssol_goal = data.get('ssol_goal')  
+# @routes_bp.route('/debug/generate_ai_data', methods=['POST'])  
+# def debug_generate_ai_data():  
+#     try:  
+#         data = request.get_json()  
+#         ce_id = data.get('ce_id')  
+#         cos_content = data.get('cos_content')  
+#         ce_type = data.get('ce_type')  
+#         ssol_goal = data.get('ssol_goal')  
   
-        # Generate AI data  
-        ai_generated_data = generate_ai_data(cos_content, ce_id, ce_type, ssol_goal)  
-        current_app.logger.debug(f"AI Generated Data: {ai_generated_data}")  
+#         # Generate AI data  
+#         ai_generated_data = generate_ai_data(cos_content, ce_id, ce_type, ssol_goal)  
+#         current_app.logger.debug(f"AI Generated Data: {ai_generated_data}")  
   
-        return jsonify(success=True, ai_generated_data=ai_generated_data)  
-    except Exception as e:  
-        current_app.logger.error(f"Error in debug_generate_ai_data: {e}", exc_info=True)  
-        return jsonify(success=False, error=str(e)), 500  
+#         return jsonify(success=True, ai_generated_data=ai_generated_data)  
+#     except Exception as e:  
+#         current_app.logger.error(f"Error in debug_generate_ai_data: {e}", exc_info=True)  
+#         return jsonify(success=False, error=str(e)), 500  
+

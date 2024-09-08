@@ -81,8 +81,8 @@ export function handleCancelButtonClick() {
 }  
   
 export async function regenerateGoals(user_input) {  
-  showLoadingSpinner('Speculating New Outcomes...');  
-  try {  
+  showLoadingSpinner('Speculating New Outcomes...', 'fas fa-sync-alt');  
+  try {   
     const response = await fetch('/goal_selection', {  
       method: 'POST',  
       headers: {  
@@ -227,28 +227,28 @@ export function updateGoalCards(data, userInputCell) {
   
 console.log("base_functions.js has been loaded");  
   
-export function showLoadingSpinner(message = 'Speculating Structured Solution...', iconClass = 'fas fa-spinner') {  
-  console.log("showLoadingSpinner called with message:", message);  
-  const spinner = document.getElementById('loading-spinner');  
-  const spinnerText = document.getElementById('spinner-text');  
-  const iconContainer = document.querySelector('.fa-icon-container .fa-icon');  
+export function showLoadingSpinner(message = 'Generating Outcomes...', iconClass = 'fa-solid fa-network-wired') {
+  console.log("showLoadingSpinner called with message:", message, "and icon:", iconClass);
+  const spinner = document.getElementById('loading-spinner');
+  const spinnerText = document.getElementById('spinner-text');
+  const spinnerIcon = document.getElementById('spinner-icon');
+  if (spinner && spinnerText && spinnerIcon) {
+    spinnerText.textContent = message;
+    spinnerIcon.className = iconClass + ' fa-icon';
+    spinner.classList.remove('d-none');
+    spinner.classList.add('fade-in');
+  }
+}
 
-  if (iconContainer) {  
-      iconContainer.className = `fa-icon ${iconClass}`;  
-  }  
-
-  if (spinner && spinnerText) {  
-      spinnerText.textContent = message;  
-      spinner.classList.remove('d-none');  
-      spinner.classList.add('fade-in');  
-  }  
-}  
-
-export function hideLoadingSpinner() {  
-  console.log("hideLoadingSpinner called");  
-  const spinner = document.getElementById('loading-spinner');  
-  if (spinner) {  
-      spinner.classList.add('d-none');  
-      spinner.classList.remove('fade-in');  
-  }  
-} 
+export function hideLoadingSpinner() {
+  console.log("hideLoadingSpinner called");
+  const spinner = document.getElementById('loading-spinner');
+  if (spinner) {
+    spinner.classList.remove('fade-in');
+    spinner.classList.add('fade-out');
+    setTimeout(() => {
+      spinner.classList.add('d-none');
+      spinner.classList.remove('fade-out');
+    }, 500); // Match the duration of the fade-out animation
+  }
+}

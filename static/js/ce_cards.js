@@ -2,11 +2,10 @@
   
 import { showLoadingSpinner, hideLoadingSpinner } from './base_functions.js';  
   
+// Initialize ce_store if not already defined  
 if (typeof ce_store === 'undefined') {  
   var ce_store = {};  
 }  
-  
-let hasUnsavedChanges = false;  // Define hasUnsavedChanges globally  
   
 document.addEventListener('DOMContentLoaded', function () {  
   setupEventListeners();  
@@ -25,7 +24,6 @@ function handleCEPillClick(event) {
   event.preventDefault();  
   event.stopPropagation();  
   
-  // Remove any existing open modals  
   const existingModal = document.querySelector('.modal.fade.show');  
   if (existingModal) {  
     existingModal.remove();  
@@ -33,7 +31,8 @@ function handleCEPillClick(event) {
   
   const ceId = event.target.dataset.ceId;  
   const ceType = event.target.dataset.ceType || "Default";  
-  const cosContentCell = event.target.closest('tr')?.querySelector('.cos-content-cell');  
+  const iconClass = NODES[ceType]?.icon || 'fa-spinner'; // Get the appropriate icon class or default to fa-spinner  
+  const cosContentCell = event.target.closest('tr').querySelector('.cos-content-cell');  
   const cosContent = cosContentCell ? cosContentCell.innerHTML : ''; // Use innerHTML instead of textContent  
   const phaseElement = event.target.closest('.accordion-item');  
   const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();  
@@ -48,67 +47,7 @@ function handleCEPillClick(event) {
     ssol_goal: ssolGoal  
   };  
   
-  // Determine the icon class for the loading spinner based on the ceType  
-  const iconClass = NODES[ceType]?.icon || 'fas fa-spinner'; // Use node type icon or default spinner  
-  
-  // Show the loading spinner with the determined icon  
-  showLoadingSpinner(`Loading ${ceType} data...`, iconClass);  
-  
-  fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {  
-    method: 'POST',  
-    headers: {  
-      'Content-Type': 'application/json'  
-    },  
-    body: JSON.stringify(requestData)  
-  })  
-    .then(response => response.json())  
-    .then(data => {  
-      hideLoadingSpinner();  
-      if (data && data.modal_html) {  
-        const aiGeneratedData = data.ai_generated_data || { fields: {} };  
-        displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex, aiGeneratedData, data.table_data, data.tabulator_columns, ssolGoal);  
-      } else {  
-        throw new Error(`Modal HTML content not found or error in response`);  
-      }  
-    })  
-    .catch(error => {  
-      hideLoadingSpinner();  
-      console.error('Error fetching modal content:', error);  
-    });  
-}  
-  
-// Add double-click event listener  
-document.addEventListener('dblclick', function(event) {  
-  if (event.target.classList.contains('ce-pill')) {  
-    handleCEPillClick(event);  
-  }  
-});  
-  
-// Ensure this is called after the modal dialog is displayed  
-document.addEventListener('DOMContentLoaded', function () {  
-  setupEventListeners();  
-});  
-  
-function handleCEPillDoubleClick(event) {  
-  event.preventDefault();  
-  event.stopPropagation();  
-  const ceId = event.target.dataset.ceId;  
-  const ceType = event.target.dataset.ceType || "Default";  
-  const cosContent = event.target.closest('tr')?.querySelector('.cos-content-cell')?.textContent.trim();  
-  const phaseElement = event.target.closest('.accordion-item');  
-  const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();  
-  const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement);  
-  const ssolGoal = document.querySelector('#ssol-goal').textContent.trim();  
-  
-  const requestData = {  
-    ce_id: ceId,  
-    cos_content: cosContent,  
-    phase_name: phaseName,  
-    phase_index: phaseIndex,  
-    ssol_goal: ssolGoal  
-  };  
-  
-  showLoadingSpinner(`Loading ${ceType} data...`);  
+  showLoadingSpinner(`Loading ${ceType} data...`, iconClass); // Pass the icon class here  
   fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {  
     method: 'POST',  
     headers: {  
@@ -130,6 +69,10 @@ function handleCEPillDoubleClick(event) {
       hideLoadingSpinner();  
       console.error('Error fetching modal content:', error);  
     });  
+}  
+  
+function handleCEPillDoubleClick(event) {  
+  handleCEPillClick(event); // Reuse the click handler for double-click  
 }  
   
 const DEFAULT_FIELDS_CONFIG = [  
@@ -163,50 +106,48 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
   const cosContentWithPills = replace_ce_tags_with_pills(cosContent, ce_store);  
   
   const wrappedModalHtml = `  
-  <div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">  
-    <div class="modal-dialog modal-lg" role="document">  
-      <div class="modal-content">  
-        <div class="modal-header" style="background-color: ${phaseColor};">  
-          <div class="filled-box"></div>  
-          <h5 class="modal-title" id="ceModalLabel-${ceId}">  
-            <span class="node-icon me-2" style="color: ${phaseColor};">  
-              <i class="${NODES[ceType]?.icon || 'fa-solid fa-star-of-life'}"></i>  
-            </span>  
-            <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()}</span>  
-          </h5>  
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
-        </div>  
-        <div class="modal-body">  
-          <p><span class="context-label">Source COS:</span>${cosContentWithPills}</p>  
-          <p><span class="context-label">${ceType}:</span><span class="context-text">${aiGeneratedData.contextual_description || 'No contextual description available.'}</span></p>  
-          <div id="dynamicTable-${ceId}" class="tabulator-table mb-3"></div>  
-  
-          <div class="row justify-content-start mb-3">  
-            <div class="col-auto">  
-              <button type="button" class="btn btn-sm btn-danger" id="deleteSelectedRowsButton-${ceId}">Delete</button>  
-              <button type="button" class="btn btn-sm btn-secondary" id="duplicateSelectedRowsButton-${ceId}">Duplicate</button>  
+    <div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">  
+      <div class="modal-dialog modal-lg" role="document">  
+        <div class="modal-content">  
+          <div class="modal-header" style="background-color: ${phaseColor};">  
+            <div class="filled-box"></div>  
+            <h5 class="modal-title" id="ceModalLabel-${ceId}">  
+              <span class="node-icon me-2" style="color: ${phaseColor};">  
+                <i class="${NODES[ceType]?.icon || 'fa-solid fa-question-circle'}"></i>  
+              </span>  
+              <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()}</span>  
+            </h5>  
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
+          </div>  
+          <div class="modal-body">  
+            <p><span class="context-label">Source COS:</span>${cosContentWithPills}</p>  
+            <p><span class="context-label">${ceType}:</span><span class="context-text">${aiGeneratedData.contextual_description || 'No contextual description available.'}</span></p>  
+            <div id="dynamicTable-${ceId}" class="tabulator-table mb-3"></div>  
+              <div class="row justify-content-start mb-3">  
+              <div class="col-auto">  
+                <button type="button" class="btn btn-sm btn-danger" id="deleteSelectedRowsButton-${ceId}">Delete</button>  
+                <button type="button" class="btn btn-sm btn-secondary" id="duplicateSelectedRowsButton-${ceId}">Duplicate</button>  
+              </div>  
+            </div>  
+              <form id="ceForm-${ceId}">  
+              ${generateFormFields(fieldsConfig, aiGeneratedData.fields)}  
+            </form>  
+            <div class="row mt-2">  
+              <div class="col">  
+                <button type="button" class="btn btn-success w-100" id="addRowButton-${ceId}" style="padding-top: 10px;">Add ${ceType}</button>  
+              </div>  
+              <div class="col">  
+                <button type="button" class="btn btn-primary w-100" id="generateRowButton-${ceId}" style="padding-top: 10px;">Generate ${ceType}</button>  
+              </div>  
             </div>  
           </div>  
-  
-          <form id="ceForm-${ceId}">  
-            ${generateFormFields(fieldsConfig, aiGeneratedData.fields)}  
-          </form>  
-          <div class="row mt-2">  
-            <div class="col">  
-              <button type="button" class="btn btn-success w-100" id="addRowButton-${ceId}" style="padding-top: 10px;">Add ${ceType}</button>  
-            </div>  
-            <div class="col">  
-              <button type="button" class="btn btn-primary w-100" id="generateRowButton-${ceId}" style="padding-top: 10px;">Generate ${ceType}</button>  
-            </div>  
+          <div class="modal-footer">  
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
+            <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save changes</button>  
           </div>  
-        </div>  
-        <div class="modal-footer">  
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
-          <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save changes</button>  
         </div>  
       </div>  
     </div>  
-  </div>  
   `;  
   
   modalContainer.innerHTML = wrappedModalHtml;  
@@ -227,7 +168,6 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
         const modal = new bootstrap.Modal(modalElement);  
         modal.show();  
       } else {  
-        modal.remove(); // Remove the modal from the DOM  
         setupEventListeners(); // Reattach event listeners when modal is closed  
       }  
     });  
@@ -281,57 +221,18 @@ function replace_ce_tags_with_pills(content, ce_store) {
   return doc.body.innerHTML;  
 }  
   
-function generateCOSContent(cosContent) {  
-  const parser = new DOMParser();  
-  const doc = parser.parseFromString(cosContent, 'text/html');  
-  const ceTags = doc.querySelectorAll('ce');  
-  
-  ceTags.forEach(ceTag => {  
-      const ceId = ceTag.getAttribute('id');  
-      const ceType = ceTag.getAttribute('type');  
-      const ceText = ceTag.textContent;  
-      const ceData = ce_store[ceId] || {};  
-  
-      const pill = document.createElement('span');  
-      pill.className = 'badge rounded-pill bg-secondary ce-pill position-relative';  
-      pill.dataset.ceId = ceId;  
-      pill.dataset.ceType = ceType;  
-      pill.textContent = ceText;  
-  
-      if (ceData.is_new) {  
-          const greenDot = document.createElement('span');  
-          greenDot.className = 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle';  
-          const visuallyHiddenText = document.createElement('span');  
-          visuallyHiddenText.className = 'visually-hidden';  
-          visuallyHiddenText.textContent = 'New CE';  
-          greenDot.appendChild(visuallyHiddenText);  
-          pill.appendChild(greenDot);  
-      }  
-  
-      // Filter out rows with all null values  
-      const nonNullRows = ceData.table_data ? ceData.table_data.filter(row => Object.values(row).some(value => value !== null && value !== '')) : [];  
-  
-      const resourceCount = nonNullRows.length;  
-      if (resourceCount > 0) {  
-          const tally = document.createElement('span');  
-          tally.className = 'badge rounded-pill bg-light text-dark ms-2 ce-pill counter';  
-          tally.textContent = resourceCount.toString();  
-          pill.appendChild(tally);  
-      }  
-  
-      ceTag.replaceWith(pill);  
-  });  
-  
-  return doc.body.innerHTML;  
-}  
-
 function generateFormFields(fieldsConfig, aiData) {  
+  console.log("generateFormFields called with fieldsConfig:", fieldsConfig);  
+  console.log("generateFormFields called with aiData:", aiData);  
+  
   if (!fieldsConfig) {  
     console.error("No fieldsConfig provided.");  
     return 'No form fields available.';  
   }  
   
   return fieldsConfig.map(field => {  
+    console.log("Generating field:", field);  
+  
     const fieldValue = aiData[field.name] || '';  
     const placeholder = field.placeholder || '';  
   
@@ -437,17 +338,6 @@ function populateFormFields(ceId, aiData) {
   }  
 }  
   
-document.addEventListener('DOMContentLoaded', function () {  
-  setupEventListeners();  
-  const formFieldsContainer = document.getElementById('dynamicModalContainer');  
-  if (formFieldsContainer) {  
-    console.log("Form fields container found:", formFieldsContainer);  
-    formFieldsContainer.innerHTML = '';  // Ensure it's initialized correctly  
-  } else {  
-    console.error("Form fields container not found.");  
-  }  
-});  
-  
 function generateFieldsFromAI(ceId, ceType, existingCEs) {  
   const form = document.querySelector(`#ceForm-${ceId}`);  
   const cosContent = document.querySelector('.cos-content-cell').textContent.trim();  
@@ -506,6 +396,8 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
   const saveChangesButton = modalElement.querySelector('.btn-save-changes');  
   const deleteSelectedRowsButton = modalElement.querySelector(`#deleteSelectedRowsButton-${ceId}`);  
   const duplicateSelectedRowsButton = modalElement.querySelector(`#duplicateSelectedRowsButton-${ceId}`);  
+  
+  let hasUnsavedChanges = false;  
   
   if (addRowButton) {  
     addRowButton.addEventListener('click', () => {  
@@ -607,7 +499,7 @@ function saveCEChanges(ceId) {
   // Filter out rows with all null or empty values  
   const nonNullRows = tableData.filter(row =>  
     Object.values(row).some(value => value !== null &&  
-    (typeof value === 'string' ? value.trim() !== '' : value !== ''))  
+      (typeof value === 'string' ? value.trim() !== '' : value !== ''))  
   );  
   
   const updatedData = {  
@@ -622,21 +514,21 @@ function saveCEChanges(ceId) {
     },  
     body: JSON.stringify(updatedData)  
   })  
-  .then(response => response.json())  
-  .then(data => {  
-    if (data.success) {  
-      console.log(`CE ID ${ceId} updated successfully`);  
-      bootstrap.Modal.getInstance(modalElement).hide();  
-      updateCEPills(ceId, nonNullRows.length); // Update all CE pills with the same ID  
-      setupEventListeners(); // Reattach event listeners to CE pills  
-    } else {  
-      throw new Error(data.error || 'An error occurred while updating the CE.');  
-    }  
-  })  
-  .catch(error => {  
-    console.error('Error updating CE:', error);  
-    alert('An error occurred while updating the CE. Please try again.');  
-  });  
+    .then(response => response.json())  
+    .then(data => {  
+      if (data.success) {  
+        console.log(`CE ID ${ceId} updated successfully`);  
+        bootstrap.Modal.getInstance(modalElement).hide();  
+        updateCEPills(ceId, nonNullRows.length); // Update all CE pills with the same ID  
+        setupEventListeners(); // Reattach event listeners to CE pills  
+      } else {  
+        throw new Error(data.error || 'An error occurred while updating the CE.');  
+      }  
+    })  
+    .catch(error => {  
+      console.error('Error updating CE:', error);  
+      alert('An error occurred while updating the CE. Please try again.');  
+    });  
 }  
   
 function getFormData(form) {  
@@ -695,9 +587,4 @@ document.addEventListener('DOMContentLoaded', function () {
   setupEventListeners();  
   refreshAllCEPills();  
 });  
-  
-function generateSelectOptions(selectedType) {  
-  return Object.entries(NODES).map(([type, { definition }]) => {  
-    return `<option value="${type}" ${type === selectedType ? "selected" : ""}>${definition}</option>`;  
-  }).join('');  
-}  
+
