@@ -813,6 +813,7 @@ body > main > div > div.row.outcome-header {
   border: none;  
   white-space: normal; /* Allow text to wrap */  
   overflow: visible;   /* Ensure content is visible */  
+  word-wrap: break-word;
   height: auto;        /* Set initial height to auto */  
 }  
   

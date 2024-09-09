@@ -18,7 +18,7 @@ from store import ce_store, cos_store, ssol_store
 from flask import Blueprint, render_template, render_template_string, request, flash, redirect, url_for, jsonify, make_response, current_app, send_from_directory  
 from werkzeug.exceptions import BadRequest, NotFound  
 from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data  
-from speculate import get_badge_class_from_status, delete_cos_by_id, update_ce_by_id, update_cos_by_id, get_ce_by_id, analyze_cos, get_cos_by_id, get_phase_index, get_ssol_by_id  
+from speculate import get_badge_class_from_status, delete_cos_by_id, update_ce_by_id, update_cos_by_id, create_cos, analyze_cos, get_cos_by_id, get_phase_index, get_ssol_by_id  
 from dotenv import load_dotenv  
   
 # Load environment variables  
@@ -139,8 +139,7 @@ def update_cos_route(cos_id):
         if not data:  
             raise BadRequest('No JSON payload received')  
   
-        cos_id_str = str(cos_id)  
-        update_result = update_cos_by_id(cos_id_str, data)  
+        update_result = update_cos_by_id(cos_id, data)  
   
         if update_result['success']:  
             return jsonify(success=True, cos=update_result['cos']), 200  
@@ -156,10 +155,7 @@ def update_cos_route(cos_id):
 @routes_bp.route('/delete_cos/<uuid:cos_id>', methods=['DELETE'])  
 def delete_cos_route(cos_id):  
     try:  
-        cos_id_str = str(cos_id)  
-  
-        if delete_cos_by_id(cos_id_str):  
-            flash('COS has been successfully deleted.', 'success')  
+        if delete_cos_by_id(cos_id):  
             return jsonify(success=True), 200  
         else:  
             raise NotFound('Condition of Satisfaction could not be found or deleted.')  
@@ -169,6 +165,30 @@ def delete_cos_route(cos_id):
     except Exception as e:  
         logging.error(f"Unexpected error occurred: {e}", exc_info=True)  
         return jsonify(success=False, error=str(e)), 500  
+
+@routes_bp.route('/create_cos', methods=['POST'])  
+def create_cos_route():  
+    try:  
+        data = request.get_json()  
+        if not data:  
+            raise BadRequest('No JSON payload received')  
+  
+        ssol_id = data.get('ssol_id')  
+        content = data.get('content')  
+        status = data.get('status')  
+        accountable_party = data.get('accountable_party')  
+        completion_date = data.get('completion_date')  
+  
+        cos_id = create_cos(ssol_id, content, status, accountable_party, completion_date)  
+        if cos_id:  
+            return jsonify(success=True, cos=get_cos_by_id(cos_id).to_dict()), 201  
+        else:  
+            raise Exception('Failed to create COS.')  
+    except BadRequest as e:  
+        return jsonify(error=str(e)), 400  
+    except Exception as e:  
+        current_app.logger.error(f"Error creating COS: {e}", exc_info=True)  
+        return jsonify(error="An unexpected error occurred while creating the COS."), 500  
   
 @routes_bp.route('/get_ce_modal/<string:ce_type>', methods=['POST'])  
 def get_ce_modal_route(ce_type):  

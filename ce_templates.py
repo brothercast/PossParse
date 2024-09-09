@@ -1,7 +1,9 @@
 # ce_templates.py  
 
-import json  
+import json
 import logging  
+import uuid
+from uuid import UUID 
 from store import ce_store  
 from bs4 import BeautifulSoup  
 from flask import render_template_string, current_app  
@@ -142,9 +144,15 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
   
     node_name = ce_type.replace('_', ' ').title()  
     ai_context_description = ai_generated_data.get('contextual_description', 'No contextual description provided.')  
-      
+  
     # Process the COS content to replace CE tags with CE pills  
-    cos_content_with_pills = replace_ce_tags_with_pills(cos_content, ce_store)  
+    ces = list(ce_store.values())  # Ensure that ce_store contains the correct structure  
+    for ce in ces:  
+        if 'ce_type' not in ce:  
+            ce['ce_type'] = 'Unknown'  
+            current_app.logger.warning(f"Added missing 'ce_type' to CE: {ce}")  
+  
+    cos_content_with_pills = replace_ce_tags_with_pills(cos_content, ces)  
   
     modal_content = render_template_string(  
         BASE_MODAL_TEMPLATE,  
@@ -168,7 +176,6 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
     )  
   
     return modal_content  
-
 
 
 def extract_full_cos_text(cos_content):
@@ -208,35 +215,35 @@ def generate_fa_icon_for_node_type(node_type):
         current_app.logger.error(f"Unexpected error: {e}")  
         raise  
   
-def replace_ce_tags_with_pills(content, ce_store):  
+def replace_ce_tags_with_pills(content, ces):  
     soup = BeautifulSoup(content, 'html.parser')  
-    for ce_tag in soup.find_all('ce'):  
-        ce_uuid = ce_tag['id']  
-        ce_type = ce_tag['type']  
-        ce_data = ce_store.get(ce_uuid, {})  
-  
-        # Filter out rows with all null values  
-        non_null_rows = [row for row in ce_data.get('table_data', []) if any(value for value in row.values())]  
-        resource_count = len(non_null_rows)  
-  
+    for ce in ces:  
+        if not isinstance(ce, dict):  
+            current_app.logger.error(f"Invalid CE format: {ce} (type: {type(ce)})")  
+            continue  
+        if 'ce_type' not in ce:  
+            current_app.logger.error(f"Missing 'ce_type' in CE: {ce}")  
+            continue  
+          
+        ce_uuid = str(uuid.uuid4())  
         new_tag = soup.new_tag('span', attrs={  
             'class': 'badge rounded-pill bg-secondary ce-pill position-relative',  
             'data-ce-id': ce_uuid,  
-            'data-ce-type': ce_type,  
+            'data-ce-type': ce['ce_type'],  
             'title': 'Double-tap to open Conditional Element'  
         })  
-        new_tag.string = ce_tag.string  
+        new_tag.string = ce['content']  
   
         # Add the counter in a separate span with badge classes  
-        if resource_count > 0:  
+        if ce.get('count', 0) > 0:  
             counter_tag = soup.new_tag('span', attrs={  
                 'class': 'badge rounded-pill bg-light text-dark ms-2'  
             })  
-            counter_tag.string = str(resource_count)  
+            counter_tag.string = str(ce['count'])  
             new_tag.append(counter_tag)  
   
         # Add the green dot indicator if the CE is new  
-        if ce_data.get('is_new'):  
+        if ce.get('is_new'):  
             green_dot = soup.new_tag('span', attrs={  
                 'class': 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle'  
             })  
@@ -245,9 +252,8 @@ def replace_ce_tags_with_pills(content, ce_store):
             green_dot.append(visually_hidden_text)  
             new_tag.append(green_dot)  
   
-        ce_tag.replace_with(new_tag)  
+        soup.append(new_tag)  
     return str(soup)  
- 
 
 def get_ce_modal(ce_type):  
     modal_html = generate_dynamic_modal(ce_type)  

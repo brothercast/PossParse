@@ -295,26 +295,12 @@ function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns, ce
       },  
       ...tabulatorColumns,  
     ],  
-    rowFormatter: function (row) {  
-      const rowElement = row.getElement();  
-      const cells = rowElement.querySelectorAll('.tabulator-cell');  
-      let maxHeight = 0;  
-      cells.forEach(cell => {  
-        cell.style.height = 'auto';  
-        const cellHeight = cell.scrollHeight;  
-        if (cellHeight > maxHeight) {  
-          maxHeight = cellHeight;  
-        }  
-      });  
-      rowElement.style.height = `${maxHeight}px`;  
-      cells.forEach(cell => {  
-        cell.style.height = '100%';  
-      });  
-    }  
+    rowHeight: undefined,  // Let the row height auto-adjust
   });  
   
   return table;  
-}  
+}
+
   
 function clearFormFields(formSelector) {  
   const form = document.querySelector(formSelector);  

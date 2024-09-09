@@ -71,24 +71,21 @@ function turnRowToEditMode(row) {
   
   toggleEditMode(row, true);  
 }  
-  
-function handleUpdate(row, cosId, ssolId) {  
-  const contentInput = row.querySelector('.cos-content-input');
-  const newContent = contentInput ? contentInput.value : ''; 
+    
+function handleUpdate(row, cosId) {  
+  const contentInput = row.querySelector('.cos-content-cell textarea');  
+  const newContent = contentInput ? contentInput.value.trim() : '';  
   const statusSelect = row.querySelector('.status-cell select');  
   const statusInput = statusSelect.options[statusSelect.selectedIndex].value;  
-  const accountablePartyInput = row.querySelector('.cos-accountable-party-cell input').value;  
+  const accountablePartyInput = row.querySelector('.cos-accountable-party-cell input').value.trim();  
   const completionDateInput = row.querySelector('.cos-completion-date-cell input').value;  
   
   const payload = {  
-    content: contentInput,  
+    content: newContent,  
     status: statusInput,  
     accountable_party: accountablePartyInput,  
-    completion_date: completionDateInput,  
-    ssol_id: ssolId  
+    completion_date: completionDateInput  
   };  
-  
-  console.log(`Sending update for COS ID: ${cosId}`, payload); // Added log  
   
   fetch(`/update_cos/${cosId}`, {  
     method: 'PUT',  
@@ -108,9 +105,7 @@ function handleUpdate(row, cosId, ssolId) {
     return response.json();  
   })  
   .then(data => {  
-    console.log(`Received response for COS ID: ${cosId}`, data); // Added log  
     if (data.success) {  
-      console.log(`Updating row with new values for COS ID: ${cosId}`); // Added log  
       updateRowWithNewValues(row, data.cos);  
       toggleEditMode(row, false);  
     } else {  
@@ -118,7 +113,7 @@ function handleUpdate(row, cosId, ssolId) {
     }  
   })  
   .catch(error => {  
-    console.error(`Error updating COS ID: ${cosId}:`, error); // Updated log  
+    console.error('Error updating COS:', error);  
     alert(`An error occurred while updating the entry: ${error.message}`);  
   });  
 }  
@@ -132,13 +127,71 @@ function cancelEditMode(row) {
   revertToOriginalValues(row);  
   toggleEditMode(row, false);  
 }  
+
+function addCOS(phaseName, ssolId) {  
+  const payload = {  
+    content: 'New Condition of Satisfaction',  
+    status: 'Proposed',  
+    accountable_party: '',  
+    completion_date: '',  
+    ssol_id: ssolId  
+  };  
   
+  fetch(`/create_cos`, {  
+    method: 'POST',  
+    headers: {  
+      'Content-Type': 'application/json',  
+      'Accept': 'application/json',  
+      'X-Requested-With': 'XMLHttpRequest'  
+    },  
+    body: JSON.stringify(payload)  
+  })  
+  .then(response => response.json())  
+  .then(data => {  
+    if (data.success) {  
+      const phaseTable = document.querySelector(`#${phaseName.replace(' ', '_')}-table tbody`);  
+      const newRow = document.createElement('tr');  
+      newRow.classList.add('cos-row');  
+      newRow.setAttribute('data-cos-id', data.cos.id);  
+      newRow.innerHTML = `  
+        <td class="status-cell"><span class="status-pill bg-info ${getBadgeClassFromStatus('Proposed')}">Proposed</span></td>  
+        <td class="cos-content-cell">${data.cos.content}</td>  
+        <td class="cos-accountable-party-cell">${data.cos.accountable_party}</td>  
+        <td class="cos-completion-date-cell">${data.cos.completion_date}</td>  
+        <td class="text-end actions-cell">  
+          <div class="cos-actions">  
+            <button class="btn btn-sm btn-primary edit-cos-button">Edit</button>  
+            <button class="btn btn-sm btn-success update-cos-button d-none">Update</button>  
+            <button class="btn btn-sm btn-secondary cancel-cos-button d-none">Cancel</button>  
+            <button class="btn btn-sm btn-danger delete-cos-button">Delete</button>  
+            <button class="btn btn-sm btn-info analyze-cos-button" data-cos-id="${data.cos.id}">Analyze</button>  
+          </div>  
+        </td>  
+      `;  
+      phaseTable.appendChild(newRow);  
+      initializePhaseTableEventListeners();  
+    } else {  
+      throw new Error(data.error || 'An error occurred while creating the entry.');  
+    }  
+  })  
+  .catch(error => {  
+    console.error('Error creating COS:', error);  
+    alert(`An error occurred while creating the entry: ${error.message}`);  
+  });  
+}  
+  
+document.addEventListener('DOMContentLoaded', () => {  
+  document.querySelectorAll('.add-cos').forEach(button => {  
+    button.addEventListener('click', (event) => {  
+      const phaseName = event.target.getAttribute('data-phase');  
+      const ssolId = document.querySelector('#ssol-goal').getAttribute('data-ssol-id');  
+      addCOS(phaseName, ssolId);  
+    });  
+  });  
+});  
+
 function deleteCOS(cosId, row) {  
-  // Get the COS content to display in the confirmation dialog  
-  const cosContent = row.querySelector('.cos-content-cell').textContent;  
-  
-  // Display a confirmation dialog  
-  if (confirm(`Really delete Condition of Satisfaction "${cosContent}"?`)) {  
+  if (confirm(`Really delete Condition of Satisfaction?`)) {  
     fetch(`/delete_cos/${cosId}`, {  
       method: 'DELETE',  
       headers: {  
@@ -146,19 +199,55 @@ function deleteCOS(cosId, row) {
         'Accept': 'application/json'  
       }  
     })  
-    .then(response => response.json())  
+    .then(response => {  
+      if (!response.ok) {  
+        return response.json().then(errorData => {  
+          throw new Error(`Server responded with ${response.status}: ${JSON.stringify(errorData)}`);  
+        });  
+      }  
+      return response.json();  
+    })  
     .then(data => {  
       if (data.success) {  
         row.remove();  
       } else {  
-        console.error('Error deleting COS:', data.error);  
+        throw new Error(data.error || 'An error occurred while deleting the entry.');  
       }  
     })  
     .catch(error => {  
       console.error('Error deleting COS:', error);  
+      alert(`An error occurred while deleting the entry: ${error.message}`);  
     });  
   }  
 }  
+
+function analyzeCOS(cosId) {  
+  fetch(`/analyze_cos/${cosId}`)  
+    .then(response => response.json())  
+    .then(data => {  
+      if (data.success) {  
+        const cosRow = document.querySelector(`tr[data-cos-id="${cosId}"] .cos-content-cell`);  
+        const newContent = data.analyzed_cos;  
+        cosRow.innerHTML = replaceCETagsWithPills(newContent);  
+        initializeCEPillEventListeners();  
+      } else {  
+        throw new Error(data.error || 'An error occurred while analyzing the entry.');  
+      }  
+    })  
+    .catch(error => {  
+      console.error('Error analyzing COS:', error);  
+      alert(`An error occurred while analyzing the entry: ${error.message}`);  
+    });  
+}  
+  
+document.addEventListener('DOMContentLoaded', () => {  
+  document.querySelectorAll('.analyze-cos-button').forEach(button => {  
+    button.addEventListener('click', (event) => {  
+      const cosId = event.target.getAttribute('data-cos-id');  
+      analyzeCOS(cosId);  
+    });  
+  });  
+});  
   
 function storeOriginalValues(row) {  
   const statusCell = row.querySelector('.status-cell');  
@@ -176,7 +265,7 @@ function storeOriginalValues(row) {
   
 function revertToOriginalValues(row) {  
   const originalValues = JSON.parse(row.dataset.originalValues);  
-  row.querySelector('.status-cell').innerHTML = `<span class="badge badge-pill ${getBadgeClassFromStatus(originalValues.status)}">${originalValues.status}</span>`;  
+  row.querySelector('.status-cell').innerHTML = `<span class="status-pill bg-info  ${getBadgeClassFromStatus(originalValues.status)}">${originalValues.status}</span>`;  
   row.querySelector('.cos-content-cell').textContent = originalValues.content;  
   row.querySelector('.cos-accountable-party-cell').textContent = originalValues.accountableParty;  
   row.querySelector('.cos-completion-date-cell').textContent = originalValues.completionDate;  
@@ -195,6 +284,7 @@ function updateRowWithNewValues(row, cos) {
     alert('An error occurred while updating the entry. Please try again.');    
   }    
 }      
+
 // Function to add event listeners to the phase table  
 function initializePhaseTableEventListeners() {  
   const phaseTables = document.querySelectorAll('.phase-table');  
@@ -202,6 +292,16 @@ function initializePhaseTableEventListeners() {
       table.addEventListener('click', handlePhaseTableClick);  
   });  
 }  
+
+function handleResponse(response) {  
+  if (!response.ok) {  
+    return response.json().then(errorData => {  
+      throw new Error(`Server responded with ${response.status}: ${JSON.stringify(errorData)}`);  
+    });  
+  }  
+  return response.json();  
+}  
+
 
 // Handles clicks within the phase table  
 function handlePhaseTableClick(event) {  
@@ -225,13 +325,29 @@ function handlePhaseTableClick(event) {
 // Function to fetch and display analyzed COS for a given COS ID  
 function fetchAndDisplayAnalyzedCOS(cosId) {  
   fetch(`/analyze_cos/${cosId}`)  
-      .then(handleResponse)  
-      .then(data => {  
-          updateCOSContent(data.content_with_ce);  
-      })  
-      .catch(error => {  
-          displayError(`Failed to analyze COS: ${error}`);  
-      });  
+    .then(response => {  
+      if (!response.ok) {  
+        return response.json().then(errorData => {  
+          throw new Error(`Server responded with ${response.status}: ${JSON.stringify(errorData)}`);  
+        });  
+      }  
+      return response.json();  
+    })  
+    .then(data => {  
+      if (data.success) {  
+        const cosRow = document.querySelector(`tr[data-cos-id="${cosId}"] .cos-content-cell`);  
+        if (cosRow) {  
+          const newContent = data.analyzed_cos;  
+          cosRow.innerHTML = replaceCETagsWithPills(newContent);  
+        }  
+      } else {  
+        throw new Error(data.error || 'An error occurred while analyzing the entry.');  
+      }  
+    })  
+    .catch(error => {  
+      console.error('Error analyzing COS:', error);  
+      alert(`An error occurred while analyzing the entry: ${error.message}`);  
+    });  
 }  
 
   
@@ -279,13 +395,18 @@ function handleCEPillClick(event) {
 // Event listener to initialize phase table event listeners after DOM content is fully loaded  
 document.addEventListener('DOMContentLoaded', () => {  
   initializePhaseTableEventListeners();  
+  document.querySelectorAll('.add-cos').forEach(button => {  
+    button.addEventListener('click', (event) => {  
+      const phaseName = event.target.getAttribute('data-phase');  
+      const ssolId = document.querySelector('#ssol-goal').getAttribute('data-ssol-id');  
+      addCOS(phaseName, ssolId);  
+    });  
+  });  
   document.querySelectorAll('.analyze-cos-button').forEach(button => {  
-      button.addEventListener('click', (event) => {  
-          const cosId = event.target.getAttribute('data-cos-id');  
-          if (cosId) {  
-              fetchAndDisplayAnalyzedCOS(cosId);  
-          }  
-      });  
+    button.addEventListener('click', (event) => {  
+      const cosId = event.target.getAttribute('data-cos-id');  
+      analyzeCOS(cosId);  
+    });  
   });  
 });  
 
