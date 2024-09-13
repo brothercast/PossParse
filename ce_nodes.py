@@ -1,7 +1,7 @@
 NODES = {  
     "Default": {  
         "definition": "This node is a default research mode for undefined node types.",  
-        "icon": "fa-solid fa-question-circle",  
+        "icon": "fa-solid fa-icons",  
         "modal_config": {  
             "fields": [  
                 {"type": "text", "name": "subject", "placeholder": "Subject"},  

@@ -255,9 +255,10 @@ function storeOriginalValues(row) {
   const accountablePartyCell = row.querySelector('.cos-accountable-party-cell');  
   const completionDateCell = row.querySelector('.cos-completion-date-cell');  
   
+  // Store original values including CE pills  
   row.dataset.originalValues = JSON.stringify({  
     status: statusCell.textContent.trim(),  
-    content: contentCell.textContent.trim(),  
+    contentWithPills: contentCell.innerHTML.trim(),  // Store the HTML content with CE pills  
     accountableParty: accountablePartyCell.textContent.trim(),  
     completionDate: completionDateCell.textContent.trim()  
   });  
@@ -265,8 +266,8 @@ function storeOriginalValues(row) {
   
 function revertToOriginalValues(row) {  
   const originalValues = JSON.parse(row.dataset.originalValues);  
-  row.querySelector('.status-cell').innerHTML = `<span class="status-pill bg-info  ${getBadgeClassFromStatus(originalValues.status)}">${originalValues.status}</span>`;  
-  row.querySelector('.cos-content-cell').textContent = originalValues.content;  
+  row.querySelector('.status-cell').innerHTML = `<span class="status-pill ${getBadgeClassFromStatus(originalValues.status)}">${originalValues.status}</span>`;  
+  row.querySelector('.cos-content-cell').innerHTML = originalValues.contentWithPills;  
   row.querySelector('.cos-accountable-party-cell').textContent = originalValues.accountableParty;  
   row.querySelector('.cos-completion-date-cell').textContent = originalValues.completionDate;  
 }  

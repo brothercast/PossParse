@@ -31,7 +31,7 @@ azure_oai_model = os.getenv("AZURE_MODEL_NAME")
 openai.api_key = azure_openai_key  
 openai.api_base = azure_openai_endpoint  
 openai.api_type = 'azure'  
-openai.api_version = '2023-12-01'  
+openai.api_version = '2024-03-15'  
   
 # Set the secret key and database URI from the environment variables  
 app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key')  
@@ -276,8 +276,6 @@ def update_ce(ce_id: UUID):
     except Exception as e:  
         return jsonify(success=False, error=str(e)), 500  
 
-
-
   
 @routes_bp.route('/ai-query-endpoint', methods=['POST'])  
 def ai_query_endpoint():  
@@ -433,21 +431,3 @@ def save_ce_data():
         current_app.logger.error(f"Error saving CE data: {e}")  
         return jsonify(success=False, error=str(e)), 500  
   
-# @routes_bp.route('/debug/generate_ai_data', methods=['POST'])  
-# def debug_generate_ai_data():  
-#     try:  
-#         data = request.get_json()  
-#         ce_id = data.get('ce_id')  
-#         cos_content = data.get('cos_content')  
-#         ce_type = data.get('ce_type')  
-#         ssol_goal = data.get('ssol_goal')  
-  
-#         # Generate AI data  
-#         ai_generated_data = generate_ai_data(cos_content, ce_id, ce_type, ssol_goal)  
-#         current_app.logger.debug(f"AI Generated Data: {ai_generated_data}")  
-  
-#         return jsonify(success=True, ai_generated_data=ai_generated_data)  
-#     except Exception as e:  
-#         current_app.logger.error(f"Error in debug_generate_ai_data: {e}", exc_info=True)  
-#         return jsonify(success=False, error=str(e)), 500  
-

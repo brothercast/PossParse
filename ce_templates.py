@@ -18,7 +18,7 @@ BASE_MODAL_TEMPLATE = """
         <div class="filled-box"></div>  
         <h5 class="modal-title" id="ceModalLabel-${ceId}">  
           <span class="node-icon me-2" style="color: ${phaseColor};">  
-            <i class="${NODES[ceType]?.icon || 'fa-solid fa-question-circle'}"></i>  
+            <i class="${NODES[ceType]?.icon || 'fa-solid fa-icons'}"></i>  
           </span>  
           <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()}</span>  
         </h5>  
@@ -224,13 +224,12 @@ def replace_ce_tags_with_pills(content, ces):
         if 'ce_type' not in ce:  
             current_app.logger.error(f"Missing 'ce_type' in CE: {ce}")  
             continue  
-          
+  
         ce_uuid = str(uuid.uuid4())  
         new_tag = soup.new_tag('span', attrs={  
             'class': 'badge rounded-pill bg-secondary ce-pill position-relative',  
             'data-ce-id': ce_uuid,  
-            'data-ce-type': ce['ce_type'],  
-            'title': 'Double-tap to open Conditional Element'  
+            'data-ce-type': ce['ce_type']  
         })  
         new_tag.string = ce['content']  
   

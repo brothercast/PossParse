@@ -113,7 +113,7 @@ function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseInd
             <div class="filled-box"></div>  
             <h5 class="modal-title" id="ceModalLabel-${ceId}">  
               <span class="node-icon me-2" style="color: ${phaseColor};">  
-                <i class="${NODES[ceType]?.icon || 'fa-solid fa-question-circle'}"></i>  
+                <i class="${NODES[ceType]?.icon || 'fa-solid fa-icons'}"></i>  
               </span>  
               <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()}</span>  
             </h5>  
@@ -573,4 +573,3 @@ document.addEventListener('DOMContentLoaded', function () {
   setupEventListeners();  
   refreshAllCEPills();  
 });  
-

@@ -25,18 +25,17 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def create_cos(ssol_id, content, status, accountable_party=None, completion_date=None):  
     try:  
-        # Analyze the COS content to identify conditional elements  
         analyzed_content = analyze_cos(content)  
-        if 'content_with_ce' not in analyzed_content:  
-            raise KeyError("Expected 'content_with_ce' in analyzed content")  
-  
+
+        # Ensure 'ces' key exists  
         content_with_ce = analyzed_content['content_with_ce']  
-  
+        ces = analyzed_content.get('ces', [])  
+
         if USE_DATABASE:  
             cos = COS(content=content_with_ce, status=status, accountable_party=accountable_party,  
                       completion_date=completion_date, ssol_id=ssol_id)  
             db.session.add(cos)  
-            for ce_data in analyzed_content['ces']:  
+            for ce_data in ces:  
                 ce = CE(content=ce_data['content'], node_type=ce_data['ce_type'])  
                 db.session.add(ce)  
                 cos.conditional_elements.append(ce)  
@@ -46,7 +45,7 @@ def create_cos(ssol_id, content, status, accountable_party=None, completion_date
             cos_id = str(uuid.uuid4())  
             cos = {'id': cos_id, 'content': content_with_ce, 'status': status, 'ssol_id': ssol_id}  
             cos_store[cos_id] = cos  
-            for ce_data in analyzed_content['ces']:  
+            for ce_data in ces:  
                 ce_id = str(uuid.uuid4())  
                 ce = {'id': ce_id, 'content': ce_data['content'], 'node_type': ce_data['ce_type']}  
                 ce_store[ce_id] = ce  
@@ -60,7 +59,6 @@ def create_cos(ssol_id, content, status, accountable_party=None, completion_date
         if USE_DATABASE:  
             db.session.rollback()  
         raise  
-
 
 def get_cos_by_id(cos_id):  
     from app import USE_DATABASE 
@@ -112,45 +110,38 @@ def analyze_cos(cos_content):
         "  ]"  
         "}}"  
     ).format(cos_content)  
-  
+
     messages = [  
         {"role": "system", "content": "Return a JSON object with the analyzed COS and CEs."},  
         {"role": "user", "content": prompt},  
     ]  
-  
+
     try:  
-        # Send messages to the AI and get the response  
         response_text = generate_chat_response_with_node_types(messages, role='COS Analysis', task='Analyze COS')  
         response_json = json.loads(response_text)  
-  
-        # Extract the COS and CEs from the response  
+
         cos_text = response_json.get("COS", cos_content)  
         ces = response_json.get("CEs", [])  
-  
-        valid_node_types = get_valid_node_types()  
-  
-        # Validate and process the CEs  
-        valid_ces = []  
-        for ce in ces:  
-            if ce["type"] in valid_node_types:  
-                valid_ces.append({  
-                    'content': ce["text"],  
-                    'ce_type': ce["type"]  
-                })  
-  
+
+        valid_ces = [  
+            {'content': ce["text"], 'ce_type': ce["type"]}  
+            for ce in ces if ce["type"] in get_valid_node_types()  
+        ]  
+
         content_with_ce = replace_ce_tags_with_pills(cos_text, valid_ces)  
-  
+
         return {  
             'content_with_ce': content_with_ce,  
-            'ces': valid_ces  
+            'ces': valid_ces  # Ensure 'ces' is always returned  
         }  
-  
+
     except Exception as e:  
         logging.error(f"Exception occurred during COS analysis: {e}", exc_info=True)  
         return {  
             'content_with_ce': cos_content,  
-            'ces': []  
+            'ces': []  # Default to an empty list if there's an error  
         }  
+
   
 def extract_conditional_elements(response_text, original_content):    
     ces = []    

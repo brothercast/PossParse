@@ -32,7 +32,7 @@ stability_api_key = os.getenv("STABILITY_KEY")
 azure_openai_client = AzureOpenAI(  
     azure_endpoint=azure_oai_endpoint,  
     api_key=azure_oai_key,  
-    api_version="2024-03-01-preview"  
+    api_version="2024-02-15-preview"  
 )  
   
 class Logger:  
