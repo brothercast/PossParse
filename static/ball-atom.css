@@ -5,12 +5,14 @@
     width: 64px;
     height: 64px;
     margin: 0 auto;
-  }
+
+}
   
-  .la-ball-atom {
+.la-ball-atom {
     position: absolute;
     top: 0;
     left: 0;
+
   }
 
 .la-ball-atom,  
@@ -18,7 +20,7 @@
     position: relative;  
     -webkit-box-sizing: border-box;  
     -moz-box-sizing: border-box;  
-    box-sizing: border-box;  
+    box-sizing: border-box;
 }  
    
 .la-ball-atom {  
@@ -27,6 +29,16 @@
     color: #fff;  
 }  
    
+.rotating-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    animation: spinner-rotation 5s linear infinite; /* Apply rotation to the container */
+  }
+  
+
 .la-ball-atom.la-dark {  
     color: #ffc107;  
 }  
@@ -347,14 +359,14 @@
 }  
    
 /* Define keyframes for rotating the spinner */  
-@keyframes rotate-spinner {  
-    0% {  
-        transform: rotate(0deg);  
-    }  
-    100% {  
-        transform: rotate(360deg);  
-    }  
-}  
+@keyframes spinner-rotation {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
    
 .loading-spinner-overlay {
     position: fixed;
@@ -367,15 +379,16 @@
     justify-content: center;
     align-items: center;
     z-index: 9999;
-  }
+}
   
-  .spinner-box {
+.spinner-box {
     display: flex;
     flex-direction: column;
     align-items: center;
-  }
+    position: relative; /* Add this to make it a positioning context for the icon */
+}
   
-  .fa-icon {
+.fa-icon {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -383,12 +396,12 @@
     z-index: 10;
     color: #fff;
     font-size: 1.0em;
-  }
+}
   
-  .spinner-text {
+.spinner-text {
     margin-top: 20px;
     color: #000000;
     text-align: center;
     font-size: 1.2em;
-  }
+}
   

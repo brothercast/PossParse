@@ -92,91 +92,92 @@ const DEFAULT_TABULATOR_CONFIG = {
 function displayCEModal(modalHtml, ceId, ceType, cosContent, phaseName, phaseIndex, aiGeneratedData = { fields: {} }, tableData, tabulatorColumns, ssolGoal) {  
   const modalContainer = document.getElementById('dynamicModalContainer');  
   if (!modalContainer) {  
-    console.error('Modal container element not found in the DOM');  
-    return;  
+      console.error('Modal container element not found in the DOM');  
+      return;  
   }  
-  
+
   const phaseColors = ["#e91e63", "#00bcd4", "#9c27b0", "#ffc107", "#66bd0e"];  
   const phaseColor = phaseColors[phaseIndex % phaseColors.length];  
-  
+
   const fieldsConfig = NODES[ceType]?.modal_config.fields || DEFAULT_FIELDS_CONFIG;  
   const tabulatorConfig = NODES[ceType]?.tabulator_config.columns || DEFAULT_TABULATOR_CONFIG.columns;  
-  
-  // Process the COS content to replace CE tags with pills  
   const cosContentWithPills = replace_ce_tags_with_pills(cosContent, ce_store);  
-  
+
+  const iconClass = NODES[ceType]?.icon || 'fa-solid fa-icons'; // Use default icon if not found  
+
   const wrappedModalHtml = `  
-    <div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">  
-      <div class="modal-dialog modal-lg" role="document">  
-        <div class="modal-content">  
-          <div class="modal-header" style="background-color: ${phaseColor};">  
-            <div class="filled-box"></div>  
-            <h5 class="modal-title" id="ceModalLabel-${ceId}">  
-              <span class="node-icon me-2" style="color: ${phaseColor};">  
-                <i class="${NODES[ceType]?.icon || 'fa-solid fa-icons'}"></i>  
-              </span>  
-              <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()}</span>  
-            </h5>  
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
-          </div>  
-          <div class="modal-body">  
-            <p><span class="context-label">Source COS:</span>${cosContentWithPills}</p>  
-            <p><span class="context-label">${ceType}:</span><span class="context-text">${aiGeneratedData.contextual_description || 'No contextual description available.'}</span></p>  
-            <div id="dynamicTable-${ceId}" class="tabulator-table mb-3"></div>  
-              <div class="row justify-content-start mb-3">  
-              <div class="col-auto">  
-                <button type="button" class="btn btn-sm btn-danger" id="deleteSelectedRowsButton-${ceId}">Delete</button>  
-                <button type="button" class="btn btn-sm btn-secondary" id="duplicateSelectedRowsButton-${ceId}">Duplicate</button>  
+      <div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">  
+          <div class="modal-dialog modal-lg" role="document">  
+              <div class="modal-content">  
+                  <div class="modal-header" style="background-color: ${phaseColor};">  
+                      <div class="filled-box"></div>  
+                      <h5 class="modal-title" id="ceModalLabel-${ceId}">  
+                          <span class="node-icon me-2" style="color: ${phaseColor};">  
+                              <i class="${iconClass}"></i>  
+                          </span>  
+                          <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()}</span>  
+                      </h5>  
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
+                  </div>  
+                  <div class="modal-body">  
+                      <p><span class="context-label">Source COS:</span>${cosContentWithPills}</p>  
+                      <p><span class="context-label">${ceType}:</span><span class="context-text">${aiGeneratedData.contextual_description || 'No contextual description available.'}</span></p>  
+                      <div id="dynamicTable-${ceId}" class="tabulator-table mb-3"></div>  
+                      <div class="row justify-content-start mb-3">  
+                          <div class="col-auto">  
+                              <button type="button" class="btn btn-sm btn-danger" id="deleteSelectedRowsButton-${ceId}">Delete</button>  
+                              <button type="button" class="btn btn-sm btn-secondary" id="duplicateSelectedRowsButton-${ceId}">Duplicate</button>  
+                          </div>  
+                      </div>  
+                      <form id="ceForm-${ceId}">  
+                          ${generateFormFields(fieldsConfig, aiGeneratedData.fields)}  
+                      </form>  
+                      <div class="row mt-2">  
+                          <div class="col">  
+                              <button type="button" class="btn btn-success w-100" id="addRowButton-${ceId}" style="padding-top: 10px;">Add ${ceType}</button>  
+                          </div>  
+                          <div class="col">  
+                              <button type="button" class="btn btn-primary w-100" id="generateRowButton-${ceId}" style="padding-top: 10px;">Generate ${ceType}</button>  
+                          </div>  
+                      </div>  
+                  </div>  
+                  <div class="modal-footer">  
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
+                      <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save changes</button>  
+                  </div>  
               </div>  
-            </div>  
-              <form id="ceForm-${ceId}">  
-              ${generateFormFields(fieldsConfig, aiGeneratedData.fields)}  
-            </form>  
-            <div class="row mt-2">  
-              <div class="col">  
-                <button type="button" class="btn btn-success w-100" id="addRowButton-${ceId}" style="padding-top: 10px;">Add ${ceType}</button>  
-              </div>  
-              <div class="col">  
-                <button type="button" class="btn btn-primary w-100" id="generateRowButton-${ceId}" style="padding-top: 10px;">Generate ${ceType}</button>  
-              </div>  
-            </div>  
           </div>  
-          <div class="modal-footer">  
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>  
-            <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save changes</button>  
-          </div>  
-        </div>  
       </div>  
-    </div>  
   `;  
-  
+
   modalContainer.innerHTML = wrappedModalHtml;  
-  
+
   const modalElement = modalContainer.querySelector(`#ceModal-${ceId}`);  
   if (modalElement) {  
-    const modal = new bootstrap.Modal(modalElement);  
-    modal.show();  
-  
-    modalElement.addEventListener('shown.bs.modal', function () {  
-      const tableElementId = `#dynamicTable-${ceId}`;  
-      const table = initializeTabulatorTable(tableElementId, tableData, tabulatorConfig, ceType);  
-      modalElement._tabulator = table;  
-    });  
-  
-    modalElement.addEventListener('hidden.bs.modal', function () {  
-      if (hasUnsavedChanges && !confirm('You have unsaved changes. Do you really want to close?')) {  
-        const modal = new bootstrap.Modal(modalElement);  
-        modal.show();  
-      } else {  
-        setupEventListeners(); // Reattach event listeners when modal is closed  
-      }  
-    });  
-  
-    setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseName, phaseIndex, ssolGoal);  
+      const modal = new bootstrap.Modal(modalElement);  
+      modal.show();  
+
+      modalElement.addEventListener('shown.bs.modal', function () {  
+          const tableElementId = `#dynamicTable-${ceId}`;  
+          const table = initializeTabulatorTable(tableElementId, tableData, tabulatorConfig, ceType);  
+          modalElement._tabulator = table;  
+      });  
+
+      modalElement.addEventListener('hidden.bs.modal', function () {  
+          if (hasUnsavedChanges && !confirm('You have unsaved changes. Do you really want to close?')) {  
+              const modal = new bootstrap.Modal(modalElement);  
+              modal.show();  
+          } else {  
+              setupEventListeners();  
+          }  
+      });  
+
+      setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseName, phaseIndex, ssolGoal);  
   } else {  
-    console.error(`Modal element not found in the DOM for CE ID: ${ceId}`);  
+      console.error(`Modal element not found in the DOM for CE ID: ${ceId}`);  
   }  
 }  
+
   
 function replace_ce_tags_with_pills(content, ce_store) {  
   const parser = new DOMParser();  
@@ -257,49 +258,52 @@ function generateFormFields(fieldsConfig, aiData) {
 function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns, ceType) {  
   const tableElement = document.querySelector(tableSelector);  
   if (!tableElement) {  
-    console.error('Table element not found:', tableSelector);  
-    return;  
+      console.error('Table element not found:', tableSelector);  
+      return;  
   }  
-  
-  // Initialize with an empty data set  
+
   const initialData = tableData.length ? tableData : [];  
-  
-  const table = new Tabulator(tableSelector, {  
-    data: initialData,  
-    layout: "fitColumns",  
-    movableColumns: true,  
-    resizableRows: true,  
-    selectable: true,  
-    reactiveData: true,  
-    placeholder: `Add or Generate ${ceType}`, // Dynamically set the placeholder message  
-    columns: [  
-      {  
-        title: "",  
-        width: 30,  
-        rowHandle: true,  
-        formatter: "handle",  
-        headerSort: false,  
-        resizable: false,  
-        hozAlign: "center"  
-      },  
-      {  
-        formatter: "rowSelection",  
-        titleFormatter: "rowSelection",  
-        hozAlign: "center",  
-        headerSort: false,  
-        width: 40,  
-        resizable: false,  
-        cellClick: function (e, cell) {  
-          cell.getRow().toggleSelect();  
-        }  
-      },  
-      ...tabulatorColumns,  
-    ],  
-    rowHeight: undefined,  // Let the row height auto-adjust
-  });  
-  
-  return table;  
-}
+
+  try {  
+      const table = new Tabulator(tableSelector, {  
+          data: initialData,  
+          layout: "fitColumns",  
+          movableColumns: true,  
+          resizableRows: true,  
+          selectable: true,  
+          reactiveData: true,  
+          placeholder: `Add or Generate ${ceType}`, // Dynamic placeholder message  
+          rowHeight: 40, // Set rows to 40px height  
+          columns: [  
+              {  
+                  title: "",  
+                  width: 30,  
+                  rowHandle: true,  
+                  formatter: "handle",  
+                  headerSort: false,  
+                  resizable: false,  
+                  hozAlign: "center"  
+              },  
+              {  
+                  formatter: "rowSelection",  
+                  titleFormatter: "rowSelection",  
+                  hozAlign: "center",  
+                  headerSort: false,  
+                  width: 40,  
+                  resizable: false,  
+                  cellClick: function (e, cell) {  
+                      cell.getRow().toggleSelect();  
+                  }  
+              },  
+              ...tabulatorColumns,  
+          ],  
+      });  
+
+      return table;  
+  } catch (error) {  
+      console.error('Error initializing Tabulator table:', error);  
+  }  
+}  
 
   
 function clearFormFields(formSelector) {  
@@ -377,67 +381,65 @@ function extractCosContentForEditing(cosContentCell) {
 }  
   
 function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseName, phaseIndex, ssolGoal) {  
+  // Define buttons and elements within the modal  
   const addRowButton = modalElement.querySelector(`#addRowButton-${ceId}`);  
   const generateRowButton = modalElement.querySelector(`#generateRowButton-${ceId}`);  
   const saveChangesButton = modalElement.querySelector('.btn-save-changes');  
   const deleteSelectedRowsButton = modalElement.querySelector(`#deleteSelectedRowsButton-${ceId}`);  
   const duplicateSelectedRowsButton = modalElement.querySelector(`#duplicateSelectedRowsButton-${ceId}`);  
-  
-  let hasUnsavedChanges = false;  
-  
+
+  // Handle changes in the modal  
+  modalElement.addEventListener('change', () => {  
+      hasUnsavedChanges = true;  
+  });  
+
+  // Handle modal close event  
+  modalElement.addEventListener('hidden.bs.modal', function () {  
+      if (hasUnsavedChanges) {  
+          // Handle unsaved changes, e.g., prompt user  
+          if (confirm('You have unsaved changes. Do you really want to close?')) {  
+              hasUnsavedChanges = false; // Reset after handling  
+          } else {  
+              const modal = new bootstrap.Modal(modalElement);  
+              modal.show(); // Reopen the modal  
+          }  
+      }  
+  });  
+
+  // Add event listener to Add Row button  
   if (addRowButton) {  
-    addRowButton.addEventListener('click', () => {  
-      const table = modalElement._tabulator;  
-      const form = modalElement.querySelector(`#ceForm-${ceId}`);  
-      const formData = new FormData(form);  
-      const rowData = {};  
-      let isAnyFieldFilled = false;  
-  
-      formData.forEach((value, key) => {  
-        if (value.trim()) {  
-          isAnyFieldFilled = true;  
-        }  
-        rowData[key] = value || '';  
+      addRowButton.addEventListener('click', () => {  
+          const table = modalElement._tabulator;  
+          const form = modalElement.querySelector(`#ceForm-${ceId}`);  
+          const formData = new FormData(form);  
+          const rowData = {};  
+          let isAnyFieldFilled = false;  
+
+          formData.forEach((value, key) => {  
+              if (value.trim()) {  
+                  isAnyFieldFilled = true;  
+              }  
+              rowData[key] = value || '';  
+          });  
+
+          if (!isAnyFieldFilled) {  
+              alert('Please fill in at least one field before adding a row.');  
+              return;  
+          }  
+
+          const rows = table.getRows();  
+          let emptyRow = rows.find(row => Object.values(row.getData()).every(val => val === ''));  
+
+          if (emptyRow) {  
+              emptyRow.update(rowData);  
+          } else {  
+              table.addRow(rowData, true);  
+          }  
+
+          clearFormFields(`#ceForm-${ceId}`);  
+          hasUnsavedChanges = true;  
       });  
-  
-      if (!isAnyFieldFilled) {  
-        alert('Please fill in at least one field before adding a row.');  
-        return;  
-      }  
-  
-      const rows = table.getRows();  
-      let emptyRow = rows.find(row => Object.values(row.getData()).every(val => val === ''));  
-  
-      if (emptyRow) {  
-        emptyRow.update(rowData);  
-      } else {  
-        table.addRow(rowData, true);  
-      }  
-  
-      clearFormFields(`#ceForm-${ceId}`);  
-      hasUnsavedChanges = true;  
-    });  
-  }  
-  
-  if (generateRowButton) {  
-    generateRowButton.addEventListener('click', () => {  
-      const form = modalElement.querySelector(`#ceForm-${ceId}`);  
-      const inputs = form.querySelectorAll('input, textarea, select');  
-      let emptyFields = Array.from(inputs).filter(input => input.value.trim() === '');  
-  
-      const table = modalElement._tabulator;  
-      const existingCEs = table ? table.getData() : [];  
-  
-      if (emptyFields.length > 0) {  
-        generateFieldsFromAI(ceId, ceType, existingCEs);  
-      } else {  
-        if (confirm('There are already values in the fields. Do you want to overwrite them?')) {  
-          generateFieldsFromAI(ceId, ceType, existingCEs);  
-        }  
-      }  
-      hasUnsavedChanges = true;  
-    });  
-  }  
+  }   
   
   if (saveChangesButton) {  
     saveChangesButton.addEventListener('click', () => {  
@@ -516,7 +518,8 @@ function saveCEChanges(ceId) {
       alert('An error occurred while updating the CE. Please try again.');  
     });  
 }  
-  
+
+
 function getFormData(form) {  
   const formData = new FormData(form);  
   const data = {};  

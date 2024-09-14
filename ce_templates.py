@@ -156,7 +156,8 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
   
     modal_content = render_template_string(  
         BASE_MODAL_TEMPLATE,  
-        ce_type=ce_type,  
+        ce_type=ce_type,
+        icon_class = NODES[ce_type].get('icon') if ce_type in NODES else get_node_type_icon_and_name(ce_type),  
         node_info=node_info,  
         form_fields=form_fields,  
         table_headers=table_headers,  
@@ -177,6 +178,36 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
   
     return modal_content  
 
+def get_node_type_icon_and_name(node_type):  
+    messages = [  
+        {"role": "system", "content": "You are an AI that suggests a FontAwesome 6 Solid (fas) class icon based on the node type. Output only the icon class in JSON format."},  
+        {"role": "user", "content": f"What is the best FontAwesome icon class for the node type '{node_type}'?"}  
+    ]  
+    response_content = generate_chat_response(messages, role='Node Type Icon', task='Fetch Node Type FontAwesome Icon', temperature=0.37)  
+
+    try:  
+        response_data = json.loads(response_content)  
+        icon_class = response_data.get("iconClass")  
+        if not icon_class:  
+            logging.error(f"Failed to retrieve icon class for node type '{node_type}'.")  
+            raise ValueError("Icon class not provided by AI.")  
+        return icon_class  
+
+    except json.JSONDecodeError as e:  
+        logging.error(f"JSON decoding error: {e}")  
+        raise  
+    except Exception as e:  
+        logging.error(f"Unexpected error: {e}")  
+        raise  
+
+
+
+def assign_ce_type(ce):  
+    if 'ce_type' not in ce or not ce['ce_type']:  
+        # Assign a default CE type if none is provided  
+        ce['ce_type'] = 'General'  
+        logging.info(f"Assigned default 'ce_type' to CE: {ce}")  
+    return ce 
 
 def extract_full_cos_text(cos_content):
     soup = BeautifulSoup(cos_content, 'html.parser')
@@ -216,14 +247,18 @@ def generate_fa_icon_for_node_type(node_type):
         raise  
   
 def replace_ce_tags_with_pills(content, ces):  
+    def assign_ce_type(ce):  
+        if 'ce_type' not in ce or not ce['ce_type']:  
+            # Assign a default CE type if none is provided  
+            ce['ce_type'] = 'General'  
+            logging.info(f"Assigned default 'ce_type' to CE: {ce}")  
+        return ce  
+  
     soup = BeautifulSoup(content, 'html.parser')  
+      
     for ce in ces:  
-        if not isinstance(ce, dict):  
-            current_app.logger.error(f"Invalid CE format: {ce} (type: {type(ce)})")  
-            continue  
-        if 'ce_type' not in ce:  
-            current_app.logger.error(f"Missing 'ce_type' in CE: {ce}")  
-            continue  
+        # Ensure each CE has a valid type  
+        ce = assign_ce_type(ce)  
   
         ce_uuid = str(uuid.uuid4())  
         new_tag = soup.new_tag('span', attrs={  
@@ -233,7 +268,7 @@ def replace_ce_tags_with_pills(content, ces):
         })  
         new_tag.string = ce['content']  
   
-        # Add the counter in a separate span with badge classes  
+        # Add counter if applicable  
         if ce.get('count', 0) > 0:  
             counter_tag = soup.new_tag('span', attrs={  
                 'class': 'badge rounded-pill bg-light text-dark ms-2'  
@@ -241,7 +276,7 @@ def replace_ce_tags_with_pills(content, ces):
             counter_tag.string = str(ce['count'])  
             new_tag.append(counter_tag)  
   
-        # Add the green dot indicator if the CE is new  
+        # Add indicator for new CEs  
         if ce.get('is_new'):  
             green_dot = soup.new_tag('span', attrs={  
                 'class': 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle'  
@@ -252,7 +287,8 @@ def replace_ce_tags_with_pills(content, ces):
             new_tag.append(green_dot)  
   
         soup.append(new_tag)  
-    return str(soup)  
+          
+    return str(soup) 
 
 def get_ce_modal(ce_type):  
     modal_html = generate_dynamic_modal(ce_type)  
