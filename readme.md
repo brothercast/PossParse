@@ -43,7 +43,7 @@ Add your configuration keys:
 
 **AZURE_OPENAI_API_KEY=your_azure_key**
 **AZURE_OPENAI_ENDPOINT=your_azure_endpoint**
-**SQLALCHEMY_DATABASE_URI**=*your_database_uri*
+**SQLALCHEMY_DATABASE_URI**=**your_database_uri**
 
 4. Run the Application:
 
@@ -52,11 +52,7 @@ Add your configuration keys:
 5. **Access the App:** 
 Open http://localhost:5000 in your web browser.
 
-### Contribution
-We welcome contributions from the community! Please read our Contributing Guidelines for more information.
 
 ### License
 This project is licensed under the MIT License. See the LICENSE file for details.   
 
-### Acknowledgements
-Special thanks to our team, beta testers, and the open-source community for their invaluable support and contributions.

@@ -781,11 +781,16 @@ body > main > div > div.row.outcome-header {
   
 .tabulator-header {  
   font-family: 'Jost', sans-serif;  
-  font-weight: 600;  
+  font-weight: 700;  
   font-size: 0.9em;  
   border-bottom: 2px solid black;  
   background-color: transparent; /* No background color */  
   color: #333; /* Darker text color */  
+}  
+
+.form-group {  
+  font-weight: bold;
+  font-weight: 400;  
 }  
   
 .tabulator-header .tabulator-col {  

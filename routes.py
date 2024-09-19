@@ -17,7 +17,7 @@ from models import SSOL, COS, CE
 from store import ce_store, cos_store, ssol_store  
 from flask import Blueprint, render_template, render_template_string, request, flash, redirect, url_for, jsonify, make_response, current_app, send_from_directory  
 from werkzeug.exceptions import BadRequest, NotFound  
-from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data  
+from utilities import generate_goal, get_domain_icon_and_name, generate_outcome_data, parse_goal_content  
 from speculate import get_badge_class_from_status, delete_cos_by_id, update_ce_by_id, update_cos_by_id, create_cos, analyze_cos, get_cos_by_id, get_phase_index, get_ssol_by_id  
 from dotenv import load_dotenv  
   
@@ -68,6 +68,7 @@ def goal_selection():
             goal_options = generate_goal(user_input)  
             for goal in goal_options:  
                 goal['icon'], goal['domain'] = get_domain_icon_and_name(goal['title'])  
+                goal['title'] = parse_goal_content(goal['title'])  # Parse content  
   
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  
                 return jsonify(goals=goal_options, user_input=user_input)  
@@ -75,8 +76,9 @@ def goal_selection():
             return render_template('goal_selection.html', goals=goal_options, user_input=user_input)  
         except ValueError as e:  
             flash("An error occurred while processing your request. Please try again.", "error")  
-    return redirect(url_for('routes_bp.index'))  
-  
+    return redirect(url_for('routes_bp.index'))   
+
+
 @routes_bp.route('/outcome', methods=['GET', 'POST'])  
 def outcome():  
     if request.method == 'POST':  

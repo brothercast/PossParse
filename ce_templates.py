@@ -122,9 +122,9 @@ def generate_table_headers(fields_config):
     table_headers_html = ""  
     for field in fields_config:  
         header_label = field['name'].replace('_', ' ').title()  
-        table_headers_html += f"<th>{header_label}</th>"  
+        table_headers_html += f"<th><strong>{header_label}</strong></th>"  
     return table_headers_html  
-  
+
 def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated_data=None, phase_name=None, phase_index=None, ce_store=None):  
     current_app.logger.debug(f"Generating modal for CE type: {ce_type}")  
     current_app.logger.debug(f"CE data: {ce_data}")  

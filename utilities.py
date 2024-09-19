@@ -275,6 +275,16 @@ def generate_outcome_data(request, method, selected_goal=None, domain=None, doma
     # Return the outcome_data for rendering in the template  
     return outcome_data  
   
+def parse_goal_content(content):  
+    try:  
+        parsed_content = json.loads(content)  
+        # Convert JSON to a displayable string format  
+        if isinstance(parsed_content, dict):  
+            return '<br>'.join(f"<strong>{key.title()}:</strong> {value}" for key, value in parsed_content.items())  
+        elif isinstance(parsed_content, list):  
+            return '<ul>' + ''.join(f"<li>{item}</li>" for item in parsed_content) + '</ul>'  
+    except (json.JSONDecodeError, TypeError):  
+        return content  # Return the original content if it's not JSON   
   
 def analyze_user_input(text):  
     messages = [  
@@ -323,12 +333,14 @@ def generate_goal(user_input):
                 goal_option_data = json.loads(response)  
                 goal_option = goal_option_data['goal']  # Expecting the response to have a 'goal' key  
   
-                goal_compliant, non_compliance_reason = is_goal_compliant(goal_option)  
+                # Parse the goal content for display  
+                parsed_goal_content = parse_goal_content(goal_option)  
   
-                if goal_compliant and goal_option not in [g['title'] for g in goal_options]:  
-                    goal_options.append({'title': goal_option, 'compliant': goal_compliant, 'reason': non_compliance_reason})  
+                goal_compliant, non_compliance_reason = is_goal_compliant(goal_option)  
+                if goal_compliant and parsed_goal_content not in [g['title'] for g in goal_options]:  
+                    goal_options.append({'title': parsed_goal_content, 'compliant': goal_compliant, 'reason': non_compliance_reason})  
                 elif not goal_compliant:  
-                    goal_options.append({'title': goal_option, 'compliant': False, 'reason': non_compliance_reason})  
+                    goal_options.append({'title': parsed_goal_content, 'compliant': False, 'reason': non_compliance_reason})  
   
                 if len(goal_options) == 3:  
                     break  
@@ -343,7 +355,7 @@ def generate_goal(user_input):
     if len(goal_options) < 3:  
         raise ValueError("Failed to generate unique goals. Please try again.")  
   
-    return goal_options  
+    return goal_options   
   
 def is_goal_compliant(selected_goal):  
     sentiment_counts = {'POSITIVE': 0, 'NEGATIVE': 0, 'NEUTRAL': 0}  

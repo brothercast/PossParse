@@ -33,14 +33,13 @@
           <div class="card-body card-content">  
             <i class="{{ goal.icon }} fa-2x mb-3"></i>  
             <p class="domain domain-text">{{ goal.domain | title }}</p>  
-            <h5 class="card-title" data-text="{{ goal.title }}">{{ goal.title | safe }}</h5>  
+            <div class="card-title" style="text-align: left;">{{ goal.title | safe }}</div> <!-- Display parsed content -->  
             {% if goal.compliant %}  
             <form action="/outcome" method="post" class="goal-selection-form">  
               <input type="hidden" name="selected_goal" value="{{ goal.title }}">  
               <input type="hidden" name="domain" value="{{ goal.domain }}">  
               <input type="hidden" name="domain_icon" value="{{ goal.icon }}">  
               <input type="hidden" name="user_text" value="{{ user_input }}">  
-              <input type="hidden" name="ai_response" value="The AI response data">  
               <button type="submit" class="btn btn-primary">Select</button>  
             </form>  
             {% else %}  
@@ -49,7 +48,8 @@
           </div>  
         </div>  
       </div>  
-    {% endfor %}  
+    {% endfor %}   
+ 
   </div>  
   <div class="text-center">  
     <button type="button" class="btn btn-outline-primary" id="generate-new-goals">  
