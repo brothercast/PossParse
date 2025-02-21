@@ -1,6 +1,7 @@
 // ce_cards.js  
   
 import { showLoadingSpinner, hideLoadingSpinner } from './base_functions.js';  
+let hasUnsavedChanges = false;  
   
 // Initialize ce_store if not already defined  
 if (typeof ce_store === 'undefined') {  
@@ -265,39 +266,39 @@ function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns, ce
   const initialData = tableData.length ? tableData : [];  
 
   try {  
-      const table = new Tabulator(tableSelector, {  
-          data: initialData,  
-          layout: "fitColumns",  
-          movableColumns: true,  
-          resizableRows: true,  
-          selectable: true,  
-          reactiveData: true,  
-          placeholder: `Add or Generate ${ceType}`, // Dynamic placeholder message  
-          rowHeight: 40, // Set rows to 40px height  
-          columns: [  
-              {  
-                  title: "",  
-                  width: 30,  
-                  rowHandle: true,  
-                  formatter: "handle",  
-                  headerSort: false,  
-                  resizable: false,  
-                  hozAlign: "center"  
-              },  
-              {  
-                  formatter: "rowSelection",  
-                  titleFormatter: "rowSelection",  
-                  hozAlign: "center",  
-                  headerSort: false,  
-                  width: 40,  
-                  resizable: false,  
-                  cellClick: function (e, cell) {  
-                      cell.getRow().toggleSelect();  
-                  }  
-              },  
-              ...tabulatorColumns,  
-          ],  
-      });  
+    const table = new Tabulator(tableSelector, {  
+      data: initialData,  
+      layout: "fitColumns",  
+      movableColumns: true,  
+      resizableRows: true,  
+      selectable: true,  
+      reactiveData: true,  
+      placeholder: `Add or Generate ${ceType}`,  
+      rowHeight: 40,  // Ensure this is the correct option  
+      columns: [  
+          {  
+              title: "",  
+              width: 30,  
+              rowHandle: true,  
+              formatter: "handle",  
+              headerSort: false,  
+              resizable: false,  
+              hozAlign: "center"  
+          },  
+          {  
+              formatter: "rowSelection",  
+              titleFormatter: "rowSelection",  
+              hozAlign: "center",  
+              headerSort: false,  
+              width: 40,  
+              resizable: false,  
+              cellClick: function (e, cell) {  
+                  cell.getRow().toggleSelect();  
+              }  
+          },  
+          ...tabulatorColumns,  
+      ],  
+  });  
 
       return table;  
   } catch (error) {  
