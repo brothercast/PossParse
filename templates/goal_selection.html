@@ -1,63 +1,163 @@
-{% extends 'base.html' %}  
-  
-{% block content %}  
-<div class="container mt-4">  
-  <h1>What is your Commitment?</h1>  
-  <table class="table table-bordered">  
-    <thead>  
-      <tr>  
-        <th>Your Input</th>  
-        <th class="text-end">Actions</th>  
-      </tr>  
-    </thead>  
-    <tbody>  
-      <tr>  
-        <td class="user-input">{{ user_input }}</td>  
-        <td class="text-end">  
-          <button type="button" class="btn btn-primary btn-sm edit-user-input">Edit</button>  
-          <button type="button" class="btn btn-success btn-sm save-user-input d-none">Update</button>  
-          <button type="button" class="btn btn-danger btn-sm cancel-user-input d-none">Cancel</button>  
-        </td>  
-      </tr>  
-    </tbody>  
-  </table>  
-  <p>  
-    Based on your input, we have speculated three high-level outcomes.  
-    Please choose the one that is closest to your desired result, or click the "Speculate New Outcomes" button to generate a new set of possibilities.  
-  </p>  
-  <!-- Add the class 'card-container' to the div below -->  
-  <div class="row card-container">  
-    {% for goal in goals %}  
-      <div class="col-md-4 mb-4">  
-        <div class="card retro-futuristic-card text-center {% if not goal.compliant %}non-compliant{% endif %}">  
-          <div class="card-body card-content">  
-            <i class="{{ goal.icon }} fa-2x mb-3"></i>  
-            <p class="domain domain-text">{{ goal.domain | title }}</p>  
-            <div class="card-title" style="text-align: left;">{{ goal.title | safe }}</div> <!-- Display parsed content -->  
-            {% if goal.compliant %}  
-            <form action="/outcome" method="post" class="goal-selection-form">  
-              <input type="hidden" name="selected_goal" value="{{ goal.title }}">  
-              <input type="hidden" name="domain" value="{{ goal.domain }}">  
-              <input type="hidden" name="domain_icon" value="{{ goal.icon }}">  
-              <input type="hidden" name="user_text" value="{{ user_input }}">  
-              <button type="submit" class="btn btn-primary">Select</button>  
-            </form>  
-            {% else %}  
-            <button type="button" class="btn btn-danger" onclick="window.location.href='/';">Start Over</button>  
-            {% endif %}  
-          </div>  
-        </div>  
-      </div>  
-    {% endfor %}   
- 
-  </div>  
-  <div class="text-center">  
-    <button type="button" class="btn btn-outline-primary" id="generate-new-goals">  
-      <span class="refresh-icon"><i class="fas fa-sync-alt"></i></span> Speculate New Outcomes</button>  
-  </div>  
-</div>  
-{% endblock %}  
-  
-{% block scripts %}  
-<script type="module" src="{{ url_for('static', filename='js/goal_selection.js') }}"></script>  
-{% endblock %}  
+<!-- goal_selection.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+  <h1>What is your Commitment?</h1>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Your Input</th>
+        <th class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="user-input">{{ user_input }}</td>
+        <td class="text-end">
+          <button type="button" class="btn btn-primary btn-sm edit-user-input">Edit</button>
+          <button type="button" class="btn btn-success btn-sm save-user-input d-none">Update</button>
+          <button type="button" class="btn btn-danger btn-sm cancel-user-input d-none">Cancel</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Based on your input, we have speculated three high-level outcomes.
+    Please choose the one that is closest to your desired result, or click the "Speculate New Outcomes" button to
+    generate a new set of possibilities.
+  </p>
+  <!-- Add the class 'card-container' to the div below -->
+  <div class="row card-container">
+    {% for goal in goals %}
+      <div class="col-md-4 mb-4">
+        <div class="card retro-futuristic-card text-center">
+          <div class="card-body card-content">
+            <i class="{{ goal.icon }} fa-2x mb-3"></i>
+            <p class="domain domain-text">{{ goal.domain | title }}</p>
+            <!-- Corrected section -->
+            <div class="goal-description goal-text">
+                {{ goal.goal | replace('\n', '<br>') | safe }}
+            </div>
+
+            <form action="/outcome" method="post" class="goal-selection-form">
+              <input type="hidden" name="selected_goal" value="{{ goal.goal }}">
+              <input type="hidden" name="domain" value="{{ goal.domain }}">
+              <input type="hidden" name="domain_icon" value="{{ goal.icon }}">
+              <input type="hidden" name="user_text" value="{{ user_input }}">
+              <button type="submit" class="btn btn-primary">Select</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+
+  </div>
+  <div class="text-center">
+    <button type="button" class="btn btn-outline-primary" id="generate-new-goals">
+      <span class="refresh-icon"><i class="fas fa-sync-alt"></i></span> Speculate New Outcomes</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    function animateGoalText() {
+        document.querySelectorAll('.goal-description').forEach(container => {
+            const text = container.innerHTML;
+            container.innerHTML = ''; // Clear the original text
+
+            let delay = 0;
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const span = document.createElement('span');
+                span.textContent = char;
+                span.style.animationDelay = `${delay}s`;
+                span.classList.add('text-wipe-on'); // Add the class for animation
+                 if (char === '<') {
+                  //If it's an open tag, check to see if its a br tag:
+                  if (text.substring(i, i + 4) === '<br>') {
+                    //Add the br tag, and don't animate:
+                    const br = document.createElement('br');
+                    container.appendChild(br);
+                    i += 3;
+                    continue;
+                   }
+                }
+                container.appendChild(span);
+                delay += 0.02; // Adjust for speed
+            }
+        });
+    }
+
+
+
+      // Event listener for dynamic content loading
+    document.addEventListener('DOMContentLoaded', () => {
+     animateGoalText(); //Moved Animate to here
+    const generateNewGoalsButton = document.getElementById('generate-new-goals');
+    if (generateNewGoalsButton) {
+        generateNewGoalsButton.addEventListener('click', async () => {
+            const userInput = document.querySelector('.user-input').textContent;
+            try {
+                const response = await fetch('/goal_selection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest' // Indicate AJAX
+                    },
+                    body: `user_text=${encodeURIComponent(userInput)}`
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.goals && data.goals.length > 0) {
+                    // Clear existing goal cards
+                    const cardContainer = document.querySelector('.card-container');
+                    cardContainer.innerHTML = '';
+
+                    // Add new goal cards
+                    data.goals.forEach(goal => {
+                        const cardHtml = `
+                            <div class="col-md-4 mb-4">
+                                <div class="card retro-futuristic-card text-center">
+                                    <div class="card-body card-content">
+                                        <i class="${goal.icon} fa-2x mb-3"></i>
+                                        <p class="domain domain-text">${goal.domain}</p>
+                                        <div class="goal-description goal-text">
+                                            ${goal.goal.replace(/\n/g, '<br>')}
+                                        </div>
+                                        <form action="/outcome" method="post" class="goal-selection-form">
+                                            <input type="hidden" name="selected_goal" value="${goal.goal}">
+                                            <input type="hidden" name="domain" value="${goal.domain}">
+                                            <input type="hidden" name="domain_icon" value="${goal.icon}">
+                                            <input type="hidden" name="user_text" value="${data.user_input}">
+                                            <button type="submit" class="btn btn-primary">Select</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        cardContainer.insertAdjacentHTML('beforeend', cardHtml);
+                    });
+
+                    // Re-apply text animation
+                    animateGoalText();
+                } else {
+                    console.error('No goals received or invalid response:', data);
+                }
+            } catch (error) {
+                console.error('Error fetching new goals:', error);
+            }
+        });
+    }
+});
+
+
+</script>
+<script type="module" src="{{ url_for('static', filename='js/goal_selection.js') }}"></script>
+{% endblock %}

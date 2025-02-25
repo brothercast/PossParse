@@ -1,4 +1,4 @@
-# utilities.py
+# utilities.py (Refactored for Robustness, Consolidation, and Detailed Logging)
 import io
 import os
 import re
@@ -12,113 +12,36 @@ from uuid import uuid4
 from PIL import Image
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
-from app import USE_DATABASE, db
-from openai import AzureOpenAI
+from app import USE_DATABASE, db, app  # Import db, AND app
 from ce_nodes import get_valid_node_types
-from models import COS, CE, SSOL, COS_CE_Link
-from store import ssol_store, cos_store, ce_store
 from flask import current_app, flash, render_template
+import asyncio
+import aiohttp
 import requests
-from ai_service import send_request_to_openai #Import function from ai_service.py
-import openai #Import openai library
+from google.generativeai import types
 
-
-# Load environment variables
 load_dotenv()
 azure_oai_key = os.getenv("AZURE_OPENAI_API_KEY")
 azure_oai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
 azure_oai_deployment_name = os.getenv("AZURE_DEPLOYMENT_NAME")
 azure_oai_model = os.getenv("AZURE_MODEL_NAME")
-stability_api_key = os.getenv("STABILITY_KEY")
-azure_dalle_api_version = os.getenv("AZURE_DALLE_API_VERSION", "2024-04-01-preview") # Added DALL-E API Version
-  
-
-class Logger:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
-    @staticmethod
-    def log_message(message, level='info'):
-        if level == 'info':
-            formatted_message = f"{Logger.OKCYAN}{message}{Logger.ENDC}"
-        elif level == 'warning':
-            formatted_message = f"{Logger.WARNING}{message}{Logger.ENDC}"
-        elif level == 'error':
-            formatted_message = f"{Logger.FAIL}{message}{Logger.ENDC}"
-        elif level == 'debug':
-            formatted_message = f"{Logger.OKBLUE}{message}{Logger.ENDC}"
-        else:
-            formatted_message = message
-
-        print(formatted_message)
-
-
-def generate_chat_response(messages, role, task, temperature=0.75, retries=3, backoff_factor=2):
-    last_exception = None
-    for retry_attempt in range(retries):
-        try:
-            # Ensure the system message indicates JSON response format
-            system_message = {
-                "role": "system",
-                "content": "You are a helpful assistant. Please respond with information in JSON format."
-            }
-            messages_with_json = [system_message] + messages
-
-            # Log the constructed messages for debugging
-            current_app.logger.debug(f"Constructed Messages for generate_chat_response: {json.dumps(messages_with_json, indent=2)}")
-
-            current_app.logger.debug(f"Sending request to Azure OpenAI: {messages_with_json}")
-
-            # Send request to Azure OpenAI model using JSON mode
-            response = openai.chat.completions.create(
-                model=azure_oai_model,
-                response_format={"type": "json_object"},
-                messages=messages_with_json,
-                temperature=temperature,
-                max_tokens=1800
-            )
-            response_content = response.choices[0].message.content
-            current_app.logger.debug(f"Received response from AI: {response_content}")
-            return response_content
-        except Exception as e:
-            last_exception = e
-            if retry_attempt < retries - 1:
-                sleep_time = backoff_factor ** (retry_attempt + 1)
-                current_app.logger.error(f"Error in generate_chat_response: {e}. Retrying in {sleep_time} seconds.")
-                time.sleep(sleep_time)
-            else:
-                current_app.logger.error(f"Error in generate_chat_response: {e}. All retries exhausted.")
-
-    # Raise the last exception if all retries fail
-    raise last_exception
+azure_dalle_api_version = os.getenv("AZURE_DALLE_API_VERSION")
+azure_dalle_deployment_name = os.getenv("AZURE_DALLE_DEPLOYMENT_NAME")
 
 def parse_ai_response_and_generate_html(response_json):
+    from models import COS, CE, get_engine_and_session  # Local import
+    from store import ce_store  # Local import
+
     structured_solution = {}
     expected_phases = ["Discovery", "Engagement", "Action", "Completion", "Legacy"]
 
     for phase in expected_phases:
         structured_solution[phase] = []
-        for cos in response_json.get(phase, []):
+        for cos_dict in response_json.get(phase, []):
             cos_id = str(uuid.uuid4())
-            cos_html = cos.get('content', '') #Ensure content is a string
+            cos_html = cos_dict['content']  # Access 'content' key
             ces = []
-             
-            if not cos_html:
-                 current_app.logger.warning(f"COS HTML is empty for COS ID: {cos_id} phase: {phase}")
-                 structured_solution[phase].append({
-                    'id': cos_id,
-                    'content': '',
-                    'status': 'Proposed',
-                    'ces': []
-                })
-                 continue # Skip the rest of the loop because the content is empty
+
             soup = BeautifulSoup(cos_html, 'html.parser')
             for ce_tag in soup.find_all('ce'):
                 ce_uuid = str(uuid.uuid4())
@@ -138,15 +61,16 @@ def parse_ai_response_and_generate_html(response_json):
                 }
                 ces.append(ce_data)
 
-                # Store the CEs
                 if USE_DATABASE:
-                    ce_instance = CE(id=ce_uuid, content=ce_tag.string, node_type=ce_tag['type'])
-                    db.session.add(ce_instance)
+                    with app.app_context():
+                        engine, session = get_engine_and_session()
+                        ce_instance = CE(id=uuid.UUID(ce_uuid), content=ce_tag.string, node_type=ce_tag['type'])
+                        session.add(ce_instance)
+                        session.commit()
+                        session.close()
                 else:
                     ce_store[ce_uuid] = ce_data
 
-            if USE_DATABASE:
-                db.session.commit()
 
             structured_solution[phase].append({
                 'id': cos_id,
@@ -154,324 +78,289 @@ def parse_ai_response_and_generate_html(response_json):
                 'status': 'Proposed',
                 'ces': ces
             })
-
     return structured_solution
 
-def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None):
-    # Initialize outcome_data with default keys and values
+async def generate_outcome_data(request, method, selected_goal=None, domain=None, domain_icon=None):
+    from ai_service import generate_chat_response, azure_openai_client
+    from models import get_engine_and_session
+    from store import ssol_store
+
     outcome_data = {
-        'user_input': '',
-        'selected_goal': selected_goal,
-        'domain_icon': domain_icon,
-        'domain': domain,
-        'ssol_id': None,
-        'ssol_summary': "An error occurred while processing the summary data.",
-        'phases': {},
-        'generated_image_path': 'images/sspec_default.png'
+        'user_input': '', 'selected_goal': selected_goal, 'domain_icon': domain_icon, 'domain': domain,
+        'ssol_id': None, 'ssol_summary': "An error occurred while processing the summary data.",
+        'phases': {}, 'generated_image_path': 'images/sspec_default.png'
     }
 
     user_input = request.form.get('user_text', '').strip() if method == 'POST' else request.args.get('user_text', '').strip()
+    user_input = html.escape(user_input)  # Sanitize user input
     outcome_data['user_input'] = user_input
+    outcome_data['ssol_id'] = generate_ssol_id(USE_DATABASE, selected_goal)
+    current_app.logger.info(f"Generating outcome data for goal: {selected_goal}, ssol_id: {outcome_data['ssol_id']}") # Log ssol_id
 
-    # Generate or retrieve an SSOL instance and get the id
-    if USE_DATABASE:
-        ssol_instance = SSOL.query.filter_by(title=selected_goal).first()
-        if not ssol_instance:
-            ssol_instance = SSOL(title=selected_goal, description='')
-            db.session.add(ssol_instance)
-            db.session.commit()
-        ssol_id = ssol_instance.id
-    else:
-        ssol_instance = next((ssol for ssol in ssol_store.values() if ssol['title'] == selected_goal), None)
-        if not ssol_instance:
-            ssol_id = str(uuid4())
-            ssol_instance = {'id': ssol_id, 'title': selected_goal, 'description': ''}
-            ssol_store[ssol_id] = ssol_instance
-        ssol_id = ssol_instance['id']
+    # Sanitize selected_goal and domain as well
+    selected_goal = html.escape(selected_goal) if selected_goal else ""
+    domain = html.escape(domain) if domain else ""
 
-    outcome_data['ssol_id'] = ssol_id
-
-    # Generate the high-level summary
+        # --- Summary Generation ---
     summary_messages = [
-        {
-            "role": "system",
-            "content": (
-                "Assume it is possible to fulfill any outcome, generate a high-level summary "
-                "(key name: summary) of everything required for the goal working backwards from fulfilled by some point in the future, "
-                "includle any existing or potential legal, scientific, logistic or other barriers which needed to be addressed for completion."
-            )
-        },
         {
             "role": "user",
             "content": (
-                f"Generate a high-level, elegantly-formatted summary for the goal: '{selected_goal}'. "
-                "Please format the summary using Bootstrap-safe HTML, including tags such as <br> for line breaks "
-                "and ordered lists."
+                f"Generate a high-level summary for the goal: '{selected_goal}'. Consider the domain: {domain}. "
+                f"Return a JSON object with a SINGLE KEY 'summary', containing the summary text. "
+                f"Example: {{\"summary\": \"This is a sample summary.\"}}"  # Example!
             )
-        }
+        },
     ]
 
     try:
-        summary_response = generate_chat_response(summary_messages, role='Outcome Generation', task='Generate High-Level Summary')
+        current_app.logger.info("Generating summary from AI...")
+        summary_response = await generate_chat_response(summary_messages, role='Outcome Summary', task='Generate Summary')
+        current_app.logger.debug(f"Summary AI Response: {summary_response}")  # DEBUG level for raw response
         summary_data = json.loads(summary_response)
-        outcome_data['ssol_summary'] = summary_data.get('summary', "") or ""
+        outcome_data['ssol_summary'] = summary_data.get('summary', "Summary not available.")
+        current_app.logger.info("Summary generation successful.") # Log success
+    except json.JSONDecodeError as e:
+        current_app.logger.error(f"JSON decoding error when generating summary: {e}", exc_info=True) # Log with traceback
+        outcome_data['ssol_summary'] = "Summary generation failed due to JSON error."
     except Exception as e:
-        current_app.logger.error(f"Error in generate_outcome_data (summary): {e}", exc_info=True)
+        current_app.logger.error(f"Error in generate_outcome_data (summary): {e}", exc_info=True) # Log with traceback
+        outcome_data['ssol_summary'] = "Summary generation failed."
 
-    # Generate the structured solution
+       # --- Structured Solution Generation ---
     structured_solution_messages = [
-        {
-            "role": "system",
-            "content": "You are a helpful assistant. Generate detailed Conditions of Satisfaction (COS) and multiple Conditional Elements (CE) for each COS of a project, including specific attributes for each CE."
-        },
-        {
+       {
             "role": "user",
             "content": (
                 f"Generate a concise Structured Solution for the project '{selected_goal}'. "
-                "For each phase (Discovery, Engagement, Action, Completion, Legacy), provide 2 to 5 targeted Conditions of Satisfaction (COS). "
-                "For each COS, identify and list 2 to 4 specific and succinct Conditional Elements (CE) with unique IDs. "
-                "Focus on essential contributors such as resources, legislation, research, stakeholders, and timelines. "
-                "Select the most specific type from CE_nodes.py for each CE, denoted with <ce> tags. "
-                "Account for interdependencies and their impacts across project phases. "
-                "Format your response as a JSON object with each phase as a key and an array of COS objects as values. "
-                "Each COS object should include brief COS text, a unique ID, a status (Proposed), and an array of CEs. "
-                "Each CE should be a JSON object with 'id', 'content' (2-4 sentences), 'status', 'type', and additional details as needed. "
-
-                 "Here is an example for the Discovery phase: "
-                "'Discovery': ["
-                "    {"
-                "      'id': 'COS-001',"
-                "      'content': '<ce id=\"CE-001\" type=\"Research\">Market research</ce> to assess <ce id=\"CE-002\" type=\"Demand\">consumer interest</ce> in a <ce id=\"CE-003\" type=\"Product\">new product</ce>.' ,"
-                "      'status': 'Proposed',"
-                "      'ces': ["
-                "        {'id': 'CE-001', 'content': 'Conduct market analysis', 'status': 'Proposed', 'type': 'Research'},"
-                "        {'id': 'CE-002', 'content': 'Evaluate consumer demand', 'status': 'Proposed', 'type': 'Demand'},"
-                "        {'id': 'CE-003', 'content': 'Define product concept', 'status': 'Proposed', 'type': 'Product'}"
-                "      ]"
-                "    }"
-                "]"
+                f"Consider these phases: Discovery, Engagement, Action, Completion, Legacy. "
+                f"For EACH phase, create Conditions of Satisfaction (COS). "
+                f"Each COS should be a plain-text sentence, and you may embed conditional elements using <ce type='NodeType'> tags."
+                f"Output a JSON object where keys are phase names (title-cased, no spaces), and values are arrays of COS objects. "
+                f"Each COS object MUST have an 'id' (string), 'content' (string, the COS text with CE tags), and 'status' (string, initially 'Proposed'). "
+                f"Example: "
+                f"{{"
+                f"  \"Discovery\": ["
+                f"    {{\"id\": \"1\", \"content\": \"Identify key stakeholders <ce type='Stakeholder'>stakeholder group</ce>.\", \"status\": \"Proposed\"}},"
+                f"    {{\"id\": \"2\", \"content\": \"Conduct initial research <ce type='Research'>research area</ce>.\", \"status\": \"Proposed\"}}"
+                f"  ],"
+                f"  \"Engagement\": []"  # Empty array for phases with no COS initially
+                f"}}"
+                f"**The response MUST be valid JSON.**"
             )
         }
     ]
-
     try:
-        structured_solution_response = generate_chat_response(structured_solution_messages, role='Structured Solution Generation', task='Generate Structured Solution')
+        current_app.logger.info("Generating structured solution from AI...")
+        structured_solution_response = await generate_chat_response(structured_solution_messages, role='Structured Solution', task='Generate Solution')
+        current_app.logger.debug(f"Structured Solution AI Response: {structured_solution_response}") # DEBUG level
         structured_solution_json = json.loads(structured_solution_response)
-
-        # Ensure the structured_solution_json is a dictionary before processing
         if isinstance(structured_solution_json, dict):
             outcome_data['phases'] = parse_ai_response_and_generate_html(structured_solution_json)
+            current_app.logger.info("Structured solution generation successful.")
         else:
-            logging.error("Expected a dictionary for the structured solution JSON response.")
+            current_app.logger.error("Expected a dictionary for the structured solution JSON response.")
             outcome_data['phases'] = {}
     except json.JSONDecodeError as e:
-        logging.error(f"JSON decoding error: {e}")
+        current_app.logger.error(f"JSON decoding error when generating structured solution: {e}", exc_info=True) # Log with traceback
         outcome_data['phases'] = {}
     except Exception as e:
-        logging.error(f"Error in generate_outcome_data (structured solution): {e}", exc_info=True)
-        outcome_data['phases'] = {}
-    if not outcome_data.get('phases'):
+        current_app.logger.error(f"Error in generate_outcome_data (structured solution): {e}", exc_info=True) # Log with traceback
         outcome_data['phases'] = {}
 
-    # Generate an image using Azure OpenAI DALL-E API
     try:
-      image_prompt = f"A colorful, visually stunning photograph of a retro-futuristic tableau depicting '{selected_goal}' as a fulfilled goal, diverse,It's a Small World, 1962, photo-realistic, isometric, tiltshift "
-      web_image_path = generate_dalle_image(image_prompt)
-      outcome_data['generated_image_path'] = web_image_path
+        image_prompt = f"A colorful, visually stunning photograph of a retro-futuristic tableau depicting '{selected_goal}' as a fulfilled goal, diverse,It's a Small World, 1962, photo-realistic, isometric, tiltshift "
+        image_prompt = html.escape(image_prompt)  # and the prompt
+        current_app.logger.info(f"Generating image with prompt: {image_prompt}")
+        web_image_path = await generate_dalle_image(image_prompt, azure_openai_client)
+        outcome_data['generated_image_path'] = web_image_path
+        current_app.logger.info(f"Image generated successfully. Path: {web_image_path}")
+
     except Exception as e:
         current_app.logger.error(f"Error generating image: {e}", exc_info=True)
         outcome_data['generated_image_path'] = 'images/sspec_default.png'
-    # Return the outcome_data for rendering in the template
+
+    current_app.logger.info("Outcome data generation complete.")
     return outcome_data
 
-def generate_dalle_image(prompt):
-    """Generates an image using Azure OpenAI's DALL-E API."""
-    try:
-        # Initialize Azure OpenAI client
-        client = AzureOpenAI(
-            api_version=azure_dalle_api_version,
-            azure_endpoint=azure_oai_endpoint,
-            api_key=azure_oai_key,
-        )
-
-        result = client.images.generate(
-            model="Dalle3",  # the name of your DALL-E 3 deployment
-            prompt=prompt,
-            n=1,
-            size="1024x1024",
-            quality="standard",
-            style="vivid"
-        )
-
-        image_url = json.loads(result.model_dump_json())['data'][0]['url']
-        current_app.logger.info(f"Generated image with DALL-E: {image_url}")
-
-        # Generate a unique filename for the image
-        unique_filename = f"generated_image_{uuid.uuid4().hex}.png"
-        # Ensure the 'static/images' directory exists within your Flask app structure
-        static_folder = current_app.static_folder
-        image_folder = os.path.join(static_folder, 'images')
-        os.makedirs(image_folder, exist_ok=True) # Create the folder if it doesn't exist
-
-        image_file_path = os.path.join(image_folder, unique_filename)  # Full path for saving the file
-        image_data = requests.get(image_url, stream=True)
-
-        if image_data.status_code == 200:
-              with open(image_file_path, 'wb') as image_file:
-                for chunk in image_data.iter_content(1024):
-                    image_file.write(chunk)
-              # Convert the path to a URL-friendly format for the web
-              web_path = os.path.join('images', unique_filename).replace("\\", "/")
-              return web_path
-        else:
-            current_app.logger.error(f"DALL-E Image download failed with status code {image_data.status_code}.")
-            return 'images/sspec_default.png'  # Return default image if there was a problem downloading
-    except Exception as e:
-        current_app.logger.error(f"Error generating image with DALL-E: {e}", exc_info=True)
-        return 'images/sspec_default.png'  # Fallback to default image
-  
-def analyze_user_input(text):
+async def analyze_user_input(text):
+    from ai_service import generate_chat_response
     messages = [
-        {"role": "system", "content": "You are an AI that analyzes user inputs and extracts keywords."},
+        {"role": "system", "content": "You are an AI that analyzes user inputs and extracts keywords. **Respond with JSON.**"},
         {"role": "user", "content": text},
     ]
-  
-    response_text = generate_chat_response(messages, role='Keyword Extraction', task='Extract Keywords', temperature=0.75)
+    response_text = await generate_chat_response(messages, role='Keyword Extraction', task='Extract Keywords', temperature=0.75)
     keywords = response_text.split(', ')
     print(f"Keywords: {keywords}")
     return keywords
 
-def generate_sentiment_analysis(text, temperature=0.7):
+async def generate_sentiment_analysis(text, temperature=0.7):
+    from ai_service import generate_chat_response
     messages = [
-        {"role": "system", "content": "You are an AI trained to analyze sentiment and return POSITIVE, NEGATIVE, or NEUTRAL"},
         {"role": "user", "content": f"What sentiment is expressed in the following text: '{text}'?"},
     ]
-  
-    # Use the generate_chat_response function
-    response_text = generate_chat_response(messages, role='Sentiment Analysis', task='Analyze Sentiment', temperature=temperature)
-  
-    # Parse the response to extract the sentiment
-    sentiment = "NEUTRAL"  # Default to NEUTRAL if parsing fails or no clear sentiment is found
-    if "positive" in response_text.lower():
-        sentiment = "POSITIVE"
-    elif "negative" in response_text.lower():
-        sentiment = "NEGATIVE"
-    elif "neutral" in response_text.lower():
-        sentiment = "NEUTRAL"
-  
-    return sentiment
-  
-def generate_goal(user_input):
-    goal_options = []
-    temperatures = [0.6, 0.8, 1.0]
-  
-    while len(goal_options) < 3:
-        for i, temp in enumerate(temperatures):
-            messages = [
-                {"role": "system", "content": "You are an AI that generates innovative and unique goal outcomes or intentions based on the user's input. Structure your response in JSON format with a 'goal' key."},
-                {"role": "user", "content": user_input},
-            ]
-            try:
-                response = send_request_to_openai(messages, temperature=temp)
-                #Check if the response is a string
-                if not isinstance(response, str):
-                    raise ValueError("Response is not a string")
-
-                goal_option_data = json.loads(response)
-                goal_option = goal_option_data['goal']  # Expecting the response to have a 'goal' key
-  
-                goal_compliant, non_compliance_reason = is_goal_compliant(goal_option)
-  
-                if goal_compliant and goal_option not in [g['title'] for g in goal_options]:
-                    goal_options.append({'title': goal_option, 'compliant': goal_compliant, 'reason': non_compliance_reason})
-                elif not goal_compliant:
-                    goal_options.append({'title': goal_option, 'compliant': False, 'reason': non_compliance_reason})
-  
-                if len(goal_options) == 3:
-                    break
-  
-            except json.JSONDecodeError as e:
-                print(f"Error parsing JSON in generate_goal (Variation {i + 1}): {e}")
-                raise e
-            except Exception as e:
-                print(f"Error in generate_goal (Variation {i + 1}): {e}")
-                raise e
-
-    if len(goal_options) < 3:
-        raise ValueError("Failed to generate unique goals. Please try again.")
-
-    return goal_options
-
-def is_goal_compliant(selected_goal):
-    sentiment_counts = {'POSITIVE': 0, 'NEGATIVE': 0, 'NEUTRAL': 0}
-  
-    for _ in range(5):
-        try:
-            sentiment_label = generate_sentiment_analysis(selected_goal)
-            # Ensure the label is uppercase to match dictionary keys
-            sentiment_counts[sentiment_label.upper()] += 1
-        except ValueError as e:
-            print(f"Error in sentiment analysis: {e}")
-            continue
-  
-    # Determine compliance based on the sentiment counts
-    if sentiment_counts['POSITIVE'] >= 3:
-        return True, ''
-    elif sentiment_counts['NEGATIVE'] >= 3:
-        return False, 'The goal does not comply with the safety protocol.'
-    else:
-        return True, 'The goal has a neutral sentiment and is allowed.'
-  
-def get_domain_icon_and_name(goal_domain):
-    messages = [
-        {"role": "system", "content": "You are an AI that suggests a realm and FontAwesome 6 Solid (fas) class icon based on the goal's topic. Output ONLY the JSON with the 'realm' and 'iconClass' keys. "},
-        {"role": "user", "content": f"Based on the following text '{goal_domain}', provide ONLY the JSON object with a specific and succinct *realm* (category or area of focus) that this text falls under, as well as its corresponding FontAwesome 6 Solid class icon. The keys of the JSON should be 'realm' and 'iconClass'."}
-    ]
-    response_content = generate_chat_response(messages, role='Domain and Icon', task='Fetch Domain and free FontAwesome 6 Icon', temperature=0.37)
-
+    system_instruction = "You are an AI trained to analyze sentiment and return POSITIVE, NEGATIVE, or NEUTRAL **in JSON format**"
+    response_text = await generate_chat_response(messages, role='Sentiment Analysis', task='Analyze Sentiment', temperature=temperature, system_instruction=system_instruction)
+    sentiment = "NEUTRAL"
     try:
-        # Log the raw response content for debugging
-        Logger.log_message(f"Raw response content: {response_content}", 'debug')
+        response_json = json.loads(response_text)
+        sentiment = response_json.get("sentiment", "NEUTRAL").upper()
+    except json.JSONDecodeError:
+        logging.error(f"JSONDecodeError in generate_sentiment_analysis: {response_text}")
+    return sentiment
 
-        # Parse the JSON string into a dictionary
-        response_data = json.loads(response_content)
-        # Make sure to match the keys exactly with the response content
-        domain = response_data.get("realm") # Changed from domain to realm
-        icon_class = response_data.get("iconClass")  # Changed from "icon" to "iconClass"
+async def generate_goal(user_input):
+    from ai_service import generate_chat_response
 
-        if not domain or not icon_class:
-            # Log a warning if expected keys are missing
-            Logger.log_message("Missing 'realm' or 'iconClass' in AI response.", 'warning')
-            raise ValueError("Failed to generate domain and icon. Please try again.")
+    async def generate_single_goal(temp):
+        messages = [
+            {"role": "user", "content": user_input},
+        ]
+        system_instruction = (
+            "You are an AI that generates three innovative and *distinct* goal outcomes based on user input. "
+            "For EACH goal, also suggest a relevant domain (a general category like 'Technology', 'Health', 'Environment', NOT a URL) "
+            "and a corresponding FontAwesome 6 Solid (fas) icon class.  "
+            "Return a JSON array of objects. Each object MUST have 'title', 'domain', and 'icon' keys. "
+            "Example: "
+            "["
+            "  {\"title\": \"Develop self-healing concrete\", \"domain\": \"Materials Science\", \"icon\": \"fas fa-building\"}, "
+            "  {\"title\": \"Create AI-powered disease prediction\", \"domain\": \"Healthcare\", \"icon\": \"fas fa-heartbeat\"}, "
+            "  {\"title\": \"Implement global carbon capture system\", \"domain\": \"Environmental Engineering\", \"icon\": \"fas fa-globe-americas\"}"
+            "]"
+        )
+        # Modified System instruction:
+        system_instruction = (
+            "You are an AI that generates three innovative and *distinct* goal outcomes based on user input. "
+            "For EACH goal, you MUST provide BOTH a short 'title' (1-5 words) AND a more detailed 'goal' description (1-3 sentences). " # KEY CHANGE
+            "Also suggest a relevant domain (a general category like 'Technology', 'Health', 'Environment', NOT a URL) "
+            "and a corresponding FontAwesome 6 Solid (fas) icon class.  "
+            "Return a JSON array of objects. Each object MUST have 'title', 'goal', 'domain', and 'icon' keys. "
+            "Example: "
+            "["
+            "  {\"title\": \"Self-healing Concrete\", \"goal\": \"Develop a new type of concrete that can automatically repair cracks and damage, extending its lifespan.\", \"domain\": \"Materials Science\", \"icon\": \"fas fa-building\"}, "
+            "  {\"title\": \"AI Disease Prediction\", \"goal\": \"Create an AI-powered system for early disease prediction using patient data and machine learning.\", \"domain\": \"Healthcare\", \"icon\": \"fas fa-heartbeat\"}, "
+            "  {\"title\": \"Global Carbon Capture\", \"goal\": \"Implement a global-scale carbon capture and storage system to mitigate climate change.\", \"domain\": \"Environmental Engineering\", \"icon\": \"fas fa-globe-americas\"}"
+            "]"
+        )
 
-        return icon_class, domain
+        try:
+            response_text = await generate_chat_response(messages, role='Goal Generation', task='Generate Goal Options', temperature=temp, system_instruction=system_instruction)
+            response_text = re.sub(r'^```json\s*|```s*$', '', response_text, flags=re.MULTILINE).strip()
+            try:
+                goal_options = json.loads(response_text)
+            except json.JSONDecodeError as e:
+                logging.error(f"JSONDecodeError: {response_text} - {e}")
+                return []  # Return an empty list on parsing failure
 
-    except json.JSONDecodeError as e:
-        # Log the JSON parsing error
-        Logger.log_message(f"JSON parsing error: {e}", 'error')
-        raise ValueError("Failed to parse JSON response. Please try again.")
+            if isinstance(goal_options, list):
+                # Basic validation: check for required keys
+                validated_goals = []
+                for goal in goal_options:
+                    if all(key in goal for key in ['title', 'domain', 'icon', 'goal']): #Added goal here.
+                        validated_goals.append(goal)
+                    else:
+                        logging.warning(f"Invalid goal format: {goal}")
+                return validated_goals
+            else:
+                logging.error(f"Unexpected response format (not a list): {response_text}")
+                return []
 
-    except Exception as e:
-        # Log any other exceptions
-        Logger.log_message(f"Unexpected error: {e}", 'error')
-        raise
+        except Exception as e:
+            logging.error(f"Unexpected error: {e}", exc_info=True)
+            return []  # Return an empty list on any error
+
+    temperatures = [0.6, 0.8, 1.0]
+    all_goals = []
+    seen_titles = set()
+
+    async with asyncio.TaskGroup() as tg:
+        tasks = [tg.create_task(generate_single_goal(temp)) for temp in temperatures]
+
+    results = [task.result() for task in tasks]
+
+    for goal_list in results:
+        for goal in goal_list:
+            if goal['title'] not in seen_titles:
+                all_goals.append(goal)
+                seen_titles.add(goal['title'])
+
+    if not all_goals:
+        raise ValueError("Failed to generate any valid goal options.")
+
+    return all_goals[:3]
+
 
 def get_cos_by_guid(ssol, cos_guid):
     for phase in ssol['phases'].values():
         for cos in phase:
-            if cos['id'] == cos_guid:
-                return cos
+            if cos['id'] == cos_guid: return cos
     return None
 
 def update_cos_content_by_guid(ssol, cos_guid, new_content):
     cos = get_cos_by_guid(ssol, cos_guid)
-    if cos:
-        cos['content'] = new_content
-        return True
+    if cos: cos['content'] = new_content; return True
     return False
 
 def sanitize_filename(filename):
-    # Sanitize the filename by removing or replacing invalid characters.
-    filename = re.sub(r'[<>:"/\\|?*\x00-\x1F]', '', filename)  # Remove invalid characters
-    filename = re.sub(r'[\s]+', '_', filename)  # Replace spaces with underscores
-    return filename[:255]  # Truncate long filenames
+    filename = re.sub(r'[<>:"/\\|?*\x00-\x1F]', '', filename)
+    filename = re.sub(r'[\s]+', '_', filename)
+    return filename[:255]
+
+async def generate_dalle_image(prompt, azure_openai_client):
+    from ai_service import azure_openai_client as client_module
+
+    try:
+        azure_dalle_deployment_name = os.getenv("AZURE_DALLE_DEPLOYMENT_NAME") #Added DALLE var
+
+        client = azure_openai_client if azure_openai_client else client_module
+        result = client.images.generate(  # REMOVE await
+            model=azure_dalle_deployment_name, prompt=prompt, n=1, size="1024x1024", #Changed model to deployment name
+        )
+        image_url = result.data[0].url
+
+        # Log the DALL-E response
+        current_app.logger.debug(f"DALL-E API response: {result}")
+
+        unique_filename = f"generated_image_{uuid.uuid4().hex}.png"
+        static_folder = current_app.static_folder
+        image_folder = os.path.join(static_folder, 'images')  # Correct path
+        os.makedirs(image_folder, exist_ok=True)
+        image_file_path = os.path.join(image_folder, unique_filename) # Corrected path
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(image_url) as resp:
+                resp.raise_for_status()
+                with open(image_file_path, 'wb') as f:
+                    while True:
+                        chunk = await resp.content.read(1024)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+
+        web_path = os.path.join('images', unique_filename).replace("\\", "/")
+        return web_path
+    except Exception as e:
+        current_app.logger.error(f"Error in generate_dalle_image: {e}", exc_info=True)
+        raise
+
+def generate_ssol_id(USE_DATABASE, selected_goal):
+    from models import SSOL, get_engine_and_session  # Import get_engine_and_session
+    from store import ssol_store
+    if USE_DATABASE:
+        with app.app_context():  # Use application context
+            engine, session = get_engine_and_session()
+            ssol_instance = session.query(SSOL).filter_by(title=selected_goal).first()
+            if not ssol_instance:
+                ssol_instance = SSOL(title=selected_goal, description='')
+                session.add(ssol_instance)
+                session.commit()
+            ssol_id_to_return = str(ssol_instance.id) # Convert to string
+            session.close()
+            return ssol_id_to_return
+    else:
+        ssol_instance = next((ssol for ssol in ssol_store.values() if ssol['title'] == selected_goal), None)
+        if not ssol_instance:
+            ssol_id = str(uuid.uuid4())
+            ssol_instance = {'id': ssol_id, 'title': selected_goal, 'description': ''}
+            ssol_store[ssol_id] = ssol_instance
+        return ssol_instance['id']

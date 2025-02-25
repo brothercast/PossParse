@@ -1,144 +1,150 @@
-# ai_service.py
+# ai_service.py (Extract JSON from Gemini response)
 import os
 import json
-import openai
 import logging
-import time
+import asyncio
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 from flask import current_app
-from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
 from ce_nodes import get_valid_node_types
+from openai import AzureOpenAI
+import re  # Import the regular expression module
 
 # Load environment variables
 load_dotenv()
+google_gemini_api_key = os.environ["GOOGLE_GEMINI_API"]
+gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-pro-002")  # STABLE model
 azure_openai_key = os.environ["AZURE_OPENAI_API_KEY"]
 azure_openai_endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
-azure_oai_model = os.getenv("AZURE_MODEL_NAME")
-azure_oai_api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2023-12-01")  # Default version
+azure_openai_deployment_name = os.environ["AZURE_DEPLOYMENT_NAME"]
+azure_dalle_api_version = os.getenv("AZURE_DALLE_API_VERSION")  # Use DALL-E specific version
+
+# Initialize Gemini client
+client = genai.Client(api_key=google_gemini_api_key)
 
 # Initialize Azure OpenAI client
-openai.api_key = azure_openai_key
-openai.api_base = azure_openai_endpoint
-openai.api_type = 'azure'
-openai.api_version = azure_oai_api_version
+azure_openai_client = AzureOpenAI(
+    api_version=azure_dalle_api_version,
+    api_key=azure_openai_key,
+    azure_endpoint=azure_openai_endpoint
+)
 
-
-class AzureOpenAIClient:
+async def send_request_to_gemini(messages, generation_config=None, logger=None):
     """
-    A client for interacting with the Azure OpenAI API.
-
-    This class centralizes the logic for calling the Azure OpenAI API,
-    including retries and error handling.
+    Asynchronously sends a request to the Google Gemini API and returns the response.
     """
-    def __init__(self, api_key, api_base, api_version, model_name):
-        openai.api_key = api_key
-        openai.api_base = api_base
-        openai.api_type = 'azure'
-        openai.api_version = api_version
-        self.model_name = model_name
-
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10), reraise=True)
-    def _send_request(self, messages, temperature=0.75, max_tokens=1500, response_format={"type": "json_object"}):
-        """
-        Sends a request to the Azure OpenAI API with retry logic.
-        """
-        try:
-            current_app.logger.debug(f"Sending request to Azure OpenAI: {messages}")
-            response = openai.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                response_format=response_format
-            )
-            current_app.logger.debug(f"Azure OpenAI response: {response}")
-            return response.choices[0].message.content
-        except Exception as e:
-            current_app.logger.error(f"Error in _send_request: {e}", exc_info=True)
-            raise  # Re-raise the exception to trigger the retry mechanism
-
-    def chat_completion(self, messages, temperature=0.75, max_tokens=1500):
-        """
-        Sends a request to the Azure OpenAI API and returns the response content.
-
-        Args:
-            messages (list): A list of message dictionaries as per OpenAI API.
-            temperature (float): The sampling temperature to use.
-            max_tokens (int): The maximum number of tokens to generate.
-
-        Returns:
-            str: The content of the response from the API
-
-        Raises:
-            RetryError: If any error occurs during the API call after all retries.
-        """
-        try:
-            return self._send_request(messages, temperature, max_tokens)
-        except RetryError as e:
-            current_app.logger.error(f"RetryError in chat_completion: {e}", exc_info=True)
-            raise
-
-    def chat_completion_with_node_types(self, messages, temperature=0.75, max_tokens=1500):
-        """
-            Sends a request to the Azure OpenAI API using the chat_completion function including node_types
-        """
-        node_types = get_valid_node_types()  # Fetch valid node types
-        node_types_str = ', '.join(node_types)
-        # Ensure the system message indicates JSON response format
-        system_message = {
-          "role": "system",
-          "content": "You are a helpful assistant. Please respond with information in JSON format. Valid Node Types: " + node_types_str
-        }
-        messages_with_json = [system_message] + messages
-        try:
-            return self._send_request(messages_with_json, temperature, max_tokens)
-        except RetryError as e:
-            current_app.logger.error(f"RetryError in chat_completion_with_node_types: {e}", exc_info=True)
-            raise
-
-# Create a global instance of the client
-azure_openai_client = AzureOpenAIClient(azure_openai_key, azure_openai_endpoint, azure_oai_api_version, azure_oai_model)
-
-def send_request_to_openai(messages, temperature=0.75, max_tokens=1500, response_format={"type": "json_object"}):
-    """
-    Sends a request to the Azure OpenAI API and returns the response.
-
-    Args:
-        messages (list): A list of message dictionaries as per OpenAI API.
-        temperature (float): The sampling temperature to use.
-        max_tokens (int): The maximum number of tokens to generate.
-        response_format (dict): The output format of the response
-
-    Returns:
-        str: The content of the response from the API
-
-    Raises:
-        Exception: If any error occurs during the API call.
-    """
+    if logger is None:
+        logger = current_app.logger
     try:
-        return azure_openai_client._send_request(messages, temperature, max_tokens, response_format)
+        logger.debug(f"Sending request to Gemini with messages: {messages}")
+
+        contents = []
+        for message in messages:
+            if isinstance(message, dict) and 'role' in message and 'content' in message:
+                role = message['role']
+                if role not in ("user", "model"):
+                    raise ValueError(f"Invalid role: {role}. Role must be 'user' or 'model'.")
+                contents.append(
+                    types.Content(
+                        role=role,
+                        parts=[types.Part(text=message['content'])]
+                    )
+                )
+            else:
+                logger.warning(f"Invalid message format: {message}. Skipping this message.")
+
+        if generation_config is None:
+            generation_config = types.GenerateContentConfig(safety_settings=[])
+        elif isinstance(generation_config, dict):
+            generation_config.setdefault('safety_settings', [])
+            generation_config = types.GenerateContentConfig(**generation_config)
+
+        response = await client.aio.models.generate_content(
+            model=gemini_model_name,
+            contents=contents,
+            config=generation_config
+        )
+        logger.debug(f"Gemini API response: {response.text}")  # LOG THE raw RESPONSE
+        return response.text
+
     except Exception as e:
-        current_app.logger.error(f"Error in send_request_to_openai: {e}", exc_info=True)
+        logger.error(f"Error sending request to Gemini API: {e}", exc_info=True)
         raise
 
+async def generate_chat_response(messages, role, task, model=None, temperature=0.75, retries=3, backoff_factor=2, logger=None, generation_config=None, system_instruction=None):
+    if logger is None:
+        logger = current_app.logger
 
-def generate_chat_response(messages, role, task, temperature=0.75, max_tokens=1500):
-    """
-        Sends a request to the Azure OpenAI API using the chat_completion function.
-    """
-    try:
-        return azure_openai_client.chat_completion(messages, temperature, max_tokens)
-    except RetryError as e:
-        current_app.logger.error(f"RetryError in generate_chat_response: {e}", exc_info=True)
-        raise
+    if generation_config is None:
+        generation_config = types.GenerateContentConfig(
+            temperature=temperature,
+            top_p=0.95,
+            top_k=40,
+            max_output_tokens=2048,
+            safety_settings=[]
+        )
+    elif isinstance(generation_config, dict):
+        generation_config.setdefault('safety_settings', [])
+        generation_config = types.GenerateContentConfig(**generation_config)
+    if system_instruction:
+        generation_config.system_instruction = system_instruction
+
+    last_exception = None
+    for retry_attempt in range(retries):
+        try:
+            logger.debug(f"Sending request to Gemini (attempt {retry_attempt + 1})")
+            raw_response = await send_request_to_gemini(messages, generation_config, logger)
+
+            # Extract JSON from the raw response (Robust extraction)
+            match = re.search(r"```json\n(.*?)```", raw_response, re.DOTALL)
+            if match:
+                response_content = match.group(1).strip()
+            else:
+                response_content = raw_response  # Use raw response if no JSON found
+                logger.warning(f"No JSON found in Gemini response.  Using raw response.  Response: {response_content}")
+            logger.debug(f"Gemini API response (extracted): {response_content}")
+            return response_content  # Return the *extracted* JSON string
 
 
-def generate_chat_response_with_node_types(messages, role, task, temperature=0.75, max_tokens=1500):
-    """
-    Sends a request to the Azure OpenAI API using the chat_completion_with_node_types.
-    """
-    try:
-        return azure_openai_client.chat_completion_with_node_types(messages, temperature, max_tokens)
-    except RetryError as e:
-        current_app.logger.error(f"RetryError in generate_chat_response_with_node_types: {e}", exc_info=True)
-        raise
+        except Exception as e:
+            last_exception = e
+            if retry_attempt < retries - 1:
+                sleep_time = backoff_factor ** (retry_attempt + 1)
+                logger.warning(f"Error in generate_chat_response: {e}.  Retrying in {sleep_time} seconds.")
+                await asyncio.sleep(sleep_time)
+            else:
+                logger.error(f"Error in generate_chat_response: {e}. All retries exhausted.")
+    if last_exception:
+        raise last_exception
+
+async def generate_chat_response_with_node_types(messages, role, task, temperature=0.75, retries=3, backoff_factor=2, logger=None):
+    if logger is None:
+        logger = current_app.logger
+
+    last_exception = None
+    for retry_attempt in range(retries):
+        try:
+            node_types = get_valid_node_types()
+            node_types_str = ', '.join(node_types)
+            generation_config = types.GenerateContentConfig(
+                temperature=temperature,
+                top_p=0.95,
+                top_k=40,
+                max_output_tokens=2048,
+                safety_settings=[],
+                system_instruction="You are a helpful assistant. Please respond with information in JSON format. Valid Node Types: " + node_types_str + " **The response should be valid JSON.**"
+            )
+            # NOTE: generate_chat_response already extracts the JSON
+            response_content = await generate_chat_response(messages, role, task, temperature=temperature, retries=retries, backoff_factor=backoff_factor, logger=logger, generation_config=generation_config)
+            return response_content  # Return the extracted JSON string
+        except Exception as e:
+            last_exception = e
+            if retry_attempt < retries - 1:
+                sleep_time = backoff_factor ** (retry_attempt + 1)
+                logger.warning(f"Error in generate_chat_response: {e}. Retrying in {sleep_time} seconds.")
+                await asyncio.sleep(sleep_time)
+            else:
+                logger.error(f"Error in generate_chat_response: {e}. All retries exhausted.")
+    if last_exception:
+        raise last_exception
