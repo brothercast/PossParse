@@ -1,6 +1,5 @@
 # ce_templates.py
 from flask import current_app
-# ... (rest of ce_templates.py, but use current_app.logger)
 import json
 import logging
 import uuid
@@ -9,7 +8,7 @@ from store import ce_store
 from bs4 import BeautifulSoup
 from flask import render_template_string, current_app
 from ce_nodes import NODES, get_valid_node_types
-from ai_service import generate_chat_response
+from ai_service import generate_chat_response, get_grounded_data  # Import get_grounded_data
 
 BASE_MODAL_TEMPLATE = """
 <div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">
@@ -19,7 +18,7 @@ BASE_MODAL_TEMPLATE = """
         <div class="filled-box"></div>
         <h5 class="modal-title" id="ceModalLabel-${ceId}">
           <span class="node-icon me-2" style="color: ${phaseColor};">
-            <i class="${NODES[ceType]?.icon || 'fa-solid fa-icons'}"></i>
+            <i class="${icon_class}"></i>
           </span>
           <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()}</span>
         </h5>
@@ -38,7 +37,7 @@ BASE_MODAL_TEMPLATE = """
         </div>
 
         <form id="ceForm-${ceId}">
-          ${generate_form_fields(fields_config, ai_generated_data.fields)}
+          ${form_fields}
         </form>
         <div class="row mt-2">
           <div class="col">
@@ -126,7 +125,7 @@ def generate_table_headers(fields_config):
         table_headers_html += f"<th><strong>{header_label}</strong></th>"
     return table_headers_html
 
-def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated_data=None, phase_name=None, phase_index=None, ce_store=None):
+async def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated_data=None, phase_name=None, phase_index=None, ce_store=None):
     current_app.logger.debug(f"Generating modal for CE type: {ce_type}")
     current_app.logger.debug(f"CE data: {ce_data}")
     current_app.logger.debug(f"COS content: {cos_content}")
@@ -149,16 +148,25 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
     # Process the COS content to replace CE tags with CE pills
     ces = list(ce_store.values())  # Ensure that ce_store contains the correct structure
     for ce in ces:
-        if 'ce_type' not in ce:
-            ce['ce_type'] = 'Unknown'
-            current_app.logger.warning(f"Added missing 'ce_type' to CE: {ce}")
+        if 'node_type' not in ce:  # Corrected to use node_type
+            ce['node_type'] = 'Unknown' # Corrected to use node_type
+            current_app.logger.warning(f"Added missing 'node_type' to CE: {ce}")
 
     cos_content_with_pills = replace_ce_tags_with_pills(cos_content, ces)
+
+    # Determine phase color
+    phase_colors = ["#e91e63", "#00bcd4", "#9c27b0", "#ffc107", "#66bd0e"]  # Example colors
+    phaseColor = phase_colors[phase_index % len(phase_colors)] if phase_index is not None else "#6c757d"  # Default color
+
+    # Get icon class, awaiting the async function
+    icon_class = NODES[ce_type].get('icon') if ce_type in NODES else await get_node_type_icon_and_name(ce_type)
+
+
 
     modal_content = render_template_string(
         BASE_MODAL_TEMPLATE,
         ce_type=ce_type,
-        icon_class = NODES[ce_type].get('icon') if ce_type in NODES else get_node_type_icon_and_name(ce_type),
+        icon_class = icon_class, #NODES[ce_type].get('icon') if ce_type in NODES else get_node_type_icon_and_name(ce_type),
         node_info=node_info,
         form_fields=form_fields,
         table_headers=table_headers,
@@ -174,52 +182,65 @@ def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated
         phase_index=phase_index,
         node_name=node_name,
         ce_id=ce_data.get('id', 'unknown_ce_id') if ce_data else 'unknown_ce_id',
-        ai_context_description=ai_generated_data.get('contextual_description', 'No contextual description provided.')
+        ai_context_description=ai_generated_data.get('contextual_description', 'No contextual description provided.'),
+        phaseColor = phaseColor
     )
 
     return modal_content
 
-def get_node_type_icon_and_name(node_type):
+async def get_node_type_icon_and_name(node_type):
     messages = [
-        {"role": "system", "content": "You are an AI that suggests a FontAwesome 6 Solid (fas) class icon based on the node type. Output only the icon class in JSON format."},
-        {"role": "user", "content": f"What is the best FontAwesome icon class for the node type '{node_type}'?"}
+        {"role": "user", "content": f"You are an AI that suggests a FontAwesome 6 Solid (fas) class icon based on the node type. Output only the icon class in JSON format. What is the best FontAwesome icon class for the node type '{node_type}'?"}
     ]
-    response_content = generate_chat_response(messages, role='Node Type Icon', task='Fetch Node Type FontAwesome Icon', temperature=0.37)
+    response_content = await generate_chat_response(messages, role='Node Type Icon', task='Fetch Node Type FontAwesome Icon', temperature=0.37)
 
     try:
+        # Log the raw response content for debugging
+        current_app.logger.debug(f"Raw response content: {response_content}")
+
+        # Parse the JSON string into a dictionary
         response_data = json.loads(response_content)
-        icon_class = response_data.get("iconClass")
+        # Make sure to match the keys exactly with the response content
+        icon_class = response_data.get("iconClass")  # Changed from "icon" to "iconClass"
+
         if not icon_class:
-            logging.error(f"Failed to retrieve icon class for node type '{node_type}'.")
-            raise ValueError("Icon class not provided by AI.")
+            # Log a warning if expected keys are missing
+            current_app.logger.warning("Missing 'iconClass' in AI response.")
+            # raise ValueError("Failed to generate icon. Please try again.") # REMOVE THIS
+            return "fa-solid fa-question" # FALLBACK ICON
+
         return icon_class
 
     except json.JSONDecodeError as e:
-        logging.error(f"JSON decoding error: {e}")
-        raise
-    except Exception as e:
-        logging.error(f"Unexpected error: {e}")
-        raise
+        # Log the JSON parsing error
+        current_app.logger.error(f"JSON parsing error: {e}")
+        # raise ValueError("Failed to parse JSON response. Please try again.") # REMOVE
+        return "fa-solid fa-question"  # FALLBACK ICON
 
+    except Exception as e:
+        # Log any other exceptions
+        current_app.logger.error(f"Unexpected error: {e}")
+        # raise # REMOVE
+        return "fa-solid fa-question" # FALLBACK ICON
 
 
 def assign_ce_type(ce):
-    if 'ce_type' not in ce or not ce['ce_type']:
+    if 'node_type' not in ce or not ce['node_type']: #Corrected to node_type
         # Assign a default CE type if none is provided
-        ce['ce_type'] = 'General'
-        logging.info(f"Assigned default 'ce_type' to CE: {ce}")
+        ce['node_type'] = 'General' #Corrected to node_type
+        logging.info(f"Assigned default 'node_type' to CE: {ce}")
     return ce
 
 def extract_full_cos_text(cos_content):
     soup = BeautifulSoup(cos_content, 'html.parser')
     return ' '.join(soup.stripped_strings)
 
-def generate_fa_icon_for_node_type(node_type):
+async def generate_fa_icon_for_node_type(node_type):
     messages = [
         {"role": "system", "content": "You are an AI that suggests a FontAwesome 6 Solid (fas) class icon based on the node type name. Output only the icon class in JSON format."},
         {"role": "user", "content": f"What is the best FontAwesome icon class for the node type '{node_type}'?"}
     ]
-    response_content = generate_chat_response(messages, role='Icon Generation', task='Fetch FontAwesome 6 Icon', temperature=0.37)
+    response_content = await generate_chat_response(messages, role='Icon Generation', task='Fetch FontAwesome 6 Icon', temperature=0.37)
 
     try:
         # Log the raw response content for debugging
@@ -247,55 +268,99 @@ def generate_fa_icon_for_node_type(node_type):
         current_app.logger.error(f"Unexpected error: {e}")
         raise
 
+# ce_templates.py
 def replace_ce_tags_with_pills(content, ces):
-    def assign_ce_type(ce):
-        if 'ce_type' not in ce or not ce['ce_type']:
-            # Assign a default CE type if none is provided
-            ce['ce_type'] = 'General'
-            logging.info(f"Assigned default 'ce_type' to CE: {ce}")
-        return ce
-
     soup = BeautifulSoup(content, 'html.parser')
 
-    for ce in ces:
-        # Ensure each CE has a valid type
-        ce = assign_ce_type(ce)
-
+    # First, find and replace all <ce> tags in the content
+    for ce_tag in soup.find_all('ce'):
+        ce_type = ce_tag.get('type', 'Default')  # Default type if not specified
         ce_uuid = str(uuid.uuid4())
         new_tag = soup.new_tag('span', attrs={
             'class': 'badge rounded-pill bg-secondary ce-pill position-relative',
             'data-ce-id': ce_uuid,
-            'data-ce-type': ce['ce_type']
+            'data-ce-type': ce_type
         })
-        new_tag.string = ce['content']
+        new_tag.string = ce_tag.text  # Use the text content of the <ce> tag
 
-        # Add counter if applicable
-        if ce.get('count', 0) > 0:
-            counter_tag = soup.new_tag('span', attrs={
-                'class': 'badge rounded-pill bg-light text-dark ms-2'
-            })
-            counter_tag.string = str(ce['count'])
-            new_tag.append(counter_tag)
+        # Add indicator for new CEs (assuming you have a way to identify new CEs, e.g., a flag in 'ce_data')
+        # if ce_data.get('is_new'):
+        #     green_dot = soup.new_tag('span', attrs={
+        #         'class': 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle'
+        #     })
+        #     visually_hidden_text = soup.new_tag('span', attrs={'class': 'visually-hidden'})
+        #     visually_hidden_text.string = 'New CE'
+        #     green_dot.append(visually_hidden_text)
+        #     new_tag.append(green_dot)
 
-        # Add indicator for new CEs
-        if ce.get('is_new'):
-            green_dot = soup.new_tag('span', attrs={
-                'class': 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle'
-            })
-            visually_hidden_text = soup.new_tag('span', attrs={'class': 'visually-hidden'})
-            visually_hidden_text.string = 'New CE'
-            green_dot.append(visually_hidden_text)
-            new_tag.append(green_dot)
+        ce_tag.replace_with(new_tag)
 
-        soup.append(new_tag)
+    # Then, process the provided 'ces' list to update or add pill counts
+    for ce in ces:
+        ce = assign_ce_type(ce)
+        # Find existing pills by data-ce-id, if available.  Otherwise, fall back to finding by content.
+        if 'id' in ce:
+            existing_pill = soup.find('span', attrs={'data-ce-id': ce['id']})
+        else:
+            existing_pill = soup.find('span', class_='ce-pill', string=ce['content'])
+
+        if existing_pill:
+            # Update existing pill
+            if ce.get('count', 0) > 0:
+                counter_tag = existing_pill.find('span', class_='counter')
+                if counter_tag:
+                    counter_tag.string = str(ce['count'])
+                else:
+                    counter_tag = soup.new_tag('span', attrs={'class': 'badge rounded-pill bg-light text-dark ms-2 counter'})
+                    counter_tag.string = str(ce['count'])
+                    existing_pill.append(counter_tag)
+            if ce.get('is_new'):
+                green_dot = existing_pill.find('span', class_='position-absolute')
+                if not green_dot:
+                  green_dot = soup.new_tag('span', attrs={
+                      'class': 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle'
+                  })
+                  visually_hidden_text = soup.new_tag('span', attrs={'class': 'visually-hidden'})
+                  visually_hidden_text.string = 'New CE'
+                  green_dot.append(visually_hidden_text)
+                  existing_pill.append(green_dot)
+
+
+        else:
+          #Add new pills that may not exist in the original text:
+          ce_uuid = str(uuid.uuid4())
+          new_tag = soup.new_tag('span', attrs={
+              'class': 'badge rounded-pill bg-secondary ce-pill position-relative',
+              'data-ce-id': ce_uuid,
+              'data-ce-type': ce['node_type']
+          })
+          new_tag.string = ce['content']
+
+          # Add counter if applicable
+          if ce.get('count', 0) > 0:
+              counter_tag = soup.new_tag('span', attrs={
+                  'class': 'badge rounded-pill bg-light text-dark ms-2 counter'
+              })
+              counter_tag.string = str(ce['count'])
+              new_tag.append(counter_tag)
+          if ce.get('is_new'):
+                green_dot = soup.new_tag('span', attrs={
+                    'class': 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle'
+                })
+                visually_hidden_text = soup.new_tag('span', attrs={'class': 'visually-hidden'})
+                visually_hidden_text.string = 'New CE'
+                green_dot.append(visually_hidden_text)
+                new_tag.append(green_dot)
+          soup.append(new_tag)
 
     return str(soup)
 
-def get_ce_modal(ce_type):
-    modal_html = generate_dynamic_modal(ce_type)
+
+async def get_ce_modal(ce_type):
+    modal_html = await generate_dynamic_modal(ce_type)
     return modal_html
 
-def generate_ai_data(cos_text, ce_id, ce_type, ssol_goal, existing_ces=None):
+async def generate_ai_data(cos_text, ce_id, ce_type, ssol_goal, existing_ces=None):
     if existing_ces is None:
         existing_ces = []  # Default to an empty list if no existing CEs are provided
 
@@ -307,51 +372,101 @@ def generate_ai_data(cos_text, ce_id, ce_type, ssol_goal, existing_ces=None):
         current_app.logger.debug(f"No AI context provided for CE type: {ce_type}")
         return {"summary": "No AI context provided.", "fields": {}}
 
-    valid_node_types = ', '.join(get_valid_node_types())
-    field_labels = [field['name'] for field in modal_config_fields]
+     # --- Construct the Search Query ---
+    #This is the most important part.  Be VERY specific and use all available context.
+    query = (
+        f"Find information related to: {ce_type} for '{cos_text}' in the context of '{ssol_goal}'.  "
+    )
+    #Add additional context if it exists.
+    if existing_ces:
+        query += f"Consider these existing elements: {', '.join([ce['content'] for ce in existing_ces])}. "
 
-    messages = [
-        {
-            "role": "system",
+    for field in modal_config_fields:
+        query += f"Find {field['name']}. " #Add the names of the fields you want filled.
+
+    current_app.logger.info(f"Constructed query: {query}")
+
+    # --- Get Grounded Data ---
+    grounded_data = await get_grounded_data(query, ce_type)
+
+    if grounded_data:
+        current_app.logger.info(f"Grounded Data Retrieved {grounded_data}")
+        #Initialize ai_generated_data:
+        ai_generated_data = {
+          "summary": grounded_data.get('summary', 'Summary not available.'),
+          "contextual_description": grounded_data.get('contextual_description', 'No contextual description available.'),
+          "fields": {},
+          "table_data": [],
+          "attribution": grounded_data.get('attribution', '')
+        }
+
+        #Process each result.  Extract data and map to fields and table.
+        for result in grounded_data.get('results', []):
+            # 1. Populate Form Fields (if possible)
+            for field in modal_config_fields:
+                field_name = field['name']
+                if field_name in result.get('extracted_data', {}):
+                #Add to the ai_generated_data['fields'] dictionary:
+                    ai_generated_data['fields'][field_name] = result['extracted_data'][field_name]
+
+            # 2. Populate Tabulator Table
+            row_data = {'source_title': result.get('title'), 'source_url': result.get('url'), 'source_snippet': result.get('snippet')}
+            row_data.update(result.get('extracted_data', {}))  # Merge extracted data
+            ai_generated_data['table_data'].append(row_data)
+
+    else:
+        current_app.logger.warning("No grounded data returned.")
+        # Fallback to the original AI generation if grounding fails
+        # --- Original AI Generation (as fallback) ---
+
+        valid_node_types = ', '.join(get_valid_node_types())
+        field_labels = [field['name'] for field in modal_config_fields]
+        # System instruction as part of messages:
+        system_message = {
+            "role": "user",
             "content": (
                 "You are a helpful assistant. Generate contextually relevant data based on the Structured Solution (SSOL) goal, "
                 "the parent Condition of Satisfaction (COS) text, and the specific Conditional Element Identifier (CE ID) and type provided. Use this information to generate "
                 "detailed and specific insights or data that can fulfill on satisfying the COS and ultimately achieving the SSOL goal. "
                 "Choose the most appropriate conditional element type from within the following list: {valid_node_types}."
             ).format(valid_node_types=valid_node_types)
-        },
-        {
-            "role": "user",
-            "content": (
-                f"SSOL Goal: {ssol_goal}\n"
-                f"COS Text: {cos_text}\n"
-                f"CE ID: {ce_id}\n"
-                f"CE Type: {ce_type}\n"
-                f"Context: {ai_context}\n"
-                f"Form Field Labels: {', '.join(field_labels)}\n"
-                f"Existing Conditional Elements: {json.dumps(existing_ces)}\n"  # Include existing CEs
-                f"Based on the SSOL goal and the context provided by the parent COS and other conditional elements, "
-                f"generate a JSON response with the following structure:\n"
-                f"{{\n"
-                f"  \"summary\": \"Summary of the Conditional Element\",\n"
-                f"  \"contextual_description\": \"Contextual description of the CE\",\n"
-                f"  \"fields\": {{\n"
-                f"    \"field_label_1\": \"Unique value for field_label_1\",\n"
-                f"    \"field_label_2\": \"Unique value for field_label_2\",\n"
-                f"    ...\n"
-                f"  }}\n"
-                f"}}\n"
-                f"Ensure that the generated fields are unique and provide new information that complements the existing conditional elements."
-            )
         }
-    ]
+        messages = [
+            system_message, # Put system message first!
+            {
+                "role": "user",
+                "content": (
+                    f"SSOL Goal: {ssol_goal}\n"
+                    f"COS Text: {cos_text}\n"
+                    f"CE ID: {ce_id}\n"
+                    f"CE Type: {ce_type}\n"
+                    f"Context: {ai_context}\n"
+                    f"Form Field Labels: {', '.join(field_labels)}\n"
+                    f"Existing Conditional Elements: {json.dumps(existing_ces)}\n"  # Include existing CEs
+                    f"Based on the SSOL goal and the context provided by the parent COS and other conditional elements, "
+                    f"generate a JSON response with the following structure:\n"
+                    f"{{\n"
+                    f"  \"summary\": \"Summary of the Conditional Element\",\n"
+                    f"  \"contextual_description\": \"Contextual description of the CE\",\n"
+                    f"  \"fields\": {{\n"
+                    f"    \"field_label_1\": \"Unique value for field_label_1\",\n"
+                    f"    \"field_label_2\": \"Unique value for field_label_2\",\n"
+                    f"    ...\n"
+                    f"  }}\n"
+                    f"}}\n"
+                    f"Ensure that the generated fields are unique and provide new information that complements the existing conditional elements."
+                )
+            }
+        ]
 
-    try:
-        response = generate_chat_response(messages, role='AI Contextual Query', task=f'Generate Data for {ce_type}')
-        current_app.logger.debug(f"AI Response: {response}")
-        ai_data = json.loads(response)
-        current_app.logger.debug(f"Parsed AI Data: {ai_data}")
-        return ai_data
-    except Exception as e:
-        current_app.logger.error(f"Error generating AI data: {e}")
-        return {"summary": "Error generating AI data.", "contextual_description": "Error generating context.", "fields": {}}
+        try:
+            response = await generate_chat_response(messages, role='AI Contextual Query', task=f'Generate Data for {ce_type}')
+            current_app.logger.debug(f"AI Response: {response}")
+            ai_data = json.loads(response)
+            current_app.logger.debug(f"Parsed AI Data: {ai_data}")
+            return ai_data
+        except Exception as e:
+            current_app.logger.error(f"Error generating AI data: {e}")
+            return {"summary": "Error generating AI data.", "contextual_description": "Error generating context.", "fields": {}}
+
+    return ai_generated_data

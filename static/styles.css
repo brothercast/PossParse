@@ -509,8 +509,12 @@ body > main > div > div.row.outcome-header {
 }
 
 .fade-in {
-  animation: fadeIn 1s forwards;
   opacity: 0;
+  transition: opacity 1s ease-in; /* Fade in effect over 1 second */
+}
+
+.fade-in.loaded {
+  opacity: 1; /* Image becomes fully opaque when loaded */
 }
 
 .text-fade-in {

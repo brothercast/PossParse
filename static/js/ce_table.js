@@ -1,36 +1,38 @@
-function handleCEPillClick(event) {  
-  const ceId = event.target.dataset.ceId;  
-  const ceType = event.target.dataset.ceType || "Default";  
-  const cosContent = event.target.closest('tr').querySelector('.cos-content-cell').textContent.trim();  
-  const phaseElement = event.target.closest('.accordion-item');  
-  const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();  
-  const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement);  
-  
-  const requestData = {  
-    ce_id: ceId,  
-    cos_content: cosContent,  
-    phase_name: phaseName,  
-    phase_index: phaseIndex,  
-    ssol_goal: document.querySelector('#ssol-goal').textContent.trim()  
-  };  
-  
-  fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {  
-    method: 'POST',  
-    headers: {  
-      'Content-Type': 'application/json'  
-    },  
-    body: JSON.stringify(requestData)  
-  })  
-  .then(response => response.json())  
-  .then(data => {  
-    if (data && data.modal_html) {  
-      displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex, data.ai_context);  
-    } else {  
-      throw new Error('Modal HTML content not found or error in response');  
-    }  
-  })  
-  .catch(error => console.error('Error fetching modal content:', error));  
-}  
+import { displayCEModal } from './ce_cards.js'; 
+
+function handleCEPillClick(event) {
+  const ceId = event.target.dataset.ceId;
+  const ceType = event.target.dataset.ceType || "Default";
+  const cosContent = event.target.closest('tr').querySelector('.cos-content-cell').textContent.trim();
+  const phaseElement = event.target.closest('.accordion-item');
+  const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();
+  const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement);
+
+  const requestData = {
+    ce_id: ceId,
+    cos_content: cosContent,
+    phase_name: phaseName,
+    phase_index: phaseIndex,
+    ssol_goal: document.querySelector('#ssol-goal').textContent.trim()
+  };
+
+  fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestData)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data && data.modal_html) {
+      displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex, data.ai_context);
+    } else {
+      throw new Error('Modal HTML content not found or error in response');
+    }
+  })
+  .catch(error => console.error('Error fetching modal content:', error));
+}
 
 
 // Function to display the CE modal

@@ -1,4 +1,4 @@
-# routes.py (Refactored with Combined Goal Generation)
+# routes.py (Complete Refactored Version)
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, make_response, current_app, send_from_directory
 import os
 import json
@@ -8,10 +8,13 @@ import logging
 from bs4 import BeautifulSoup
 from app import app, USE_DATABASE
 from uuid import UUID
-from utilities import generate_goal, generate_outcome_data, analyze_user_input, generate_sentiment_analysis
+from utilities import generate_goal, generate_outcome_data, analyze_user_input, generate_sentiment_analysis, generate_dalle_image
 from dotenv import load_dotenv
 from ce_nodes import NODES
 from werkzeug.exceptions import BadRequest, NotFound
+from ce_templates import generate_dynamic_modal, generate_ai_data
+from speculate import get_ce_by_id as speculate_get_ce_by_id, update_ce_by_id as speculate_update_ce_by_id
+from models import get_engine_and_session, SSOL
 
 load_dotenv()
 
@@ -38,7 +41,7 @@ async def goal_selection():
             return render_template('input.html')
         try:
             logging.info(f"User Input: '{user_input}'. Calling generate_goal...")
-            goal_options = await generate_goal(user_input)  # Now returns {goal, domain, icon}
+            goal_options = await generate_goal(user_input)
             logging.debug(f"generate_goal returned: {goal_options}")
             if not goal_options:
                 flash("Could not generate goal options. Please try again.", "warning")
@@ -62,7 +65,7 @@ async def goal_selection():
 async def outcome():
     if request.method == 'POST':
         logging.info(f"Outcome route - Form data received: {request.form}")
-        selected_goal = request.form.get('selected_goal', '').strip()  # Now 'goal'
+        selected_goal = request.form.get('selected_goal', '').strip()
         domain = request.form.get('domain', '').strip()
         domain_icon = request.form.get('domain_icon', '').strip()
 
@@ -71,16 +74,16 @@ async def outcome():
             return redirect(url_for('routes_bp.index'))
         try:
             logging.info("Calling generate_outcome_data...")
-            outcome_data = await generate_outcome_data(request, 'POST', selected_goal, domain, domain_icon)
+            outcome_data = await generate_outcome_data(USE_DATABASE, request, 'POST', selected_goal, domain, domain_icon) # Pass USE_DATABASE here
+            ssol_id = outcome_data['ssol_id'] # Extract ssol_id
             logging.debug(f"generate_outcome_data returned: {outcome_data}")
-            return render_template('outcome.html', ssol=outcome_data, nodes=NODES)
+            return render_template('outcome.html', ssol=outcome_data, nodes=NODES, ssol_id=ssol_id) # Pass ssol_id to template
         except Exception as e:
             current_app.logger.error(f"Error generating outcome data: {e}", exc_info=True)
             flash("Error generating outcome data. Please try again.", "error")
             return redirect(url_for('routes_bp.goal_selection'))
     flash("Invalid request method for outcome.", "error")
     return redirect(url_for('routes_bp.index'))
-
 
 @routes_bp.route('/analyze_input', methods=['POST'])
 async def analyze_input_route():
@@ -100,7 +103,10 @@ async def analyze_input_route():
 
 
 @routes_bp.route('/save_as_pdf/<uuid:ssol_id>', methods=['POST'])
-def save_as_pdf(ssol_id):
+def save_as_pdf(ssol_id): # <-- Corrected function definition
+    return _save_as_pdf(ssol_id) # <-- Call helper function
+
+def _save_as_pdf(ssol_id): # <-- Helper function
     try:
         data = request.get_json()
         if not data or 'htmlContent' not in data:
@@ -111,7 +117,6 @@ def save_as_pdf(ssol_id):
         if not os.path.exists(css_file_path):
             raise FileNotFoundError(f"CSS file not found at: {css_file_path}")
 
-        # Correctly format URLs for static assets
         html_content = html_content.replace('src="/static/', f'src="{url_for("static", filename="", _external=True)}')
 
         options = {
@@ -123,7 +128,7 @@ def save_as_pdf(ssol_id):
             "encoding": "UTF-8",
             "custom-header": [("Accept-Encoding", "gzip")],
             "no-outline": None,
-            "enable-local-file-access": None, # Important for security and avoiding path traversal
+            "enable-local-file-access": None,
         }
 
         pdf = pdfkit.from_string(html_content, False, options=options, css=css_file_path)
@@ -151,10 +156,10 @@ def update_cos_route(cos_id):
         if USE_DATABASE:
             with app.app_context():
                 engine, session = get_engine_and_session()
-                update_result = update_cos_by_id(cos_id_str, data)
+                update_result = update_cos_by_id(USE_DATABASE, cos_id_str, data) # Pass USE_DATABASE
                 session.close()
         else:
-            update_result = update_cos_by_id(cos_id_str, data)
+            update_result = update_cos_by_id(USE_DATABASE, cos_id_str, data) # Pass USE_DATABASE
 
         if update_result['success']:
             return jsonify(success=True, cos=update_result['cos']), 200
@@ -176,10 +181,10 @@ def delete_cos_route(cos_id):
         if USE_DATABASE:
             with app.app_context():
                 engine, session = get_engine_and_session()
-                success = delete_cos_by_id(cos_id_str)
+                success = delete_cos_by_id(USE_DATABASE, cos_id_str) # Pass USE_DATABASE
                 session.close()
         else:
-            success = delete_cos_by_id(cos_id_str)
+            success = delete_cos_by_id(USE_DATABASE, cos_id_str) # Pass USE_DATABASE
 
         if success:
             return jsonify(success=True), 200
@@ -188,6 +193,37 @@ def delete_cos_route(cos_id):
         current_app.logger.error(f"Error deleting COS {cos_id}: {e}", exc_info=True)
         return jsonify(error="An unexpected error occurred."), 500
 
+
+@routes_bp.route('/get_ssol_image/<uuid:ssol_id>')
+async def get_ssol_image(ssol_id):
+    from utilities import generate_dalle_image, generate_ssol_id #Import generate_ssol_id
+    from models import SSOL, get_engine_and_session
+    from app import app # Import app for context
+    from store import ssol_store # Import ssol_store
+
+    ssol_id_str = str(ssol_id)
+    try:
+        if USE_DATABASE: # Check USE_DATABASE flag
+            with app.app_context(): # Application context needed for database access
+                engine, session = get_engine_and_session()
+                ssol_instance = session.query(SSOL).get(uuid.UUID(ssol_id_str))
+                if not ssol_instance:
+                    session.close()
+                    return jsonify({'error': 'SSOL not found'}), 404
+                selected_goal = ssol_instance.title # Retrieve selected_goal from SSOL
+                session.close()
+        else: # In-memory mode
+            ssol_data = ssol_store.get(ssol_id_str) # Fetch from in-memory store
+            if not ssol_data:
+                return jsonify({'error': 'SSOL not found in in-memory store'}), 404
+            selected_goal = ssol_data['title'] # Retrieve selected_goal from in-memory data
+
+        image_prompt = f"A colorful, charming, visually stunning lithograph depicting '{selected_goal}' as a fulfilled goal, diverse people, Mary Blair, 1962, isometric, no text or labels, please! "
+        web_image_path = await generate_dalle_image(image_prompt, None) # Pass None for azure_openai_client to use default
+        return jsonify({'image_path': url_for('static', filename=web_image_path)}) # Return image path as JSON
+    except Exception as e:
+        current_app.logger.error(f"Error generating or retrieving SSOL image: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to generate image'}), 500
 
 
 @routes_bp.route('/get_ce_by_id', methods=['GET'])
@@ -202,10 +238,10 @@ def get_ce_by_id_route():
         if USE_DATABASE:
             with app.app_context():
                 engine, session = get_engine_and_session()
-                ce = get_ce_by_id(ce_id)
+                ce = speculate_get_ce_by_id(USE_DATABASE, ce_id) # Pass USE_DATABASE and use alias
                 session.close()
         else:
-            ce = get_ce_by_id(ce_id)
+            ce = speculate_get_ce_by_id(USE_DATABASE, ce_id) # Pass USE_DATABASE and use alias
 
         if ce:
             return jsonify(ce=ce.to_dict())
@@ -234,7 +270,7 @@ def analyze_cos_by_id(cos_id_str):
         if not cos:
             return jsonify({'success': False, 'message': 'COS not found'}), 404
 
-        analysis_results = analyze_cos(cos.content if USE_DATABASE else cos['content'])
+        analysis_results = analyze_cos(cos.content if USE_DATABASE else cos['content'], cos_id_str) # Pass cos_id_str
         return jsonify({'success': True, 'analysis_results': analysis_results}), 200
     except Exception as e:
         current_app.logger.error(f"Error analyzing COS {cos_id_str}: {e}", exc_info=True)
@@ -242,11 +278,11 @@ def analyze_cos_by_id(cos_id_str):
 
 
 @routes_bp.route('/get_ce_modal/<string:ce_type>', methods=['POST'])
-def get_ce_modal_route(ce_type):
-    from ce_templates import generate_dynamic_modal, generate_ai_data  # Import generate_ai_data
+async def get_ce_modal_route(ce_type):
+    from ce_templates import generate_dynamic_modal, generate_ai_data
     from speculate import get_ce_by_id
     from models import get_engine_and_session
-    from store import ce_store  # Import ce_store
+    from store import ce_store
 
     try:
         data = request.get_json()
@@ -255,24 +291,24 @@ def get_ce_modal_route(ce_type):
         if USE_DATABASE:
             with app.app_context():
                 engine, session = get_engine_and_session()
-                ce = get_ce_by_id(ce_id) if ce_id else None
+                ce = get_ce_by_id(USE_DATABASE, ce_id) if ce_id else None  # Pass USE_DATABASE
                 session.close()
         else:
-            ce = get_ce_by_id(ce_id) if ce_id else None
+            ce = get_ce_by_id(USE_DATABASE, ce_id) if ce_id else None  # Pass USE_DATABASE
 
-        ce_data = ce.to_dict() if ce else {}  # Get CE data as a dict
+        ce_data = ce.to_dict() if ce else {}
         cos_content = data.get('cos_content', '')
         phase_name = data.get('phase_name', '')
         phase_index = data.get('phase_index', 0)
         ssol_goal = data.get('ssol_goal','')
-        existing_ces = data.get('existing_ces', [])  # Get existing CEs
+        existing_ces = data.get('existing_ces', [])
 
         ai_generated_data = {}
         if ce_type:
-             ai_generated_data = generate_ai_data(cos_content, ce_id, ce_type, ssol_goal, existing_ces)
+             ai_generated_data = await generate_ai_data(cos_content, ce_id, ce_type, ssol_goal, existing_ces)
 
 
-        modal_html = generate_dynamic_modal(
+        modal_html = await generate_dynamic_modal(
             ce_type,
             ce_data=ce_data,
             cos_content=cos_content,
@@ -287,3 +323,58 @@ def get_ce_modal_route(ce_type):
     except Exception as e:
         current_app.logger.error(f"Error generating CE modal: {e}", exc_info=True)
         return jsonify(error=f"An error occurred: {str(e)}"), 500
+
+@routes_bp.route('/ai-query-endpoint', methods=['POST'])
+async def ai_query_route():
+    from ce_templates import generate_ai_data # Local import to avoid circular dependency
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON payload received'}), 400
+
+        ce_type = data.get('ce_type')
+        cos_content = data.get('cos_content')
+        ce_id = data.get('ce_id')
+        ssol_goal = data.get('ssol_goal')
+        existing_ces = data.get('existing_ces')
+
+        ai_response = await generate_ai_data(cos_content, ce_id, ce_type, ssol_goal, existing_ces) # Pass existing_ces
+
+        return jsonify({'success': True, 'ai_response': ai_response})
+
+    except Exception as e:
+        current_app.logger.error(f"Error in ai_query_route: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@routes_bp.route('/update_ce/<uuid:ce_id>', methods=['PUT'])
+def update_ce_route(ce_id):
+    from speculate import update_ce_by_id
+    from models import get_engine_and_session
+
+    try:
+        data = request.get_json()
+        if not data:
+            raise BadRequest('No JSON payload received')
+        ce_id_str = str(ce_id)
+
+        if USE_DATABASE:
+            with app.app_context():
+                engine, session = get_engine_and_session()
+                success = speculate_update_ce_by_id(USE_DATABASE, ce_id_str, data) # Pass USE_DATABASE and use alias
+                session.close()
+        else:
+            success = speculate_update_ce_by_id(USE_DATABASE, ce_id_str, data) # Pass USE_DATABASE and use alias
+
+        if success:
+            return jsonify(success=True), 200
+        return jsonify(success=False, error="CE not found or could not be updated"), 404
+    except BadRequest as e:
+        return jsonify(error=str(e)), 400
+    except Exception as e:
+        current_app.logger.error(f"Error updating CE {ce_id}: {e}", exc_info=True)
+        return jsonify(error="An unexpected error occurred."), 500
+
+urlpatterns = [
+    # path('', views.home, name='home'),
+]

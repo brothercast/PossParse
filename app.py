@@ -1,4 +1,4 @@
-# app.py (with colorlog)
+# app.py (Corrected Circular Import)
 import os
 import logging
 from flask import Flask
@@ -6,6 +6,7 @@ from flask_migrate import Migrate
 from dotenv import load_dotenv
 from models import db, get_engine_and_session, create_tables_if_not_exist
 import colorlog  # Import colorlog
+# from utilities import get_badge_class_from_status  # REMOVE THIS LINE
 
 load_dotenv()
 
@@ -29,10 +30,16 @@ handler.setFormatter(colorlog.ColoredFormatter(
 
 # Use Flask's logger and add the colorlog handler
 logger = logging.getLogger()  # Get root logger (Flask uses this)
-logger.setLevel(logging.DEBUG) # Set level
+logger.setLevel(logging.INFO) # Change to INFO level
 logger.addHandler(handler)
 
-
+def get_badge_class_from_status(status):
+   return {
+       'Proposed': 'bg-info',
+       'In Progress': 'bg-warning text-dark',
+       'Completed': 'bg-success',
+       'Rejected': 'bg-danger'
+   }.get(status, 'bg-secondary')
 
 if USE_DATABASE:
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
@@ -43,11 +50,9 @@ if USE_DATABASE:
     migrate = Migrate(app, db)
 
 from routes import routes_bp
-from speculate import get_badge_class_from_status
 app.jinja_env.filters['get_badge_class_from_status'] = get_badge_class_from_status
 
 app.register_blueprint(routes_bp, name='routes_bp')
 
 if __name__ == '__main__':
-    # logging.basicConfig is REPLACED by the colorlog setup above
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000) # Keep debug=True for Flask's debugger
