@@ -278,16 +278,42 @@ body:before {
 .fulfilled-goal {
   text-align: left;
 }
-
   
-.generated-image {  
-  border-radius: 25px; /* More rounded corners */  
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5); /* Box shadow with desired opacity */  
-  position: relative; /* Position relative to enable absolute positioning of the pseudo-element */  
-  width: 100%;  
+.generated-image {
+  border-radius: 25px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  width: 100%;
   max-width: 300px;
-  background: radial-gradient(rgba(0, 0, 0, 0.6), black);  
-}  
+  background: radial-gradient(rgba(0, 0, 0, 0.6), black);
+  opacity: 0; /* Initially hidden */
+  transition: opacity 1s ease-in; /* Fade-in transition */
+}
+
+.generated-image.loaded {
+  opacity: 1; /* Make visible when loaded class is present */
+}
+
+.placeholder-image {
+  opacity: 1; /* Initially visible */
+  position: absolute; /* Absolute positioning */
+  top: 0;
+  left: 0;
+  border-radius: 25px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  position: relative;
+  width: 100%;
+  max-width: 300px;
+}
+
+.placeholder-image.hidden {
+  opacity: 0; /* Hidden when hidden class is present */
+  transition: opacity 1s ease-out; /* Fade-out transition */
+}
+
+.image-wrapper {
+  position: relative; /* Stacking context for images */
+  display: inline-block; /* Adjust as needed */
+}
   
 .domain-icon-container {
   display: inline-flex;
@@ -486,6 +512,16 @@ body > main > div > div.row.outcome-header {
   }
 }
 
+.ssol-title-above-image {
+  font-family: 'Unica One', sans-serif; /* Or your preferred font */
+  font-weight: 500;
+  font-size: 1.95rem; /* Adjust size as needed */
+  color: #326eb6; /* Or your preferred color */
+  text-align: center;
+  margin-bottom: 15px; /* Spacing between title and image */
+  text-transform: uppercase; /* Optional: Uppercase text */
+}
+
 .text-wipe-on span {
   display: inline-block;
   overflow: hidden;
@@ -526,9 +562,6 @@ body > main > div > div.row.outcome-header {
   opacity: 1;
 }
 
-.generated-image {
-  border-radius: 50px;
-}
 
 .fade-in-text {
   opacity: 0;

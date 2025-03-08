@@ -1,22 +1,33 @@
 {% extends 'base.html' %}
 
 {% block content %}
-  <div class="container mt-4">
-    <h1>What do you see as Possible?</h1>
-    <p>
-      Enter your possibility or goal in the text field below. Your goal should be specific, measurable, achievable, relevant, and time-bound (SMART). Our tool will analyze your input and generate a structured solution to help you understand the necessary steps to achieve your goal.
+  <div class="container mt-4 text-center">
+    <img src="{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}" alt="SSPEC Logo" class="mb-3" style="max-width: 200px;">
+    <h1 class="display-4">What do you see as Possible?</h1>
+    <p class="lead">
+      Explore the realm of possibilities. Define your desired outcome, no matter how ambitious, and let SSPEC PossPath help you chart a course to get there.
     </p>
+    <div class="mx-auto" style="max-width: 700px;">
+        <p class="mb-1 text-start">
+          <strong>Structured Speculation (SSPEC):</strong> is a methodology for proposing a desired future as if it has already been achieved, and then reverse-engineering the pathways to realize it. It's a playground for modeling, engineering, and fulfilling any future that can be imagined, within ethical boundaries.
+        </p>
+        <p class="mb-3 text-start">
+          <strong>Conditions of Satisfaction (COS):</strong> are measurable criteria that define when a phase or a goal within a Structured Solution is considered complete. They are the building blocks of your pathway.
+        </p>
 
-    <form action="/goal_selection" method="post" id="goal-form">
-      <label for="user_text" class="form-label">What is your Possibility or Goal:</label>
-      <input class="form-control mb-3" type="text" name="user_text" maxlength="255">
-      <input class="btn btn-primary" type="submit" value="Submit">
-    </form>
+        <form action="/goal_selection" method="post" id="goal-form" class="mt-3">
+          <div class="mb-3 text-start">
+            <label for="user_text" class="form-label fw-bold">What Possibility do you want to explore?</label>
+            <input class="form-control form-control-lg" type="text" name="user_text" maxlength="255" placeholder="Enter your possibility or desired outcome here...">
+          </div>
+          <input class="btn btn-lg btn-primary" type="submit" value="Speculate Pathway">
+        </form>
+    </div>
   </div>
 {% endblock %}
 
 {% block scripts %}
-<script type="module" src="{{ url_for('static', filename='js/input.js') }}"></script>  
+<script type="module" src="{{ url_for('static', filename='js/input.js') }}"></script>
 <script type="module">
     import { showLoadingSpinner } from '{{ url_for("static", filename="js/base_functions.js") }}';
 

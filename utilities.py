@@ -76,7 +76,6 @@ async def analyze_cos(cos_content, cos_id=None):
             if cos_id:  # Only add cos_id if it was provided
                 ce['cos_id'] = cos_id
 
-
         content_with_ce = replace_ce_tags_with_pills(cos_text, valid_ces)
         return {'content_with_ce': content_with_ce, 'ces': valid_ces}
 
@@ -84,7 +83,7 @@ async def analyze_cos(cos_content, cos_id=None):
         logging.error(f"Exception occurred during COS analysis: {e}", exc_info=True)
         return {'content_with_ce': cos_content, 'ces': []}
 
-async def generate_outcome_data(USE_DATABASE, request, method, selected_goal=None, domain=None, domain_icon=None):
+async def generate_outcome_data(USE_DATABASE, request, method, selected_goal=None, domain=None, domain_icon=None, selected_goal_title=None): # ADD selected_goal_title
     from ai_service import generate_chat_response, azure_openai_client
     from models import get_engine_and_session
     from store import ssol_store
@@ -93,7 +92,8 @@ async def generate_outcome_data(USE_DATABASE, request, method, selected_goal=Non
     outcome_data = {
         'user_input': '', 'selected_goal': selected_goal, 'domain_icon': domain_icon, 'domain': domain,
         'ssol_id': None, 'ssol_summary': "An error occurred while processing the summary data.",
-        'phases': {}, 'generated_image_path': 'images/sspec_default.png' #default image, will be updated later.
+        'ssol_title': selected_goal_title, # Add ssol_title here
+        'phases': {}, 'generated_image_path': 'images/SSPEC_Logo_Motion.gif' #default image, will be updated later.
     }
 
     user_input = request.form.get('user_text', '').strip() if method == 'POST' else request.args.get('user_text', '').strip()

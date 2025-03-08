@@ -4,7 +4,11 @@
 <div class="container">
     <div class="row outcome-header">
         <div class="col-md-4 text-center" id="image-container">
-            <img src="{{ url_for('static', filename='images/sspec_default.png') }}" alt="Generated Image" class="rounded mb-3 generated-image fade-in" style="width: 100%; max-width: 300px;" id="ssolImage">
+            <h2 class="ssol-title-above-image">{{ ssol.ssol_title | safe }}</h2>
+            <div class="image-wrapper"> <!-- Relative container for stacking -->
+                <img src="{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}" alt="Placeholder Image" class="rounded mb-3 placeholder-image" id="placeholderImage">
+                <img src="{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}" alt="Generated Image" class="rounded mb-3 generated-image" id="ssolImage">
+            </div>
             <h2>Domain</h2>
             <i class="{{ ssol.domain_icon }} fa-3x mb-3"></i>
             <p class="domain domain-text text-center domain-text">{{ ssol.domain | title }}</p>
@@ -114,21 +118,14 @@
 {% endblock %}
 
 {% block scripts %}
-<style>
-    .fade-in {
-        opacity: 0;
-        transition: opacity 1s ease-in; /* Fade in effect over 1 second */
-    }
-    .fade-in.loaded {
-        opacity: 1; /* Image becomes fully opaque when loaded */
-    }
-</style>
 <!-- Necessary JS files - LOAD AS MODULES -->
 <script type="module">
   document.addEventListener('DOMContentLoaded', () => {
     // 1. Get SSOL ID and image element
     const ssolId = "{{ ssol_id }}";
     const ssolImage = document.getElementById('ssolImage');
+    const placeholderImage = document.getElementById('placeholderImage');
+    ssolImage.classList.remove('loaded'); // Ensure fade-in class is not present initially
 
     // 2. Fetch the image path from the backend
     fetch(`/get_ssol_image/${ssolId}`)
@@ -143,8 +140,10 @@
         if (data.image_path) {
           // 3. Set the image source and handle onload for fade-in
           ssolImage.src = data.image_path;
+          placeholderImage.classList.add('hidden'); // Hide placeholder GIF
           ssolImage.onload = () => {
             ssolImage.classList.add('loaded'); // Add 'loaded' class to trigger fade-in
+
           };
           ssolImage.onerror = () => {
             console.error('Error loading SSOL image from path:', data.image_path); // Log image load error

@@ -67,17 +67,20 @@ async def outcome():
         logging.info(f"Outcome route - Form data received: {request.form}")
         selected_goal = request.form.get('selected_goal', '').strip()
         domain = request.form.get('domain', '').strip()
+        selected_goal_title = request.form.get('selected_goal_title', '').strip() # Get title from form
         domain_icon = request.form.get('domain_icon', '').strip()
 
         if not selected_goal:
             flash("No goal selected. Please select a goal.", "error")
             return redirect(url_for('routes_bp.index'))
         try:
+            # Log the titles and goals being passed
+            logging.info(f"Calling generate_outcome_data with title: '{selected_goal_title}' and goal: '{selected_goal}'") # Log title and goal
             logging.info("Calling generate_outcome_data...")
-            outcome_data = await generate_outcome_data(USE_DATABASE, request, 'POST', selected_goal, domain, domain_icon) # Pass USE_DATABASE here
+            outcome_data = await generate_outcome_data(USE_DATABASE, request, 'POST', selected_goal, domain, domain_icon, selected_goal_title) # Pass USE_DATABASE and selected_goal_title
             ssol_id = outcome_data['ssol_id'] # Extract ssol_id
             logging.debug(f"generate_outcome_data returned: {outcome_data}")
-            return render_template('outcome.html', ssol=outcome_data, nodes=NODES, ssol_id=ssol_id) # Pass ssol_id to template
+            return render_template('outcome.html', ssol=outcome_data, nodes=NODES, ssol_id=ssol_id, selected_goal_title=selected_goal_title) # Pass ssol_id and title to template
         except Exception as e:
             current_app.logger.error(f"Error generating outcome data: {e}", exc_info=True)
             flash("Error generating outcome data. Please try again.", "error")
