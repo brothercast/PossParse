@@ -12,89 +12,88 @@ from ai_service import generate_chat_response, get_grounded_data  # Import get_g
 
 BASE_MODAL_TEMPLATE = """
 <div class="modal fade ceModal" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">
-  <div class="modal-dialog modal-xl" role="document">
-    <div class="modal-content ce-modal">
-      <!-- Modal Header -->
-      <div class="modal-header ce-modal-header" style="background-color: ${phaseColor};">
-        <div class="node-icon ce-icon">
-            <i class="${icon_class}"></i>
-        </div>
-        <h5 class="modal-title ce-title" id="ceModalLabel-${ceId}">
-            ${ceType.replace('_', ' ').title()}
-        </h5>
-        <span class="phase-name">// ${phaseName.title()} PHASE</span>
-        <button type="button" class="btn-close close-btn" data-bs-dismiss="modal" aria-label="Close">×</button>
-      </div>
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content ce-modal">
+            <!-- Modal Header -->
+            <div class="modal-header ce-modal-header" style="background-color: ${phaseColor};">
+                <div class="node-icon">
+                    <i class="${icon_class}"></i>
+                </div>
+                <h5 class="modal-title ce-title" id="ceModalLabel-${ceId}">
+                    ${ceType.replace('_', ' ').title()}
+                </h5>
+                <span class="phase-name">// ${phaseName.title()} PHASE</span>
+                <button type="button" class="close-btn close-button" data-bs-dismiss="modal" aria-label="Close">×</button>
+            </div>
 
-      <!-- Modal Body -->
-      <div class="modal-body ce-modal-body">
+            <!-- Modal Body -->
+            <div class="modal-body ce-modal-body">
+                <!-- SECTION 1: CONTEXT -->
+                <div class="section">
+                    <h2 class="section-heading">CONTEXT - Understanding the Context of this Element</h2>
 
-        <!-- SECTION 1: CONTEXT -->
-        <div class="section">
-            <h2 class="section-heading">CONTEXT - Understanding the Context of this Element</h2>
+                    <!-- SUB-SECTION 1.1: Condition of Satisfaction Context -->
+                    <div class="sub-section">
+                        <h3 class="sub-heading">Condition of Satisfaction Context</h3>
+                        <div class="context-label">Source Condition of Satisfaction (COS):</div>
+                        <div class="content-block italic">
+                            ${cos_content_with_pills}
+                        </div>
+                    </div>
 
-            <!-- SUB-SECTION 1.1: Condition of Satisfaction Context -->
-            <div class="sub-section">
-                <h3 class="sub-heading">Condition of Satisfaction Context</h3>
-                <div class="context-label">Source Condition of Satisfaction (COS):</div>
-                <div class="content-block italic">
-                    ${cos_content_with_pills}
+                    <!-- SUB-SECTION 1.2: [CE Type Name] Node Context & Insight -->
+                    <div class="sub-section">
+                        <h3 class="sub-heading">${ceType.replace('_', ' ').title()} Node Context & Insight</h3>
+                        <div class="context-label">${ceType.replace('_', ' ').title()} Node & Context:</div>
+                        <div class="content-block">
+                            <p><b>Definition:</b></p>
+                            <p class="definition-text">${node_info.modal_config.explanation}</p>
+                            <hr style="margin: 10px 0; border-top: 1px dashed #ccc;">
+                            <p><b>AI Contextual Insight:</b></p>
+                            <p class="content italic">${ai_generated_data.contextual_description || 'No AI contextual description available.'}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 2: DETAILS -->
+                <div class="section">
+                    <h2 class="section-heading">DETAILS - Attributes and Specifications of the ${ceType.replace('_', ' ').title()}</h2>
+
+                    <!-- FORM FIELDS -->
+                    <div class="form-grid">
+                        ${form_fields}
+                    </div>
+
+                    <!-- Resource Action Buttons - Positioned BETWEEN form fields and table -->
+                    <div class="action-row">
+                        <button type="button" class="btn btn-primary" id="addRowButton-${ceId}"><i class="fas fa-plus"></i> Add ${ceType.replace('_', ' ').title()}</button>
+                        <button type="button" class="btn btn-primary" id="generateRowButton-${ceId}"><i class="fas fa-magic"></i> Generate ${ceType.replace('_', ' ').title()}</button>
+                    </div>
+                </div>
+
+                <!-- SECTION 3: RESOURCES -->
+                <div class="section">
+                    <h2 class="section-heading">RESOURCES - Data and References for this Element</h2>
+                    <h3 class="sub-heading">Related Resources for ${ceType.replace('_', ' ').title()}</h3>
+
+                    <!-- TABULATOR TABLE -->
+                    <div id="dynamicTable-${ceId}" class="tabulator-table resources-table"></div>
+
+                    <!-- Resource Management Buttons -->
+                    <div class="action-row">
+                        <button type="button" class="btn btn-danger" id="deleteSelectedRowsButton-${ceId}"><i class="fas fa-trash-alt"></i> Delete Selected</button>
+                        <button type="button" class="btn btn-default" id="duplicateSelectedRowsButton-${ceId}"><i class="fas fa-copy"></i> Duplicate Selected</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- SUB-SECTION 1.2: [CE Type Name] Node Context & Insight -->
-            <div class="sub-section">
-                <h3 class="sub-heading">${ceType.replace('_', ' ').title()} Node Context & Insight</h3>
-                <div class="context-label">${ceType.replace('_', ' ').title()} Node & Context:</div>
-                <div class="content-block">
-                    <p><b>Definition:</b></p>
-                    <p class="definition-text">${node_info.modal_config.explanation}</p>
-                    <hr style="margin: 10px 0; border-top: 1px dashed #ccc;">
-                    <p><b>AI Contextual Insight:</b></p>
-                    <p class="content italic">${ai_generated_data.contextual_description || 'No AI contextual description available.'}</p>
-                </div>
+            <!-- Modal Footer -->
+            <div class="modal-footer ce-modal-footer">
+                <button type="button" class="btn btn-default btn-close-modal" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save Changes</button>
             </div>
         </div>
-
-        <!-- SECTION 2: DETAILS -->
-        <div class="section">
-            <h2 class="section-heading">DETAILS - Attributes and Specifications of the ${ceType.replace('_', ' ').title()}</h2>
-
-            <!-- FORM FIELDS -->
-            <div class="form-grid">
-                ${form_fields}
-            </div>
-
-             <!-- Resource Action Buttons - Positioned BETWEEN form fields and table -->
-            <div class="action-row">
-                <button type="button" class="btn btn-primary" id="addRowButton-${ceId}"><i class="fas fa-plus"></i> Add ${ceType.replace('_', ' ').title()}</button>
-                <button type="button" class="btn btn-success" id="generateRowButton-${ceId}"><i class="fas fa-magic"></i> Generate ${ceType.replace('_', ' ').title()}</button>
-            </div>
-        </div>
-
-        <!-- SECTION 3: RESOURCES -->
-        <div class="section">
-            <h2 class="section-heading">RESOURCES - Data and References for this Element</h2>
-            <h3 class="sub-heading">Related Resources for ${ceType.replace('_', ' ').title()}</h3>
-
-            <!-- TABULATOR TABLE -->
-            <div id="dynamicTable-${ceId}" class="tabulator-table"></div>
-
-            <!-- Resource Management Buttons -->
-            <div class="action-row">
-                <button type="button" class="btn btn-danger" id="deleteSelectedRowsButton-${ceId}"><i class="fas fa-trash-alt"></i> Delete Selected</button>
-                <button type="button" class="btn btn-secondary" id="duplicateSelectedRowsButton-${ceId}"><i class="fas fa-copy"></i> Duplicate Selected</button>
-            </div>
-        </div>
-      </div>
-
-      <!-- Modal Footer -->
-      <div class="modal-footer ce-modal-footer">
-        <button type="button" class="btn btn-secondary btn-close-modal" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save Changes</button>
-      </div>
     </div>
-  </div>
 </div>
 """
 
@@ -115,18 +114,18 @@ DEFAULT_TABULATOR_CONFIG = {
 def generate_form_field(field_type, field_name, field_value='', placeholder='', options=None):
     current_app.logger.debug(f"Generating form field: type={field_type}, name={field_name}, value={field_value}, placeholder={placeholder}")
     field_templates = {
-        'text': '<div class="form-group"><label for="{name}">{label}</label><input type="text" class="form-control" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}" data-placeholder="{placeholder}"/></div>',
-        'number': '<div class="form-group"><label for="{name}">{label}</label><input type="number" class="form-control" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}" data-placeholder="{placeholder}"/></div>',
-        'textarea': '<div class="form-group"><label for="{name}">{label}</label><textarea class="form-control" id="{name}" name="{name}" placeholder="{placeholder}" data-placeholder="{placeholder}" rows="4">{value}</textarea></div>',
-        'email': '<div class="form-group"><label for="{name}">{label}</label><input type="email" class="form-control" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}" data-placeholder="{placeholder}"/></div>',
-        'password': '<div class="form-group"><label for="{name}">{label}</label><input type="password" class="form-control" id="{name}" name="{name}" placeholder="{placeholder}" data-placeholder="{placeholder}"/></div>',
-        'date': '<div class="form-group"><label for="{name}">{label}</label><input type="date" class="form-control" id="{name}" name="{name}" value="{value}" data-placeholder="{placeholder}"/></div>',
-        'time': '<div class="form-group"><label for="{name}">{label}</label><input type="time" class="form-control" id="{name}" name="{name}" value="{value}" data-placeholder="{placeholder}"/></div>',
-        'datetime-local': '<div class="form-group"><label for="{name}">{label}</label><input type="datetime-local" class="form-control" id="{name}" name="{name}" value="{value}" data-placeholder="{placeholder}"/></div>',
-        'color': '<div class="form-group"><label for="{name}">{label}</label><input type="color" class="form-control" id="{name}" name="{name}" value="{value}" data-placeholder="{placeholder}"/></div>',
+        'text': '<div class="form-group"><label for="{name}">{label}</label><input type="text" class="form-control form-input" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}" data-placeholder="{placeholder}"/></div>',
+        'number': '<div class="form-group"><label for="{name}">{label}</label><input type="number" class="form-control form-input" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}" data-placeholder="{placeholder}"/></div>',
+        'textarea': '<div class="form-group"><label for="{name}">{label}</label><textarea class="form-control form-input form-textarea" id="{name}" name="{name}" placeholder="{placeholder}" data-placeholder="{placeholder}" rows="4">{value}</textarea></div>',
+        'email': '<div class="form-group"><label for="{name}">{label}</label><input type="email" class="form-control form-input" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}" data-placeholder="{placeholder}"/></div>',
+        'password': '<div class="form-group"><label for="{name}">{label}</label><input type="password" class="form-control form-input" id="{name}" name="{name}" value="{value}" placeholder="{placeholder}" data-placeholder="{placeholder}"/></div>',
+        'date': '<div class="form-group"><label for="{name}">{label}</label><input type="date" class="form-control form-input" id="{name}" name="{name}" value="{value}" data-placeholder="{placeholder}"/></div>',
+        'time': '<div class="form-group"><label for="{name}">{label}</label><input type="time" class="form-control form-input" id="{name}" name="{name}" value="{value}" data-placeholder="{placeholder}"/></div>',
+        'datetime-local': '<div class="form-group"><label for="{name}">{label}</label><input type="datetime-local" class="form-control form-input" id="{name}" name="{name}" value="{value}" data-placeholder="{placeholder}"/></div>',
+        'color': '<div class="form-group"><label for="{name}">{label}</label><input type="color" class="form-control form-input" id="{name}" name="{name}" value="{value}" data-placeholder="{placeholder}"/></div>',
         'checkbox': '<div class="form-check"><input type="checkbox" class="form-check-input" id="{name}" name="{name}" value="{value}" {checked}/><label class="form-check-label" for="{name}">{placeholder}</label></div>',
         'radio': '<div class="form-check"><input type="radio" class="form-check-input" id="{name}" name="{name}" value="{value}" {checked}/><label class="form-check-label" for="{name}">{placeholder}</label></div>',
-        'select': '<div class="form-group"><label for="{name}">{label}</label><select class="form-control" id="{name}" name="{name}">{options}</select></div>',
+        'select': '<div class="form-group"><label for="{name}">{label}</label><select class="form-control form-input" id="{name}" name="{name}">{options}</select></div>',
     }
 
     checked = 'checked' if field_value and field_type in ['checkbox', 'radio'] else ''
@@ -231,54 +230,7 @@ async def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_gen
 
 async def get_node_type_icon_and_name(node_type):
     messages = [
-        {"role": "user", "content": f"You are an AI that suggests a FontAwesome 6 Solid (fas) class icon based on the node type. Output only the icon class in JSON format. What is the best FontAwesome icon class for the node type '{node_type}'?"}
-    ]
-    response_content = await generate_chat_response(messages, role='Node Type Icon', task='Fetch Node Type FontAwesome Icon', temperature=0.37)
-
-    try:
-        # Log the raw response content for debugging
-        current_app.logger.debug(f"Raw response content: {response_content}")
-
-        # Parse the JSON string into a dictionary
-        response_data = json.loads(response_content)
-        # Make sure to match the keys exactly with the response content
-        icon_class = response_data.get("iconClass")  # Changed from "icon" to "iconClass"
-
-        if not icon_class:
-            # Log a warning if expected keys are missing
-            current_app.logger.warning("Missing 'iconClass' in AI response.")
-            # raise ValueError("Failed to generate icon. Please try again.") # REMOVE THIS
-            return "fa-solid fa-question" # FALLBACK ICON
-
-        return icon_class
-
-    except json.JSONDecodeError as e:
-        # Log the JSON parsing error
-        current_app.logger.error(f"JSON parsing error: {e}")
-        # raise ValueError("Failed to parse JSON response. Please try again.") # REMOVE
-        return "fa-solid fa-question"  # FALLBACK ICON
-
-    except Exception as e:
-        # Log any other exceptions
-        current_app.logger.error(f"Unexpected error: {e}")
-        # raise # REMOVE
-        return "fa-solid fa-question" # FALLBACK ICON
-
-
-def assign_ce_type(ce):
-    if 'node_type' not in ce or not ce['node_type']: #Corrected to node_type
-        # Assign a default CE type if none is provided
-        ce['node_type'] = 'General' #Corrected to node_type
-        logging.info(f"Assigned default 'node_type' to CE: {ce}")
-    return ce
-
-def extract_full_cos_text(cos_content):
-    soup = BeautifulSoup(cos_content, 'html.parser')
-    return ' '.join(soup.stripped_strings)
-
-async def generate_fa_icon_for_node_type(node_type):
-    messages = [
-        {"role": "system", "content": "You are an AI that suggests a FontAwesome 6 Solid (fas) class icon based on the node type name. Output only the icon class in JSON format."},
+        {"role": "user", "content": f"You are an AI that suggests a FontAwesome 6 Solid (fas) class icon based on the node type name. Output only the icon class in JSON format."},
         {"role": "user", "content": f"What is the best FontAwesome icon class for the node type '{node_type}'?"}
     ]
     response_content = await generate_chat_response(messages, role='Icon Generation', task='Fetch FontAwesome 6 Icon', temperature=0.37)
@@ -309,7 +261,13 @@ async def generate_fa_icon_for_node_type(node_type):
         current_app.logger.error(f"Unexpected error: {e}")
         raise
 
-# ce_templates.py
+def assign_ce_type(ce):
+    if 'node_type' not in ce or not ce['node_type']: #Corrected to node_type
+        # Assign a default CE type if none is provided
+        ce['node_type'] = 'Default' #Corrected to node_type
+        logging.info(f"Assigned default 'node_type' to CE: {ce}")
+    return ce
+
 def replace_ce_tags_with_pills(content, ces):
     soup = BeautifulSoup(content, 'html.parser')
 

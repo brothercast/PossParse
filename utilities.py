@@ -116,7 +116,7 @@ async def generate_outcome_data(USE_DATABASE, request, method, selected_goal=Non
                 f"Consider the domain: {domain}. "
                 f"This summary MUST provide a **comprehensive overview of the entire Structured Solution**, and **use basic HTML markup for formatting** to enhance readability. Include:\n" # Instruction for HTML markup
                 f"- **A high-level description of the project's overall goal and purpose**, formatted as a paragraph (`<p>`).\n" # HTML for goal
-                f"- **A brief overview of each of the five phases** of the Structured Solution (Discovery, Engagement, Action, Completion, Legacy), highlighting the primary focus of each phase. **Format these phase overviews as an ordered list** (`<ol>`), with each phase description as a list item (`<li>`).\n" # HTML for phases as ordered list
+                f"- **A brief overview of each of the five phases** of the Structured Solution highlighting the primary focus of each phase. **Format these phase overviews as an ordered list** (`<ol>`), with each phase description as a list item (`<li>`).\n" # HTML for phases as ordered list
                 f"- **The anticipated overall outcome or impact** of successfully implementing the Structured Solution, formatted as a paragraph (`<p>`).\n" # HTML for impact
                 f"Imagine you are writing an **executive summary or abstract** for a project proposal or report that will be displayed on a webpage. " # Analogy for web display
                 f"Aim for a summary that is approximately **1-2 paragraphs and an ordered list of 5 items (one for each phase)** to thoroughly introduce the SSPEC PossPath output and its key components to someone unfamiliar with the project. " # Length guidance with HTML structure
