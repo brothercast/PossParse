@@ -1,4 +1,4 @@
-# utilities.py (Corrected Circular Import - Version 0003 - Image generation removed from generate_outcome_data)
+# utilities.py (Refactored for Gemini Image Generation - Version 0004)
 import io
 import os
 import re
@@ -20,6 +20,7 @@ import aiohttp
 import requests
 from google.generativeai import types
 from speculate import parse_ai_response_and_generate_html
+from ai_service import generate_image # Import generate_image from ai_service
 
 load_dotenv()
 azure_oai_key = os.getenv("AZURE_OPENAI_API_KEY")
@@ -326,43 +327,14 @@ def sanitize_filename(filename):
     filename = re.sub(r'[\s]+', '_', filename)
     return filename[:255]
 
-async def generate_dalle_image(prompt, azure_openai_client):
-    from ai_service import azure_openai_client as client_module
+async def generate_ssol_image(prompt, ssol_id=None, selected_goal_title=None): # Renamed from generate_dalle_image, removed azure_openai_client
     from utilities import sanitize_filename # Import sanitize_filename
 
     try:
-        azure_dalle_deployment_name = os.getenv("AZURE_DALLE_DEPLOYMENT_NAME") #Added DALLE var
-
-        client = azure_openai_client if azure_openai_client else client_module
-        result = client.images.generate(  # REMOVE await
-            model=azure_dalle_deployment_name, prompt=prompt, n=1, size="1024x1024", #Changed model to deployment name
-        )
-        image_url = result.data[0].url
-
-        # Log the DALL-E response
-        current_app.logger.debug(f"DALL-E API response: {result}")
-
-        unique_filename = f"generated_image_{uuid.uuid4().hex}.png"
-        unique_filename = sanitize_filename(unique_filename) # Sanitize filename here.
-        static_folder = current_app.static_folder
-        image_folder = os.path.join(static_folder, 'images')  # Correct path
-        os.makedirs(image_folder, exist_ok=True)
-        image_file_path = os.path.join(image_folder, unique_filename) # Corrected path
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(image_url) as resp:
-                resp.raise_for_status()
-                with open(image_file_path, 'wb') as f:
-                    while True:
-                        chunk = await resp.content.read(1024)
-                        if not chunk:
-                            break
-                        f.write(chunk)
-
-        web_path = os.path.join('images', unique_filename).replace("\\", "/")
+        web_path = await generate_image(prompt) # Call generate_image from ai_service directly
         return web_path
     except Exception as e:
-        current_app.logger.error(f"Error in generate_dalle_image: {e}", exc_info=True)
+        current_app.logger.error(f"Error in generate_ssol_image (Gemini): {e}", exc_info=True) # Log as Gemini error
         raise
 
 def generate_ssol_id(USE_DATABASE, selected_goal): # Add the parameter here

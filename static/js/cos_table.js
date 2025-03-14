@@ -27,54 +27,88 @@ function createStatusDropdown(selectedStatus) {
     return `<select class="form-select form-select-sm">${statuses.map(status => `<option value="${status}"${status === selectedStatus ? ' selected' : ''}>${status}</option>`).join('')}</select>`;
 }
 
-function storeOriginalValues(row) {
-    const statusCell = row.querySelector('.status-cell');
-    const contentCell = row.querySelector('.cos-content-cell');
-    const accountablePartyCell = row.querySelector('.cos-accountable-party-cell');
-    const completionDateCell = row.querySelector('.cos-completion-date-cell');
+function storeOriginalValues(card) {
+    const statusCell = card.querySelector('.status-pill');
+    const contentDisplay = card.querySelector('.cos-content-display');
+    const accountablePartyDisplay = card.querySelector('.cos-accountable-party-display');
+    const completionDateDisplay = card.querySelector('.cos-completion-date-display');
 
-    row.dataset.originalValues = JSON.stringify({
+    card.dataset.originalValues = JSON.stringify({
         status: statusCell.textContent.trim(),
-        contentWithPills: contentCell.innerHTML, // Store HTML
-        accountableParty: accountablePartyCell.textContent.trim(),
-        completionDate: completionDateCell.textContent.trim()
+        contentWithPills: contentDisplay.innerHTML, // Store HTML
+        accountableParty: accountablePartyDisplay.textContent.trim(),
+        completionDate: completionDateDisplay.textContent.trim()
     });
 }
 
-function revertToOriginalValues(row) {
-    const originalValues = JSON.parse(row.dataset.originalValues);
-    row.querySelector('.status-cell').innerHTML = `<span class="status-pill ${getBadgeClassFromStatus(originalValues.status)}">${originalValues.status}</span>`;
-    row.querySelector('.cos-content-cell').innerHTML = originalValues.contentWithPills; // Restore HTML
-    row.querySelector('.cos-accountable-party-cell').textContent = originalValues.accountableParty;
-    row.querySelector('.cos-completion-date-cell').textContent = originalValues.completionDate;
+function revertToOriginalValues(card) {
+    const originalValues = JSON.parse(card.dataset.originalValues);
+    const statusCell = card.querySelector('.status-cell select') || card.querySelector('.status-pill'); // Check for select or pill
+    const contentDisplay = card.querySelector('.cos-content-display');
+    const accountablePartyDisplay = card.querySelector('.cos-accountable-party-display');
+    const completionDateDisplay = card.querySelector('.cos-completion-date-display');
+
+
+    statusCell.outerHTML = `<span class="status-pill ${getBadgeClassFromStatus(originalValues.status)}">${originalValues.status}</span>`; // Restore pill
+    contentDisplay.innerHTML = originalValues.contentWithPills; // Restore HTML
+    contentDisplay.classList.remove('d-none'); // Show display div
+    contentDisplay.nextElementSibling.classList.add('d-none'); // Hide edit div (assuming edit div is immediately after display div)
+    accountablePartyDisplay.textContent = originalValues.accountableParty;
+    accountablePartyDisplay.classList.remove('d-none');
+    accountablePartyDisplay.nextElementSibling.classList.add('d-none'); // Hide edit input
+    completionDateDisplay.textContent = originalValues.completionDate;
+    completionDateDisplay.classList.remove('d-none');
+    completionDateDisplay.nextElementSibling.classList.add('d-none'); // Hide edit input
 }
 
-function updateRowWithNewValues(row, cos) {
+function updateCardWithNewValues(card, cos) {
     if (cos && cos.status && cos.content) {
-        row.querySelector('.status-cell').innerHTML = `<span class="status-pill ${getBadgeClassFromStatus(cos.status)}">${cos.status}</span>`;
-        row.querySelector('.cos-content-cell').innerHTML = cos.content; // Use innerHTML for content
-        row.querySelector('.cos-accountable-party-cell').textContent = cos.accountable_party || '';
-        row.querySelector('.cos-completion-date-cell').textContent = cos.completion_date || '';
+        card.querySelector('.status-pill').className = `status-pill ${getBadgeClassFromStatus(cos.status)}`; // Update class
+        card.querySelector('.status-pill').textContent = cos.status.toUpperCase(); // Update text
+        card.querySelector('.cos-content-display').innerHTML = cos.content; // Use innerHTML for content
+        card.querySelector('.cos-accountable-party-display').textContent = cos.accountable_party || '';
+        card.querySelector('.cos-completion-date-display').textContent = cos.completion_date || '';
         initializeCEPillEventListeners(); // Re-initialize after update
+        renderCEPillsForCOS(card, cos.content); // Render pills AFTER update
     } else {
         console.error('Error: COS data is undefined or missing properties', cos);
         alert('An error occurred while updating the entry.');
     }
 }
 
-function toggleEditMode(row, editing) {
-    const editButton = row.querySelector('.edit-cos-button');
-    const updateButton = row.querySelector('.update-cos-button');
-    const cancelButton = row.querySelector('.cancel-cos-button');
+function toggleEditMode(card, editing) {
+    const editButton = card.querySelector('.edit-cos-button');
+    const updateButton = card.querySelector('.update-cos-button');
+    const cancelButton = card.querySelector('.cancel-cos-button');
+    const contentDisplay = card.querySelector('.cos-content-display');
+    const contentEdit = card.querySelector('.cos-content-edit');
+    const accountablePartyDisplay = card.querySelector('.cos-accountable-party-display');
+    const accountablePartyEdit = card.querySelector('.cos-accountable-party-edit');
+    const completionDateDisplay = card.querySelector('.cos-completion-date-display');
+    const completionDateEdit = card.querySelector('.cos-completion-date-edit');
 
     if (editing) {
         editButton.classList.add('d-none');
         updateButton.classList.remove('d-none');
         cancelButton.classList.remove('d-none');
+        contentDisplay.classList.add('d-none');
+        contentEdit.classList.remove('d-none');
+        accountablePartyDisplay.classList.add('d-none');
+        accountablePartyEdit.classList.remove('d-none');
+        completionDateDisplay.classList.add('d-none');
+        completionDateEdit.classList.remove('d-none');
+
+
     } else {
         editButton.classList.remove('d-none');
         updateButton.classList.add('d-none');
         cancelButton.classList.add('d-none');
+        contentDisplay.classList.remove('d-none');
+        contentEdit.classList.add('d-none');
+        accountablePartyDisplay.classList.remove('d-none');
+        accountablePartyEdit.classList.add('d-none');
+        completionDateDisplay.classList.remove('d-none');
+        completionDateEdit.classList.add('d-none');
     }
 }
 
@@ -82,52 +116,62 @@ function toggleEditMode(row, editing) {
 
 function handlePhaseTableClick(event) {
     const target = event.target;
-    const row = target.closest('tr.cos-row');
-    if (!row) return;
+    const card = target.closest('.cos-card');
+    if (!card) return;
 
-    const cosId = row.dataset.cosId;
+    const cosId = card.dataset.cosId;
 
     if (target.matches('.edit-cos-button')) {
-        turnRowToEditMode(row);
+        turnCardToEditMode(card);
     } else if (target.matches('.update-cos-button')) {
-        handleUpdate(row, cosId);
+        handleUpdate(card, cosId);
     } else if (target.matches('.cancel-cos-button')) {
-        cancelEditMode(row);
+        cancelEditMode(card);
     } else if (target.matches('.delete-cos-button')) {
-        deleteCOS(cosId, row);
+        deleteCOS(cosId, card);
     } else if (target.matches('.analyze-cos-button')) {
-        fetchAndDisplayAnalyzedCOS(cosId); // Use the improved function
+        fetchAndDisplayAnalyzedCOS(cosId, card); // Pass card to analyze function
     }
 }
 
-function turnRowToEditMode(row) {
-    storeOriginalValues(row);
+function turnCardToEditMode(card) {
+    storeOriginalValues(card);
 
-    const statusCell = row.querySelector('.status-cell');
-    const contentCell = row.querySelector('.cos-content-cell');
-    const accountablePartyCell = row.querySelector('.cos-accountable-party-cell');
-    const completionDateCell = row.querySelector('.cos-completion-date-cell');
+    const statusCell = card.querySelector('.status-pill');
+    const contentDisplay = card.querySelector('.cos-content-display');
+    const contentEdit = card.querySelector('.cos-content-edit');
+    const accountablePartyDisplay = card.querySelector('.cos-accountable-party-display');
+    const accountablePartyEdit = card.querySelector('.cos-accountable-party-edit');
+    const completionDateDisplay = card.querySelector('.cos-completion-date-display');
+    const completionDateEdit = card.querySelector('.cos-completion-date-edit');
+
 
     const currentStatus = statusCell.textContent.trim();
-    const currentContent = contentCell.innerHTML; // Get HTML content
-    const currentAccountableParty = accountablePartyCell.textContent.trim();
-    const currentCompletionDate = completionDateCell.textContent.trim();
+    const currentContent = contentDisplay.innerHTML; // Get HTML content
+    const currentAccountableParty = accountablePartyDisplay.textContent.trim();
+    const currentCompletionDate = completionDateDisplay.textContent.trim();
 
-    statusCell.innerHTML = createStatusDropdown(currentStatus);
-    contentCell.innerHTML = `<textarea class="form-control form-control-sm" rows="3">${currentContent}</textarea>`;
-    accountablePartyCell.innerHTML = `<input type="text" class="form-control form-control-sm" value="${currentAccountableParty}">`;
-    completionDateCell.innerHTML = `<input type="date" class="form-control form-control-sm" value="${currentCompletionDate}">`;
+    statusCell.outerHTML = createStatusDropdown(currentStatus); // Replace pill with dropdown
+    contentDisplay.classList.add('d-none'); // Hide display div
+    contentEdit.classList.remove('d-none'); // Show edit div
+    contentEdit.querySelector('textarea').value = currentContent; // Set textarea value
+    accountablePartyDisplay.classList.add('d-none');
+    accountablePartyEdit.classList.remove('d-none');
+    accountablePartyEdit.value = currentAccountableParty;
+    completionDateDisplay.classList.add('d-none');
+    completionDateEdit.classList.remove('d-none');
+    completionDateEdit.value = currentCompletionDate;
 
-    toggleEditMode(row, true);
+    toggleEditMode(card, true);
 }
 
-function handleUpdate(row, cosId) {
-    const contentInput = row.querySelector('.cos-content-cell textarea');
+function handleUpdate(card, cosId) {
+    const contentInput = card.querySelector('.cos-content-edit textarea');
     const newContent = contentInput ? contentInput.value.trim() : '';
-    const statusSelect = row.querySelector('.status-cell select');
+    const statusSelect = card.querySelector('.status-cell select');
     const statusInput = statusSelect.options[statusSelect.selectedIndex].value;
-    const accountablePartyInput = row.querySelector('.cos-accountable-party-cell input').value.trim();
-    const completionDateInput = row.querySelector('.cos-completion-date-cell input').value;
+    const accountablePartyInput = card.querySelector('.cos-accountable-party-edit input').value.trim();
+    const completionDateInput = card.querySelector('.cos-completion-date-edit input').value;
 
     const payload = {
         content: newContent,
@@ -148,8 +192,8 @@ function handleUpdate(row, cosId) {
     .then(handleResponse) // Use the helper function
     .then(data => {
         if (data.success) {
-            updateRowWithNewValues(row, data.cos);
-            toggleEditMode(row, false);
+            updateCardWithNewValues(card, data.cos);
+            toggleEditMode(card, false);
         } else {
             throw new Error(data.error || 'An error occurred while updating.');
         }
@@ -160,9 +204,9 @@ function handleUpdate(row, cosId) {
     });
 }
 
-function cancelEditMode(row) {
-    revertToOriginalValues(row);
-    toggleEditMode(row, false);
+function cancelEditMode(card) {
+    revertToOriginalValues(card);
+    toggleEditMode(card, false);
 }
 
 
@@ -187,26 +231,44 @@ function addCOS(phaseName, ssolId) {
     .then(handleResponse)
     .then(data => {
         if (data.success) {
-            const phaseTable = document.querySelector(`#${phaseName.replace(/ /g, '_')}-table tbody`); // Regex for spaces
-            const newRow = document.createElement('tr');
-            newRow.classList.add('cos-row');
-            newRow.setAttribute('data-cos-id', data.cos.id);
-            newRow.innerHTML = `
-                <td class="status-cell"><span class="status-pill ${getBadgeClassFromStatus('Proposed')}">Proposed</span></td>
-                <td class="cos-content-cell">${data.cos.content}</td>
-                <td class="cos-accountable-party-cell">${data.cos.accountable_party || ''}</td>
-                <td class="cos-completion-date-cell">${data.cos.completion_date || ''}</td>
-                <td class="text-end actions-cell">
+            const phaseCardGrid = document.querySelector(`#${phaseName.replace(/ /g, '_')}-accordion .cos-card-grid`);
+            const newCard = document.createElement('div');
+            newCard.classList.add('cos-card');
+            newCard.dataset.cosId = data.cos.id;
+            newCard.innerHTML = `
+                <div class="cos-card-header">
+                    <span class="status-pill ${getBadgeClassFromStatus('Proposed')}">PROPOSED</span>
                     <div class="cos-actions">
-                        <button class="btn btn-sm btn-primary edit-cos-button">Edit</button>
-                        <button class="btn btn-sm btn-success update-cos-button d-none">Update</button>
-                        <button class="btn btn-sm btn-secondary cancel-cos-button d-none">Cancel</button>
-                        <button class="btn btn-sm btn-danger delete-cos-button">Delete</button>
-                        <button class="btn btn-sm btn-info analyze-cos-button" data-cos-id="${data.cos.id}">Analyze</button>
+                        <button class="btn btn-sm btn-primary edit-cos-button" title="Edit COS"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-sm btn-success update-cos-button d-none" title="Update COS"><i class="fas fa-check"></i></button>
+                        <button class="btn btn-sm btn-secondary cancel-cos-button d-none" title="Cancel Edit"><i class="fas fa-times"></i></button>
+                        <button class="btn btn-sm btn-danger delete-cos-button" title="Delete COS"><i class="fas fa-trash"></i></button>
+                        <button class="btn btn-sm btn-info analyze-cos-button" data-cos-id="${data.cos.id}" title="Analyze COS"><i class="fas fa-search-plus"></i></button>
                     </div>
-                </td>
+                </div>
+                <div class="cos-card-body">
+                    <div class="cos-content-display">
+                        ${data.cos.content}
+                    </div>
+                    <div class="cos-content-edit d-none">
+                        <textarea class="form-control form-control-sm cos-content-textarea" rows="3">${data.cos.content}</textarea>
+                    </div>
+                    <div class="cos-details">
+                        <div class="detail-item">
+                            <label class="detail-label">Accountable Party:</label>
+                            <span class="cos-accountable-party-display"></span>
+                            <input type="text" class="form-control form-control-sm cos-accountable-party-edit d-none" value="">
+                        </div>
+                        <div class="detail-item">
+                            <label class="detail-label">Completion Date:</label>
+                            <span class="cos-completion-date-display"></span>
+                            <input type="date" class="form-control form-control-sm cos-completion-date-edit d-none" value="">
+                        </div>
+                    </div>
+                </div>
+                <div class="ce-pills-container"></div>
             `;
-            phaseTable.appendChild(newRow);
+            phaseCardGrid.appendChild(newCard);
             initializePhaseTableEventListeners(); // Re-initialize after adding
             initializeCEPillEventListeners();
         } else {
@@ -220,7 +282,7 @@ function addCOS(phaseName, ssolId) {
 }
 
 
-function deleteCOS(cosId, row) {
+function deleteCOS(cosId, card) {
     if (confirm(`Delete this Condition of Satisfaction?`)) {
         fetch(`/delete_cos/${cosId}`, {
             method: 'DELETE',
@@ -233,7 +295,7 @@ function deleteCOS(cosId, row) {
         .then(handleResponse)
         .then(data => {
             if (data.success) {
-                row.remove();
+                card.remove();
             } else {
                 throw new Error(data.error || 'An error occurred while deleting.');
             }
@@ -245,7 +307,7 @@ function deleteCOS(cosId, row) {
     }
 }
 
-function fetchAndDisplayAnalyzedCOS(cosId) {
+function fetchAndDisplayAnalyzedCOS(cosId, card) { // Pass card as argument
     fetch(`/analyze_cos/${cosId}`, {
         headers: {
             'Accept': 'application/json',
@@ -262,10 +324,11 @@ function fetchAndDisplayAnalyzedCOS(cosId) {
     })
     .then(data => {
         if (data.success) {
-            const cosRow = document.querySelector(`tr[data-cos-id="${cosId}"] .cos-content-cell`);
-            if (cosRow) {
-                cosRow.innerHTML = data.analysis_results.content_with_ce;
+            const cosContentDisplay = card.querySelector('.cos-content-display'); // Get cos-content-display from card
+            if (cosContentDisplay) {
+                cosContentDisplay.innerHTML = data.analysis_results.content_with_ce;
                 initializeCEPillEventListeners();  // VERY IMPORTANT: Re-initialize after updating content
+                renderCEPillsForCOS(card, data.analysis_results.content_with_ce); // Render pills AFTER analysis
             }
         } else {
             throw new Error(data.message || 'Analysis failed.'); // Use the message from the server
@@ -276,6 +339,27 @@ function fetchAndDisplayAnalyzedCOS(cosId) {
         alert(`Analysis failed: ${error.message}`);
     });
 }
+
+function renderCEPillsForCOS(card, cosContent) {
+    const pillsContainer = card.querySelector('.ce-pills-container');
+    if (!pillsContainer) {
+        console.error("CE pills container not found in card");
+        return;
+    }
+    pillsContainer.innerHTML = ''; // Clear existing pills
+
+    const tempContainer = document.createElement('div'); // Temporary container for parsing
+    tempContainer.innerHTML = cosContent;
+
+    // Find all ce-pill elements within cosContent (assuming backend returns with pills already rendered)
+    const cePills = tempContainer.querySelectorAll('.ce-pill');
+    cePills.forEach(pill => {
+        pillsContainer.appendChild(pill.cloneNode(true)); // Clone and append each pill
+    });
+
+    initializeCEPillEventListeners(); // Re-initialize listeners for new pills
+}
+
 
 // --- Initialization ---
 function initializeCEPillEventListeners() {
@@ -288,29 +372,45 @@ function initializeCEPillEventListeners() {
 function handleCEPillClick(event) {
     const ceId = event.currentTarget.dataset.ceId; // Use currentTarget
     if (ceId) {
-        fetch(`/get_ce_by_id?ce_id=${ceId}`) //Use query parameter
+        const ceType = event.currentTarget.dataset.ceType || "Default";
+        const cosContent = event.target.closest('.cos-card').querySelector('.cos-content-display').textContent.trim(); // Closest card, then content display
+        const phaseElement = event.target.closest('.accordion-item');
+        const phaseName = phaseElement.querySelector('.accordion-header button').innerText.trim();
+        const phaseIndex = Array.from(phaseElement.parentElement.children).indexOf(phaseElement);
+
+        fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                ce_id: ceId,
+                cos_content: cosContent,
+                phase_name: phaseName,
+                phase_index: phaseIndex,
+                ssol_goal: document.querySelector('#ssol-goal').textContent.trim()
+            })
+        })
         .then(handleResponse)
         .then(data => {
-            if (data.ce) {
-                //Assuming ce_cards.js has a function for creating/showing the modal.
-                displayCEModal(data.ce);
+            if (data && data.modal_html) {
+                displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex, data.ai_generated_data); // Use FULL call with modal_html and ai_generated_data
             } else {
-                console.error('CE Data not found in response', data);
-                alert('CE Data not found');
+              throw new Error('Modal HTML content not found or error in response');
             }
         }).catch(error => {
-            console.error('Error fetching CE data', error);
+            console.error('Error fetching modal content:', error);
             alert('Error fetching CE Data');
-        })
+        });
     } else {
         console.warn('Clicked CE pill has no data-ce-id');
     }
 }
 
 function initializePhaseTableEventListeners() { // Define the function here
-    document.querySelectorAll('.phase-table').forEach(table => {
-        table.removeEventListener('click', handlePhaseTableClick);
-        table.addEventListener('click', handlePhaseTableClick);
+    document.querySelectorAll('.phase-card-container').forEach(container => { // Event listener on phase card container
+        container.removeEventListener('click', handlePhaseTableClick);
+        container.addEventListener('click', handlePhaseTableClick);
     });
 }
 
@@ -336,10 +436,11 @@ document.querySelectorAll('.add-cos').forEach(button => {
 document.querySelectorAll('.analyze-cos-button').forEach(button => {
     button.addEventListener('click', (event) => {
         const cosId = event.currentTarget.dataset.cosId;
-        if (cosId) {
-            fetchAndDisplayAnalyzedCOS(cosId);
+        const card = event.target.closest('.cos-card'); // Get card from button click
+        if (cosId && card) {
+            fetchAndDisplayAnalyzedCOS(cosId, card); // Pass card to analyze function
         } else {
-            console.warn('Analyze button missing data-cos-id');
+            console.warn('Analyze button missing data-cos-id or closest card not found');
         }
     });
 });

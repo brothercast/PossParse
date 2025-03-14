@@ -1,4 +1,4 @@
-# ai_service.py (Corrected get_grounded_data AND generate_chat_response)
+# ai_service.py (Refactored for Gemini Image Generation)
 import os
 import json
 import uuid
@@ -6,6 +6,8 @@ import logging
 import asyncio
 from google import genai
 from google.genai import types
+from PIL import Image
+from io import BytesIO
 from dotenv import load_dotenv
 from flask import current_app
 from ce_nodes import get_valid_node_types
@@ -17,19 +19,20 @@ import aiohttp #Import
 # Load environment variables
 load_dotenv()
 google_gemini_api_key = os.environ["GOOGLE_GEMINI_API"]
-gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-pro-002")  # STABLE model
+gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-pro-002")  # STABLE model for text
+gemini_image_model_name = os.getenv("GEMINI_IMAGE_MODEL_NAME", "models/gemini-2.0-flash-exp") # Model for image generation - defaults to flash-exp
 azure_openai_key = os.environ["AZURE_OPENAI_API_KEY"]
 azure_openai_endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
 azure_openai_deployment_name = os.environ["AZURE_DEPLOYMENT_NAME"]
-azure_dalle_api_version = os.getenv("AZURE_DALLE_API_VERSION")  # Use DALL-E specific version
-azure_dalle_deployment_name = os.getenv("AZURE_DALLE_DEPLOYMENT_NAME")
+azure_dalle_api_version = os.getenv("AZURE_DALLE_API_VERSION")  # Use DALL-E specific version (though we are not using it now for images, keep for text)
+azure_dalle_deployment_name = os.getenv("AZURE_DALLE_DEPLOYMENT_NAME") # Keep for text if used
 
-# Initialize Gemini client
-client = genai.Client(api_key=google_gemini_api_key)
+# Initialize Gemini client for text and image (using same API key)
+gemini_client = genai.Client(api_key=google_gemini_api_key)
 
-# Initialize Azure OpenAI client
+# Initialize Azure OpenAI client (for text generation if still used)
 azure_openai_client = AzureOpenAI(
-    api_version=azure_dalle_api_version,
+    api_version=azure_dalle_api_version, # Keep API version and deployment for TEXT generation
     api_key=azure_openai_key,
     azure_endpoint=azure_openai_endpoint
 )
@@ -64,8 +67,8 @@ async def send_request_to_gemini(messages, generation_config=None, logger=None):
             generation_config.setdefault('safety_settings', [])
             generation_config = types.GenerateContentConfig(**generation_config)
 
-        response = await client.aio.models.generate_content(
-            model=gemini_model_name,
+        response = await gemini_client.aio.models.generate_content( # Use gemini_client here
+            model=gemini_model_name, # Use gemini_model_name for TEXT model
             contents=contents,
             config=generation_config
         )
@@ -91,7 +94,6 @@ async def generate_chat_response(messages, role, task, model=None, temperature=0
     elif isinstance(generation_config, dict):
         generation_config.setdefault('safety_settings', [])
         generation_config = types.GenerateContentConfig(**generation_config)
-    # REMOVE: system instruction here
 
     last_exception = None
     for retry_attempt in range(retries):
@@ -145,7 +147,6 @@ async def generate_chat_response_with_node_types(messages, role, task, temperatu
                 top_k=40,
                 max_output_tokens=2048,
                 safety_settings=[],
-                # REMOVE system instruction here
             )
             # NOTE: generate_chat_response already extracts the JSON
             response_content = await generate_chat_response(messages_with_system, role, task, temperature=temperature, retries=retries, backoff_factor=backoff_factor, logger=logger, generation_config=generation_config)
@@ -165,9 +166,9 @@ async def get_grounded_data(query, ce_type):
     """
     Retrieves grounded data from Google Search for a given query and CE type.
     """
-    try:
-        client = genai.Client(api_key=os.environ["GOOGLE_GEMINI_API"])
-        model = "gemini-2.0-pro-exp-02-05"  # Or your preferred model
+    try: # <-- Line 169 is likely here (start of try block)
+        # client is already initialized at the top as gemini_client
+        model = "gemini-2.0-pro-exp-02-05"  # Or your preferred model for grounding
 
         contents = [
             types.Content(
@@ -213,7 +214,7 @@ async def get_grounded_data(query, ce_type):
             max_output_tokens=2048,  # Adjust as needed
             tools=tools,
         )
-        response = await client.aio.models.generate_content(
+        response = await gemini_client.aio.models.generate_content( # Use gemini_client here
           model=model,
           contents=contents,
           config=generation_config,
@@ -243,45 +244,62 @@ async def get_grounded_data(query, ce_type):
 
         return grounded_data
 
-    except Exception as e:
+    except Exception as e: # <-- **MISSING or INCORRECT 'except' clause - ADD THIS LINE**
         current_app.logger.error(f"Error in get_grounded_data: {e}", exc_info=True)
         return None
 
-async def generate_dalle_image(prompt, azure_openai_client):
-    from ai_service import azure_openai_client as client_module
+async def generate_image(prompt): # Renamed from generate_dalle_image
     from utilities import sanitize_filename
+    from flask import current_app # Ensure current_app is imported
 
     try:
-        azure_dalle_deployment_name = os.getenv("AZURE_DALLE_DEPLOYMENT_NAME") #Added DALLE var
+        # gemini_client is already initialized at the top
+        # gemini_image_model_name is loaded from env vars at the top
 
-        client = azure_openai_client if azure_openai_client else client_module
-        result = client.images.generate(  # REMOVE await
-            model=azure_dalle_deployment_name, prompt=prompt, n=1, size="1024x1024", #Changed model to deployment name
+        contents = prompt # Just the prompt string
+
+        generate_content_config = types.GenerateContentConfig(  # Add GenerateContentConfig
+            temperature=1.0, # Match Playground's temperature (or use 0.9 or 0.75 if 1.0 is too creative)
+            top_p=0.95,
+            top_k=40,
+            max_output_tokens=8192, # Match Playground's max_output_tokens (or adjust if needed)
+            response_modalities=["image", "text"], # Use lowercase "image" and include "text"
+            response_mime_type="text/plain" # Add response_mime_type
         )
-        image_url = result.data[0].url
 
-        # Log the DALL-E response
-        current_app.logger.debug(f"DALL-E API response: {result}")
+        # Log the image prompt here BEFORE making the API call
+        current_app.logger.debug(f"generate_image (Gemini) - Sending prompt to API: '{prompt}'") # Log at DEBUG level
 
-        unique_filename = f"generated_image_{uuid.uuid4().hex}.png"
-        unique_filename = sanitize_filename(unique_filename) #Call sanitize filename
+        response = await gemini_client.aio.models.generate_content( # Still using non-streaming for now
+            model=gemini_image_model_name, # Model from env var
+            contents=contents,
+            config=generate_content_config # Use the configured config
+        )
+
+        image_part = None
+        for part in response.candidates[0].content.parts:
+            if part.inline_data is not None:
+                image_part = part
+                break # Assuming only one image part
+
+        if not image_part:
+            raise ValueError("No image data found in Gemini response")
+
+        image_bytes = image_part.inline_data.data
+        image = Image.open(BytesIO(image_bytes))
+
+
+        unique_filename = f"generated_image_gemini_{uuid.uuid4().hex}.png" # Gemini specific filename
+        unique_filename = sanitize_filename(unique_filename)
         static_folder = current_app.static_folder
-        image_folder = os.path.join(static_folder, 'images')  # Correct path
+        image_folder = os.path.join(static_folder, 'images')
         os.makedirs(image_folder, exist_ok=True)
-        image_file_path = os.path.join(image_folder, unique_filename) # Corrected path
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(image_url) as resp:
-                resp.raise_for_status()
-                with open(image_file_path, 'wb') as f:
-                    while True:
-                        chunk = await resp.content.read(1024)
-                        if not chunk:
-                            break
-                        f.write(chunk)
+        image_file_path = os.path.join(image_folder, unique_filename)
+        image.save(image_file_path) # Save using Pillow
 
         web_path = os.path.join('images', unique_filename).replace("\\", "/")
         return web_path
+
     except Exception as e:
-        current_app.logger.error(f"Error in generate_dalle_image: {e}", exc_info=True)
+        current_app.logger.error(f"Error in generate_image (Gemini - Refactored Config): {e}", exc_info=True) # Updated log message
         raise

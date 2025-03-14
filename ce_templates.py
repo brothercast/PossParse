@@ -11,46 +11,87 @@ from ce_nodes import NODES, get_valid_node_types
 from ai_service import generate_chat_response, get_grounded_data  # Import get_grounded_data
 
 BASE_MODAL_TEMPLATE = """
-<div class="modal fade" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">
-  <div class="modal-dialog modal-lg" role="document">
-    <div class="modal-content">
-      <div class="modal-header" style="background-color: ${phaseColor};">
-        <div class="filled-box"></div>
-        <h5 class="modal-title" id="ceModalLabel-${ceId}">
-          <span class="node-icon me-2" style="color: ${phaseColor};">
+<div class="modal fade ceModal" id="ceModal-${ceId}" tabindex="-1" aria-labelledby="ceModalLabel-${ceId}" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content ce-modal">
+      <!-- Modal Header -->
+      <div class="modal-header ce-modal-header" style="background-color: ${phaseColor};">
+        <div class="node-icon ce-icon">
             <i class="${icon_class}"></i>
-          </span>
-          <span class="modal-header-title">${ceType.replace('_', ' ').toUpperCase()} // ${phaseName.toUpperCase()}</span>
+        </div>
+        <h5 class="modal-title ce-title" id="ceModalLabel-${ceId}">
+            ${ceType.replace('_', ' ').title()}
         </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <span class="phase-name">// ${phaseName.title()} PHASE</span>
+        <button type="button" class="btn-close close-btn" data-bs-dismiss="modal" aria-label="Close">×</button>
       </div>
-      <div class="modal-body">
-        <p><span class="context-label">Source COS:</span><span class="context-text">${cos_content_with_pills}</span></p>
-        <p><span class="context-label">${ceType}:</span><span class="context-text">${ai_generated_data.contextual_description || 'No contextual description available.'}</span></p>
-        <div id="dynamicTable-${ceId}" class="tabulator-table mb-3"></div>
 
-        <div class="row justify-content-start mb-3">
-          <div class="col-auto">
-            <button type="button" class="btn btn-sm btn-danger" id="deleteSelectedRowsButton-${ceId}">Delete</button>
-            <button type="button" class="btn btn-sm btn-secondary" id="duplicateSelectedRowsButton-${ceId}">Duplicate</button>
-          </div>
+      <!-- Modal Body -->
+      <div class="modal-body ce-modal-body">
+
+        <!-- SECTION 1: CONTEXT -->
+        <div class="section">
+            <h2 class="section-heading">CONTEXT - Understanding the Context of this Element</h2>
+
+            <!-- SUB-SECTION 1.1: Condition of Satisfaction Context -->
+            <div class="sub-section">
+                <h3 class="sub-heading">Condition of Satisfaction Context</h3>
+                <div class="context-label">Source Condition of Satisfaction (COS):</div>
+                <div class="content-block italic">
+                    ${cos_content_with_pills}
+                </div>
+            </div>
+
+            <!-- SUB-SECTION 1.2: [CE Type Name] Node Context & Insight -->
+            <div class="sub-section">
+                <h3 class="sub-heading">${ceType.replace('_', ' ').title()} Node Context & Insight</h3>
+                <div class="context-label">${ceType.replace('_', ' ').title()} Node & Context:</div>
+                <div class="content-block">
+                    <p><b>Definition:</b></p>
+                    <p class="definition-text">${node_info.modal_config.explanation}</p>
+                    <hr style="margin: 10px 0; border-top: 1px dashed #ccc;">
+                    <p><b>AI Contextual Insight:</b></p>
+                    <p class="content italic">${ai_generated_data.contextual_description || 'No AI contextual description available.'}</p>
+                </div>
+            </div>
         </div>
 
-        <form id="ceForm-${ceId}">
-          ${form_fields}
-        </form>
-        <div class="row mt-2">
-          <div class="col">
-            <button type="button" class="btn btn-success w-100" id="addRowButton-${ceId}" style="padding-top: 10px;">Add ${ceType}</button>
-          </div>
-          <div class="col">
-            <button type="button" class="btn btn-primary w-100" id="generateRowButton-${ceId}" style="padding-top: 10px;">Generate ${ceType}</button>
-          </div>
+        <!-- SECTION 2: DETAILS -->
+        <div class="section">
+            <h2 class="section-heading">DETAILS - Attributes and Specifications of the ${ceType.replace('_', ' ').title()}</h2>
+
+            <!-- FORM FIELDS -->
+            <div class="form-grid">
+                ${form_fields}
+            </div>
+
+             <!-- Resource Action Buttons - Positioned BETWEEN form fields and table -->
+            <div class="action-row">
+                <button type="button" class="btn btn-primary" id="addRowButton-${ceId}"><i class="fas fa-plus"></i> Add ${ceType.replace('_', ' ').title()}</button>
+                <button type="button" class="btn btn-success" id="generateRowButton-${ceId}"><i class="fas fa-magic"></i> Generate ${ceType.replace('_', ' ').title()}</button>
+            </div>
+        </div>
+
+        <!-- SECTION 3: RESOURCES -->
+        <div class="section">
+            <h2 class="section-heading">RESOURCES - Data and References for this Element</h2>
+            <h3 class="sub-heading">Related Resources for ${ceType.replace('_', ' ').title()}</h3>
+
+            <!-- TABULATOR TABLE -->
+            <div id="dynamicTable-${ceId}" class="tabulator-table"></div>
+
+            <!-- Resource Management Buttons -->
+            <div class="action-row">
+                <button type="button" class="btn btn-danger" id="deleteSelectedRowsButton-${ceId}"><i class="fas fa-trash-alt"></i> Delete Selected</button>
+                <button type="button" class="btn btn-secondary" id="duplicateSelectedRowsButton-${ceId}"><i class="fas fa-copy"></i> Duplicate Selected</button>
+            </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save changes</button>
+
+      <!-- Modal Footer -->
+      <div class="modal-footer ce-modal-footer">
+        <button type="button" class="btn btn-secondary btn-close-modal" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="${ceId}">Save Changes</button>
       </div>
     </div>
   </div>

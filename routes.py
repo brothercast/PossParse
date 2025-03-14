@@ -1,14 +1,15 @@
-# routes.py (Complete Refactored Version)
+# routes.py (Refactored Version with Gemini Image Generation)
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, make_response, current_app, send_from_directory
 import os
 import json
 import uuid
 import pdfkit
 import logging
+import asyncio # Import asyncio
 from bs4 import BeautifulSoup
 from app import app, USE_DATABASE
 from uuid import UUID
-from utilities import generate_goal, generate_outcome_data, analyze_user_input, generate_sentiment_analysis, generate_dalle_image
+from utilities import generate_goal, generate_outcome_data, analyze_user_input, generate_sentiment_analysis, generate_ssol_image, generate_ssol_id # Import generate_ssol_image
 from dotenv import load_dotenv
 from ce_nodes import NODES
 from werkzeug.exceptions import BadRequest, NotFound
@@ -46,6 +47,13 @@ async def goal_selection():
             if not goal_options:
                 flash("Could not generate goal options. Please try again.", "warning")
                 return render_template('input.html')
+
+            if USE_DATABASE:
+                ssol_id_for_image = generate_ssol_id(USE_DATABASE, user_input) # Generate ssol_id right away if using DB.
+                asyncio.create_task(generate_ssol_image(f"Image prompt for goal: '{user_input}'", ssol_id=ssol_id_for_image)) # Start Gemini Image in background, pass ssol_id
+            else:
+                asyncio.create_task(generate_ssol_image(f"Image prompt for goal: '{user_input}'", selected_goal_title=user_input)) # Start Gemini Image in background, pass goal title for in-memory
+
 
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify(goals=goal_options, user_input=user_input)
@@ -199,7 +207,7 @@ def delete_cos_route(cos_id):
 
 @routes_bp.route('/get_ssol_image/<uuid:ssol_id>')
 async def get_ssol_image(ssol_id):
-    from utilities import generate_dalle_image, generate_ssol_id #Import generate_ssol_id
+    from utilities import generate_ssol_image, generate_ssol_id #Import generate_ssol_id
     from models import SSOL, get_engine_and_session
     from app import app # Import app for context
     from store import ssol_store # Import ssol_store
@@ -222,7 +230,7 @@ async def get_ssol_image(ssol_id):
             selected_goal = ssol_data['title'] # Retrieve selected_goal from in-memory data
 
         image_prompt = f"A colorful, charming, visually stunning lithograph depicting '{selected_goal}' as a fulfilled goal, diverse people, Mary Blair, 1962, isometric, no text or labels, please! "
-        web_image_path = await generate_dalle_image(image_prompt, None) # Pass None for azure_openai_client to use default
+        web_image_path = await generate_ssol_image(image_prompt) # Call generate_ssol_image - simpler call, no client param
         return jsonify({'image_path': url_for('static', filename=web_image_path)}) # Return image path as JSON
     except Exception as e:
         current_app.logger.error(f"Error generating or retrieving SSOL image: {e}", exc_info=True)

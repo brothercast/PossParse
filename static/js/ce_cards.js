@@ -40,8 +40,7 @@ function handleCEPillClick(event) {
         phase_index: phaseIndex,
         ssol_goal: ssolGoal
     };
-    
-    console.log("handleCEPillClick: ceType before fetch:", ceType);
+
     showLoadingSpinner(`Loading ${ceType} data...`, iconClass);
     fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {
         method: 'POST',
@@ -56,17 +55,17 @@ function handleCEPillClick(event) {
     })
     .then(data => {
         hideLoadingSpinner();
-        console.log("Data received from /get_ce_modal:", data);
         if (data && data.modal_html) {
-            console.log("Modal HTML received:", data.modal_html.substring(0, 100) + "...");
             displayCEModal(data.modal_html, ceId, ceType, cosContent, phaseName, phaseIndex, data.ai_generated_data, data.table_data, data.tabulator_columns, ssolGoal);
         } else {
             console.error(`CE type "${ceType}" not found or invalid response:`, data);
+             alert('Error fetching CE Data'); // Keep alert for actual fetch errors
         }
     })
     .catch(error => {
         hideLoadingSpinner();
         console.error('Error fetching modal content:', error);
+         alert('Error fetching CE Data'); // Keep alert for actual fetch errors
     });
 }
 
@@ -91,10 +90,6 @@ function tabulatorColumnsDefinition(ceType) {
 
 
 function displayCEModal(modalHtml, ceId, p_ceType, cosContent, p_phaseName, phaseIndex, aiGeneratedData = { fields: {} }, tableData = [], _tabulatorColumns, ssolGoal) {
-    console.log("displayCEModal CALLED - Minimal Version"); // Test log
-    alert("displayCEModal was called (minimal version). Check console for ceType and phaseName.");
-    console.log("ceType:", p_ceType, "phaseName:", p_phaseName);
-
     const modalContainer = document.getElementById('dynamicModalContainer');
     if (!modalContainer) {
         console.error('Modal container element not found.');
@@ -142,7 +137,6 @@ function displayCEModal(modalHtml, ceId, p_ceType, cosContent, p_phaseName, phas
         </div>`;
 
     modalContainer.innerHTML = wrappedModalHtml;
-    console.log("Modal HTML inserted into container");
 
     const modalElement = modalContainer.querySelector(`#ceModal-${ceId}`);
     if (!modalElement) {
@@ -151,9 +145,7 @@ function displayCEModal(modalHtml, ceId, p_ceType, cosContent, p_phaseName, phas
     }
 
     const modal = new bootstrap.Modal(modalElement);
-    console.log("Bootstrap modal object created");
     modal.show();
-    console.log("modal.show() called");
 
 
     // Get column definitions using the function
@@ -209,7 +201,6 @@ function initializeTabulatorTable(tableSelector, tableData, tabulatorColumns, ce
             selectable: true,
             reactiveData: true,
             placeholder: `Add or Generate ${ceType}`,
-            // rowHeight: 40, // REMOVED Invalid Option
             columns: tabulatorColumns,
         });
         modalElement._tabulator = table; // Attach Tabulator instance to modal - to make table accessible in modal scope
@@ -264,7 +255,7 @@ function clearFormFields(formSelector) {
     }
 }
 
-function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseName, ssolGoal) {
+function setupModalEventListeners(modalElement, ceId, p_ceType, cosContent, p_phaseName, ssolGoal) {
     const addRowButton = modalElement.querySelector(`#addRowButton-${ceId}`);
     const generateRowButton = modalElement.querySelector(`#generateRowButton-${ceId}`);
     const saveChangesButton = modalElement.querySelector('.btn-save-changes');
@@ -275,7 +266,7 @@ function setupModalEventListeners(modalElement, ceId, ceType, cosContent, phaseN
 
      if (generateRowButton) {
         generateRowButton.addEventListener('click', () => {
-            generateFieldsFromAI(ceId, ceType, cosContent, ssolGoal);
+            generateFieldsFromAI(ceId, p_ceType, cosContent, ssolGoal);
         });
     }
 
