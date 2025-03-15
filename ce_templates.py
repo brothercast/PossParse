@@ -202,11 +202,11 @@ async def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_gen
     icon_class = NODES[ce_type].get('icon') if ce_type in NODES else await get_node_type_icon_and_name(ce_type)
 
 
-
-    modal_content = render_template_string(
+    modal_content = render_template_string( # <-- CORRECTED: Using render_template_string HERE
         BASE_MODAL_TEMPLATE,
-        ce_type=ce_type,
-        icon_class = icon_class, #NODES[ce_type].get('icon') if ce_type in NODES else get_node_type_icon_and_name(ce_type),
+        ceId=ce_data.get('id', 'unknown_ce_id') if ce_data else 'unknown_ce_id', # Pass ceId
+        ceType=ce_type, # Pass ceType
+        icon_class = icon_class,
         node_info=node_info,
         form_fields=form_fields,
         table_headers=table_headers,
@@ -215,15 +215,11 @@ async def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_gen
             { 'formatter': 'rowSelection', 'titleFormatter': 'rowSelection', 'hozAlign': 'center', 'headerSort': False, 'cellClick': lambda e, cell: cell.getRow().toggleSelect() },
             *tabulator_config['columns'],
         ],
-        ce_data=ce_data or {'id': 'unknown_ce_id'},
         cos_content_with_pills=cos_content_with_pills,  # Use processed COS content with CE pills
         ai_generated_data=ai_generated_data,
         phase_name=phase_name,
         phase_index=phase_index,
-        node_name=node_name,
-        ce_id=ce_data.get('id', 'unknown_ce_id') if ce_data else 'unknown_ce_id',
-        ai_context_description=ai_generated_data.get('contextual_description', 'No contextual description provided.'),
-        phaseColor = phaseColor
+        phaseColor = phaseColor # Pass phaseColor
     )
 
     return modal_content

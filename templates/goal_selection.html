@@ -12,7 +12,10 @@
     </thead>
     <tbody>
       <tr>
-        <td class="user-input">{{ user_input }}</td>
+        <td class="user-input">
+          <span class="user-input-display">{{ user_input }}</span>
+          <input type="text" class="form-control form-control-sm user-input-edit d-none" value="{{ user_input }}">
+        </td>
         <td class="text-end">
           <button type="button" class="btn btn-primary btn-sm edit-user-input">Edit</button>
           <button type="button" class="btn btn-success btn-sm save-user-input d-none">Update</button>
@@ -26,7 +29,7 @@
     Please choose the one that is closest to your desired result, or click the "Speculate New Outcomes" button to
     generate a new set of possibilities.
   </p>
-  <!-- Add the class 'card-container' to the div below -->
+  <!-- Ensure the row class is directly on the container for the cards -->
   <div class="row card-container">
     {% for goal in goals %}
       <div class="col-md-4 mb-4">
@@ -43,14 +46,13 @@
               <input type="hidden" name="selected_goal" value="{{ goal.goal }}">
               <input type="hidden" name="domain" value="{{ goal.domain }}">
               <input type="hidden" name="domain_icon" value="{{ goal.icon }}">
-              <input type="hidden" name="user_text" value="{{ user_input }}">
-              <button type="submit" class="btn btn-primary">Select</button>
+              <input type="hidden" name="selected_goal_title" value="{{ goal.title }}"> <!-- Add goal title -->
+              <button type="submit" class="btn btn-primary">Select</button> <!- **Corrected Button Text to "Select"** -->
             </form>
           </div>
         </div>
       </div>
     {% endfor %}
-
   </div>
   <div class="text-center">
     <button type="button" class="btn btn-outline-primary" id="generate-new-goals">
@@ -89,72 +91,163 @@
         });
     }
 
-
-
-      // Event listener for dynamic content loading
     document.addEventListener('DOMContentLoaded', () => {
-     animateGoalText(); //Moved Animate to here
-    const generateNewGoalsButton = document.getElementById('generate-new-goals');
-    if (generateNewGoalsButton) {
-        generateNewGoalsButton.addEventListener('click', async () => {
-            const userInput = document.querySelector('.user-input').textContent;
-            try {
-                const response = await fetch('/goal_selection', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-Requested-With': 'XMLHttpRequest' // Indicate AJAX
-                    },
-                    body: `user_text=${encodeURIComponent(userInput)}`
-                });
+        animateGoalText();
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+        const userInputDisplay = document.querySelector('.user-input-display');
+        const userInputEdit = document.querySelector('.user-input-edit');
+        const editButton = document.querySelector('.edit-user-input');
+        const saveButton = document.querySelector('.save-user-input');
+        const cancelButton = document.querySelector('.cancel-user-input');
+        const cardContainer = document.querySelector('.card-container');
+        const generateNewGoalsButton = document.getElementById('generate-new-goals');
 
-                const data = await response.json();
+        editButton.addEventListener('click', () => {
+            userInputDisplay.classList.add('d-none');
+            userInputEdit.classList.remove('d-none');
+            editButton.classList.add('d-none');
+            saveButton.classList.remove('d-none');
+            cancelButton.classList.remove('d-none');
+            userInputEdit.focus();
+        });
 
-                if (data.goals && data.goals.length > 0) {
-                    // Clear existing goal cards
-                    const cardContainer = document.querySelector('.card-container');
-                    cardContainer.innerHTML = '';
+        cancelButton.addEventListener('click', () => {
+            userInputEdit.value = userInputDisplay.textContent; // Revert input value
+            userInputDisplay.classList.remove('d-none');
+            userInputEdit.classList.add('d-none');
+            editButton.classList.remove('d-none');
+            saveButton.classList.add('d-none');
+            cancelButton.classList.add('d-none');
+        });
 
-                    // Add new goal cards
-                    data.goals.forEach(goal => {
-                        const cardHtml = `
-                            <div class="col-md-4 mb-4">
-                                <div class="card retro-futuristic-card text-center">
-                                    <div class="card-body card-content">
-                                        <i class="${goal.icon} fa-2x mb-3"></i>
-                                        <p class="domain domain-text">${goal.domain}</p>
-                                        <div class="goal-description goal-text">
-                                            ${goal.goal.replace(/\n/g, '<br>')}
-                                        </div>
-                                        <form action="/outcome" method="post" class="goal-selection-form">
-                                            <input type="hidden" name="selected_goal" value="${goal.goal}">
-                                            <input type="hidden" name="domain" value="${goal.domain}">
-                                            <input type="hidden" name="domain_icon" value="${goal.icon}">
-                                            <input type="hidden" name="user_text" value="${data.user_input}">
-                                            <button type="submit" class="btn btn-primary">Select</button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                        cardContainer.insertAdjacentHTML('beforeend', cardHtml);
+        saveButton.addEventListener('click', async () => {
+            const updatedUserInput = userInputEdit.value.trim();
+            if (updatedUserInput) {
+                try {
+                    const response = await fetch('/goal_selection', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: `user_text=${encodeURIComponent(updatedUserInput)}`
                     });
 
-                    // Re-apply text animation
-                    animateGoalText();
-                } else {
-                    console.error('No goals received or invalid response:', data);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    console.log("Data received after update:", data); // **ADD THIS LINE for debugging**
+
+                    if (data.goals && data.goals.length > 0) {
+                        cardContainer.innerHTML = ''; // Clear existing cards
+                        data.goals.forEach(goal => {
+                            const cardHtml = `
+                                <div class="col-md-4 mb-4">
+                                    <div class="card retro-futuristic-card text-center">
+                                        <div class="card-body card-content">
+                                            <i class="${goal.icon} fa-2x mb-3"></i>
+                                            <p class="domain domain-text">${goal.domain}</p>
+                                            <div class="goal-description goal-text">
+                                                ${goal.goal.replace(/\n/g, '<br>')} <!- **Corrected to goal.goal for description** -->
+                                            </div>
+                                            <form action="/outcome" method="post" class="goal-selection-form">
+                                                <input type="hidden" name="selected_goal" value="${goal.goal}">
+                                                <input type="hidden" name="domain" value="${goal.domain}">
+                                                <input type="hidden" name="domain_icon" value="${goal.icon}">
+                                                <input type="hidden" name="selected_goal_title" value="${goal.title}"> <!- Add goal title -->
+                                                <button type="submit" class="btn btn-primary">Select</button> <!- **Corrected Button Text to "Select"** -->
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            cardContainer.insertAdjacentHTML('beforeend', cardHtml);
+                        });
+                        animateGoalText(); // Re-animate text for new cards
+                        userInputDisplay.textContent = updatedUserInput; // Update displayed text
+                    } else {
+                        console.error('No goals received or invalid response:', data);
+                    }
+
+                } catch (error) {
+                    console.error('Error fetching new goals:', error);
+                } finally {
+                    // Revert to display mode after update attempt
+                    userInputDisplay.classList.remove('d-none');
+                    userInputEdit.classList.add('d-none');
+                    editButton.classList.remove('d-none');
+                    saveButton.classList.add('d-none');
+                    cancelButton.classList.add('d-none');
                 }
-            } catch (error) {
-                console.error('Error fetching new goals:', error);
+            } else {
+                alert("Please enter your possibility or goal.");
             }
         });
-    }
-});
+
+
+        if (generateNewGoalsButton) {
+            generateNewGoalsButton.addEventListener('click', async () => {
+                const userInput = userInputDisplay.textContent; // Use displayed text
+                try {
+                    const response = await fetch('/goal_selection', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-Requested-With': 'XMLHttpRequest' // Indicate AJAX
+                        },
+                        body: `user_text=${encodeURIComponent(userInput)}`
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    console.log("Data received after Speculate New Goals:", data); // **ADD THIS LINE for debugging**
+
+
+                    if (data.goals && data.goals.length > 0) {
+                        // Clear existing goal cards
+                        cardContainer.innerHTML = '';
+
+                        // Add new goal cards
+                        data.goals.forEach(goal => {
+                            const cardHtml = `
+                                <div class="col-md-4 mb-4">
+                                    <div class="card retro-futuristic-card text-center">
+                                        <div class="card-body card-content">
+                                            <i class="${goal.icon} fa-2x mb-3"></i>
+                                            <p class="domain domain-text">${goal.domain}</p>
+                                            <div class="goal-description goal-text">
+                                                ${goal.goal.replace(/\n/g, '<br>')}  <!- **Corrected to goal.goal for description** -->
+                                            </div>
+                                            <form action="/outcome" method="post" class="goal-selection-form">
+                                                <input type="hidden" name="selected_goal" value="${goal.goal}">
+                                                <input type="hidden" name="domain" value="${goal.domain}">
+                                                <input type="hidden" name="domain_icon" value="${goal.icon}">
+                                                <input type="hidden" name="selected_goal_title" value="${goal.title}"> <!- Add goal title -->
+                                                <button type="submit" class="btn btn-primary">Select</button> <!- **Corrected Button Text to "Select"** -->
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            cardContainer.insertAdjacentHTML('beforeend', cardHtml);
+                        });
+
+                        // Re-apply text animation
+                        animateGoalText();
+                    } else {
+                        console.error('No goals received or invalid response:', data);
+                    }
+                } catch (error) {
+                    console.error('Error fetching new goals:', error);
+                }
+            });
+        }
+    });
 
 
 </script>

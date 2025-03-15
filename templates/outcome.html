@@ -2,32 +2,47 @@
 
 {% block content %}
 <div class="container">
-    <div class="row outcome-header">
-        <div class="col-md-4 text-center" id="image-container">
-            <h2 class="ssol-title-above-image">{{ ssol.ssol_title | safe }}</h2> <!-- SSOL Title ABOVE Image -->
-            <div class="image-wrapper"> <!-- Relative container for stacking -->
+    <!-- Title Row (Spanning Full Width) -->
+    <div class="row">
+        <div class="col text-center">
+            <h1 class="ssol-title">{{ ssol.ssol_title | safe }}</h1> <!-- Use h1 for main title -->
+        </div>
+    </div>
+
+    <!-- Image and Domain Row -->
+    <div class="row">
+        <div class="col-md-4 text-center">
+            <!-- Image Wrapper (for stacking) -->
+            <div class="image-wrapper">
                 <img src="{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}" alt="Placeholder Image" class="rounded mb-3 placeholder-image" id="placeholderImage">
                 <img src="{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}" alt="Generated Image" class="rounded mb-3 generated-image" id="ssolImage">
             </div>
+            <!-- Container for error messages (added) -->
+            <div id="image-error-container"></div>
+
             <h2>Domain</h2>
             <i class="{{ ssol.domain_icon }} fa-3x mb-3"></i>
             <p class="domain domain-text text-center domain-text">{{ ssol.domain | title }}</p>
             <h2>Fulfilled Goal</h2>
             <p><strong>{{ ssol.selected_goal | safe }}</strong></p>
             <div id="ssol-goal" style="display: none;">{{ ssol.selected_goal | safe }}</div>
+            <!-- PDF Button (Moved to bottom of left column) -->
             <div class="text-center mt-4">
                 <button id="save-as-pdf-button" data-ssol-id="{{ ssol_id }}" class="btn btn-info" title="Save as PDF">
                     <i class="fas fa-download me-2"></i>PDF
                 </button>
             </div>
         </div>
+
+        <!-- Summary Column -->
         <div class="col-md-8">
-            <h1>Preliminary Structured Solution</h1>
+            <!-- Removed h1, Summary is now below the main title -->
             <p id="ssol-summary">{{ ssol.ssol_summary | safe }}</p>
         </div>
     </div>
 
-    <div class="row">
+    <!-- Phases & COS Row (Remains the Same) -->
+   <div class="row">
         <h1>Phases & Conditions of Satisfaction</h1>
         <div class="col">
             <div class="accordion mt-4" id="phase-accordion">
@@ -138,6 +153,8 @@
     const ssolId = "{{ ssol_id }}";
     const ssolImage = document.getElementById('ssolImage');
     const placeholderImage = document.getElementById('placeholderImage');
+    const imageErrorContainer = document.getElementById('image-error-container'); // Get the error container
+
     ssolImage.classList.remove('loaded'); // Ensure fade-in class is not present initially
 
     // 2. Fetch the image path from the backend
@@ -153,25 +170,37 @@
         if (data.image_path) {
           // 3. Set the image source and handle onload for fade-in
           ssolImage.src = data.image_path;
-          placeholderImage.classList.add('hidden'); // Hide placeholder GIF - ADD CLASS 'hidden' in JS
+          placeholderImage.classList.add('hidden'); // Hide placeholder GIF
           ssolImage.onload = () => {
             ssolImage.classList.add('loaded'); // Add 'loaded' class to trigger fade-in
-
           };
           ssolImage.onerror = () => {
-            console.error('Error loading SSOL image from path:', data.image_path); // Log image load error
-            ssolImage.alt = 'Error loading image'; // Set alt text to indicate error
-            // Optionally, display a broken image icon or placeholder here
+            console.error('Error loading SSOL image from path:', data.image_path);
+            ssolImage.alt = 'Error loading image';
+             // Optionally, display a broken image icon or placeholder here
           };
         } else {
-          console.warn('No image_path received in JSON response:', data); // Log missing image_path
+          console.warn('No image_path received in JSON response:', data);
+          // Handle default image or error message display
+          if (data.error) {
+              console.error("Server reported image generation error:", data.error);
+              // Display data.error in the UI
+              const errorDiv = document.createElement('div');
+              errorDiv.textContent = data.error;
+              errorDiv.classList.add('alert', 'alert-danger'); // Use Bootstrap alert classes
+              imageErrorContainer.appendChild(errorDiv); // Append to the error container
+          }
         }
       })
       .catch(error => {
         // Handle fetch errors and JSON parsing errors
         console.error('Error fetching or processing image data:', error);
-        ssolImage.alt = 'Error generating image'; // Set alt text to indicate error
-        // Optionally, display an error message or placeholder image in the UI
+        ssolImage.alt = 'Error generating image';
+        // Optionally display error message in the UI.
+        const errorDiv = document.createElement('div');
+        errorDiv.textContent = 'An unexpected error occurred while loading the image.';
+        errorDiv.classList.add('alert', 'alert-danger'); // Use Bootstrap alert classes
+        imageErrorContainer.appendChild(errorDiv);
       });
   });
 </script>

@@ -186,16 +186,6 @@ body > main > div > div.row.outcome-header {
   padding-top: 20px;
 }
 
-.ssol-title-above-image {
-    text-align: center; /* Center the title above the image */
-    margin-bottom: 10px; /* Add some space between title and image */
-    display: block; /* Ensure it takes full width */
-    font-family: 'Unica One', sans-serif; /* Or your preferred font */
-    font-weight: 500;
-    font-size: 1.95rem; /* Adjust size as needed */
-    color: #326eb6; /* Or your preferred color */
-    text-transform: uppercase; /* Optional: Uppercase text */
-}
 
 .fulfilled-goal {
   text-align: left;
@@ -546,16 +536,16 @@ body > main > div > div.row.outcome-header {
 /* ================================================== */
 /* ======  16. Generated Image & Placeholder Styles  ==== */
 /* ================================================== */
-/* Ensure SSOL Title is above the image */
-.ssol-title-above-image {
+.ssol-title {
     text-align: center; /* Center the title above the image */
     margin-bottom: 10px; /* Add some space between title and image */
     display: block; /* Ensure it takes full width */
     font-family: 'Unica One', sans-serif; /* Or your preferred font */
     font-weight: 500;
-    font-size: 1.95rem; /* Adjust size as needed */
+    font-size: 4.5rem; /* Adjust size as needed */
     color: #326eb6; /* Or your preferred color */
     text-transform: uppercase; /* Optional: Uppercase text */
+    text-shadow: 1px 1px 0px #000000;
 }
 
 /* Image Wrapper for Stacking */
@@ -580,12 +570,14 @@ body > main > div > div.row.outcome-header {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
     width: 100%;
     max-width: 300px;
+    margin-bottom: 20px;
 }
 
 /* Hidden Class for Placeholder (used by JS) */
 .placeholder-image.hidden {
     opacity: 0;       /* Fade out to invisible */
-    z-index: 0;        /* Stacked behind generated image when hidden */
+    z-index: 0; 
+    margin-bottom: 20px;       /* Stacked behind generated image when hidden */
 }
 
 /* Generated Image Styles */
@@ -603,6 +595,7 @@ body > main > div > div.row.outcome-header {
     width: 100%;
     max-width: 300px;
     background: radial-gradient(rgba(0, 0, 0, 0.6), black);
+    margin-bottom: 20px;
 }
 
 /* Loaded Class for Generated Image (used by JS to trigger fade-in) */
@@ -869,6 +862,11 @@ body > main > div > div.row.outcome-header {
   /* box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);   */
   margin-right: 0.5rem;
 }
+
+modal-header .node-icon i {
+  color: inherit; /* Inherit color from the ce-modal-header's background-color */
+}
+
 
 .modal-body {
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);

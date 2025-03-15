@@ -23,12 +23,7 @@ from speculate import parse_ai_response_and_generate_html
 from ai_service import generate_image # Import generate_image from ai_service
 
 load_dotenv()
-azure_oai_key = os.getenv("AZURE_OPENAI_API_KEY")
-azure_oai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-azure_oai_deployment_name = os.getenv("AZURE_DEPLOYMENT_NAME")
-azure_oai_model = os.getenv("AZURE_MODEL_NAME")
-azure_dalle_api_version = os.getenv("AZURE_DALLE_API_VERSION")
-azure_dalle_deployment_name = os.getenv("AZURE_DALLE_DEPLOYMENT_NAME")
+
 
 async def analyze_cos(cos_content, cos_id=None):
     from ai_service import generate_chat_response_with_node_types
@@ -85,7 +80,7 @@ async def analyze_cos(cos_content, cos_id=None):
         return {'content_with_ce': cos_content, 'ces': []}
 
 async def generate_outcome_data(USE_DATABASE, request, method, selected_goal=None, domain=None, domain_icon=None, selected_goal_title=None): # ADD selected_goal_title
-    from ai_service import generate_chat_response, azure_openai_client
+    from ai_service import generate_chat_response
     from models import get_engine_and_session
     from store import ssol_store
     from speculate import parse_ai_response_and_generate_html  # Make sure this import is present
@@ -112,7 +107,7 @@ async def generate_outcome_data(USE_DATABASE, request, method, selected_goal=Non
         {
             "role": "user",
             "content": (
-                f"Generate a **detailed and verbose summary** for the Structured Solution project: '{selected_goal}'. " # Keep emphasis on detailed and verbose
+                f"Generate a **detailed but concise summary** for the Structured Solution project: '{selected_goal}'. " # Keep emphasis on detailed and verbose
                 f"Consider the domain: {domain}. "
                 f"This summary MUST provide a **comprehensive overview of the entire Structured Solution**, and **use basic HTML markup for formatting** to enhance readability. Include:\n" # Instruction for HTML markup
                 f"- **A high-level description of the project's overall goal and purpose**, formatted as a paragraph (`<p>`).\n" # HTML for goal
@@ -245,15 +240,15 @@ async def generate_goal(user_input):
             "role": "user",
             "content": (
                 "You are an AI that generates three innovative and *distinct* goal outcomes based on user input. "
-                "For EACH goal, you MUST provide BOTH a short 'title' (1-5 words) AND a more detailed 'goal' description (1-3 sentences). "
+                "For EACH goal, you MUST provide BOTH a short, enlivening 'title' (3-7 words) designed to be catchy and enrolling, AND a more detailed 'goal' description (1-3 sentences). "
                 "Also suggest a relevant domain (a general category like 'Technology', 'Health', 'Environment', NOT a URL) "
                 "and a corresponding FontAwesome 6 Solid (fas) icon class.  "
                 "Return a JSON array of objects. Each object MUST have 'title', 'goal', 'domain', and 'icon' keys. "
                 "Example: "
                 "["
-                "  {\"title\": \"Self-healing Concrete\", \"goal\": \"Develop a new type of concrete that can automatically repair cracks and damage, extending its lifespan.\", \"domain\": \"Materials Science\", \"icon\": \"fas fa-building\"}, "
-                "  {\"title\": \"AI Disease Prediction\", \"goal\": \"Create an AI-powered system for early disease prediction using patient data and machine learning.\", \"domain\": \"Healthcare\", \"icon\": \"fas fa-heartbeat\"}, "
-                "  {\"title\": \"Global Carbon Capture\", \"goal\": \"Implement a global-scale carbon capture and storage system to mitigate climate change.\", \"domain\": \"Environmental Engineering\", \"icon\": \"fas fa-globe-americas\"}"
+                "  {\"title\": \"Concrete: The Self-Healing Revolution\", \"goal\": \"Develop a new type of concrete that can automatically repair cracks and damage, extending its lifespan and revolutionizing construction.\", \"domain\": \"Materials Science\", \"icon\": \"fas fa-building\"}, "
+                "  {\"title\": \"Predict Sickness: AI's Health Crystal Ball\", \"goal\": \"Create an AI-powered system for early disease prediction using patient data and machine learning, giving people a head start on health.\", \"domain\": \"Healthcare\", \"icon\": \"fas fa-heartbeat\"}, "
+                "  {\"title\": \"Earth's Breath: Global Carbon Capture Now\", \"goal\": \"Implement a global-scale carbon capture and storage system to mitigate climate change and secure a healthier planet for future generations.\", \"domain\": \"Environmental Engineering\", \"icon\": \"fas fa-globe-americas\"}"
                 "]"
             )
         }

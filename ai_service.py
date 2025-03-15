@@ -21,21 +21,10 @@ load_dotenv()
 google_gemini_api_key = os.environ["GOOGLE_GEMINI_API"]
 gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-pro-002")  # STABLE model for text
 gemini_image_model_name = os.getenv("GEMINI_IMAGE_MODEL_NAME", "models/gemini-2.0-flash-exp") # Model for image generation - defaults to flash-exp
-azure_openai_key = os.environ["AZURE_OPENAI_API_KEY"]
-azure_openai_endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
-azure_openai_deployment_name = os.environ["AZURE_DEPLOYMENT_NAME"]
-azure_dalle_api_version = os.getenv("AZURE_DALLE_API_VERSION")  # Use DALL-E specific version (though we are not using it now for images, keep for text)
-azure_dalle_deployment_name = os.getenv("AZURE_DALLE_DEPLOYMENT_NAME") # Keep for text if used
 
 # Initialize Gemini client for text and image (using same API key)
 gemini_client = genai.Client(api_key=google_gemini_api_key)
 
-# Initialize Azure OpenAI client (for text generation if still used)
-azure_openai_client = AzureOpenAI(
-    api_version=azure_dalle_api_version, # Keep API version and deployment for TEXT generation
-    api_key=azure_openai_key,
-    azure_endpoint=azure_openai_endpoint
-)
 
 async def send_request_to_gemini(messages, generation_config=None, logger=None):
     """

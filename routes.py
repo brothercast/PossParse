@@ -16,6 +16,7 @@ from werkzeug.exceptions import BadRequest, NotFound
 from ce_templates import generate_dynamic_modal, generate_ai_data
 from speculate import get_ce_by_id as speculate_get_ce_by_id, update_ce_by_id as speculate_update_ce_by_id
 from models import get_engine_and_session, SSOL
+from urllib.parse import urlparse # ADD THIS IMPORT
 
 load_dotenv()
 
@@ -207,35 +208,46 @@ def delete_cos_route(cos_id):
 
 @routes_bp.route('/get_ssol_image/<uuid:ssol_id>')
 async def get_ssol_image(ssol_id):
-    from utilities import generate_ssol_image, generate_ssol_id #Import generate_ssol_id
+    from utilities import generate_ssol_image, generate_ssol_id
     from models import SSOL, get_engine_and_session
-    from app import app # Import app for context
-    from store import ssol_store # Import ssol_store
+    from app import app
+    from store import ssol_store
+    from urllib.parse import urlparse  # Import urlparse
 
     ssol_id_str = str(ssol_id)
     try:
-        if USE_DATABASE: # Check USE_DATABASE flag
-            with app.app_context(): # Application context needed for database access
+        if USE_DATABASE:
+            with app.app_context():
                 engine, session = get_engine_and_session()
                 ssol_instance = session.query(SSOL).get(uuid.UUID(ssol_id_str))
                 if not ssol_instance:
                     session.close()
                     return jsonify({'error': 'SSOL not found'}), 404
-                selected_goal = ssol_instance.title # Retrieve selected_goal from SSOL
+                selected_goal_title = ssol_instance.title  # Correct variable name
+                domain = ssol_instance.domain  # Get domain from the database
                 session.close()
-        else: # In-memory mode
-            ssol_data = ssol_store.get(ssol_id_str) # Fetch from in-memory store
+        else:
+            ssol_data = ssol_store.get(ssol_id_str)
             if not ssol_data:
                 return jsonify({'error': 'SSOL not found in in-memory store'}), 404
-            selected_goal = ssol_data['title'] # Retrieve selected_goal from in-memory data
+            selected_goal_title = ssol_data['title']  # Correct variable name
+            domain = ssol_data.get('domain', 'General')  # Get domain, default 'General'
 
-        image_prompt = f"A colorful, charming, visually stunning lithograph depicting '{selected_goal}' as a fulfilled goal, diverse people, Mary Blair, 1962, isometric, no text or labels, please! "
-        web_image_path = await generate_ssol_image(image_prompt) # Call generate_ssol_image - simpler call, no client param
-        return jsonify({'image_path': url_for('static', filename=web_image_path)}) # Return image path as JSON
+        image_prompt = (
+            f"A colorful, charming, visually stunning diorama depicting '{selected_goal_title}' "
+            f"as a fulfilled goal in the domain of '{domain}', "
+            f"diverse people, Mary Blair, 1962, isometric, 1:1 square, no text or labels, please!"
+        )
+
+        web_image_path = await generate_ssol_image(image_prompt)
+        if web_image_path == 'images/SSPEC_Logo_Motion.gif': # Check for default image
+             return jsonify({'image_path': url_for('static', filename=web_image_path), 'error': 'Failed to generate image, using default.'})
+        else:
+            return jsonify({'image_path': url_for('static', filename=web_image_path)})
+
     except Exception as e:
-        current_app.logger.error(f"Error generating or retrieving SSOL image: {e}", exc_info=True)
+        current_app.logger.error(f"Error in get_ssol_image route: {e}", exc_info=True) # Added more context
         return jsonify({'error': 'Failed to generate image'}), 500
-
 
 @routes_bp.route('/get_ce_by_id', methods=['GET'])
 def get_ce_by_id_route():
