@@ -542,10 +542,12 @@ body > main > div > div.row.outcome-header {
     display: block; /* Ensure it takes full width */
     font-family: 'Unica One', sans-serif; /* Or your preferred font */
     font-weight: 500;
-    font-size: 4.5rem; /* Adjust size as needed */
+    font-size: 3.5rem; /* Adjust size as needed */
     color: #326eb6; /* Or your preferred color */
     text-transform: uppercase; /* Optional: Uppercase text */
     text-shadow: 1px 1px 0px #000000;
+    letter-spacing: 0.2em;
+    line-height: 90%;
 }
 
 /* Image Wrapper for Stacking */
