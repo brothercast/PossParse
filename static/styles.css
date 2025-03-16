@@ -1,0 +1,1207 @@
+/* styles.css - Complete and Consolidated Styles (Refactored for CE Modals) */
+
+/* ================================================== */
+/* ==============  1. Base Typography  ============== */
+/* ================================================== */
+body {
+  font-family: 'Jost', sans-serif;
+  font-weight: 400;
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+h1 {
+  font-family: 'Mr Dafoe', cursive;
+  font-weight: 400;
+  color: #ffa726;
+  text-shadow: 1px 1px 0px #e91e63;
+  font-size: 3.0rem;
+  text-align: center;
+}
+
+h2, .section-heading { /* Apply to .section-heading as well */
+  font-family: 'Unica One', sans-serif;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: #104a3a;
+  text-shadow: 1px 1px 0px #000000;
+}
+
+.section-heading {
+    font-size: 1.5rem; /* Adjust size for section headings */
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+h3, .sub-heading { /* Apply to .sub-heading as well */
+  font-family: 'Unica One', sans-serif;
+  font-weight: 500;
+  color: #555; /* Muted color for sub-headings */
+}
+
+.sub-heading {
+    font-size: 1.1rem; /* Adjust size for sub-headings */
+    margin-top: 1.5rem; /* Add top margin for spacing */
+    margin-bottom: 0.75rem;
+}
+
+
+/* ================================================== */
+/* ==============  2. Navigation Bar  =============== */
+/* ================================================== */
+nav.navbar {
+  background-image: linear-gradient(120deg, #673ab7 0%, #00bcd4 100%);
+  border-bottom: 5px solid #e91e63;
+}
+
+nav.navbar .navbar-brand {
+  color: #ffffff;
+  font-weight: 500;
+  font-size: 3.5rem;
+}
+
+/* Navbar brand - Specific h1 styling (redundant with general h1, consider removing) */
+.navbar-brand h1 {
+  font-size: 3.75rem; /* Slightly larger than general h1 */
+  text-shadow: 1px 1px 0px #e91e63; /* Redundant, already in general h1 */
+}
+
+/* Navbar brand - Structured Speculation text */
+.structured-speculation {
+  display: block;
+  font-family: 'Unica One', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.75);
+  letter-spacing: 0.7em;
+}
+
+
+/* ================================================== */
+/* =========  3. Retro-futuristic Background Pattern ======== */
+/* ================================================== */
+body:before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: radial-gradient(circle at 10% 20%, #e91e63 10%, transparent 10%),
+                    radial-gradient(circle at 90% 20%, #00bcd4 10%, transparent 10%),
+                    radial-gradient(circle at 40% 60%, #9c27b0 10%, transparent 10%),
+                    radial-gradient(circle at 60% 80%, #ffc107 10%, transparent 10%);
+  background-size: 40px 40px;
+  background-attachment: fixed;
+  opacity: 0.4;
+  z-index: -1;
+}
+
+
+/* ================================================== */
+/* ===========  4. General Container & Card Styles ========== */
+/* ================================================== */
+.container,
+.card {
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.card:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.card-header,
+.card-footer {
+  background-color: #673ab7;
+  color: #ffffff;
+}
+
+/* Retro-futuristic Card (Specific card style) */
+.retro-futuristic-card {
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border: 3px solid #00bcd4;
+}
+
+.retro-futuristic-card:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.retro-futuristic-card.non-compliant {
+  border-color: red;
+}
+
+.retro-futuristic-card.non-compliant:hover {
+  box-shadow: 0 8px 16px rgba(196, 93, 93, 0.2);
+}
+
+.retro-futuristic-card.non-compliant .card-body {
+  box-shadow: inset 0 0 10px rgba(196, 93, 93, 0.5);
+}
+
+
+/* ================================================== */
+/* ===============  5. Button Styles  ================ */
+/* ================================================== */
+.btn-primary {
+  background-color: #ff5722;
+  border-color: #ff5722;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+  background-color: #e64a19;
+  border-color: #ff5722;
+}
+
+.btn-danger {
+  color: #fff;
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+.btn-danger:hover {
+  color: #fff;
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+
+/* ================================================== */
+/* ==============  6. Outcome Page Styles  ============ */
+/* ================================================== */
+.outcome h2 {
+  text-transform: uppercase;
+  text-align: center;
+}
+
+body > main > div > div.row.outcome-header {
+  padding-top: 20px;
+}
+
+
+.fulfilled-goal {
+  text-align: left;
+}
+
+
+/* ================================================== */
+/* ===========  7. Loading Spinner Styles  ============= */
+/* ================================================== */
+.loading-spinner-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.spinner-box {
+  width: 50vw; /* Responsive width for the box */
+  max-width: 550px; /* Maximum width for the box */
+  height: 30vh; /* Responsive height for the box */
+  max-height: 175px; /* Maximum height for the box */
+  background-color: rgba(255, 255, 255, 0.9); /* Slightly higher opacity for the box background */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+  padding: 20px; /* Added padding for better spacing */
+}
+
+.spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.spinner-text {
+  margin-top: 20px; /* Increased margin for better spacing */
+  font-family: 'Unica One', sans-serif;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.75);
+  letter-spacing: 0.4em; /* Adjusted letter spacing for better fit */
+  text-align: center; /* Center align text */
+  white-space: nowrap; /* Prevent text wrapping */
+}
+
+.loading-spinner-overlay.fade-in {
+  animation: fadeInBlur 0.5s ease-in-out forwards;
+}
+
+.loading-spinner-overlay.fade-out {
+  animation: fadeOutBlur 0.5s ease-in-out forwards;
+}
+
+
+/* ================================================== */
+/* ===========  8. Refresh Icon Animation  =========== */
+/* ================================================== */
+#generate-new-goals .refresh-icon {
+  display: inline-block;
+  transition: transform 0.5s ease;
+}
+
+#generate-new-goals:hover .refresh-icon {
+  transform: rotate(360deg);
+}
+
+
+/* ================================================== */
+/* ============  9. Domain Icon Styles  ============== */
+/* ================================================== */
+.domain-icon-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border: 3px solid #00bcd4;
+  width: 100px;
+  height: 100px;
+}
+
+.domain-icon-container .domain-icon {
+  font-size: 2rem;
+}
+
+.domain-text {
+  font-family: 'Unica One', sans-serif;
+  text-transform: uppercase;
+  font-size: 1.5rem;
+}
+
+.domain-title {
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 1.5em;
+  margin-top: 1em;
+}
+
+
+/* ================================================== */
+/* ==========  10. Report Section Title  ============= */
+/* ================================================== */
+.report-section-title {
+  font-family: 'Unica One', sans-serif;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: #104a3a;
+  text-shadow: 1px 1px 0px #000000;
+  margin-bottom: 0.5em;
+  margin-top: 1em;
+}
+
+
+/* ================================================== */
+/* ==========  11. Phase Accordion Styles  =========== */
+/* ================================================== */
+.accordion-header {
+  color: #ffffff;
+  border-radius: 5px;
+  margin-bottom: 5px;
+}
+
+.accordion-button {
+  text-transform: uppercase;
+  font-family: 'Unica One', sans-serif;
+  font-weight: 500;
+  font-size: 0.8em;
+  text-shadow: 1px 1px 0px #000000;
+}
+
+.accordion-button:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.accordion-button:not(.collapsed) {
+  color: #ffffff;
+}
+
+.accordion-body {
+  background-color: #f5f5f5;
+  border-radius: 5px;
+  padding: 20px;
+}
+
+.phase-colors {
+  --phase-0: #e91e63;
+  --phase-1: #00bcd4;
+  --phase-2: #9c27b0;
+  --phase-3: #ffc107;
+  --phase-4: #66bd0e;
+  /* Add more colors if needed */
+}
+
+.phase-card-container {
+  padding: 15px;
+}
+
+.cos-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Responsive grid */
+  gap: 15px;
+  margin-bottom: 15px; /* Space before "Add COS" button */
+}
+
+.cos-card {
+  background-color: white;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  overflow: hidden; /* For rounded corners */
+  display: flex; /* Flex container for header and body */
+  flex-direction: column; /* Stack header and body vertically */
+}
+
+.cos-card-header {
+  background-color: #f8f9fa; /* Light grey header background */
+  padding: 10px 15px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cos-card-body {
+  padding: 15px;
+}
+
+.cos-content-display, .cos-content-edit {
+  margin-bottom: 10px;
+}
+
+.cos-content-textarea {
+  width: 100%;
+}
+
+.cos-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: baseline; /* Align labels and values on the baseline */
+  gap: 10px;
+}
+
+.detail-label {
+  font-weight: bold;
+  font-size: 0.9em;
+  color: #555;
+  width: 120px; /* Adjust label width as needed */
+  flex-shrink: 0; /* Prevent label from shrinking */
+  text-align: right; /* Right-align labels for better visual alignment */
+}
+
+
+.cos-actions .btn-sm {
+  margin-left: 5px;
+}
+
+.ce-pills-container {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap; /* Allow pills to wrap to the next line */
+  gap: 5px; /* Spacing between pills */
+}
+
+/* ================================================== */
+/* =========  12. Status & CE Pill Styles  =========== */
+/* ================================================== */
+.status-pill {
+  display: inline-block; /* or other display property as needed */
+  color: #fff !important;
+  text-align: center;
+  text-transform: uppercase; /* Converts text to uppercase */
+  font-size: 0.75em; /* Scale down the font size to 75% */
+  text-shadow: 1px 1px 0px #000000;
+  padding: .15em .6em; /* Adjust padding as needed */
+  border-radius: 10rem; /* Adjust for rounded corners */
+  margin-right: 8px;
+  vertical-align: middle; /* Align vertically in the middle */
+}
+
+.ce-pill {
+  display: inline-flex; /* Use inline-flex to align items properly */
+  align-items: center; /* Vertically center items */
+  color: #fff !important;
+  text-align: center;
+  text-shadow: 1px 1px 0px #000000; /* Drop shadow for CE text */
+  padding: .2em .5em; /* Slightly reduce padding */
+  font-size: 0.85em;
+  border-radius: 10rem; /* Adjust for rounded corners */
+  /* Additional styles specific to CE pills if needed */
+}
+
+.ce-pill .counter {
+  background-color: #f8f9fa !important; /* Light background for the counter */
+  color: #212529 !important; /* Dark text for the counter */
+  text-shadow: none !important; /* Remove drop shadow for counter */
+  font-size: 0.7em; /* Keep reduced font size for the counter */
+  padding: 0.05em 0.3em; /* Reduce padding for the counter */
+  margin-left: 0.12em; /* Reduce margin to bring the counter closer to the text */
+  border-radius: 10rem; /* Keep the rounded corners consistent */
+  display: inline-flex; /* Ensure counter is inline with text */
+  align-items: center; /* Vertically center items */
+  justify-content: center; /* Horizontally center items */
+  line-height: 1; /* Ensure proper line height */
+}
+
+
+/* ================================================== */
+/* ==========  13. Badge Color Overrides  ============ */
+/* ================================================== */
+.badge-primary,
+.badge-primary:not(.dropdown-toggle).dropdown-item:focus,
+.badge-primary:not(.dropdown-toggle).dropdown-item:hover {
+  color: #fff;
+}
+
+.bg-info {
+  background-color: #618cb1;
+}
+
+.bg-warning {
+  color: #212529;
+  background-color: #ffc107;
+}
+
+.bg-success {
+  background-color: #28a745;
+}
+
+.bg-danger {
+  background-color: #dc3545;
+}
+
+
+/* ================================================== */
+/* ===========  14. Action Column Styles  ============ */
+/* ================================================== */
+/* Custom styles for the actions column to prevent button wrapping */
+.actions-header,
+.actions-cell {
+  white-space: nowrap;
+  min-width: 240px; /* Adjust this value based on your button sizes */
+}
+
+
+/* ================================================== */
+/* ============  15. Card Grid Layout  =============== */
+/* ================================================== */
+/* Card Layout */
+.card-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.card {
+  flex: 1 0 calc(33.333% - 20px); /* Adjust the percentage based on the number of cards per row */
+  display: flex;
+  flex-direction: column;
+}
+
+.card-body {
+  flex-grow: 1;
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+
+
+/* ================================================== */
+/* ======  16. Generated Image & Placeholder Styles  ==== */
+/* ================================================== */
+.ssol-title {
+    text-align: center; /* Center the title above the image */
+    margin-bottom: 10px; /* Add some space between title and image */
+    display: block; /* Ensure it takes full width */
+    font-family: 'Unica One', sans-serif; /* Or your preferred font */
+    font-weight: 500;
+    font-size: 3.5rem; /* Adjust size as needed */
+    color: #326eb6; /* Or your preferred color */
+    text-transform: uppercase; /* Optional: Uppercase text */
+    text-shadow: 1px 1px 0px #000000;
+    letter-spacing: 0.2em;
+    line-height: 90%;
+}
+
+/* Image Wrapper for Stacking */
+.image-wrapper {
+    position: relative; /* Relative positioning for stacking images */
+    display: inline-block; /* Or block, depending on layout needs */
+    /* max-width: 100%;  Optional: If you want to control max width of images */
+    /* height: auto;     Optional: Maintain aspect ratio if needed */
+}
+
+/* Placeholder Image Styles */
+.placeholder-image {
+    position: absolute; /* Absolute positioning for stacking */
+    top: 0;
+    left: 0;
+    width: 100%;      /* Cover the full width of the wrapper */
+    height: 100%;     /* Cover the full height of the wrapper */
+    opacity: 1;       /* Initially fully visible */
+    z-index: 1;        /* Stacked below generated image initially */
+    transition: opacity 1.2s ease-out; /* Fade out transition */
+    border-radius: 25px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    width: 100%;
+    max-width: 300px;
+    margin-bottom: 20px;
+}
+
+/* Hidden Class for Placeholder (used by JS) */
+.placeholder-image.hidden {
+    opacity: 0;       /* Fade out to invisible */
+    z-index: 0; 
+    margin-bottom: 20px;       /* Stacked behind generated image when hidden */
+}
+
+/* Generated Image Styles */
+.generated-image {
+    position: relative; /* Relative positioning (on top of placeholder) */
+    top: 0;
+    left: 0;
+    width: 100%;      /* Cover the full width of the wrapper */
+    height: 100%;     /* Cover the full height of the wrapper */
+    opacity: 0;       /* Initially invisible */
+    z-index: 2;        /* Stacked on top of placeholder */
+    transition: opacity 0.5s ease-in; /* Fade in transition */
+    border-radius: 25px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    width: 100%;
+    max-width: 300px;
+    background: radial-gradient(rgba(0, 0, 0, 0.6), black);
+    margin-bottom: 20px;
+}
+
+/* Loaded Class for Generated Image (used by JS to trigger fade-in) */
+.generated-image.loaded {
+    opacity: 1;       /* Fade in to fully visible */
+}
+
+
+/* ================================================== */
+/* ========  17. Consolidated Fade Animations  ========= */
+/* ================================================== */
+/* --- Fade Animations (Consolidated) --- */
+
+/* General Fade In (Opacity Only, 1s duration) */
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.fade-in {
+  opacity: 0;
+  transition: opacity 1s ease-in; /* General fade-in transition */
+}
+
+.fade-in.loaded { /* Class to trigger fade-in start (e.g., for images) */
+  opacity: 1;
+}
+
+
+/* Fade In Blur for Loading Spinner Overlay (0.5s, with blur) */
+@keyframes fadeInBlur {
+  0% {
+      opacity: 0;
+      filter: blur(5px);
+  }
+  100% {
+      opacity: 1;
+      filter: blur(0);
+  }
+}
+
+.loading-spinner-overlay.fade-in {
+  animation: fadeInBlur 0.5s ease-in-out forwards;
+}
+
+
+/* Fade Out Blur for Loading Spinner Overlay (0.5s, with blur) */
+@keyframes fadeOutBlur {
+  0% {
+      opacity: 1;
+      filter: blur(0px);
+  }
+  100% {
+      opacity: 0;
+      filter: blur(5px);
+  }
+}
+
+.loading-spinner-overlay.fade-out {
+  animation: fadeOutBlur 0.5s ease-in-out forwards;
+}
+
+
+/* Fade In/Out for Modals (0.5s, with scale) - Reusing @keyframes fadeIn/fadeOut */
+.modal.fade-in {
+  animation: fadeInScale 0.5s forwards; /* Using a new scale-fade-in animation */
+}
+
+.modal.fade-out {
+  animation: fadeOutScale 0.5s forwards; /* Using a new scale-fade-out animation */
+}
+
+
+@keyframes fadeInScale { /* NEW: Scale-fade-in for modals */
+  0% {
+      opacity: 0;
+      transform: scale(0.9);
+  }
+  100% {
+      opacity: 1;
+      transform: scale(1);
+  }
+}
+
+@keyframes fadeOutScale { /* NEW: Scale-fade-out for modals */
+  0% {
+      opacity: 1;
+      transform: scale(1);
+  }
+  100% {
+      opacity: 0;
+      transform: scale(0.9);
+  }
+}
+
+
+/* Text Wipe Effect (Keep as is if used for goal text wipe-on) */
+@keyframes wipeOn {
+  0% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+.text-wipe-on span {
+  display: inline-block;
+  overflow: hidden;
+  animation: wipeOn 0.1s forwards;
+  opacity: 0;
+  transform-origin: left;
+}
+
+
+/* Navbar Text Fade-in (Specific to Navbar, 0.5s ease-in-out) */
+.text-fade-in { /* Keep this for initial hidden state */
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out; /* Specific 0.5s ease-in-out for navbar */
+}
+
+.fonts-loaded .text-fade-in { /* Keep this to reveal navbar text when fonts are loaded */
+  opacity: 1;
+}
+
+
+/* ================================================== */
+/* ==========  18. Text Input Styles  ================ */
+/* ================================================== */
+.user-input {
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+#user-input-container {
+  background-color: #f5f5f5;
+  color: #ffffff;
+  border-radius: 5px;
+  margin-bottom: 5px;
+}
+
+#user-input-display {
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+#user-input-edit {
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 1.2rem;
+  border: none;
+  max-width: 100%;
+  background-color: transparent;
+}
+
+#user-input-edit:focus {
+  background-color: #cce5ff;
+}
+
+
+/* ================================================== */
+/* ===========  19. Table Row Styles  =============== */
+/* ================================================== */
+.header-row {
+  background-color: #ffc107;
+}
+
+.your-goal {
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 1.2rem;
+  width: 80%;
+}
+
+.actions {
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 1.2rem;
+  width: 20%;
+  text-align: center;
+}
+
+.table-bordered > thead > tr > th {
+  border-bottom: 2px dotted #dee2e6;
+}
+
+
+/* ================================================== */
+/* ==========  20. Editing State Styles  ============= */
+/* ================================================== */
+.editing .edit-ce-button,
+.editing .delete-ce-button {
+  display: none;
+}
+
+.editing .update-ce-button,
+.editing .cancel-ce-button {
+  display: inline-block;
+}
+
+.ce-row[data-editing="true"] .edit-ce-button,
+.ce-row[data-editing="true"] .delete-ce-button {
+  display: none;
+}
+
+.ce-row[data-editing="true"] .update-ce-button,
+.ce-row[data-editing="true"] .cancel-ce-button {
+  display: inline-block;
+}
+
+
+/* ================================================== */
+/* ===========  21. Modal Custom Styling  ============ */
+/* ================================================== */
+.modal.fade-in {
+  animation: fadeIn 0.5s forwards;
+}
+
+.modal.fade-out {
+  animation: fadeOut 0.5s forwards;
+}
+
+
+.modal-header-text {
+  text-transform: uppercase;
+  font-family: 'Unica One', sans-serif;
+  font-weight: 500;
+  font-size: 1.9em;
+  text-shadow: 1px 1px 0px #000000;
+  color: #ffffff;
+}
+
+.modal-content {
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  border: 2px solid transparent; /* Default border to avoid collapse */
+  max-height: 90vh; /* ADDED: max-height to modal content for scrollable body */
+  display: flex;        /* ADDED: flex display to modal content */
+  flex-direction: column; /* ADDED: column direction to modal content */
+}
+
+.ce-modal-body {  /* ADDED: Specific style for CE Modal Body to enable flex grow */
+  flex-grow: 1;     /* ADDED: Allow modal body to grow and take available height */
+  overflow-y: auto; /* ADDED: Enable vertical scrolling in modal body */
+  padding: 24px;    /* ADDED: Padding to modal body content */
+}
+
+
+.modal-header {
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  position: relative;
+  padding: 1rem;
+  background-color: var(--phase-color, #e91e63); /* Default color */
+}
+
+.node-icon {
+  background-color: white;
+  border-radius: 5px;
+  padding: 10px;
+  /* box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);   */
+  margin-right: 0.5rem;
+}
+
+modal-header .node-icon i {
+  color: inherit; /* Inherit color from the ce-modal-header's background-color */
+}
+
+
+.modal-body {
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.btn-save-changes {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-save-changes:hover {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header .filled-box {
+  position: absolute;
+  top: -4;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--phase-color, #e91e63); /* Default color */
+  z-index: -1;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.modal-title {
+  font-family: 'Unica One', sans-serif;
+  font-weight: 500;
+  text-transform: uppercase;
+  text-shadow: 1px 1px 0px #000000;
+  color: white;
+}
+
+
+.modal-header {
+  font-family: 'Unica One', sans-serif;
+  font-size: 0.5rem;  /* Adjusted font size */
+  color: #333;  /* Adjust color if needed */
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;  /* Adjust spacing */
+}
+
+.modal-body .context-label {
+  font-family: 'Unica One', sans-serif;
+  font-size: 1.5rem;  /* Adjusted font size */
+  font-weight: bold;  /* Bold font */
+  color: #333;  /* Adjust color if needed */
+  margin-bottom: 0.5rem;  /* Adjust spacing */
+  text-transform: uppercase;
+  display: block;  /* Ensure it stands out as a label */
+}
+
+/* Style for the COS text and AI context */
+.modal-body .content-block { /* Changed selector to .modal-body .content-block */
+  background-color: #f9f9f9;
+  border-left: 4px solid #ddd;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-style: italic;
+  color: #555;
+  line-height: 1.5;
+}
+
+.modal-body .definition-text { /* Changed selector to .modal-body .definition-text */
+  font-size: 0.9em;
+  color: #666;
+  line-height: 1.4;
+  margin-bottom: 1em; /* Added margin bottom for spacing */
+}
+
+.modal-body .ai-context-label {
+  font-family: 'Unica One', sans-serif;
+  font-size: 1.5rem;  /* Adjusted font size */
+  color: #333;  /* Adjust color if needed */
+  margin-bottom: 0.5rem;  /* Adjust spacing */
+  text-transform: uppercase;
+  display: block;  /* Ensure it stands out as a label */
+}
+
+[data-phase-index="0"] .modal-header .filled-box,
+[data-phase-index="0"] .modal-header {
+  background-color: var(--phase-0) !important;
+}
+
+[data-phase-index="1"] .modal-header .filled-box,
+[data-phase-index="1"] .modal-header {
+  background-color: var(--phase-1) !important;
+}
+
+[data-phase-index="2"] .modal-header .filled-box,
+[data-phase-index="2"] .modal-header {
+  background-color: var(--phase-2) !important;
+}
+
+[data-phase-index="3"] .modal-header .filled-box,
+[data-phase-index="3"] .modal-header {
+  background-color: var(--phase-3) !important;
+}
+
+[data-phase-index="4"] .modal-header .filled-box,
+[data-phase-index="4"] .modal-header {
+  background-color: var(--phase-4) !important;
+}
+
+[data-phase-index="0"] .modal-content {
+  border: 2px solid var(--phase-0) !important;
+}
+
+[data-phase-index="1"] .modal-content {
+  border: 2px solid var(--phase-1) !important;
+}
+
+[data-phase-index="2"] .modal-content {
+  border: 2px solid var(--phase-2) !important;
+}
+
+[data-phase-index="3"] .modal-content {
+  border: 2px solid var(--phase-3) !important;
+}
+
+[data-phase-index="4"] .modal-content {
+  border: 2px solid var(--phase-4) !important;
+}
+
+
+/* ================================================== */
+/* =========  22. Tabulator Table Styling  ============ */
+/* ================================================== */
+/* Tabulator table styling */
+.tabulator {
+  border-radius: 5px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.tabulator-table {
+  height: 150px;
+  max-height: 311px;
+  overflow: auto;
+}
+
+.tabulator-header {
+  font-family: 'Jost', sans-serif;
+  font-weight: 700;
+  font-size: 0.9em;
+  border-bottom: 2px solid black;
+  background-color: transparent; /* No background color */
+  color: #333; /* Darker text color */
+}
+
+.form-group {
+  font-weight: bold;
+  font-size: 0.85em;
+}
+
+.tabulator-header .tabulator-col {
+  border-right: 1px solid #ddd; /* Light grey border between columns */
+}
+
+.tabulator-header .tabulator-col:last-child {
+  border-right: none;
+}
+
+.tabulator-row {
+  background-color: #f5f5f5;
+}
+
+.tabulator-row:nth-child(even) {
+  background-color: #eeeeee;
+}
+
+.tabulator-row:hover {
+  background-color: #dddddd;
+}
+
+.tabulator-cell {
+  padding: 10px;
+  border: none;
+  white-space: normal; /* Allow text to wrap */
+  overflow: visible;   /* Ensure content is visible */
+  word-wrap: break-word;
+  height: auto;        /* Set initial height to auto */
+}
+
+.tabulator-row {
+  height: auto !important; /* Allow row height to adjust */
+}
+
+/* Specific phase colors for Tabulator */
+[data-phase-index="0"] .tabulator-header {
+  color: var(--phase-0) !important;
+}
+
+[data-phase-index="1"] .tabulator-header {
+  color: var(--phase-1) !important;
+}
+
+[data-phase-index="2"] .tabulator-header {
+  color: var(--phase-2) !important;
+}
+
+[data-phase-index="3"] .tabulator-header {
+  color: var(--phase-3) !important;
+}
+
+[data-phase-index="4"] .tabulator-header {
+  color: var(--phase-4) !important;
+}
+
+.tabulator-header .tabulator-col {
+  background-color: transparent;
+}
+
+.tabulator-row {
+  border-bottom: 1px solid #ddd;
+}
+
+.tabulator-row:last-child {
+  border-bottom: none;
+}
+
+/* ================================================== */
+/* =======  23. Hidden Text Utility Class  =========== */
+/* ================================================== */
+.hidden-text {
+  opacity: 0;
+}
+
+/* ================================================== */
+/* =======  24. CE Modal Specific Styles ============ */
+/* ================================================== */
+/* CE Modal Specific Styles - Overrides and additions for xl-modals */
+
+.ce-modal {
+    max-width: 95%; /* Wider modal for xl-size */
+    width: 1400px;   /* or adjust as needed */
+}
+
+.ce-modal-header {
+    padding: 1.25rem 2rem; /* Slightly more padding in header */
+}
+
+.ce-title {
+    font-size: 2rem; /* Slightly larger CE title */
+}
+
+.phase-name {
+    font-size: 1.5rem; /* Slightly larger phase name in header */
+}
+
+.ce-modal-body {
+    padding: 2rem; /* More generous padding in modal body */
+}
+
+.section-heading {
+    font-size: 2rem; /* Larger section headings */
+}
+
+.sub-heading {
+    font-size: 1.25rem; /* Larger sub-headings */
+}
+
+.form-grid {
+    grid-template-columns: 200px 1fr 1fr; /* Wider first column for labels */
+    gap: 20px; /* Increased gap in form grid */
+    margin-bottom: 30px; /* More margin below form grid */
+}
+
+.form-label {
+    font-size: 1rem; /* Slightly larger form labels */
+    padding-top: 10px; /* More padding for form labels */
+}
+
+.form-input, .form-textarea, .form-select {
+    padding: 10px 16px; /* More padding for form inputs */
+    font-size: 1rem;    /* Slightly larger font size for inputs */
+}
+
+.form-textarea {
+    min-height: 120px; /* Slightly taller textareas */
+}
+
+.resources-table {
+    margin-top: 24px; /* More margin above resources table */
+    margin-bottom: 24px; /* More margin below resources table */
+}
+
+.tabulator-table {
+    max-height: 400px; /* Increased max-height for resources table */
+}
+
+.tabulator th, .tabulator td {
+    padding: 14px 16px; /* More padding for table cells */
+    font-size: 1rem;    /* Slightly larger font size in table */
+}
+
+.action-row {
+    margin-top: 24px; /* More margin above action buttons */
+    margin-bottom: 24px; /* More margin below action buttons */
+}
+
+.button {
+    padding: 10px 20px; /* More padding for buttons */
+    font-size: 1rem;    /* Slightly larger button font size */
+}
+
+.modal-footer {
+    padding: 2rem; /* More padding in modal footer */
+}
+
+.ce-pill {
+    padding: 6px 14px; /* Slightly larger CE pills */
+    font-size: 1rem;    /* Slightly larger CE pill font size */
+    margin-right: 10px;  /* More right margin for CE pills */
+    margin-bottom: 10px; /* More bottom margin for CE pills for wrapping*/
+}
+
+.ce-pill-icon {
+    font-size: 1rem;    /* Larger CE pill icon */
+    margin-right: 8px;  /* More margin right for CE pill icon */
+}
+
+.ce-pills-container {
+    margin-top: 1.5rem; /* More top margin for CE pills container */
+    gap: 8px 10px;      /* Increased gap for CE pills container */
+}
+
+.counter {
+    font-size: 0.8em;    /* Slightly larger counter font size */
+    padding: 0.1em 0.4em; /* More padding for counter badge */
+    margin-left: 0.2em;   /* More left margin for counter badge */
+}

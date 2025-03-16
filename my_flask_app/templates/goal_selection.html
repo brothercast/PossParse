@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+  <h1>What is your Commitment?</h1>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Your Input</th>
+        <th class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="user-input">{{ user_input }}</td>
+        <td class="text-end">
+          <button type="button" class="btn btn-primary btn-sm edit-user-input">Edit</button>
+          <button type="button" class="btn btn-success btn-sm save-user-input d-none">Update</button>
+          <button type="button" class="btn btn-danger btn-sm cancel-user-input d-none">Cancel</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Based on your input, we have speculated three high-level outcomes.
+    Please choose the one that is closest to your desired result, or click the "Speculate New Outcomes" button to generate a new set of possibilities.
+  </p>
+  <div class="card-container">
+    {% for goal in goals %}
+      <div class="card retro-futuristic-card text-center mb-4 {% if not goal.compliant %}non-compliant{% endif %}">
+        <div class="card-body card-content">
+          <i class="{{ goal.icon }} fa-2x mb-3"></i>
+          <p class="domain domain-text">{{ goal.domain | title }}</p>
+          <h5 class="card-title" data-text="{{ goal.title }}">{{ goal.title | safe }}</h5>
+          {% if goal.compliant %}
+          <form action="/outcome" method="post" class="goal-selection-form">
+            <input type="hidden" name="selected_goal" value="{{ goal.title }}">
+            <input type="hidden" name="domain" value="{{ goal.domain }}">
+            <input type="hidden" name="domain_icon" value="{{ goal.icon }}">
+            <input type="hidden" name="user_text" value="{{ user_input }}">
+            <button type="submit" class="btn btn-primary">Select</button>
+          </form>
+          {% else %}
+          <button type="button" class="btn btn-danger" onclick="window.location.href='/';">Start Over</button>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="text-center">
+    <button type="button" class="btn btn-outline-primary" id="generate-new-goals">
+      <span class="refresh-icon"><i class="fas fa-sync-alt"></i></span> Speculate New Outcomes</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/goal_selection.js') }}"></script>
+{% endblock %}

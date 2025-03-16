@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container mt-4">
+    <h1>About SSPEC Possibility Parser</h1>
+    <p>
+      The SSPEC Possibility Parser is a powerful tool that helps users generate structured solutions for their goals or possibilities. One of the key features of this application is the ability to determine the most relevant domain for a given goal by using the Wikidata API.
+    </p>
+    <h2>How Wikidata API is used</h2>
+    <p>
+      Wikidata is a large, structured database that contains a wealth of information on various subjects. By querying the Wikidata API, the application retrieves a list of potential categories that could be relevant to a user's goal. This list of categories is then processed by GPT-3, an advanced language model, to rank them according to their relevance to the user's input. The highest-ranked category is then used as the domain for the structured solution.
+    </p>
+    <p>
+      Incorporating information from the Wikidata API ensures that the domains used for classifying structured solutions are consistent and based on a reliable knowledge base.
+    </p>
+  </div>
+{% endblock %}
