@@ -5,28 +5,27 @@
     <!-- Title Row (Spanning Full Width) -->
     <div class="row">
         <div class="col text-center">
-            <h1 class="ssol-title">{{ ssol.ssol_title | safe }}</h1> <!-- Use h1 for main title -->
+            <h1 class="ssol-title">{{ ssol.ssol_title | safe }}</h1>
         </div>
     </div>
 
     <!-- Image and Domain Row -->
-    <div class="row">
+    <div class="row outcome-header">
         <div class="col-md-4 text-center">
             <!-- Image Wrapper (for stacking) -->
             <div class="image-wrapper">
-                <img src="{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}" alt="Placeholder Image" class="rounded mb-3 placeholder-image" id="placeholderImage">
-                <img src="{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}" alt="Generated Image" class="rounded mb-3 generated-image" id="ssolImage">
+                <img src="{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}" alt="Loading Structure..." class="rounded mb-3 placeholder-image" id="placeholderImage">
+                <img src="" alt="Structured Solution Visualization" class="rounded mb-3 generated-image" id="ssolImage"> {# src will be set by JS #}
             </div>
-            <!-- Container for error messages (added) -->
-            <div id="image-error-container"></div>
+            <!-- Container for error/status messages -->
+            <div id="image-status-container" class="mt-2 small"></div>
 
             <h2>Domain</h2>
             <i class="{{ ssol.domain_icon }} fa-3x mb-3"></i>
-            <p class="domain domain-text text-center domain-text">{{ ssol.domain | title }}</p>
+            <p class="domain domain-text text-center">{{ ssol.domain | title }}</p>
             <h2>Fulfilled Goal</h2>
             <p><strong>{{ ssol.selected_goal | safe }}</strong></p>
             <div id="ssol-goal" style="display: none;">{{ ssol.selected_goal | safe }}</div>
-            <!-- PDF Button (Moved to bottom of left column) -->
             <div class="text-center mt-4">
                 <button id="save-as-pdf-button" data-ssol-id="{{ ssol_id }}" class="btn btn-info" title="Save as PDF">
                     <i class="fas fa-download me-2"></i>PDF
@@ -36,12 +35,13 @@
 
         <!-- Summary Column -->
         <div class="col-md-8">
-                <h1>Preliminary Structured Solution</h1>
-                <p id="ssol-summary">{{ ssol.ssol_summary | safe }}</p>
+            <h1>Preliminary Structured Solution</h1>
+            <p id="ssol-summary">{{ ssol.ssol_summary | safe }}</p>
         </div>
+    </div>
 
-    <!-- Phases & COS Row (Remains the Same) -->
-   <div class="row">
+    <!-- Phases & Conditions of Satisfaction Row (Table structure remains the same) -->
+    <div class="row">
         <h1>Phases & Conditions of Satisfaction</h1>
         <div class="col">
             <div class="accordion mt-4" id="phase-accordion">
@@ -53,67 +53,70 @@
                             type="button"
                             data-bs-toggle="collapse"
                             data-bs-target="#collapse-{{ phase_name | replace(' ', '_') }}"
-                            aria-expanded="true"
+                            aria-expanded="true" 
                             aria-controls="collapse-{{ phase_name | replace(' ', '_') }}"
                             style="background-color: var(--phase-{{ loop.index0 }});">
                             {{ phase_name | title }} PHASE
-                            <span class="phase-progress-bar">
-                                <!-- Optional: Progress bar for phase completion -->
-                                <div class="progress" role="progressbar" aria-valuenow="60" aria-valuemin="0" aria-valuemax="100">
-                                  <div class="progress-bar" style="width: 60%;"></div>
-                                </div>
-                            </span>
                         </button>
                     </h2>
                     <div
                         id="collapse-{{ phase_name | replace(' ', '_') }}"
-                        class="accordion-collapse collapse show"
+                        class="accordion-collapse collapse show" 
                         aria-labelledby="heading-{{ phase_name | replace(' ', '_') }}"
                         data-bs-parent="#phase-accordion">
-                        <div class="accordion-body phase-card-container" data-ssol-id="{{ ssol_id }}" style="border: 2px solid var(--phase-{{ loop.index0 }});">
+                        <div class="accordion-body phase-table-container" data-ssol-id="{{ ssol_id }}" style="border: 2px solid var(--phase-{{ loop.index0 }});">
                             {% if cos_list %}
-                                <div class="cos-card-grid"> <!-- Grid layout for COS cards -->
+                            <table class="table table-striped table-hover phase-table" id="{{ phase_name | replace(' ', '_') }}-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" style="width: 10%;">Status</th>
+                                        <th scope="col" style="width: 40%;">Condition of Satisfaction</th>
+                                        <th scope="col" style="width: 15%;">Accountable Party</th>
+                                        <th scope="col" style="width: 15%;">Completion Date</th>
+                                        <th scope="col" class="text-end actions-header" style="width: 20%;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
                                     {% for cos in cos_list %}
-                                    <div class="cos-card" data-cos-id="{{ cos.id }}" data-editing="false">
-                                        <div class="cos-card-header">
+                                    <tr class="cos-row" data-cos-id="{{ cos.id }}" data-editing="false">
+                                        <td class="status-cell align-middle">
                                             <span class="status-pill {{ cos.status | get_badge_class_from_status }}">{{ cos.status | upper }}</span>
-                                            <div class="cos-actions">
+                                        </td>
+                                        <td class="cos-content-cell align-middle">
+                                            <div class="cos-content-display">{{ cos.content | safe }}</div>
+                                            <div class="cos-content-edit d-none">
+                                                <textarea class="form-control form-control-sm cos-content-textarea" rows="3">{{ cos.content | striptags }}</textarea>
+                                            </div>
+                                        </td>
+                                        <td class="cos-accountable-party-cell align-middle">
+                                            <span class="cos-accountable-party-display">{{ cos.accountable_party or 'N/A' }}</span>
+                                            <input type="text" class="form-control form-control-sm cos-accountable-party-edit d-none" value="{{ cos.accountable_party }}">
+                                        </td>
+                                        <td class="cos-completion-date-cell align-middle">
+                                            <span class="cos-completion-date-display">{{ cos.completion_date or 'N/A' }}</span>
+                                            <input type="date" class="form-control form-control-sm cos-completion-date-edit d-none" value="{{ cos.completion_date if cos.completion_date else '' }}">
+                                        </td>
+                                        <td class="text-end actions-cell align-middle">
+                                            <div class="btn-group cos-actions" role="group">
                                                 <button class="btn btn-sm btn-primary edit-cos-button" title="Edit COS"><i class="fas fa-edit"></i></button>
                                                 <button class="btn btn-sm btn-success update-cos-button d-none" title="Update COS"><i class="fas fa-check"></i></button>
                                                 <button class="btn btn-sm btn-secondary cancel-cos-button d-none" title="Cancel Edit"><i class="fas fa-times"></i></button>
                                                 <button class="btn btn-sm btn-danger delete-cos-button" title="Delete COS"><i class="fas fa-trash"></i></button>
                                                 <button class="btn btn-sm btn-info analyze-cos-button" data-cos-id="{{ cos.id }}" title="Analyze COS"><i class="fas fa-search-plus"></i></button>
                                             </div>
-                                        </div>
-                                        <div class="cos-card-body">
-                                            <div class="cos-content-display">
-                                                {{ cos.content | safe }}  <!-- Display COS content with CE pills -->
-                                            </div>
-                                            <div class="cos-content-edit d-none">
-                                                <textarea class="form-control form-control-sm cos-content-textarea" rows="3">{{ cos.content }}</textarea>
-                                            </div>
-                                            <div class="cos-details">
-                                                <div class="detail-item">
-                                                    <label class="detail-label">Accountable Party:</label>
-                                                    <span class="cos-accountable-party-display">{{ cos.accountable_party }}</span>
-                                                    <input type="text" class="form-control form-control-sm cos-accountable-party-edit d-none" value="{{ cos.accountable_party }}">
-                                                </div>
-                                                <div class="detail-item">
-                                                    <label class="detail-label">Completion Date:</label>
-                                                    <span class="cos-completion-date-display">{{ cos.completion_date }}</span>
-                                                    <input type="date" class="form-control form-control-sm cos-completion-date-edit d-none" value="{{ cos.completion_date }}">
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="ce-pills-container"> <!-- Container for CE pills below COS card -->
-                                            <!-- CE pills would be dynamically added here by JS, based on cos.content -->
-                                        </div>
-                                    </div>
+                                        </td>
+                                    </tr>
                                     {% endfor %}
-                                </div>
-                                <button class="btn btn-success btn-sm add-cos" data-bs-toggle="modal" data-bs-target="#addCOSModal" data-phase="{{ phase_name | replace(' ', '_') }}">Add Condition of Satisfaction</button>
+                                </tbody>
+                            </table>
+                            <button class="btn btn-success btn-sm add-cos mt-2" data-phase="{{ phase_name | replace(' ', '_') }}">
+                                <i class="fas fa-plus"></i> Add Condition of Satisfaction
+                            </button>
                             {% else %}
-                                <p>No Conditions of Satisfaction found for this phase.</p>
+                            <p>No Conditions of Satisfaction found for this phase.</p>
+                            <button class="btn btn-success btn-sm add-cos mt-2" data-phase="{{ phase_name | replace(' ', '_') }}">
+                                <i class="fas fa-plus"></i> Add Condition of Satisfaction
+                            </button>
                             {% endif %}
                         </div>
                     </div>
@@ -145,80 +148,112 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Necessary JS files - LOAD AS MODULES -->
-<script type="module">
-  document.addEventListener('DOMContentLoaded', () => {
-    // 1. Get SSOL ID and image element
-    const ssolId = "{{ ssol_id }}";
-    const ssolImage = document.getElementById('ssolImage');
-    const placeholderImage = document.getElementById('placeholderImage');
-    const imageErrorContainer = document.getElementById('image-error-container'); // Get the error container
-
-    ssolImage.classList.remove('loaded'); // Ensure fade-in class is not present initially
-
-    // 2. Fetch the image path from the backend
-    fetch(`/get_ssol_image/${ssolId}`)
-      .then(response => {
-        if (!response.ok) {
-          // Handle non-OK responses (e.g., 404, 500)
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json(); // Parse JSON response
-      })
-      .then(data => {
-        if (data.image_path) {
-          // 3. Set the image source and handle onload for fade-in
-          ssolImage.src = data.image_path;
-          placeholderImage.classList.add('hidden'); // Hide placeholder GIF
-          ssolImage.onload = () => {
-            ssolImage.classList.add('loaded'); // Add 'loaded' class to trigger fade-in
-          };
-          ssolImage.onerror = () => {
-            console.error('Error loading SSOL image from path:', data.image_path);
-            ssolImage.alt = 'Error loading image';
-            ssolImage.src = "{{ url_for('static', filename='images/sspec_default.png') }}"; // *** KEY CHANGE: Fallback to static default on error ***
-             // Optionally, display a broken image icon or placeholder here
-          };
-        } else {
-          console.warn('No image_path received in JSON response:', data);
-          // Handle default image or error message display
-          if (data.error) {
-              console.error("Server reported image generation error:", data.error);
-              // Display data.error in the UI
-              const errorDiv = document.createElement('div');
-              errorDiv.textContent = data.error;
-              errorDiv.classList.add('alert', 'alert-danger'); // Use Bootstrap alert classes
-              imageErrorContainer.appendChild(errorDiv); // Append to the error container
-              ssolImage.src = "{{ url_for('static', filename='images/sspec_default.png') }}"; // *** KEY CHANGE: Fallback to static default on error ***
-
-          }
-        }
-      })
-      .catch(error => {
-        // Handle fetch errors and JSON parsing errors
-        console.error('Error fetching or processing image data:', error);
-        ssolImage.alt = 'Error generating image';
-        ssolImage.src = "{{ url_for('static', filename='images/sspec_default.png') }}"; // *** KEY CHANGE: Fallback to static default on error ***
-        // Optionally display error message in the UI.
-        const errorDiv = document.createElement('div');
-        errorDiv.textContent = 'An unexpected error occurred while loading the image.';
-        errorDiv.classList.add('alert', 'alert-danger'); // Use Bootstrap alert classes
-        imageErrorContainer.appendChild(errorDiv);
-      });
-  });
-</script>
 <script type="module" src="{{ url_for('static', filename='js/cos_table.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ce_table.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ce_cards.js') }}"></script>
 
-<!-- Include Tabulator CSS and JS -->
 <link href="https://unpkg.com/tabulator-tables@4.9.3/dist/css/tabulator.min.css" rel="stylesheet">
 <script src="https://unpkg.com/tabulator-tables@4.9.3/dist/js/tabulator.min.js"></script>
 
+<script type="module">
+  document.addEventListener('DOMContentLoaded', () => {
+    const ssolId = "{{ ssol_id }}"; // From Flask template
+    const ssolImageElement = document.getElementById('ssolImage'); 
+    const placeholderImageElement = document.getElementById('placeholderImage');
+    const imageStatusContainer = document.getElementById('image-status-container'); // Renamed for clarity
 
-<!-- Pass necessary data to JavaScript -->
-<script>
-    const NODES = {{ nodes|tojson }};
-    const tableData = {};  // Define tableData here. Update this with actual data if needed.
+    const defaultStaticImagePath = "{{ url_for('static', filename='images/sspec_default.png') }}";
+    const loadingGifPath = "{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}";
+
+    if (ssolImageElement && placeholderImageElement) {
+        // Initial state for fade effect
+        ssolImageElement.src = ""; // Start with empty src for the final image
+        ssolImageElement.style.opacity = '0';
+        placeholderImageElement.src = loadingGifPath;
+        placeholderImageElement.style.opacity = '1';
+        if (imageStatusContainer) imageStatusContainer.innerHTML = ''; // Clear previous messages
+
+        let attempts = 0;
+        const maxAttempts = 7; // Increased attempts
+        const retryDelay = 2500; // Slightly longer delay
+
+        function fetchImageWithRetry() {
+            attempts++;
+            if (imageStatusContainer) { // Update status message
+                imageStatusContainer.innerHTML = `<p class="text-info">Fetching image (attempt ${attempts}/${maxAttempts})...</p>`;
+            }
+
+            fetch(`/get_ssol_image/${ssolId}`)
+              .then(response => {
+                if (!response.ok) {
+                  return response.json().then(err => {
+                    throw new Error(err.error || err.message || `HTTP error! status: ${response.status}`);
+                  }).catch(() => {
+                    throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+                  });
+                }
+                return response.json();
+              })
+              .then(data => {
+                console.log(`Image fetch attempt ${attempts}:`, data); 
+                // Check if a valid, non-default, non-placeholder image path is found
+                if (data.image_path && data.status === 'found' && 
+                    data.image_path !== defaultStaticImagePath && 
+                    data.image_path !== loadingGifPath &&
+                    !data.image_path.includes('SSPEC_Logo_Motion.gif') && // Explicitly check against GIF name part
+                    !data.image_path.includes('sspec_default.png')      // Explicitly check against default name part
+                   ) {
+                  ssolImageElement.src = data.image_path;
+                  ssolImageElement.alt = "Structured Solution Visualization";
+                  ssolImageElement.onload = () => {
+                    placeholderImageElement.style.opacity = '0';
+                    ssolImageElement.style.opacity = '1';
+                    placeholderImageElement.classList.add('hidden');
+                    ssolImageElement.classList.add('loaded');
+                    if (imageStatusContainer) imageStatusContainer.innerHTML = ''; // Clear status on success
+                  };
+                  ssolImageElement.onerror = () => {
+                    console.error('Error loading final SSOL image from path:', data.image_path);
+                    displayDefaultImage("Could not load the retrieved image. Displaying default.");
+                  };
+                } else if (attempts < maxAttempts && (data.status === 'pending_or_not_found' || !data.image_path || data.image_path.includes('sspec_default.png'))) {
+                  // If status is pending, or if the path returned is still a default path, retry
+                  setTimeout(fetchImageWithRetry, retryDelay);
+                } else { 
+                  // Max attempts reached or a non-retryable issue (e.g., explicit error from server that's not 'pending')
+                  displayDefaultImage(data.message || 'Image not available after retries. Displaying default.');
+                }
+              })
+              .catch(error => {
+                console.error(`Error fetching image data (attempt ${attempts}):`, error);
+                if (attempts < maxAttempts) {
+                  if (imageStatusContainer) imageStatusContainer.innerHTML = `<p class="text-danger">Error fetching image (attempt ${attempts}/${maxAttempts}). Retrying...</p>`;
+                  setTimeout(fetchImageWithRetry, retryDelay);
+                } else {
+                  displayDefaultImage('Image loading failed after multiple attempts.');
+                }
+              });
+        }
+
+        function displayDefaultImage(message) {
+            placeholderImageElement.style.opacity = '0'; // Hide placeholder
+            ssolImageElement.src = defaultStaticImagePath;
+            ssolImageElement.alt = "Default SSPEC Image";
+            ssolImageElement.style.opacity = '1'; // Show default
+            ssolImageElement.classList.add('loaded');
+            if (imageStatusContainer) {
+                imageStatusContainer.innerHTML = `<p class="text-warning small mt-1">${message}</p>`;
+            }
+        }
+
+        fetchImageWithRetry(); // Initial call
+    } else {
+        console.warn("Required image elements (ssolImage or placeholderImage) not found.");
+    }
+  });
+</script>
+
+<script type="text/javascript">
+    const NODES = {{ nodes | tojson }};
 </script>
 {% endblock %}

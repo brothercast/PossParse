@@ -1,4 +1,4 @@
-# speculate.py (Refactored - No app.py Import, USE_DATABASE as Parameter)
+# speculate.py (Complete and Refactored with async/await fixes)
 import re
 import os
 import html
@@ -7,463 +7,593 @@ import uuid
 from uuid import UUID
 import logging
 from bs4 import BeautifulSoup
-from flask import current_app  # Import current_app instead of app from app.py
-from ce_nodes import NODES, get_valid_node_types
+from flask import current_app
+from ce_nodes import NODES, get_valid_node_types # Assuming NODES is defined here or imported
 from ce_templates import replace_ce_tags_with_pills
 from sqlalchemy.exc import SQLAlchemyError
-from ai_service import generate_chat_response_with_node_types, generate_chat_response
-# from flask import current_app # Already imported above - REMOVE duplicate - No, keep it, it is used below.
+from ai_service import generate_chat_response_with_node_types, generate_chat_response # Ensure these are correctly async
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def create_cos(USE_DATABASE, ssol_id, content, status, accountable_party=None, completion_date=None): # USE_DATABASE as parameter
-    from models import COS, CE, get_engine_and_session  # Local import
-    from store import ce_store, cos_store  # Local import
-    from app import app # Local import for app.app_context() - needed for DB operations
+# --- COS Analysis and CE Pill Generation ---
+async def analyze_cos(cos_content: str, cos_id: str = None) -> dict:
+    """
+    Analyzes COS content using AI to identify CEs, and prepares content with CE pills.
+    Returns a dictionary: {'content_with_ce': <html_string>, 'ces_data_list': [<ce_dict>, ...]}
+    """
+    prompt = (
+        f"Analyze the following Condition of Satisfaction (COS) text: '{cos_content}'. "
+        "Identify all Conditional Elements (CEs) within this text. "
+        "A CE is a specific part of the COS that requires further detail or action. "
+        f"For each CE found, determine its most appropriate 'NodeType' from this list ONLY: {', '.join(get_valid_node_types())}. "
+        "Your response MUST be a valid JSON object with two keys: "
+        "'analyzed_cos_text': This should be the original COS text but with each identified CE "
+        "wrapped in <ce type='NodeType'>Your CE Text Here</ce> tags. " # Explicitly ask for tags in text
+        "And 'identified_ces': an array of objects, where each object represents a CE and has 'text' and 'type' keys. "
+        "Example JSON: "
+        '{'
+        '  "analyzed_cos_text": "The <ce type=\'Research\'>literature review</ce> must be completed and <ce type=\'Stakeholder\'>key experts</ce> identified.",'
+        '  "identified_ces": ['
+        '    {"text": "literature review", "type": "Research"},'
+        '    {"text": "key experts", "type": "Stakeholder"}'
+        '  ]'
+        '}'
+    ).format(cos_content=cos_content, valid_node_types_list=get_valid_node_types())
 
+
+    messages = [
+        {"role": "system", "content": "You are an expert in analyzing text to identify conditional elements and structure them in JSON. Ensure NodeTypes are from the provided list. The 'analyzed_cos_text' MUST include the <ce> tags."},
+        {"role": "user", "content": prompt},
+    ]
+    response_text = "" # Initialize for logging in case of error
     try:
-        if USE_DATABASE:
-            with app.app_context():  # Use application context - need app for context
-                engine, session = get_engine_and_session()
-                cos = COS(content=content, status=status, accountable_party=accountable_party,  # Don't analyze here
-                          completion_date=completion_date, ssol_id=ssol_id)
-                session.add(cos)
-                session.flush()  # Get the cos.id *before* committing
-                cos_id_to_return = str(cos.id)  # Get string representation
-                analyzed_content = analyze_cos(content, cos_id_to_return) # Pass cos_id
-                cos.content = analyzed_content['content_with_ce']
+        response_text = await generate_chat_response_with_node_types(messages, role='COS Analysis', task='Analyze COS for CEs')
+        response_json = json.loads(response_text)
 
-                for ce_data in analyzed_content['ces']:
-                    ce = CE(content=ce_data['content'], node_type=ce_data['node_type'], cos_id=cos.id) # Use node_type
-                    session.add(ce)
-                    cos.conditional_elements.append(ce)
+        # Text from AI, now expected to have <ce> tags embedded by the AI
+        ai_analyzed_text_with_tags = response_json.get("analyzed_cos_text", cos_content)
+        
+        # List of CEs identified by AI (primarily for data structuring if needed, pills come from tags)
+        ai_identified_ces_list = response_json.get("identified_ces", [])
+
+        # Convert ai_identified_ces_list to the structure expected by replace_ce_tags_with_pills if needed for metadata
+        # (e.g., if replace_ce_tags_with_pills adds counts or 'new' indicators based on this list)
+        ces_data_for_pills = []
+        for ce_item in ai_identified_ces_list:
+            if ce_item.get("type") in get_valid_node_types():
+                ce_data = {
+                    'content': ce_item.get("text", ""),
+                    'node_type': ce_item.get("type")
+                }
+                if cos_id: # If cos_id is available, link it
+                    ce_data['cos_id'] = cos_id
+                # 'id' for CE pill will be generated by replace_ce_tags_with_pills
+                ces_data_for_pills.append(ce_data)
+
+        # `replace_ce_tags_with_pills` will find <ce type='...'> tags in `ai_analyzed_text_with_tags`
+        # and replace them with interactive <span class="ce-pill" data-ce-id="..." ...> pills.
+        # It will generate UUIDs for data-ce-id.
+        # The `ces_data_for_pills` can be used by it to add metadata like counts to these pills.
+        content_with_pills_html = replace_ce_tags_with_pills(ai_analyzed_text_with_tags, ces_data_for_pills)
+
+        # For creating CE records, we need a list of CEs with their final text and type, and generated IDs
+        # We can parse the `content_with_pills_html` to get these.
+        final_ces_data_list = []
+        soup = BeautifulSoup(content_with_pills_html, 'html.parser')
+        for pill_tag in soup.find_all('span', class_='ce-pill'):
+            final_ces_data_list.append({
+                'id': pill_tag.get('data-ce-id'), # The UUID generated by replace_ce_tags_with_pills
+                'content': pill_tag.string if pill_tag.string else "",
+                'node_type': pill_tag.get('data-ce-type'),
+                'cos_id': cos_id # Link back to the parent COS
+            })
+        
+        return {'content_with_ce': content_with_pills_html, 'ces_data_list': final_ces_data_list}
+
+    except json.JSONDecodeError as e:
+        current_app.logger.error(f"JSONDecodeError in analyze_cos: {e}. AI Response: '{response_text}'", exc_info=True)
+        # Fallback: return original content, no CEs identified
+        return {'content_with_ce': html.escape(cos_content), 'ces_data_list': []}
+    except Exception as e:
+        current_app.logger.error(f"Exception in analyze_cos: {e}. AI Response: '{response_text}'", exc_info=True)
+        return {'content_with_ce': html.escape(cos_content), 'ces_data_list': []}
+
+
+# --- COS CRUD Operations ---
+async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: str, accountable_party: str = None, completion_date=None) -> str:
+    from models import COS, CE, get_engine_and_session
+    from store import ce_store, cos_store
+    from app import app # For app_context
+
+    analysis_result = {} # Initialize for logging in case of error prior to its assignment
+    try:
+        new_cos_uuid = uuid.uuid4()
+        cos_id_str = str(new_cos_uuid)
+
+        analysis_result = await analyze_cos(content, cos_id_str)
+        content_with_pills = analysis_result['content_with_ce']
+        extracted_ces_data = analysis_result['ces_data_list'] # This list now contains 'id' for each CE pill
+
+        if USE_DATABASE:
+            with app.app_context():
+                engine, session = get_engine_and_session()
+                cos_instance = COS(
+                    id=new_cos_uuid,
+                    content=content_with_pills,
+                    status=status,
+                    accountable_party=accountable_party,
+                    completion_date=completion_date,
+                    ssol_id=ssol_id
+                )
+                session.add(cos_instance)
+
+                for ce_data in extracted_ces_data:
+                    ce_instance = CE(
+                        id=UUID(ce_data['id']), # Use the ID from analysis_result (generated by replace_ce_tags_with_pills)
+                        content=ce_data['content'],
+                        node_type=ce_data['node_type'],
+                        cos_id=new_cos_uuid # Link to the new COS
+                    )
+                    session.add(ce_instance)
                 session.commit()
                 session.close()
         else:
-            cos_id_to_return = str(uuid.uuid4())
-            analyzed_content = analyze_cos(content, cos_id_to_return) # Pass cos_id
-            cos = {'id': cos_id_to_return, 'content': analyzed_content['content_with_ce'], 'status': status, 'ssol_id': ssol_id, 'conditional_elements': []}
-            cos_store[cos_id_to_return] = cos  # Use cos_id_to_return as key
-            for ce_data in analyzed_content['ces']:
-                ce_id = str(uuid.uuid4())
-                ce = {'id': ce_id, 'content': ce_data['content'], 'node_type': ce_data['node_type'], 'cos_id': cos_id_to_return} # Use node_type, remove ce_type
-                ce_store[ce_id] = ce
-                cos['conditional_elements'].append(ce)  # Append to the list
-        return cos_id_to_return  # Consistent return type
+            cos_record = {
+                'id': cos_id_str,
+                'content': content_with_pills,
+                'status': status,
+                'ssol_id': str(ssol_id),
+                'accountable_party': accountable_party,
+                'completion_date': str(completion_date) if completion_date else None,
+                'conditional_elements': [] # Will store CE dicts
+            }
+            cos_store[cos_id_str] = cos_record
 
-    except KeyError as e:
-        current_app.logger.error(f"Error creating COS: {e}") # Use current_app.logger
+            for ce_data in extracted_ces_data:
+                ce_record = {
+                    'id': ce_data['id'], # Use ID from analysis
+                    'content': ce_data['content'],
+                    'node_type': ce_data['node_type'],
+                    'cos_id': cos_id_str
+                }
+                ce_store[ce_data['id']] = ce_record # Store CE by its own ID
+                cos_record['conditional_elements'].append(ce_record)
+        
+        return cos_id_str
+
+    except KeyError as e: # Should be less likely if analyze_cos is robust
+        current_app.logger.error(f"KeyError in create_cos: {e}. Analysis result: {analysis_result}", exc_info=True)
         raise
     except Exception as e:
-        current_app.logger.error(f"Error creating COS: {e}", exc_info=True) # Use current_app.logger
-        if USE_DATABASE:
-            with app.app_context(): # Need app for context
-                engine, session = get_engine_and_session()
-                session.rollback()
-                session.close()
+        current_app.logger.error(f"Error creating COS: {e}", exc_info=True)
+        if USE_DATABASE and 'session' in locals() and session.is_active:
+            session.rollback()
+            session.close()
         raise
 
-def get_cos_by_id(USE_DATABASE, cos_id): # USE_DATABASE as parameter
-    from models import COS, get_engine_and_session  # Local import
-    from store import cos_store  # Local import
-    from app import app # Local import for app.app_context() - needed for DB operations
+
+def get_cos_by_id(USE_DATABASE: bool, cos_id: UUID): # Expects UUID if DB, can be str if not
+    from models import COS, get_engine_and_session
+    from store import cos_store
+    from app import app
 
     if USE_DATABASE:
-        with app.app_context(): # Need app for context
+        if not isinstance(cos_id, UUID): # Ensure it's UUID for DB query
+            try:
+                cos_id = UUID(str(cos_id))
+            except ValueError:
+                current_app.logger.error(f"Invalid UUID format for cos_id: {cos_id}")
+                return None
+        with app.app_context():
             engine, session = get_engine_and_session()
-            cos = session.query(COS).get(uuid.UUID(cos_id))  # Use UUID object
+            cos = session.query(COS).get(cos_id)
             session.close()
             return cos
     else:
-        return cos_store.get(cos_id)
+        return cos_store.get(str(cos_id))
 
-async def analyze_cos(cos_content, cos_id=None):  # Add cos_id parameter
-    prompt = (
-        "Analyze the following condition of satisfaction (COS) and identify any conditional elements (CEs). "
-        "Return a JSON object with the COS text and an array of CEs, each with its text and type."
-        "\nCOS: '{}'"
-        "\nExpected response format:"
-        "{{"
-        "  'COS': 'The full text of the COS',"
-        "  'CEs': ["
-        "    {{'text': 'A conditional element', 'type': 'The type of CE (must be one of the valid node types)'}}"
-        "  ]"
-        "}}"
-    ).format(cos_content)
 
-    messages = [
-        {"role": "system", "content": "Return a JSON object with the analyzed COS and CEs. **The response should be valid JSON.**"},
-        {"role": "user", "content": prompt},
-    ]
+async def update_cos_by_id(USE_DATABASE: bool, cos_id_param: UUID, updated_data: dict) -> dict:
+    from models import COS, CE, get_engine_and_session
+    from store import cos_store, ce_store
+    from app import app
 
+    analysis_result = {} # Initialize
     try:
-        response_text = await generate_chat_response_with_node_types(messages, role='COS Analysis', task='Analyze COS')
-        response_json = json.loads(response_text)
+        cos_id_uuid = cos_id_param # Already UUID from routes.py
+        cos_id_str = str(cos_id_uuid)
 
-        cos_text = response_json.get("COS", cos_content)
-        ces = response_json.get("CEs", [])
+        new_content_text = updated_data.get('content') # This is likely plain text from textarea
+        content_with_pills_for_update = None
+        new_ces_data_list_from_analysis = []
 
-        valid_node_types = get_valid_node_types()
-        valid_ces = []
-        for ce in ces:
-            if ce["type"] in valid_node_types:
-                valid_ces.append({
-                    'content': ce["text"],
-                    'ce_type': ce["type"],  # Use ce_type (from AI) for now, rename later
-                })
+        if new_content_text is not None:
+            # Re-analyze the plain text content to regenerate CE pills and CE data list
+            analysis_result = await analyze_cos(new_content_text, cos_id_str)
+            content_with_pills_for_update = analysis_result['content_with_ce']
+            new_ces_data_list_from_analysis = analysis_result['ces_data_list']
+            # Update the 'content' in updated_data to be the HTML with pills
+            updated_data['content'] = content_with_pills_for_update
+        
+        if USE_DATABASE:
+            with app.app_context():
+                engine, session = get_engine_and_session()
+                cos = session.query(COS).get(cos_id_uuid)
+                if not cos:
+                    session.close()
+                    return {'success': False, 'message': f"COS {cos_id_str} not found.", 'status_code': 404}
 
-        # Rename 'ce_type' to 'node_type' for consistency
-        for ce in valid_ces:
-            ce['node_type'] = ce.pop('ce_type')
-            if cos_id:  # Only add cos_id if it was provided
-                ce['cos_id'] = cos_id
+                # Update standard COS fields (excluding 'content' if it was processed)
+                for key, value in updated_data.items():
+                    if key not in ['conditional_elements', 'id', 'ssol_id']: # Content already handled
+                        setattr(cos, key, value)
+                
+                # If content was updated and re-analyzed, update CEs
+                if new_content_text is not None:
+                    # Strategy: Delete existing CEs for this COS, then add the new ones.
+                    session.query(CE).filter_by(cos_id=cos_id_uuid).delete(synchronize_session=False)
+                    session.flush() # Ensure deletes are processed before adds if there are constraints
 
-        content_with_ce = replace_ce_tags_with_pills(cos_text, valid_ces)
-        return {'content_with_ce': content_with_ce, 'ces': valid_ces}
+                    for ce_data in new_ces_data_list_from_analysis:
+                        new_ce_instance = CE(
+                            id=UUID(ce_data['id']), # ID from analysis (generated by replace_ce_tags_with_pills)
+                            content=ce_data['content'],
+                            node_type=ce_data['node_type'],
+                            cos_id=cos_id_uuid
+                        )
+                        session.add(new_ce_instance)
+                
+                session.commit()
+                # Fetch fresh to_dict to include updated CEs relation
+                updated_cos_dict = cos.to_dict()
+                session.close()
+                return {'success': True, 'cos': updated_cos_dict}
+        else: # In-memory store
+            cos_record = cos_store.get(cos_id_str)
+            if not cos_record:
+                return {'success': False, 'message': f"COS {cos_id_str} not found.", 'status_code': 404}
 
+            # Update standard fields
+            for key, value in updated_data.items():
+                if key != 'conditional_elements': # content is handled if re-analyzed
+                    cos_record[key] = value
+            
+            if new_content_text is not None:
+                # Clear old CEs from ce_store and the cos_record's list
+                if 'conditional_elements' in cos_record:
+                    for old_ce in cos_record['conditional_elements']:
+                        ce_store.pop(old_ce['id'], None)
+                cos_record['conditional_elements'] = []
+
+                # Add new CEs
+                for ce_data in new_ces_data_list_from_analysis:
+                    new_ce_dict = {
+                        'id': ce_data['id'],
+                        'content': ce_data['content'],
+                        'node_type': ce_data['node_type'],
+                        'cos_id': cos_id_str
+                    }
+                    ce_store[ce_data['id']] = new_ce_dict
+                    cos_record['conditional_elements'].append(new_ce_dict)
+            
+            return {'success': True, 'cos': cos_record}
+
+    except KeyError as e:
+        current_app.logger.error(f"KeyError updating COS {cos_id_param}: {e}. Analysis result: {analysis_result}", exc_info=True)
+        return {'success': False, 'message': f"Data error: {str(e)}", 'status_code': 400} # Or 500
     except Exception as e:
-        current_app.logger.error(f"Exception occurred during COS analysis: {e}", exc_info=True) # Use current_app.logger
-        return {'content_with_ce': cos_content, 'ces': []}
+        current_app.logger.error(f"Error updating COS {cos_id_param}: {e}", exc_info=True)
+        if USE_DATABASE and 'session' in locals() and session.is_active:
+            session.rollback(); session.close()
+        return {'success': False, 'message': f"Unexpected error: {str(e)}", 'status_code': 500}
 
 
-
-def update_cos_by_id(USE_DATABASE, cos_id, updated_data): # USE_DATABASE as parameter
-    from models import COS, get_engine_and_session  # Local import
-    from store import cos_store  #Local Import
-    from app import app # Local import for app.app_context() - needed for DB operations
+def delete_cos_by_id(USE_DATABASE: bool, cos_id: UUID) -> bool: # Expects UUID
+    from models import COS, CE, get_engine_and_session
+    from store import cos_store, ce_store
+    from app import app
 
     try:
-        cos_id_uuid = uuid.UUID(cos_id) if isinstance(cos_id, str) else cos_id
+        cos_id_uuid = cos_id # Already UUID from routes.py
+        cos_id_str = str(cos_id_uuid)
 
         if USE_DATABASE:
-            with app.app_context():  # Use application context - need app for context
+            with app.app_context():
                 engine, session = get_engine_and_session()
+                # Delete associated CEs first due to foreign key constraints
+                session.query(CE).filter_by(cos_id=cos_id_uuid).delete(synchronize_session=False)
+                # Then delete the COS
                 cos = session.query(COS).get(cos_id_uuid)
                 if cos:
-                    for key, value in updated_data.items():
-                        setattr(cos, key, value)
-                    session.commit()
-                    result = {'success': True, 'cos': cos.to_dict()}
-                else:
-                    result = {'success': False, 'message': f"COS with ID {cos_id} not found."}
-                session.close()
-            return result
-        else:
-            cos = cos_store.get(str(cos_id))  # Use string for in-memory
-            if cos:
-                cos.update(updated_data)
-                return {'success': True, 'cos': cos}
-            else:
-                return {'success': False, 'message': f"COS with ID {cos_id} not found."}
-    except Exception as e:
-        current_app.logger.error(f"Unexpected error during COS update: {e}", exc_info=True) # Use current_app.logger
-        return {'success': False, 'message': f"Unexpected error occurred: {e}"}
-
-
-def delete_cos_by_id(USE_DATABASE, cos_id, ssol_id=None): # USE_DATABASE as parameter
-    from models import COS, get_engine_and_session  # Local import
-    from store import cos_store  # Local import
-    from app import app # Local import for app.app_context() - needed for DB operations
-
-    try:
-        cos_id_uuid = uuid.UUID(cos_id) if isinstance(cos_id, str) else cos_id
-
-        if USE_DATABASE:
-            with app.app_context(): # Need app for context
-                engine, session = get_engine_and_session()
-                cos = session.query(COS).get(cos_id_uuid)
-                if cos and (ssol_id is None or str(cos.ssol_id) == str(ssol_id)):
                     session.delete(cos)
                     session.commit()
-                    session.close()  # Close after commit
-                    return True
-                else:
                     session.close()
-                    return False
+                    return True
+                session.close()
+                return False
         else:
-            if cos_id in cos_store and (ssol_id is None or cos_store[cos_id]['ssol_id'] == ssol_id):
-                del cos_store[cos_id]
+            if cos_id_str in cos_store:
+                # Also remove associated CEs from ce_store
+                cos_record = cos_store.get(cos_id_str, {})
+                for ce_data in cos_record.get('conditional_elements', []):
+                    ce_store.pop(ce_data['id'], None)
+                del cos_store[cos_id_str]
                 return True
             return False
     except Exception as e:
-        current_app.logger.error(f"Error deleting COS: {e}", exc_info=True) # Use current_app.logger
+        current_app.logger.error(f"Error deleting COS {cos_id}: {e}", exc_info=True)
+        if USE_DATABASE and 'session' in locals() and session.is_active: # Check if session was defined and is active
+            session.rollback()
+            session.close()
         return False
 
-async def get_ce_type(ce_content):
-    messages = [
-        {"role": "system", "content": "You are responsible for identifying the appropriate card type for the given conditional element. **Respond with valid JSON.**"},
-        {"role": "user", "content": ce_content},
-    ]
-    try:
-        response_text = await generate_chat_response(messages, role='Conditional Element (CE) Node Type Identification', task='Identify CE Type', temperature=0.8)
-        response_data = json.loads(response_text)
-        return response_data.get('type', '')
-    except (json.JSONDecodeError, Exception) as e:
-        current_app.logger.error(f"Error in get_ce_type: {e}") # Use current_app.logger
-        return ""
-
-
-def create_ssol(USE_DATABASE, goal, summary): # USE_DATABASE as parameter
-    from models import SSOL, get_engine_and_session #Local Import
-    from store import ssol_store #Local Import
-    from app import app # Local import for app.app_context() - needed for DB operations
+# --- SSOL CRUD Operations (Example Stubs - Implement as needed) ---
+def create_ssol(USE_DATABASE: bool, title: str, description: str) -> str:
+    from models import SSOL, get_engine_and_session
+    from store import ssol_store
+    from app import app
 
     if USE_DATABASE:
-        with app.app_context(): # Need app for context
+        with app.app_context():
             engine, session = get_engine_and_session()
-            ssol = SSOL(title=goal, description=summary) # Use title and description
+            new_ssol_uuid = uuid.uuid4()
+            ssol = SSOL(id=new_ssol_uuid, title=title, description=description)
             session.add(ssol)
             session.commit()
-            ssol_id_to_return = str(ssol.id) # Return string UUID
+            ssol_id_to_return = str(new_ssol_uuid)
             session.close()
             return ssol_id_to_return
     else:
         ssol_id = str(uuid.uuid4())
-        ssol_store[ssol_id] = {'id': ssol_id, 'goal': goal, 'summary': summary}
+        ssol_store[ssol_id] = {'id': ssol_id, 'title': title, 'description': description, 'phases': {}} # Added phases
         return ssol_id
 
-def get_ssol_by_id(USE_DATABASE, ssol_id): # USE_DATABASE as parameter
+def get_ssol_by_id(USE_DATABASE: bool, ssol_id: UUID): # Expects UUID if DB
     from models import SSOL, get_engine_and_session
-    from store import ssol_store #Local Import
-    from app import app # Local import for app.app_context() - needed for DB operations
-
+    from store import ssol_store
+    from app import app
     if USE_DATABASE:
-        with app.app_context(): # Need app for context
+        if not isinstance(ssol_id, UUID): ssol_id = UUID(str(ssol_id))
+        with app.app_context():
             engine, session = get_engine_and_session()
-            ssol = session.query(SSOL).get(uuid.UUID(ssol_id))
+            ssol = session.query(SSOL).get(ssol_id)
             session.close()
             return ssol
     else:
-        return ssol_store.get(ssol_id)
+        return ssol_store.get(str(ssol_id))
 
-
-def update_ssol_by_id(USE_DATABASE, ssol_id, updated_data): # USE_DATABASE as parameter
-    from models import SSOL, get_engine_and_session
-    from store import ssol_store  # Local Import
-    from app import app # Local import for app.app_context() - needed for DB operations
-
-    if USE_DATABASE:
-        with app.app_context(): # Need app for context
-            engine, session = get_engine_and_session()
-            ssol = session.query(SSOL).get(uuid.UUID(ssol_id))
-            if ssol:
-              for key, value in updated_data.items():
-                  setattr(ssol, key, value)
-              session.commit()
-              session.close()
-    else:
-        ssol = ssol_store.get(ssol_id)
-        if ssol:
-            ssol.update(updated_data)
-
-def delete_ssol_by_id(USE_DATABASE, ssol_id): # USE_DATABASE as parameter
-    from models import SSOL, get_engine_and_session
-    from store import ssol_store # Local Import
-    from app import app # Local import for app.app_context() - needed for DB operations
-
-    if USE_DATABASE:
-        with app.app_context(): # Need app for context
-            engine, session = get_engine_and_session()
-            ssol = session.query(SSOL).get(uuid.UUID(ssol_id))
-            if ssol:
-                session.delete(ssol)
-                session.commit()
-                session.close()
-                return True
-            else:
-                session.close()
-                return False
-    else:
-        return bool(ssol_store.pop(ssol_id, None))
-
-def get_ce_by_id(USE_DATABASE, ce_id: UUID): # USE_DATABASE as parameter
-    from models import CE, get_engine_and_session # Local Import
-    from store import ce_store # Local Import
-    from app import app # Local import for app.app_context() - needed for DB operations
-
+# --- CE CRUD Operations ---
+def get_ce_by_id(USE_DATABASE: bool, ce_id: UUID): # Expects UUID if DB
+    from models import CE, get_engine_and_session
+    from store import ce_store
+    from app import app
     try:
-        ce_id_str = str(ce_id)
         if USE_DATABASE:
-            with app.app_context(): # Need app for context
+            if not isinstance(ce_id, UUID): ce_id = UUID(str(ce_id)) # Ensure UUID for DB
+            with app.app_context():
                 engine, session = get_engine_and_session()
-                ce = session.query(CE).get(uuid.UUID(ce_id_str))  # Convert string to UUID
+                ce = session.query(CE).get(ce_id)
                 session.close()
-                if not ce:
-                    raise ValueError(f"CE with ID {ce_id_str} not found in the database.")
-        else:
-            ce_dict = ce_store.get(ce_id_str)
-            if not ce_dict:
-              raise ValueError(f"CE with ID {ce_id_str} not found in the in-memory store.")
-            node_type = ce_dict.get('node_type', 'Default')  # Fallback to 'Default'
-            cos_id = ce_dict.get('cos_id')  # Get cos_id, NO DEFAULT (see below)
-            if cos_id is None: # Explicitly handle None case.
-                current_app.logger.warning(f"CE {ce_id_str} missing cos_id. Skipping.") # Use current_app.logger
-                return None # or raise a custom exception
-            ce = CE(id=ce_dict['id'], content=ce_dict['content'], node_type=node_type, cos_id=cos_id)  # Create a CE object using correct fields
+        else: # In-memory
+            ce = ce_store.get(str(ce_id)) # Use string ID for dict key
 
-        return ce  # Moved outside the else block.
-    except ValueError as e:
-        current_app.logger.error(f"Error retrieving CE by ID {ce_id_str}: {e}") # Use current_app.logger
-        raise
+        if not ce:
+            # Log or raise a more specific "Not Found" if desired
+            current_app.logger.debug(f"CE with ID {ce_id} not found (USE_DATABASE={USE_DATABASE}).")
+        return ce
+    except ValueError as e: # Handle invalid UUID format string
+        current_app.logger.error(f"ValueError retrieving CE by ID {ce_id}: {e}")
+        return None # Or raise
     except Exception as e:
-        current_app.logger.error(f"Unexpected error retrieving CE by ID {ce_id_str}: {e}", exc_info=True) # Use current_app.logger
-        raise
+        current_app.logger.error(f"Unexpected error retrieving CE by ID {ce_id}: {e}", exc_info=True)
+        raise # Re-raise for higher level handling or return None
 
 
-def create_ce(USE_DATABASE, content, node_type, cos_id): # USE_DATABASE as parameter
-    from models import CE, get_engine_and_session  # Local import
-    from store import ce_store  # Local import
-    from app import app # Local import for app.app_context() - needed for DB operations
+def create_ce(USE_DATABASE: bool, content: str, node_type: str, cos_id: UUID) -> str: # cos_id is UUID
+    from models import CE, get_engine_and_session
+    from store import ce_store
+    from app import app
 
-    ce_id = str(uuid.uuid4())
+    new_ce_uuid = uuid.uuid4()
+    ce_id_str = str(new_ce_uuid)
+
     if USE_DATABASE:
-        with app.app_context():  # Use application context - need app for context
+        with app.app_context():
             engine, session = get_engine_and_session()
-            ce = CE(id=uuid.UUID(ce_id), content=content, node_type=node_type, cos_id=uuid.UUID(cos_id))
+            ce = CE(id=new_ce_uuid, content=content, node_type=node_type, cos_id=cos_id)
             session.add(ce)
             session.commit()
-            current_app.logger.debug(f"Created CE in database: {ce}") # Use current_app.logger
             session.close()
     else:
-        ce_data = {'id': ce_id, 'content': content, 'node_type': node_type, 'cos_id': cos_id} # CORRECTED LINE
-        ce_store[ce_id] = ce_data
-        current_app.logger.debug(f"Created CE in in-memory store: {ce_store[ce_id]}") # Use current_app.logger
-    return ce_id
+        ce_data = {'id': ce_id_str, 'content': content, 'node_type': node_type, 'cos_id': str(cos_id)}
+        ce_store[ce_id_str] = ce_data
+    return ce_id_str
 
-def update_ce_by_id(USE_DATABASE, ce_id: UUID, ce_data): # USE_DATABASE as parameter
-    from models import CE, get_engine_and_session  # Local import
-    from store import ce_store  # Local import
-    from app import app # Local import for app.app_context() - needed for DB operations
 
-    ce_id_str = str(ce_id)
+def update_ce_by_id(USE_DATABASE: bool, ce_id: UUID, ce_data: dict) -> bool: # Expects UUID
+    from models import CE, get_engine_and_session
+    from store import ce_store
+    from app import app
+
+    ce_id_uuid = ce_id # Already UUID from routes.py
+    ce_id_str = str(ce_id_uuid)
+
     if USE_DATABASE:
-        with app.app_context(): # Need app for context
+        with app.app_context():
             engine, session = get_engine_and_session()
-            ce = session.query(CE).get(uuid.UUID(ce_id_str))
+            ce = session.query(CE).get(ce_id_uuid)
             if ce:
                 for key, value in ce_data.items():
-                    setattr(ce, key, value)
+                    if hasattr(ce, key) and key not in ['id', 'cos_id']: # Don't update PK or FK directly
+                        setattr(ce, key, value)
                 session.commit()
-                session.close()  # Close after commit
-                return True
-            else:
-                current_app.logger.error(f"CE with ID {ce_id_str} not found in database.") # Use current_app.logger
                 session.close()
-                return False
+                return True
+            session.close()
+            return False
     else:
         if ce_id_str in ce_store:
             ce_store[ce_id_str].update(ce_data)
             return True
-        else:
-            current_app.logger.error(f"CE with ID {ce_id_str} not found in in-memory store.") # Use current_app.logger
-            return False
+        return False
 
-def delete_ce_by_id(USE_DATABASE, ce_id): # USE_DATABASE as parameter
-    from models import CE, get_engine_and_session # Local Import
-    from store import ce_store  # Local Import
-    from app import app # Local import for app.app_context() - needed for DB operations
+def delete_ce_by_id(USE_DATABASE: bool, ce_id: UUID) -> bool: # Expects UUID
+    from models import CE, get_engine_and_session
+    from store import ce_store
+    from app import app
+    
+    ce_id_uuid = ce_id # Already UUID from routes.py
+    ce_id_str = str(ce_id_uuid)
 
-    ce_id_str = str(ce_id)
     if USE_DATABASE:
-        with app.app_context(): # Need app for context
+        with app.app_context():
             engine, session = get_engine_and_session()
-            ce = session.query(CE).get(uuid.UUID(ce_id_str))  # Convert string to UUID
+            ce = session.query(CE).get(ce_id_uuid)
             if ce:
                 session.delete(ce)
                 session.commit()
                 session.close()
                 return True
-            else:
-                session.close()
-                return False
+            session.close()
+            return False
     else:
         return bool(ce_store.pop(ce_id_str, None))
 
 
-def check_data_store_contents(USE_DATABASE, data_store_type='in_memory'): # USE_DATABASE as parameter
-    from models import COS, get_engine_and_session #Local Import
-    from store import cos_store #Local Import
-    from app import app # Local import for app.app_context() - needed for DB operations
-
-    if data_store_type == 'in_memory':
-        try:
-            for cos_id_str, cos_data in cos_store.items():
-                logging.info(f"COS ID: {cos_id_str}, Data: {cos_data}")
-        except NameError:
-            logging.warning("In-memory store 'cos_store' not found.")
-    elif data_store_type == 'database' and USE_DATABASE:
-        try:
-            with app.app_context(): # Need app for context
-                engine, session = get_engine_and_session()
-                cos_entries = session.query(COS).all()
-                for entry in cos_entries:
-                    logging.info(f"COS ID: {entry.id}, Data: {entry}")
-                session.close()
-        except Exception as e:
-            logging.error(f"Database query failed with error: {e}")
-    else:
-        logging.error(f"Unknown data store type: {data_store_type}")
-
-def get_phase_index(cos):
-    phase_mapping = {
-        'Discovery': 0,
-        'Engagement': 1,
-        'Action': 2,
-        'Completion': 3,
-        'Legacy': 4,
-    }
-    phase_name = cos.get('phase', 'SSPEC')  # Use .get() for safety
-    return phase_mapping.get(phase_name, 0)
-
-def parse_ai_response_and_generate_html(USE_DATABASE, response_json): # Add USE_DATABASE parameter
-    from models import CE, get_engine_and_session  # Local import
-    from store import ce_store  # Local import
-    from app import app # Local import for app.app_context() - needed for DB operations
+# --- Initial SSOL Generation Logic ---
+def parse_ai_response_and_generate_html(USE_DATABASE: bool, response_json: dict, ssol_id_for_cos: UUID) -> dict:
+    """
+    Parses AI response for phases and COS, generates CE pills, and structures data.
+    This function is called during initial SSOL creation.
+    It PREPARES the data structure including CE pills. Actual DB save for COS/CE happens elsewhere (e.g., in create_cos).
+    However, if this is part of a larger initial save, it can create CE records if needed.
+    For initial generation, CEs are created based on tags in AI content.
+    """
+    from models import COS, CE, get_engine_and_session # Local import if creating DB records here
+    from store import cos_store, ce_store            # Local import for in-memory
+    from app import app                          # For app_context
 
     structured_solution = {}
     expected_phases = ["Discovery", "Engagement", "Action", "Completion", "Legacy"]
 
-    for phase in expected_phases:
-        structured_solution[phase] = []
-        for cos_dict in response_json.get(phase, []):
-            cos_id = str(uuid.uuid4())
-            cos_html = cos_dict['content']  # Access 'content' key
-            ces = []
+    # This ssol_id_for_cos is the ID of the SSOL these COS objects will belong to.
+    # It's NOT the COS ID itself.
 
-            soup = BeautifulSoup(cos_html, 'html.parser')
-            for ce_tag in soup.find_all('ce'):
-                ce_uuid = str(uuid.uuid4())
-                new_tag = soup.new_tag('span', attrs={
-                    'class': 'badge rounded-pill bg-secondary ce-pill',
-                    'data-ce-id': ce_uuid,
-                    'data-ce-type': ce_tag['type']
-                })
-                new_tag.string = ce_tag.string
-                ce_tag.replace_with(new_tag)
+    for phase_name in expected_phases:
+        structured_solution[phase_name] = []
+        cos_list_from_ai = response_json.get(phase_name, [])
 
-                ce_data = {
-                    'id': ce_uuid,
-                    'content': ce_tag.string,
-                    'node_type': ce_tag['type'], # Use 'node_type'
-                    'cos_id': cos_id # ALWAYS include cos_id
+        for cos_dict_from_ai in cos_list_from_ai:
+            # Each COS gets a new unique ID
+            cos_uuid = uuid.uuid4()
+            cos_id_str = str(cos_uuid)
+            
+            # Raw content from AI, expected to have <ce type="...">...</ce> tags
+            raw_cos_content_from_ai = cos_dict_from_ai.get('content', '')
+
+            # Use replace_ce_tags_with_pills to convert <ce> tags to <span class="ce-pill" data-ce-id="...">
+            # This will generate unique UUIDs for data-ce-id attributes on the pills.
+            # The second argument (list of CEs) to replace_ce_tags_with_pills is for metadata like counts,
+            # which isn't typically available at this initial generation stage from this specific AI prompt.
+            # So, we pass an empty list for that.
+            content_with_html_pills = replace_ce_tags_with_pills(raw_cos_content_from_ai, [])
+
+            # Now, extract the CE data (including their generated UUIDs) from the HTML with pills
+            ces_for_this_cos_data = []
+            soup = BeautifulSoup(content_with_html_pills, 'html.parser')
+            for pill_tag in soup.find_all('span', class_='ce-pill'):
+                ce_pill_id_str = pill_tag.get('data-ce-id')
+                ce_content_text = pill_tag.string if pill_tag.string else ""
+                ce_node_type = pill_tag.get('data-ce-type')
+
+                if ce_pill_id_str and ce_node_type: # Basic validation
+                    ce_data_item = {
+                        'id': ce_pill_id_str, # This is the CE's own ID (from pill)
+                        'content': ce_content_text,
+                        'node_type': ce_node_type,
+                        'cos_id': cos_id_str # Link to the parent COS ID we just generated
+                    }
+                    ces_for_this_cos_data.append(ce_data_item)
+
+                    # PERSIST CE to DB or In-Memory Store HERE during initial SSOL generation
+                    if USE_DATABASE:
+                        with app.app_context(): # Ensure context for DB operations
+                            engine, session = get_engine_and_session()
+                            ce_instance = CE(
+                                id=UUID(ce_pill_id_str),
+                                content=ce_content_text,
+                                node_type=ce_node_type,
+                                cos_id=cos_uuid # Use the UUID of the parent COS
+                            )
+                            session.add(ce_instance)
+                            # Commit for CEs could happen after all COS for this SSOL, or per COS
+                            # For now, let's assume a commit will happen after this function or per SSOL.
+                            # If committing here: session.commit() then session.close()
+                    else:
+                        ce_store[ce_pill_id_str] = ce_data_item
+
+
+            # Structure for the COS to be added to the SSOL's phase
+            # This COS itself is not yet saved if using DB, only its CEs are staged/saved above.
+            # The actual COS record for DB will be created by the calling function (e.g. generate_outcome_data -> which should call create_cos)
+            # This function prepares the structure that `generate_outcome_data` will use.
+            
+            # Store the COS in the appropriate data store
+            # The ID for this COS is cos_id_str (or cos_uuid)
+            # The accountable_party and completion_date are not typically generated by this AI call,
+            # so they'd be empty/None initially.
+            if USE_DATABASE:
+                with app.app_context():
+                    engine, session = get_engine_and_session()
+                    new_cos_db = COS(
+                        id=cos_uuid,
+                        content=content_with_html_pills,
+                        status='Proposed',
+                        ssol_id=ssol_id_for_cos, # Link to parent SSOL
+                        accountable_party=None,
+                        completion_date=None
+                        # CEs are linked via their own cos_id pointing to this cos_uuid
+                    )
+                    session.add(new_cos_db)
+                    # Defer commit to allow all parts of SSOL to be added in one transaction
+            else: # In-memory
+                 cos_store[cos_id_str] = {
+                    'id': cos_id_str,
+                    'content': content_with_html_pills,
+                    'status': 'Proposed',
+                    'ssol_id': str(ssol_id_for_cos),
+                    'accountable_party': None,
+                    'completion_date': None,
+                    'conditional_elements': ces_for_this_cos_data # Store list of CE dicts
                 }
-                ces.append(ce_data)
-
-                if USE_DATABASE:
-                    with app.app_context(): # Need app for context
-                        engine, session = get_engine_and_session()
-                        ce_instance = CE(id=uuid.UUID(ce_uuid), content=ce_tag.string, node_type=ce_tag['type'], cos_id = uuid.UUID(cos_id))
-                        session.add(ce_instance)
-                        session.commit()
-                        session.close()
-                else:
-                    ce_store[ce_uuid] = ce_data
 
 
-            structured_solution[phase].append({
-                'id': cos_id,
-                'content': str(soup),
-                'status': 'Proposed',
-                'ces': ces
+            # Add to the structured_solution for returning to `generate_outcome_data`
+            # This dict is what gets rendered in `outcome.html`
+            structured_solution[phase_name].append({
+                'id': cos_id_str, # ID of this COS
+                'content': content_with_html_pills, # HTML content with CE pills
+                'status': 'Proposed', # Default status
+                'accountable_party': None, # Default
+                'completion_date': None,   # Default
+                # 'ces': ces_for_this_cos_data # This was how it was before, but conditional_elements is the model field.
+                                             # For rendering, `cos.content` has the pills.
+                                             # If JS needs separate list of CEs, this can be added.
+                                             # The `to_dict()` method of COS model will provide `conditional_elements`
             })
+    
+    # If using DB, the session that added all these COS and CE instances
+    # should be committed by the calling function (e.g., in generate_outcome_data or after it).
+    if USE_DATABASE:
+        with app.app_context():
+            engine, session = get_engine_and_session()
+            try:
+                session.commit()
+            except Exception as e:
+                session.rollback()
+                current_app.logger.error(f"Error committing initial SSOL COS/CEs: {e}", exc_info=True)
+                raise
+            finally:
+                session.close()
+
     return structured_solution

@@ -37,7 +37,7 @@ BASE_MODAL_TEMPLATE = """
                         <h3 class="sub-heading">Condition of Satisfaction Context</h3>
                         <div class="context-label">Source Condition of Satisfaction (COS):</div>
                         <div class="content-block italic">
-                            {{ cos_content_with_pills }}
+                            {{ cos_content_with_pills | safe }}
                         </div>
                     </div>
 
@@ -61,7 +61,7 @@ BASE_MODAL_TEMPLATE = """
 
                     <!-- FORM FIELDS -->
                     <div class="form-grid">
-                        {{ form_fields }}
+                        {{ form_fields | safe }}
                     </div>
 
                     <!-- Resource Action Buttons - Positioned BETWEEN form fields and table -->

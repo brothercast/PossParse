@@ -1,4 +1,4 @@
-/* styles.css - Complete and Consolidated Styles (Refactored for CE Modals) */
+/* styles.css - Complete and Consolidated Styles (Refactored for Bootstrap Table COS Layout & CE Modals) */
 
 /* ================================================== */
 /* ==============  1. Base Typography  ============== */
@@ -17,33 +17,49 @@ h1 {
   text-shadow: 1px 1px 0px #e91e63;
   font-size: 3.0rem;
   text-align: center;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
 }
 
-h2, .section-heading { /* Apply to .section-heading as well */
+h2, .section-heading {
   font-family: 'Unica One', sans-serif;
   font-weight: 500;
   text-transform: uppercase;
   color: #104a3a;
-  text-shadow: 1px 1px 0px #000000;
+  text-shadow: 1px 1px 0px #000000; /* Consider a more subtle shadow or none */
 }
 
-.section-heading {
-    font-size: 1.5rem; /* Adjust size for section headings */
+/* Specific h2 styling for outcome page sections if needed */
+.outcome-header h2,
+.row > h1 { /* Targeting the "Phases & Conditions of Satisfaction" h1 */
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.section-heading { /* Used in CE Modals */
+    font-size: 1.5rem;
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
     border-bottom: 1px solid #e0e0e0;
 }
 
-h3, .sub-heading { /* Apply to .sub-heading as well */
+h3, .sub-heading {
   font-family: 'Unica One', sans-serif;
   font-weight: 500;
-  color: #555; /* Muted color for sub-headings */
+  text-transform: uppercase;
+  color: #555;
 }
 
-.sub-heading {
-    font-size: 1.1rem; /* Adjust size for sub-headings */
-    margin-top: 1.5rem; /* Add top margin for spacing */
+.sub-heading { /* Used in CE Modals */
+    font-family: 'Unica One', sans-serif;
+    font-weight: 500;
+    color: #333;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 1.5rem;
     margin-bottom: 0.75rem;
+    padding-bottom: 0.25rem;
 }
 
 
@@ -53,29 +69,36 @@ h3, .sub-heading { /* Apply to .sub-heading as well */
 nav.navbar {
   background-image: linear-gradient(120deg, #673ab7 0%, #00bcd4 100%);
   border-bottom: 5px solid #e91e63;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
 }
 
 nav.navbar .navbar-brand {
   color: #ffffff;
   font-weight: 500;
-  font-size: 3.5rem;
+  font-size: 2.8rem; /* Adjusted for better fit with tagline */
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
-/* Navbar brand - Specific h1 styling (redundant with general h1, consider removing) */
-.navbar-brand h1 {
-  font-size: 3.75rem; /* Slightly larger than general h1 */
-  text-shadow: 1px 1px 0px #e91e63; /* Redundant, already in general h1 */
+.navbar-brand h1 { /* If h1 is directly in navbar-brand */
+  font-size: inherit; /* Inherit from .navbar-brand for consistency */
+  color: #ffa726; /* Match general h1 color */
+  text-shadow: 1px 1px 0px #e91e63; /* Match general h1 shadow */
+  margin-bottom: 0;
+  line-height: 1;
 }
 
-/* Navbar brand - Structured Speculation text */
 .structured-speculation {
   display: block;
   font-family: 'Unica One', sans-serif;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.8rem; /* Adjusted for better fit */
   text-transform: uppercase;
-  color: rgba(0, 0, 0, 0.75);
-  letter-spacing: 0.7em;
+  color: rgba(0, 0, 0, 0.85); /* Lighter for better contrast on gradient */
+  letter-spacing: 0.5em; /* Adjusted */
+  line-height: 1;
+  margin-top: -5px; /* Pull up slightly under the main brand text */
 }
 
 
@@ -95,7 +118,7 @@ body:before {
                     radial-gradient(circle at 60% 80%, #ffc107 10%, transparent 10%);
   background-size: 40px 40px;
   background-attachment: fixed;
-  opacity: 0.4;
+  opacity: 0.3; /* Slightly more subtle */
   z-index: -1;
 }
 
@@ -103,63 +126,67 @@ body:before {
 /* ================================================== */
 /* ===========  4. General Container & Card Styles ========== */
 /* ================================================== */
-.container,
-.card {
+.container { /* Main page container */
+  background-color: rgba(255, 255, 255, 0.95); /* Slightly transparent white for depth */
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.card { /* General card styling, like for Goal Selection */
   background-color: #ffffff;
   border-radius: 10px;
   padding: 20px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  transition: box-shadow 0.3s ease-in-out;
 }
 
 .card:hover {
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
 }
 
 .card-header,
-.card-footer {
+.card-footer { /* Bootstrap default card header/footer */
   background-color: #673ab7;
   color: #ffffff;
+  border-radius: 8px 8px 0 0; /* Match card radius if header is at top */
+}
+.card-footer {
+  border-radius: 0 0 8px 8px;
 }
 
-/* Retro-futuristic Card (Specific card style) */
+
+/* Retro-futuristic Card (Specific card style for goal selection cards) */
 .retro-futuristic-card {
-  background-color: #ffffff;
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   border: 3px solid #00bcd4;
+  height: 100%;
 }
-
-.retro-futuristic-card:hover {
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
-
-.retro-futuristic-card.non-compliant {
-  border-color: red;
-}
-
-.retro-futuristic-card.non-compliant:hover {
-  box-shadow: 0 8px 16px rgba(196, 93, 93, 0.2);
-}
-
-.retro-futuristic-card.non-compliant .card-body {
-  box-shadow: inset 0 0 10px rgba(196, 93, 93, 0.5);
-}
+.retro-futuristic-card.non-compliant { border-color: red; }
+.retro-futuristic-card.non-compliant:hover { box-shadow: 0 8px 16px rgba(196, 93, 93, 0.2); }
+.retro-futuristic-card.non-compliant .card-body { box-shadow: inset 0 0 10px rgba(196, 93, 93, 0.5); }
 
 
 /* ================================================== */
 /* ===============  5. Button Styles  ================ */
 /* ================================================== */
+.btn { /* General button enhancements */
+    transition: all 0.2s ease-in-out;
+}
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
 .btn-primary {
   background-color: #ff5722;
   border-color: #ff5722;
 }
-
-.btn-primary:hover,
-.btn-primary:focus,
-.btn-primary:active {
-  background-color: #e64a19;
-  border-color: #ff5722;
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+  background-color: #e64a19 !important; /* Ensure override */
+  border-color: #d84315 !important;
 }
 
 .btn-danger {
@@ -169,1039 +196,571 @@ body:before {
 }
 .btn-danger:hover {
   color: #fff;
-  background-color: #c82333;
-  border-color: #bd2130;
+  background-color: #c82333 !important;
+  border-color: #bd2130 !important;
+}
+.btn-info { /* Used for PDF button */
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+}
+.btn-info:hover {
+    background-color: #138496 !important;
+    border-color: #117a8b !important;
+}
+.btn-success { /* Used for Add COS, Update COS */
+    background-color: #28a745;
+    border-color: #28a745;
+}
+.btn-success:hover {
+    background-color: #218838 !important;
+    border-color: #1e7e34 !important;
 }
 
 
 /* ================================================== */
 /* ==============  6. Outcome Page Styles  ============ */
 /* ================================================== */
-.outcome h2 {
-  text-transform: uppercase;
-  text-align: center;
+.outcome-header { /* Row containing image/domain and summary */
+  margin-bottom: 2rem;
 }
-
-body > main > div > div.row.outcome-header {
-  padding-top: 20px;
+.outcome-header .col-md-4 h2, .outcome-header .col-md-8 h1 { /* Specific headings in outcome header */
+    text-align: left; /* Align these to left */
 }
-
-
-.fulfilled-goal {
-  text-align: left;
-}
+.outcome-header .col-md-4 h2 { font-size: 1.5rem; margin-bottom: 0.5rem; } /* Smaller for Domain/Fulfilled Goal */
 
 
 /* ================================================== */
 /* ===========  7. Loading Spinner Styles  ============= */
 /* ================================================== */
-.loading-spinner-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(255, 255, 255, 0.3);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
+.loading-spinner-overlay { /* Full screen overlay */
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background-color: rgba(255, 255, 255, 0.4); /* Slightly more opaque backdrop */
+  display: flex; justify-content: center; align-items: center;
+  z-index: 10000; /* Ensure it's on top of everything */
 }
-
-.spinner-box {
-  width: 50vw; /* Responsive width for the box */
-  max-width: 550px; /* Maximum width for the box */
-  height: 30vh; /* Responsive height for the box */
-  max-height: 175px; /* Maximum height for the box */
-  background-color: rgba(255, 255, 255, 0.9); /* Slightly higher opacity for the box background */
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.spinner-box { /* Box containing the spinner and text */
+  width: auto; min-width: 300px; max-width: 550px;
+  height: auto; min-height: 150px; max-height: 200px;
+  background-color: rgba(255, 255, 255, 0.95);
+  display: flex; justify-content: center; align-items: center;
   border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
-  padding: 20px; /* Added padding for better spacing */
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+  padding: 25px;
 }
-
-.spinner-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
+.spinner-container { display: flex; flex-direction: column; align-items: center; }
 .spinner-text {
-  margin-top: 20px; /* Increased margin for better spacing */
+  margin-top: 15px;
   font-family: 'Unica One', sans-serif;
   text-transform: uppercase;
-  color: rgba(0, 0, 0, 0.75);
-  letter-spacing: 0.4em; /* Adjusted letter spacing for better fit */
-  text-align: center; /* Center align text */
-  white-space: nowrap; /* Prevent text wrapping */
+  color: #333; /* Darker text for readability */
+  letter-spacing: 0.3em;
+  text-align: center;
+  font-size: 0.9rem;
 }
 
-.loading-spinner-overlay.fade-in {
-  animation: fadeInBlur 0.5s ease-in-out forwards;
-}
-
-.loading-spinner-overlay.fade-out {
-  animation: fadeOutBlur 0.5s ease-in-out forwards;
-}
+/* Animations in section 17 */
 
 
 /* ================================================== */
 /* ===========  8. Refresh Icon Animation  =========== */
 /* ================================================== */
-#generate-new-goals .refresh-icon {
-  display: inline-block;
-  transition: transform 0.5s ease;
-}
-
-#generate-new-goals:hover .refresh-icon {
-  transform: rotate(360deg);
-}
+#generate-new-goals .refresh-icon { display: inline-block; transition: transform 0.5s ease; }
+#generate-new-goals:hover .refresh-icon { transform: rotate(360deg); }
 
 
 /* ================================================== */
 /* ============  9. Domain Icon Styles  ============== */
 /* ================================================== */
-.domain-icon-container {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #ffffff;
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  border: 3px solid #00bcd4;
-  width: 100px;
-  height: 100px;
-}
-
-.domain-icon-container .domain-icon {
-  font-size: 2rem;
-}
-
 .domain-text {
   font-family: 'Unica One', sans-serif;
   text-transform: uppercase;
-  font-size: 1.5rem;
+  font-size: 1.3rem; /* Slightly adjusted */
+  color: #555;
 }
-
-.domain-title {
-  font-weight: bold;
-  text-transform: uppercase;
-  font-size: 1.5em;
-  margin-top: 1em;
+.outcome-header .fa-3x { /* Domain icon on outcome page */
+    color: #00bcd4; /* Match a theme color */
 }
 
 
 /* ================================================== */
-/* ==========  10. Report Section Title  ============= */
+/* ==========  10. Report Section Title (Unused) ======== */
 /* ================================================== */
-.report-section-title {
-  font-family: 'Unica One', sans-serif;
-  font-weight: 500;
-  text-transform: uppercase;
-  color: #104a3a;
-  text-shadow: 1px 1px 0px #000000;
-  margin-bottom: 0.5em;
-  margin-top: 1em;
-}
+/* .report-section-title { ... } */
 
 
 /* ================================================== */
-/* ==========  11. Phase Accordion Styles  =========== */
+/* == 11. Phase Accordion & COS Table Styles == */
 /* ================================================== */
 .accordion-header {
   color: #ffffff;
-  border-radius: 5px;
-  margin-bottom: 5px;
+  border-radius: 5px 5px 0 0; /* Rounded top corners */
+  margin-bottom: 0; /* No margin if border is directly on accordion-item */
 }
-
+.accordion-item {
+    margin-bottom: 10px; /* Space between accordion items */
+    border-radius: 5px;
+    border: 1px solid #ddd; /* Overall border for accordion item */
+}
 .accordion-button {
   text-transform: uppercase;
   font-family: 'Unica One', sans-serif;
   font-weight: 500;
-  font-size: 0.8em;
-  text-shadow: 1px 1px 0px #000000;
-}
-
-.accordion-button:focus {
-  outline: none;
-  box-shadow: none;
-}
-
-.accordion-button:not(.collapsed) {
+  font-size: 1rem; /* Increased size */
+  text-shadow: 1px 1px 0px rgba(0,0,0,0.3);
   color: #ffffff;
+  border-radius: 4px 4px 0 0 !important; /* Ensure top radius for button too */
 }
+.accordion-button:focus { outline: none; box-shadow: none; }
+.accordion-button:not(.collapsed) { color: #ffffff; }
 
-.accordion-body {
-  background-color: #f5f5f5;
-  border-radius: 5px;
-  padding: 20px;
-}
-
-.phase-colors {
-  --phase-0: #e91e63;
-  --phase-1: #00bcd4;
-  --phase-2: #9c27b0;
-  --phase-3: #ffc107;
-  --phase-4: #66bd0e;
-  /* Add more colors if needed */
-}
-
-.phase-card-container {
+.accordion-body.phase-table-container { /* Where the table resides */
+  background-color: #ffffff; /* White background for table area */
+  border-radius: 0 0 5px 5px; /* Rounded bottom corners */
   padding: 15px;
+  /* border-top: none; */ /* Top border is handled by header */
 }
 
-.cos-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Responsive grid */
-  gap: 15px;
-  margin-bottom: 15px; /* Space before "Add COS" button */
+.phase-colors { /* CSS variables for phase-specific colors */
+  --phase-0: #e91e63; --phase-1: #00bcd4; --phase-2: #9c27b0;
+  --phase-3: #ffc107; --phase-4: #66bd0e;
 }
 
-.cos-card {
-  background-color: white;
-  border-radius: 5px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  overflow: hidden; /* For rounded corners */
-  display: flex; /* Flex container for header and body */
-  flex-direction: column; /* Stack header and body vertically */
+/* COS Table Styling */
+.phase-table {
+    margin-bottom: 1rem; /* Space below table before "Add COS" button */
+    border-collapse: separate; /* Allows border-spacing */
+    border-spacing: 0; /* Remove default spacing if any */
+}
+.phase-table thead th {
+    background-color: #f8f9fa; /* Light grey for table header */
+    color: #343a40;
+    border-bottom-width: 2px; /* Bootstrap default */
+    font-family: 'Jost', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+.phase-table tbody tr.cos-row { /* Each COS row */
+    background-color: #fff; /* Ensure white background for rows */
+}
+.phase-table tbody tr.cos-row:hover {
+    background-color: #f1f8ff; /* Light blue hover for rows */
+}
+.phase-table td {
+    vertical-align: middle; /* Default vertical alignment for all cells */
+    padding: 0.75rem; /* Standard Bootstrap padding */
+    font-size: 0.9rem;
 }
 
-.cos-card-header {
-  background-color: #f8f9fa; /* Light grey header background */
-  padding: 10px 15px;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* Specific Cell Styling */
+.status-cell { text-align: center; } /* Center the status pill */
+.cos-content-cell .cos-content-display {
+    line-height: 1.6;
+    word-break: break-word; /* Ensure long content wraps */
 }
-
-.cos-card-body {
-  padding: 15px;
+.cos-content-cell .cos-content-display .ce-pill {
+    margin-right: 4px;
+    margin-bottom: 4px; /* For wrapping */
 }
-
-.cos-content-display, .cos-content-edit {
-  margin-bottom: 10px;
-}
-
-.cos-content-textarea {
+.cos-content-textarea { /* Textarea when editing COS content */
   width: 100%;
+  border-radius: 4px;
+  border: 1px solid #ced4da;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  min-height: 80px; /* Adjust as needed */
+}
+.actions-cell .btn-group.cos-actions { /* Ensure buttons in group are tight */
+    white-space: nowrap;
+}
+.actions-cell .btn-group.cos-actions .btn {
+    margin-right: 3px; /* Small space between buttons */
+}
+.actions-cell .btn-group.cos-actions .btn:last-child {
+    margin-right: 0;
 }
 
-.cos-details {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
+.add-cos.btn { /* "Add Condition of Satisfaction" button */
+    margin-top: 0.5rem; /* Space above it */
 }
 
-.detail-item {
-  display: flex;
-  align-items: baseline; /* Align labels and values on the baseline */
-  gap: 10px;
-}
-
-.detail-label {
-  font-weight: bold;
-  font-size: 0.9em;
-  color: #555;
-  width: 120px; /* Adjust label width as needed */
-  flex-shrink: 0; /* Prevent label from shrinking */
-  text-align: right; /* Right-align labels for better visual alignment */
-}
-
-
-.cos-actions .btn-sm {
-  margin-left: 5px;
-}
-
-.ce-pills-container {
-  margin-top: 10px;
-  display: flex;
-  flex-wrap: wrap; /* Allow pills to wrap to the next line */
-  gap: 5px; /* Spacing between pills */
-}
 
 /* ================================================== */
 /* =========  12. Status & CE Pill Styles  =========== */
 /* ================================================== */
 .status-pill {
-  display: inline-block; /* or other display property as needed */
   color: #fff !important;
   text-align: center;
-  text-transform: uppercase; /* Converts text to uppercase */
-  font-size: 0.75em; /* Scale down the font size to 75% */
-  text-shadow: 1px 1px 0px #000000;
-  padding: .15em .6em; /* Adjust padding as needed */
-  border-radius: 10rem; /* Adjust for rounded corners */
-  margin-right: 8px;
-  vertical-align: middle; /* Align vertically in the middle */
+  text-transform: uppercase;
+  font-size: 0.65em; /* Smaller for table cell fit */
+  font-weight: 600; /* Bold */
+  text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.2);
+  padding: .3em .7em;
+  border-radius: 10rem;
+  line-height: 1; /* Prevent extra space */
+  display: inline-block; /* Ensure it behaves well in flow */
 }
 
 .ce-pill {
-  display: inline-flex; /* Use inline-flex to align items properly */
-  align-items: center; /* Vertically center items */
+  display: inline-flex; align-items: center;
   color: #fff !important;
+  background-color: #6c757d; /* Default CE pill background */
   text-align: center;
-  text-shadow: 1px 1px 0px #000000; /* Drop shadow for CE text */
-  padding: .2em .5em; /* Slightly reduce padding */
-  font-size: 0.85em;
-  border-radius: 10rem; /* Adjust for rounded corners */
-  /* Additional styles specific to CE pills if needed */
+  text-shadow: 1px 1px 0px rgba(0,0,0,0.2);
+  padding: .25em .6em;
+  font-size: 0.8rem; /* Slightly smaller */
+  border-radius: 10rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  line-height: 1.3; /* Adjust for vertical centering with text */
 }
-
+.ce-pill:hover {
+    background-color: #5a6268;
+    transform: translateY(-1px);
+}
 .ce-pill .counter {
-  background-color: #f8f9fa !important; /* Light background for the counter */
-  color: #212529 !important; /* Dark text for the counter */
-  text-shadow: none !important; /* Remove drop shadow for counter */
-  font-size: 0.7em; /* Keep reduced font size for the counter */
-  padding: 0.05em 0.3em; /* Reduce padding for the counter */
-  margin-left: 0.12em; /* Reduce margin to bring the counter closer to the text */
-  border-radius: 10rem; /* Keep the rounded corners consistent */
-  display: inline-flex; /* Ensure counter is inline with text */
-  align-items: center; /* Vertically center items */
-  justify-content: center; /* Horizontally center items */
-  line-height: 1; /* Ensure proper line height */
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  color: #212529 !important;
+  text-shadow: none !important;
+  font-size: 0.7em;
+  font-weight: bold;
+  padding: 0.1em 0.4em;
+  margin-left: 0.35em;
+  border-radius: 10rem;
+  line-height: 1;
 }
 
 
 /* ================================================== */
 /* ==========  13. Badge Color Overrides  ============ */
 /* ================================================== */
-.badge-primary,
-.badge-primary:not(.dropdown-toggle).dropdown-item:focus,
-.badge-primary:not(.dropdown-toggle).dropdown-item:hover {
-  color: #fff;
-}
-
-.bg-info {
-  background-color: #618cb1;
-}
-
-.bg-warning {
-  color: #212529;
-  background-color: #ffc107;
-}
-
-.bg-success {
-  background-color: #28a745;
-}
-
-.bg-danger {
-  background-color: #dc3545;
-}
+.bg-info { background-color: #007bff !important; } /* Bootstrap 4 blue */
+.bg-warning { color: #212529 !important; background-color: #ffc107 !important; }
+.bg-success { background-color: #28a745 !important; }
+.bg-danger { background-color: #dc3545 !important; }
+.bg-secondary { background-color: #6c757d !important; }
 
 
 /* ================================================== */
 /* ===========  14. Action Column Styles  ============ */
 /* ================================================== */
-/* Custom styles for the actions column to prevent button wrapping */
-.actions-header,
-.actions-cell {
+.actions-header { /* th for Actions column */
   white-space: nowrap;
-  min-width: 240px; /* Adjust this value based on your button sizes */
+  min-width: 210px; /* Adjusted for 5 small buttons with icons */
+}
+.actions-cell { /* td for Actions column */
+    white-space: nowrap; /* Keep buttons on one line if possible */
+}
+.actions-cell .btn-group {
+    flex-wrap: nowrap; /* Prevent button group from wrapping */
 }
 
 
 /* ================================================== */
-/* ============  15. Card Grid Layout  =============== */
+/* == 15. Card Grid Layout (Goal Selection - Unchanged) == */
 /* ================================================== */
-/* Card Layout */
-.card-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-}
-
-.card {
-  flex: 1 0 calc(33.333% - 20px); /* Adjust the percentage based on the number of cards per row */
-  display: flex;
-  flex-direction: column;
-}
-
-.card-body {
-  flex-grow: 1;
-}
-
-.card-content {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  height: 100%;
-}
-
+.card-container { flex-wrap: nowrap !important; justify-content: center; }
+.card { display: flex; flex-direction: column; height: 100%; }
+.card-body { flex-grow: 1; display: flex; flex-direction: column; }
+.card-upper-content { flex-grow: 1; display: flex; flex-direction: column; }
+.card-content { display: flex; flex-direction: column; justify-content: space-between; height: 100%; }
+.goal-selection-form { margin-top: auto; padding-top: 1rem; }
 
 /* ================================================== */
 /* ======  16. Generated Image & Placeholder Styles  ==== */
 /* ================================================== */
 .ssol-title {
-    text-align: center; /* Center the title above the image */
-    margin-bottom: 10px; /* Add some space between title and image */
-    display: block; /* Ensure it takes full width */
-    font-family: 'Unica One', sans-serif; /* Or your preferred font */
-    font-weight: 500;
-    font-size: 3.5rem; /* Adjust size as needed */
-    color: #326eb6; /* Or your preferred color */
-    text-transform: uppercase; /* Optional: Uppercase text */
-    text-shadow: 1px 1px 0px #000000;
-    letter-spacing: 0.2em;
-    line-height: 90%;
+    text-align: center; margin-bottom: 10px; display: block;
+    font-family: 'Unica One', sans-serif; font-weight: 500; font-size: 2.8rem;
+    color: #326eb6; text-transform: uppercase; text-shadow: 1px 1px 0px #000000;
+    letter-spacing: 0.15em; line-height: 1;
 }
 
-/* Image Wrapper for Stacking */
 .image-wrapper {
-    position: relative; /* Relative positioning for stacking images */
-    display: inline-block; /* Or block, depending on layout needs */
-    /* max-width: 100%;  Optional: If you want to control max width of images */
-    /* height: auto;     Optional: Maintain aspect ratio if needed */
+    position: relative; /* For potential future overlay elements if any */
+    display: inline-block; /* Or block, depending on desired centering within col-md-4 */
+    width: 100%; /* Make wrapper take full width of its column */
+    max-width: 300px; /* Max width of the image itself */
+    aspect-ratio: 1 / 1; /* Enforce a square aspect ratio for the space */
+    background-color: #f0f0f0; /* Light background for the reserved space */
+    border-radius: 25px; /* Match image border-radius */
+    margin-bottom: 20px; /* Consistent margin */
+    overflow: hidden; /* If image is not perfectly square, it will be contained */
 }
 
-/* Placeholder Image Styles */
-.placeholder-image {
-    position: absolute; /* Absolute positioning for stacking */
-    top: 0;
-    left: 0;
-    width: 100%;      /* Cover the full width of the wrapper */
-    height: 100%;     /* Cover the full height of the wrapper */
-    opacity: 1;       /* Initially fully visible */
-    z-index: 1;        /* Stacked below generated image initially */
-    transition: opacity 1.2s ease-out; /* Fade out transition */
-    border-radius: 25px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-    width: 100%;
-    max-width: 300px;
-    margin-bottom: 20px;
+.ssol-dynamic-image { /* Targets the single image tag by its new class */
+    display: block; /* Remove extra space below inline images */
+    width: 100%;    /* Image fills the wrapper width */
+    height: 100%;   /* Image fills the wrapper height */
+    object-fit: cover; /* Scales the image to maintain its aspect ratio while filling the element’s entire content box. If the image's aspect ratio does not match the aspect ratio of its box, then the object will be clipped to fit. */
+    border-radius: 25px; /* Rounded corners for the image itself */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Subtle shadow */
+    /* No opacity or transition here, it's a direct src change */
 }
 
-/* Hidden Class for Placeholder (used by JS) */
-.placeholder-image.hidden {
-    opacity: 0;       /* Fade out to invisible */
-    z-index: 0; 
-    margin-bottom: 20px;       /* Stacked behind generated image when hidden */
+.placeholder-image, .generated-image {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover; 
+    border-radius: 25px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
 }
-
-/* Generated Image Styles */
+.placeholder-image { opacity: 1; z-index: 1; transition: opacity 0.5s ease-out; }
+.placeholder-image.hidden { opacity: 0; z-index: -1; }
 .generated-image {
-    position: relative; /* Relative positioning (on top of placeholder) */
-    top: 0;
-    left: 0;
-    width: 100%;      /* Cover the full width of the wrapper */
-    height: 100%;     /* Cover the full height of the wrapper */
-    opacity: 0;       /* Initially invisible */
-    z-index: 2;        /* Stacked on top of placeholder */
-    transition: opacity 0.5s ease-in; /* Fade in transition */
-    border-radius: 25px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-    width: 100%;
-    max-width: 300px;
-    background: radial-gradient(rgba(0, 0, 0, 0.6), black);
-    margin-bottom: 20px;
+    opacity: 0; z-index: 2; transition: opacity 0.5s ease-in;
+    background-color: #eee; 
 }
-
-/* Loaded Class for Generated Image (used by JS to trigger fade-in) */
-.generated-image.loaded {
-    opacity: 1;       /* Fade in to fully visible */
-}
-
+.generated-image.loaded { opacity: 1; }
 
 /* ================================================== */
 /* ========  17. Consolidated Fade Animations  ========= */
 /* ================================================== */
-/* --- Fade Animations (Consolidated) --- */
+@keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
+.fade-in { opacity: 0; transition: opacity 1s ease-in; }
+.fade-in.loaded { opacity: 1; }
 
-/* General Fade In (Opacity Only, 1s duration) */
-@keyframes fadeIn {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
-}
+@keyframes fadeInBlur { 0% { opacity: 0; filter: blur(5px); } 100% { opacity: 1; filter: blur(0); } }
+.loading-spinner-overlay.fade-in { animation: fadeInBlur 0.5s ease-in-out forwards; }
 
-.fade-in {
-  opacity: 0;
-  transition: opacity 1s ease-in; /* General fade-in transition */
-}
+@keyframes fadeOutBlur { 0% { opacity: 1; filter: blur(0px); } 100% { opacity: 0; filter: blur(5px); } }
+.loading-spinner-overlay.fade-out { animation: fadeOutBlur 0.5s ease-in-out forwards; }
 
-.fade-in.loaded { /* Class to trigger fade-in start (e.g., for images) */
-  opacity: 1;
-}
+@keyframes fadeInScale { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } } /* Adjusted scale */
+@keyframes fadeOutScale { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.95); } } /* Adjusted scale */
+.modal.fade-in { animation: fadeInScale 0.3s forwards; } /* Faster modal fade */
+.modal.fade-out { animation: fadeOutScale 0.3s forwards; }
 
+@keyframes wipeOn { 0% { opacity: 0; transform: scaleX(0); } 100% { opacity: 1; transform: scaleX(1); } }
+.text-wipe-on span { display: inline-block; overflow: hidden; animation: wipeOn 0.1s forwards; opacity: 0; transform-origin: left; }
 
-/* Fade In Blur for Loading Spinner Overlay (0.5s, with blur) */
-@keyframes fadeInBlur {
-  0% {
-      opacity: 0;
-      filter: blur(5px);
-  }
-  100% {
-      opacity: 1;
-      filter: blur(0);
-  }
-}
-
-.loading-spinner-overlay.fade-in {
-  animation: fadeInBlur 0.5s ease-in-out forwards;
-}
-
-
-/* Fade Out Blur for Loading Spinner Overlay (0.5s, with blur) */
-@keyframes fadeOutBlur {
-  0% {
-      opacity: 1;
-      filter: blur(0px);
-  }
-  100% {
-      opacity: 0;
-      filter: blur(5px);
-  }
-}
-
-.loading-spinner-overlay.fade-out {
-  animation: fadeOutBlur 0.5s ease-in-out forwards;
-}
-
-
-/* Fade In/Out for Modals (0.5s, with scale) - Reusing @keyframes fadeIn/fadeOut */
-.modal.fade-in {
-  animation: fadeInScale 0.5s forwards; /* Using a new scale-fade-in animation */
-}
-
-.modal.fade-out {
-  animation: fadeOutScale 0.5s forwards; /* Using a new scale-fade-out animation */
-}
-
-
-@keyframes fadeInScale { /* NEW: Scale-fade-in for modals */
-  0% {
-      opacity: 0;
-      transform: scale(0.9);
-  }
-  100% {
-      opacity: 1;
-      transform: scale(1);
-  }
-}
-
-@keyframes fadeOutScale { /* NEW: Scale-fade-out for modals */
-  0% {
-      opacity: 1;
-      transform: scale(1);
-  }
-  100% {
-      opacity: 0;
-      transform: scale(0.9);
-  }
-}
-
-
-/* Text Wipe Effect (Keep as is if used for goal text wipe-on) */
-@keyframes wipeOn {
-  0% {
-    opacity: 0;
-    transform: scaleX(0);
-  }
-  100% {
-    opacity: 1;
-    transform: scaleX(1);
-  }
-}
-
-.text-wipe-on span {
-  display: inline-block;
-  overflow: hidden;
-  animation: wipeOn 0.1s forwards;
-  opacity: 0;
-  transform-origin: left;
-}
-
-
-/* Navbar Text Fade-in (Specific to Navbar, 0.5s ease-in-out) */
-.text-fade-in { /* Keep this for initial hidden state */
-  opacity: 0;
-  transition: opacity 0.5s ease-in-out; /* Specific 0.5s ease-in-out for navbar */
-}
-
-.fonts-loaded .text-fade-in { /* Keep this to reveal navbar text when fonts are loaded */
-  opacity: 1;
-}
+.text-fade-in { opacity: 0; transition: opacity 0.5s ease-in-out; }
+.fonts-loaded .text-fade-in { opacity: 1; }
 
 
 /* ================================================== */
-/* ==========  18. Text Input Styles  ================ */
+/* == 18. Text Input Styles (Goal Input - Unchanged) == */
 /* ================================================== */
-.user-input {
-  font-weight: bold;
-  font-size: 1.2rem;
+.user-input { font-weight: bold; font-size: 1.2rem; }
+.user-input-display { font-weight: bold; font-size: 1.2rem; }
+.user-input-edit {
+  font-weight: bold; font-size: 1.2rem; border: none;
+  width: 100%; background-color: transparent; padding: 0.25rem;
+}
+.user-input-edit:focus {
+  background-color: #e9ecef; outline: none;
+  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
 }
 
-#user-input-container {
-  background-color: #f5f5f5;
-  color: #ffffff;
-  border-radius: 5px;
-  margin-bottom: 5px;
-}
-
-#user-input-display {
-  color: #ffffff;
-  font-weight: bold;
-  font-size: 1.2rem;
-}
-
-#user-input-edit {
-  color: #ffffff;
-  font-weight: bold;
-  font-size: 1.2rem;
-  border: none;
-  max-width: 100%;
-  background-color: transparent;
-}
-
-#user-input-edit:focus {
-  background-color: #cce5ff;
-}
+/* ================================================== */
+/* == 19. Table Row Styles (Goal Input - Unchanged) === */
+/* ================================================== */
+.table-bordered > thead > tr > th { border-bottom: 2px dotted #dee2e6; }
 
 
 /* ================================================== */
-/* ===========  19. Table Row Styles  =============== */
+/* ==========  20. Editing State Styles (COS Table)  ============= */
 /* ================================================== */
-.header-row {
-  background-color: #ffc107;
+/* These control visibility of display spans vs edit inputs within table cells */
+.cos-row td .cos-content-edit,
+.cos-row td .cos-accountable-party-edit,
+.cos-row td .cos-completion-date-edit,
+.cos-row td select.status-edit-select {
+    display: none; /* Hide edit fields by default */
 }
 
-.your-goal {
-  color: #ffffff;
-  font-weight: bold;
-  font-size: 1.2rem;
-  width: 80%;
+.cos-row[data-editing="true"] td .cos-content-display,
+.cos-row[data-editing="true"] td .cos-accountable-party-display,
+.cos-row[data-editing="true"] td .cos-completion-date-display,
+.cos-row[data-editing="true"] td .status-pill { /* Hide display spans/pill in edit mode */
+    display: none !important;
 }
 
-.actions {
-  color: #ffffff;
-  font-weight: bold;
-  font-size: 1.2rem;
-  width: 20%;
-  text-align: center;
+.cos-row[data-editing="true"] td .cos-content-edit,
+.cos-row[data-editing="true"] td .cos-accountable-party-edit,
+.cos-row[data-editing="true"] td .cos-completion-date-edit,
+.cos-row[data-editing="true"] td select.status-edit-select {
+    display: block; /* Show edit fields in edit mode */
+    width: 100%; /* Make inputs take full cell width */
+}
+.cos-row[data-editing="true"] td select.status-edit-select {
+    font-size: 0.8rem; /* Smaller font for select in table */
 }
 
-.table-bordered > thead > tr > th {
-  border-bottom: 2px dotted #dee2e6;
+
+/* Button visibility toggling (JS also helps with d-none, this is CSS backup/primary) */
+.cos-row .update-cos-button,
+.cos-row .cancel-cos-button {
+    display: none;
 }
-
-
-/* ================================================== */
-/* ==========  20. Editing State Styles  ============= */
-/* ================================================== */
-.editing .edit-ce-button,
-.editing .delete-ce-button {
-  display: none;
+.cos-row[data-editing="true"] .edit-cos-button,
+.cos-row[data-editing="true"] .delete-cos-button, /* Hide delete/analyze during edit */
+.cos-row[data-editing="true"] .analyze-cos-button {
+    display: none !important;
 }
-
-.editing .update-ce-button,
-.editing .cancel-ce-button {
-  display: inline-block;
-}
-
-.ce-row[data-editing="true"] .edit-ce-button,
-.ce-row[data-editing="true"] .delete-ce-button {
-  display: none;
-}
-
-.ce-row[data-editing="true"] .update-ce-button,
-.ce-row[data-editing="true"] .cancel-ce-button {
-  display: inline-block;
+.cos-row[data-editing="true"] .update-cos-button,
+.cos-row[data-editing="true"] .cancel-cos-button {
+    display: inline-block !important;
 }
 
 
 /* ================================================== */
 /* ===========  21. Modal Custom Styling  ============ */
 /* ================================================== */
-.modal.fade-in {
-  animation: fadeIn 0.5s forwards;
-}
-
-.modal.fade-out {
-  animation: fadeOut 0.5s forwards;
-}
-
-
-.modal-header-text {
-  text-transform: uppercase;
-  font-family: 'Unica One', sans-serif;
-  font-weight: 500;
-  font-size: 1.9em;
-  text-shadow: 1px 1px 0px #000000;
-  color: #ffffff;
-}
-
 .modal-content {
-  border-radius: 10px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-  border: 2px solid transparent; /* Default border to avoid collapse */
-  max-height: 90vh; /* ADDED: max-height to modal content for scrollable body */
-  display: flex;        /* ADDED: flex display to modal content */
-  flex-direction: column; /* ADDED: column direction to modal content */
+  border-radius: 10px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  border: 2px solid transparent; max-height: 90vh;
+  display: flex; flex-direction: column;
 }
-
-.ce-modal-body {  /* ADDED: Specific style for CE Modal Body to enable flex grow */
-  flex-grow: 1;     /* ADDED: Allow modal body to grow and take available height */
-  overflow-y: auto; /* ADDED: Enable vertical scrolling in modal body */
-  padding: 24px;    /* ADDED: Padding to modal body content */
+.modal-header, .ce-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 1.5rem; border-top-left-radius: 8px; border-top-right-radius: 8px;
+  position: relative; color: white;
 }
-
-
-.modal-header {
-  border-top-left-radius: 10px;
-  border-top-right-radius: 10px;
-  position: relative;
-  padding: 1rem;
-  background-color: var(--phase-color, #e91e63); /* Default color */
+.ce-modal-header .node-icon {
+  background-color: white; border-radius: 5px; padding: 8px 10px;
+  margin-right: 1rem; flex-shrink: 0; display: inline-flex;
+  align-items: center; justify-content: center;
 }
+.ce-modal-header .node-icon i { font-size: 1.25rem; }
 
-.node-icon {
-  background-color: white;
-  border-radius: 5px;
-  padding: 10px;
-  /* box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);   */
-  margin-right: 0.5rem;
+.modal-title, .ce-modal-header .modal-title.ce-title {
+  font-family: 'Unica One', sans-serif; font-weight: 500; text-transform: uppercase;
+  text-shadow: 1px 1px 1px rgba(0,0,0,0.4); color: white;
+  font-size: 1.5rem; margin-right: 0.5rem; line-height: 1.2;
 }
+.ce-modal-header .modal-title.ce-title { font-size: 1.6rem; }
 
-modal-header .node-icon i {
-  color: inherit; /* Inherit color from the ce-modal-header's background-color */
+.ce-modal-header .phase-name {
+  font-family: 'Jost', sans-serif; font-size: 0.85rem; font-style: italic;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.9);
+  margin-left: auto; margin-right: 1rem; white-space: nowrap; line-height: 1.2;
 }
-
-
-.modal-body {
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+.modal-header .close-button, .ce-modal-header .close-button {
+  background: transparent; border: none; color: white; font-size: 1.75rem;
+  opacity: 0.8; padding: 0.25rem 0.75rem; line-height: 1; text-shadow: none; margin-left: 0.5rem;
 }
+.modal-header .close-button:hover, .ce-modal-header .close-button:hover { opacity: 1; }
 
-.btn-save-changes {
-  background-color: var(--bs-primary);
-  border-color: var(--bs-primary);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+.modal-body, .ce-modal-body {
+  flex-grow: 1; overflow-y: auto; padding: 1.5rem;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
 }
-
-.btn-save-changes:hover {
-  background-color: var(--bs-primary);
-  border-color: var(--bs-primary);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-}
-
-.modal-header .filled-box {
-  position: absolute;
-  top: -4;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--phase-color, #e91e63); /* Default color */
-  z-index: -1;
-  border-top-left-radius: 10px;
-  border-top-right-radius: 10px;
-}
-
-.modal-title {
-  font-family: 'Unica One', sans-serif;
-  font-weight: 500;
-  text-transform: uppercase;
-  text-shadow: 1px 1px 0px #000000;
-  color: white;
-}
-
-
-.modal-header {
-  font-family: 'Unica One', sans-serif;
-  font-size: 0.5rem;  /* Adjusted font size */
-  color: #333;  /* Adjust color if needed */
-  text-transform: uppercase;
-  margin-bottom: 0.5rem;  /* Adjust spacing */
-}
+.ce-modal-body { padding: 2rem; }
+.ce-modal-body .section { margin-bottom: 2rem; }
+.ce-modal-body .section:last-child { margin-bottom: 0.5rem; }
+.ce-modal-body .sub-section { margin-bottom: 1.5rem; }
 
 .modal-body .context-label {
-  font-family: 'Unica One', sans-serif;
-  font-size: 1.5rem;  /* Adjusted font size */
-  font-weight: bold;  /* Bold font */
-  color: #333;  /* Adjust color if needed */
-  margin-bottom: 0.5rem;  /* Adjust spacing */
-  text-transform: uppercase;
-  display: block;  /* Ensure it stands out as a label */
+  font-family: 'Unica One', sans-serif; font-size: 1rem; font-weight: 500;
+  color: #104a3a; margin-bottom: 0.5rem; text-transform: uppercase; display: block;
 }
+.modal-body .content-block {
+  background-color: #f8f9fa; border-left: 3px solid #dee2e6;
+  padding: 0.75rem 1rem; margin-bottom: 1rem; color: #212529; line-height: 1.5;
+}
+.modal-body .content-block.italic { font-style: italic; }
+.modal-body .definition-text { font-size: 0.9rem; color: #495057; line-height: 1.45; margin-bottom: 0.75rem; }
 
-/* Style for the COS text and AI context */
-.modal-body .content-block { /* Changed selector to .modal-body .content-block */
-  background-color: #f9f9f9;
-  border-left: 4px solid #ddd;
-  padding: 12px 16px;
-  margin-bottom: 20px;
-  font-style: italic;
-  color: #555;
-  line-height: 1.5;
+.modal-footer { padding: 1rem 1.5rem; background-color: #f8f9fa; border-top: 1px solid #dee2e6; }
+.btn-save-changes {
+  background-color: var(--bs-primary); border-color: var(--bs-primary);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
+.btn-save-changes:hover { box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); }
 
-.modal-body .definition-text { /* Changed selector to .modal-body .definition-text */
-  font-size: 0.9em;
-  color: #666;
-  line-height: 1.4;
-  margin-bottom: 1em; /* Added margin bottom for spacing */
-}
-
-.modal-body .ai-context-label {
-  font-family: 'Unica One', sans-serif;
-  font-size: 1.5rem;  /* Adjusted font size */
-  color: #333;  /* Adjust color if needed */
-  margin-bottom: 0.5rem;  /* Adjust spacing */
-  text-transform: uppercase;
-  display: block;  /* Ensure it stands out as a label */
-}
-
-[data-phase-index="0"] .modal-header .filled-box,
-[data-phase-index="0"] .modal-header {
-  background-color: var(--phase-0) !important;
-}
-
-[data-phase-index="1"] .modal-header .filled-box,
-[data-phase-index="1"] .modal-header {
-  background-color: var(--phase-1) !important;
-}
-
-[data-phase-index="2"] .modal-header .filled-box,
-[data-phase-index="2"] .modal-header {
-  background-color: var(--phase-2) !important;
-}
-
-[data-phase-index="3"] .modal-header .filled-box,
-[data-phase-index="3"] .modal-header {
-  background-color: var(--phase-3) !important;
-}
-
-[data-phase-index="4"] .modal-header .filled-box,
-[data-phase-index="4"] .modal-header {
-  background-color: var(--phase-4) !important;
-}
-
-[data-phase-index="0"] .modal-content {
-  border: 2px solid var(--phase-0) !important;
-}
-
-[data-phase-index="1"] .modal-content {
-  border: 2px solid var(--phase-1) !important;
-}
-
-[data-phase-index="2"] .modal-content {
-  border: 2px solid var(--phase-2) !important;
-}
-
-[data-phase-index="3"] .modal-content {
-  border: 2px solid var(--phase-3) !important;
-}
-
-[data-phase-index="4"] .modal-content {
-  border: 2px solid var(--phase-4) !important;
-}
+/* Dynamic Phase Colors for Modals */
+[data-phase-index="0"] .modal-content { border-color: var(--phase-0) !important; }
+[data-phase-index="0"] .modal-header, [data-phase-index="0"] .ce-modal-header { background-color: var(--phase-0) !important; }
+[data-phase-index="0"] .ce-modal-header .node-icon i { color: var(--phase-0) !important; }
+/* Repeat for phase-1 to phase-4 */
+[data-phase-index="1"] .modal-content { border-color: var(--phase-1) !important; }
+[data-phase-index="1"] .modal-header, [data-phase-index="1"] .ce-modal-header { background-color: var(--phase-1) !important; }
+[data-phase-index="1"] .ce-modal-header .node-icon i { color: var(--phase-1) !important; }
+[data-phase-index="2"] .modal-content { border-color: var(--phase-2) !important; }
+[data-phase-index="2"] .modal-header, [data-phase-index="2"] .ce-modal-header { background-color: var(--phase-2) !important; }
+[data-phase-index="2"] .ce-modal-header .node-icon i { color: var(--phase-2) !important; }
+[data-phase-index="3"] .modal-content { border-color: var(--phase-3) !important; }
+[data-phase-index="3"] .modal-header, [data-phase-index="3"] .ce-modal-header { background-color: var(--phase-3) !important; }
+[data-phase-index="3"] .ce-modal-header .node-icon i { color: var(--phase-3) !important; }
+[data-phase-index="4"] .modal-content { border-color: var(--phase-4) !important; }
+[data-phase-index="4"] .modal-header, [data-phase-index="4"] .ce-modal-header { background-color: var(--phase-4) !important; }
+[data-phase-index="4"] .ce-modal-header .node-icon i { color: var(--phase-4) !important; }
 
 
 /* ================================================== */
 /* =========  22. Tabulator Table Styling  ============ */
 /* ================================================== */
-/* Tabulator table styling */
 .tabulator {
-  border-radius: 5px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
+  border-radius: 5px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1.5rem; border: 1px solid #dee2e6;
 }
-
-.tabulator-table {
-  height: 150px;
-  max-height: 311px;
-  overflow: auto;
-}
-
+.resources-table { margin-top: 1.5rem; margin-bottom: 1.5rem; max-height: 350px; }
 .tabulator-header {
-  font-family: 'Jost', sans-serif;
-  font-weight: 700;
-  font-size: 0.9em;
-  border-bottom: 2px solid black;
-  background-color: transparent; /* No background color */
-  color: #333; /* Darker text color */
+  font-family: 'Jost', sans-serif; font-weight: 600; font-size: 0.85em;
+  border-bottom: 2px solid #adb5bd; background-color: #f8f9fa; color: #343a40;
 }
-
-.form-group {
-  font-weight: bold;
-  font-size: 0.85em;
-}
-
-.tabulator-header .tabulator-col {
-  border-right: 1px solid #ddd; /* Light grey border between columns */
-}
-
-.tabulator-header .tabulator-col:last-child {
-  border-right: none;
-}
-
-.tabulator-row {
-  background-color: #f5f5f5;
-}
-
-.tabulator-row:nth-child(even) {
-  background-color: #eeeeee;
-}
-
-.tabulator-row:hover {
-  background-color: #dddddd;
-}
-
+.tabulator-header .tabulator-col { border-right: 1px solid #e9ecef; background-color: transparent; }
+.tabulator-header .tabulator-col:last-child { border-right: none; }
+.tabulator-row { background-color: #ffffff; border-bottom: 1px solid #f1f3f5; }
+.tabulator-row:nth-child(even) { background-color: #fbfcfd; }
+.tabulator-row:hover { background-color: #e9f2fa; }
+.tabulator-row:last-child { border-bottom: none; }
 .tabulator-cell {
-  padding: 10px;
-  border: none;
-  white-space: normal; /* Allow text to wrap */
-  overflow: visible;   /* Ensure content is visible */
-  word-wrap: break-word;
-  height: auto;        /* Set initial height to auto */
+  padding: 10px 12px; border: none; white-space: normal; overflow: visible;
+  word-wrap: break-word; height: auto; font-size: 0.9rem;
+}
+/* Dynamic Phase Colors for Tabulator Headers */
+[data-phase-index="0"] .tabulator-header { border-bottom-color: var(--phase-0) !important; }
+[data-phase-index="1"] .tabulator-header { border-bottom-color: var(--phase-1) !important; }
+[data-phase-index="2"] .tabulator-header { border-bottom-color: var(--phase-2) !important; }
+[data-phase-index="3"] .tabulator-header { border-bottom-color: var(--phase-3) !important; }
+[data-phase-index="4"] .tabulator-header { border-bottom-color: var(--phase-4) !important; }
+
+.form-group { font-weight: normal; font-size: 0.9em; margin-bottom: 0.75rem; }
+.form-group label {
+    display: block; margin-bottom: 0.35rem; font-family: 'Jost', sans-serif;
+    font-weight: 500; font-size: 0.85rem; color: #454545;
 }
 
-.tabulator-row {
-  height: auto !important; /* Allow row height to adjust */
-}
-
-/* Specific phase colors for Tabulator */
-[data-phase-index="0"] .tabulator-header {
-  color: var(--phase-0) !important;
-}
-
-[data-phase-index="1"] .tabulator-header {
-  color: var(--phase-1) !important;
-}
-
-[data-phase-index="2"] .tabulator-header {
-  color: var(--phase-2) !important;
-}
-
-[data-phase-index="3"] .tabulator-header {
-  color: var(--phase-3) !important;
-}
-
-[data-phase-index="4"] .tabulator-header {
-  color: var(--phase-4) !important;
-}
-
-.tabulator-header .tabulator-col {
-  background-color: transparent;
-}
-
-.tabulator-row {
-  border-bottom: 1px solid #ddd;
-}
-
-.tabulator-row:last-child {
-  border-bottom: none;
-}
 
 /* ================================================== */
 /* =======  23. Hidden Text Utility Class  =========== */
 /* ================================================== */
-.hidden-text {
-  opacity: 0;
-}
+.hidden-text { opacity: 0; }
+
 
 /* ================================================== */
 /* =======  24. CE Modal Specific Styles ============ */
 /* ================================================== */
-/* CE Modal Specific Styles - Overrides and additions for xl-modals */
-
-.ce-modal {
-    max-width: 95%; /* Wider modal for xl-size */
-    width: 1400px;   /* or adjust as needed */
+.modal-dialog.ce-modal { max-width: 90%; width: auto; margin: 1.75rem auto; }
+.ce-modal-body .section-heading {
+    font-size: 1.4rem; color: #104a3a; text-shadow: none;
+    border-bottom: 1px solid #dee2e6; padding-bottom: 0.5rem; margin-bottom: 1.5rem;
 }
-
-.ce-modal-header {
-    padding: 1.25rem 2rem; /* Slightly more padding in header */
+.ce-modal-body .sub-heading {
+    font-family: 'Unica One', sans-serif; font-weight: 500; color: #333;
+    font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em;
+    margin-top: 1.5rem; margin-bottom: 0.75rem;
 }
-
-.ce-title {
-    font-size: 2rem; /* Slightly larger CE title */
+.ce-modal-body .form-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem 1.5rem; margin-bottom: 2rem;
 }
-
-.phase-name {
-    font-size: 1.5rem; /* Slightly larger phase name in header */
+.ce-modal-body .form-group label { font-size: 0.9rem; font-weight: 500; color: #343a40; margin-bottom: 0.4rem; }
+.ce-modal-body .form-input, .ce-modal-body .form-control,
+.ce-modal-body .form-textarea, .ce-modal-body .form-select {
+    padding: 0.5rem 0.75rem; font-size: 0.95rem; border-radius: 0.25rem;
+    border: 1px solid #ced4da; width: 100%;
 }
-
-.ce-modal-body {
-    padding: 2rem; /* More generous padding in modal body */
+.ce-modal-body .form-textarea { min-height: 100px; }
+.ce-modal-body .action-row {
+    margin-top: 1.5rem; margin-bottom: 1.5rem; display: flex;
+    flex-wrap: wrap; gap: 0.75rem;
 }
+.ce-modal-body .action-row .btn { padding: 0.5rem 1rem; font-size: 0.9rem; }
+.ce-modal-footer { padding: 1rem 1.5rem; background-color: #f8f9fa; border-top: 1px solid #dee2e6; }
+.ce-modal-body .ce-pills-container { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 8px 10px; }
+.ce-modal-body .ce-pill { padding: 5px 12px; font-size: 0.9rem; }
 
-.section-heading {
-    font-size: 2rem; /* Larger section headings */
-}
-
-.sub-heading {
-    font-size: 1.25rem; /* Larger sub-headings */
-}
-
-.form-grid {
-    grid-template-columns: 200px 1fr 1fr; /* Wider first column for labels */
-    gap: 20px; /* Increased gap in form grid */
-    margin-bottom: 30px; /* More margin below form grid */
-}
-
-.form-label {
-    font-size: 1rem; /* Slightly larger form labels */
-    padding-top: 10px; /* More padding for form labels */
-}
-
-.form-input, .form-textarea, .form-select {
-    padding: 10px 16px; /* More padding for form inputs */
-    font-size: 1rem;    /* Slightly larger font size for inputs */
-}
-
-.form-textarea {
-    min-height: 120px; /* Slightly taller textareas */
-}
-
-.resources-table {
-    margin-top: 24px; /* More margin above resources table */
-    margin-bottom: 24px; /* More margin below resources table */
-}
-
-.tabulator-table {
-    max-height: 400px; /* Increased max-height for resources table */
-}
-
-.tabulator th, .tabulator td {
-    padding: 14px 16px; /* More padding for table cells */
-    font-size: 1rem;    /* Slightly larger font size in table */
-}
-
-.action-row {
-    margin-top: 24px; /* More margin above action buttons */
-    margin-bottom: 24px; /* More margin below action buttons */
-}
-
-.button {
-    padding: 10px 20px; /* More padding for buttons */
-    font-size: 1rem;    /* Slightly larger button font size */
-}
-
-.modal-footer {
-    padding: 2rem; /* More padding in modal footer */
-}
-
-.ce-pill {
-    padding: 6px 14px; /* Slightly larger CE pills */
-    font-size: 1rem;    /* Slightly larger CE pill font size */
-    margin-right: 10px;  /* More right margin for CE pills */
-    margin-bottom: 10px; /* More bottom margin for CE pills for wrapping*/
-}
-
-.ce-pill-icon {
-    font-size: 1rem;    /* Larger CE pill icon */
-    margin-right: 8px;  /* More margin right for CE pill icon */
-}
-
-.ce-pills-container {
-    margin-top: 1.5rem; /* More top margin for CE pills container */
-    gap: 8px 10px;      /* Increased gap for CE pills container */
-}
-
-.counter {
-    font-size: 0.8em;    /* Slightly larger counter font size */
-    padding: 0.1em 0.4em; /* More padding for counter badge */
-    margin-left: 0.2em;   /* More left margin for counter badge */
-}
+/* Ensure d-none utility class works as expected */
+.d-none { display: none !important; }
