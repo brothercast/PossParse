@@ -15,12 +15,43 @@ from ai_service import generate_chat_response_with_node_types, generate_chat_res
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# --- NEW SAFE EXTRACTION HELPER ---
+def _safe_get_ai_data(data_dict, key):
+    """Safely retrieves a key, cleaning up surrounding quotes and whitespace."""
+    if not isinstance(data_dict, dict):
+        return None
+    
+    # Check for variants of the key (strip whitespace and surrounding quotes)
+    key_variants = [
+        key,
+        key.strip(),
+        f'"{key}"',
+        f'"{key}"'.strip(),
+        f'  "{key}"'.strip(),
+        f' {key} '.strip()
+    ]
+    
+    for k in set(key_variants): # Use set to avoid redundant checks
+        if k in data_dict:
+            return data_dict[k]
+        
+        # Check if the key exists after stripping the key string itself
+        # This handles cases where the AI is returning keys like "  "analyzed_cos_text"  "
+        for dict_key in data_dict.keys():
+            if str(dict_key).strip().strip('"').lower() == key.lower():
+                return data_dict[dict_key]
+        
+    return None
+
 # --- COS Analysis and CE Pill Generation ---
 async def analyze_cos(cos_content: str, cos_id: str = None) -> dict:
     """
     Analyzes COS content using AI to identify CEs, and prepares content with CE pills.
     Returns a dictionary: {'content_with_ce': <html_string>, 'ces_data_list': [<ce_dict>, ...]}
     """
+    # --- START OF FIX ---
+    # The f-string correctly handles variable interpolation. The trailing .format() call
+    # was incorrect and has been removed.
     prompt = (
         f"Analyze the following Condition of Satisfaction (COS) text: '{cos_content}'. "
         "Identify all Conditional Elements (CEs) within this text. "
@@ -38,7 +69,8 @@ async def analyze_cos(cos_content: str, cos_id: str = None) -> dict:
         '    {"text": "key experts", "type": "Stakeholder"}'
         '  ]'
         '}'
-    ).format(cos_content=cos_content, valid_node_types_list=get_valid_node_types())
+    ) # <-- The incorrect .format() call was here. It has been removed.
+    # --- END OF FIX ---
 
 
     messages = [
@@ -57,7 +89,6 @@ async def analyze_cos(cos_content: str, cos_id: str = None) -> dict:
         ai_identified_ces_list = response_json.get("identified_ces", [])
 
         # Convert ai_identified_ces_list to the structure expected by replace_ce_tags_with_pills if needed for metadata
-        # (e.g., if replace_ce_tags_with_pills adds counts or 'new' indicators based on this list)
         ces_data_for_pills = []
         for ce_item in ai_identified_ces_list:
             if ce_item.get("type") in get_valid_node_types():
@@ -72,12 +103,9 @@ async def analyze_cos(cos_content: str, cos_id: str = None) -> dict:
 
         # `replace_ce_tags_with_pills` will find <ce type='...'> tags in `ai_analyzed_text_with_tags`
         # and replace them with interactive <span class="ce-pill" data-ce-id="..." ...> pills.
-        # It will generate UUIDs for data-ce-id.
-        # The `ces_data_for_pills` can be used by it to add metadata like counts to these pills.
         content_with_pills_html = replace_ce_tags_with_pills(ai_analyzed_text_with_tags, ces_data_for_pills)
 
         # For creating CE records, we need a list of CEs with their final text and type, and generated IDs
-        # We can parse the `content_with_pills_html` to get these.
         final_ces_data_list = []
         soup = BeautifulSoup(content_with_pills_html, 'html.parser')
         for pill_tag in soup.find_all('span', class_='ce-pill'):
@@ -98,46 +126,64 @@ async def analyze_cos(cos_content: str, cos_id: str = None) -> dict:
         current_app.logger.error(f"Exception in analyze_cos: {e}. AI Response: '{response_text}'", exc_info=True)
         return {'content_with_ce': html.escape(cos_content), 'ces_data_list': []}
 
-
-# --- COS CRUD Operations ---
 async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: str, accountable_party: str = None, completion_date=None) -> str:
     from models import COS, CE, get_engine_and_session
     from store import ce_store, cos_store
-    from app import app # For app_context
+    from app import app
+    from sqlalchemy.exc import SQLAlchemyError
 
-    analysis_result = {} # Initialize for logging in case of error prior to its assignment
+    analysis_result = {}
+    cos_id_str = None
+    
     try:
         new_cos_uuid = uuid.uuid4()
         cos_id_str = str(new_cos_uuid)
 
         analysis_result = await analyze_cos(content, cos_id_str)
         content_with_pills = analysis_result['content_with_ce']
-        extracted_ces_data = analysis_result['ces_data_list'] # This list now contains 'id' for each CE pill
+        extracted_ces_data = analysis_result['ces_data_list']
 
         if USE_DATABASE:
             with app.app_context():
-                engine, session = get_engine_and_session()
-                cos_instance = COS(
-                    id=new_cos_uuid,
-                    content=content_with_pills,
-                    status=status,
-                    accountable_party=accountable_party,
-                    completion_date=completion_date,
-                    ssol_id=ssol_id
-                )
-                session.add(cos_instance)
+                engine, SessionLocal = get_engine_and_session()
+                session = SessionLocal()
+                try:
+                    # FIX: Robustly handle completion_date to prevent DB errors with empty strings.
+                    if completion_date in ['None', 'N/A', '', None]:
+                         completion_date_for_db = None
+                    else:
+                        completion_date_for_db = completion_date
 
-                for ce_data in extracted_ces_data:
-                    ce_instance = CE(
-                        id=UUID(ce_data['id']), # Use the ID from analysis_result (generated by replace_ce_tags_with_pills)
-                        content=ce_data['content'],
-                        node_type=ce_data['node_type'],
-                        cos_id=new_cos_uuid # Link to the new COS
+                    cos_instance = COS(
+                        id=new_cos_uuid,
+                        content=content_with_pills,
+                        status=status,
+                        accountable_party=accountable_party,
+                        completion_date=completion_date_for_db, # Use sanitized variable
+                        ssol_id=ssol_id
                     )
-                    session.add(ce_instance)
-                session.commit()
-                session.close()
-        else:
+                    session.add(cos_instance)
+
+                    for ce_data in extracted_ces_data:
+                        ce_uuid = UUID(ce_data['id'])
+                        ce_instance = CE(
+                            id=ce_uuid,
+                            content=ce_data['content'],
+                            node_type=ce_data['node_type'],
+                            cos_id=new_cos_uuid
+                        )
+                        session.add(ce_instance)
+                        
+                    session.commit()
+                    
+                except SQLAlchemyError as db_e:
+                    session.rollback()
+                    current_app.logger.error(f"DB Error on create_cos (SSOL: {ssol_id}, COS: {cos_id_str}): {db_e}", exc_info=True)
+                    raise Exception(f"Database error while saving Condition of Satisfaction.") from db_e
+                finally:
+                    if session.is_active: 
+                        session.close()
+        else: # In-memory logic remains the same
             cos_record = {
                 'id': cos_id_str,
                 'content': content_with_pills,
@@ -145,32 +191,26 @@ async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: st
                 'ssol_id': str(ssol_id),
                 'accountable_party': accountable_party,
                 'completion_date': str(completion_date) if completion_date else None,
-                'conditional_elements': [] # Will store CE dicts
+                'conditional_elements': []
             }
             cos_store[cos_id_str] = cos_record
 
             for ce_data in extracted_ces_data:
                 ce_record = {
-                    'id': ce_data['id'], # Use ID from analysis
-                    'content': ce_data['content'],
-                    'node_type': ce_data['node_type'],
-                    'cos_id': cos_id_str
+                    'id': ce_data['id'], 'content': ce_data['content'],
+                    'node_type': ce_data['node_type'], 'cos_id': cos_id_str
                 }
-                ce_store[ce_data['id']] = ce_record # Store CE by its own ID
+                ce_store[ce_data['id']] = ce_record
                 cos_record['conditional_elements'].append(ce_record)
         
         return cos_id_str
 
-    except KeyError as e: # Should be less likely if analyze_cos is robust
-        current_app.logger.error(f"KeyError in create_cos: {e}. Analysis result: {analysis_result}", exc_info=True)
-        raise
+    except ValueError as e:
+        current_app.logger.error(f"Data validation error creating COS (SSOL: {ssol_id}): {e}", exc_info=True)
+        raise ValueError(f"Data error: {str(e)}") from e
     except Exception as e:
-        current_app.logger.error(f"Error creating COS: {e}", exc_info=True)
-        if USE_DATABASE and 'session' in locals() and session.is_active:
-            session.rollback()
-            session.close()
+        current_app.logger.error(f"General Error creating COS (SSOL: {ssol_id}, COS: {cos_id_str}): {e}", exc_info=True)
         raise
-
 
 def get_cos_by_id(USE_DATABASE: bool, cos_id: UUID): # Expects UUID if DB, can be str if not
     from models import COS, get_engine_and_session
@@ -363,30 +403,110 @@ def get_ssol_by_id(USE_DATABASE: bool, ssol_id: UUID): # Expects UUID if DB
         return ssol_store.get(str(ssol_id))
 
 # --- CE CRUD Operations ---
-def get_ce_by_id(USE_DATABASE: bool, ce_id: UUID): # Expects UUID if DB
+def get_ce_by_id(USE_DATABASE: bool, ce_id_param): # ce_id_param can be str or UUID
+    """
+    Retrieves a Conditional Element (CE) by its ID, preparing it in a format
+    suitable for the frontend modal (with 'form_data' and 'table_data' keys).
+
+    Args:
+        USE_DATABASE (bool): Flag indicating whether to use the database or in-memory store.
+        ce_id_param: The ID of the CE to retrieve (can be a UUID object or a string).
+
+    Returns:
+        dict: A dictionary representing the CE data, or None if not found or an error occurs.
+    """
+    # These imports are typically at the top of the file, but placed here
+    # to ensure the function is self-contained for this example if copied directly.
+    # In a real project, they'd be at the module level.
     from models import CE, get_engine_and_session
     from store import ce_store
-    from app import app
+    from app import app # Required for app_context
+
+    ce_id_uuid = None
+    if isinstance(ce_id_param, UUID):
+        ce_id_uuid = ce_id_param
+    else:
+        try:
+            ce_id_uuid = UUID(str(ce_id_param))
+        except ValueError:
+            current_app.logger.error(f"Invalid UUID format for ce_id: '{ce_id_param}'")
+            return None
+
     try:
         if USE_DATABASE:
-            if not isinstance(ce_id, UUID): ce_id = UUID(str(ce_id)) # Ensure UUID for DB
-            with app.app_context():
-                engine, session = get_engine_and_session()
-                ce = session.query(CE).get(ce_id)
-                session.close()
-        else: # In-memory
-            ce = ce_store.get(str(ce_id)) # Use string ID for dict key
+            with app.app_context(): # Ensure Flask application context for database operations
+                engine, SessionLocal = get_engine_and_session() # Get engine and session factory
+                session = SessionLocal() # Create a new session
+                try:
+                    ce_db_instance = session.query(CE).get(ce_id_uuid)
+                    if ce_db_instance:
+                        # CE.to_dict() is expected to parse 'content' (for form_data)
+                        # and 'details' (for table_data) if they are JSON strings.
+                        ce_data_to_return = ce_db_instance.to_dict()
+                    else:
+                        current_app.logger.debug(f"CE with ID {ce_id_uuid} not found in database.")
+                        ce_data_to_return = None
+                except Exception as db_exc:
+                    current_app.logger.error(f"Database error retrieving CE {ce_id_uuid}: {db_exc}", exc_info=True)
+                    ce_data_to_return = None # Or re-raise
+                finally:
+                    session.close() # Always close the session
+            return ce_data_to_return
+        else: # In-memory store
+            ce_from_store = ce_store.get(str(ce_id_uuid))
+            if ce_from_store:
+                # Ensure in-memory data conforms to the 'form_data' and 'table_data' structure
+                # Default to empty structures if keys are missing or data is malformed
 
-        if not ce:
-            # Log or raise a more specific "Not Found" if desired
-            current_app.logger.debug(f"CE with ID {ce_id} not found (USE_DATABASE={USE_DATABASE}).")
-        return ce
-    except ValueError as e: # Handle invalid UUID format string
-        current_app.logger.error(f"ValueError retrieving CE by ID {ce_id}: {e}")
-        return None # Or raise
+                # Process 'content' for form_data
+                form_data_mem = {}
+                raw_content = ce_from_store.get('content')
+                if isinstance(raw_content, str):
+                    try:
+                        form_data_mem = json.loads(raw_content)
+                        if not isinstance(form_data_mem, dict):
+                            form_data_mem = {} # Ensure it's a dict
+                    except json.JSONDecodeError:
+                        # If content isn't JSON, it might be a primary value.
+                        # For consistency with the expected 'form_data' object,
+                        # you might map it to a default key or log a warning.
+                        # E.g., form_data_mem = {'primary_field': raw_content}
+                        current_app.logger.debug(f"In-memory CE {ce_id_uuid} 'content' is not JSON: '{raw_content}'")
+                        form_data_mem = {} # Defaulting to empty if not parseable JSON
+                elif isinstance(raw_content, dict):
+                    form_data_mem = raw_content # Already a dictionary
+
+                # Process 'details' for table_data
+                table_data_mem = []
+                raw_details = ce_from_store.get('details')
+                if isinstance(raw_details, str):
+                    try:
+                        table_data_mem = json.loads(raw_details)
+                        if not isinstance(table_data_mem, list):
+                            table_data_mem = [] # Ensure it's a list
+                    except json.JSONDecodeError:
+                        current_app.logger.debug(f"In-memory CE {ce_id_uuid} 'details' is not JSON: '{raw_details}'")
+                        table_data_mem = []
+                elif isinstance(raw_details, list):
+                    table_data_mem = raw_details # Already a list
+
+                return {
+                    'id': ce_from_store.get('id', str(ce_id_uuid)),
+                    'node_type': ce_from_store.get('node_type'),
+                    'cos_id': ce_from_store.get('cos_id'),
+                    'form_data': form_data_mem,
+                    'table_data': table_data_mem
+                }
+            else:
+                current_app.logger.debug(f"CE with ID {ce_id_uuid} not found in in-memory store.")
+                return None
+
+    except ValueError as ve: # Should be caught by initial UUID conversion, but as a safeguard
+        current_app.logger.error(f"ValueError processing CE ID '{ce_id_param}': {ve}", exc_info=True)
+        return None
     except Exception as e:
-        current_app.logger.error(f"Unexpected error retrieving CE by ID {ce_id}: {e}", exc_info=True)
-        raise # Re-raise for higher level handling or return None
+        current_app.logger.error(f"Unexpected error in get_ce_by_id for CE ID '{ce_id_param}': {e}", exc_info=True)
+        return None # Or re-raise if the calling route should handle it as a 500 error
 
 
 def create_ce(USE_DATABASE: bool, content: str, node_type: str, cos_id: UUID) -> str: # cos_id is UUID

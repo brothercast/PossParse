@@ -1,8 +1,16 @@
 /* styles.css - Complete and Consolidated Styles (Refactored for Bootstrap Table COS Layout & CE Modals) */
 
 /* ================================================== */
-/* ==============  1. Base Typography  ============== */
+/* ==============  1. Base Typography & Root Vars ==== */
 /* ================================================== */
+:root {
+  --phase-0: #e91e63; /* Discovery */
+  --phase-1: #00bcd4; /* Engagement */
+  --phase-2: #9c27b0; /* Action */
+  --phase-3: #ffc107; /* Completion */
+  --phase-4: #66bd0e; /* Legacy */
+}
+
 body {
   font-family: 'Jost', sans-serif;
   font-weight: 400;
@@ -76,7 +84,7 @@ nav.navbar {
 nav.navbar .navbar-brand {
   color: #ffffff;
   font-weight: 500;
-  font-size: 2.8rem; /* Adjusted for better fit with tagline */
+  font-size: 4.5rem; 
   padding-top: 0;
   padding-bottom: 0;
 }
@@ -93,12 +101,13 @@ nav.navbar .navbar-brand {
   display: block;
   font-family: 'Unica One', sans-serif;
   font-weight: 700;
-  font-size: 0.8rem; /* Adjusted for better fit */
+  text-align: center;
+  font-size: 1rem; /* Adjusted for better fit */
   text-transform: uppercase;
   color: rgba(0, 0, 0, 0.85); /* Lighter for better contrast on gradient */
-  letter-spacing: 0.5em; /* Adjusted */
+  letter-spacing: 0.7em; /* Adjusted */
   line-height: 1;
-  margin-top: -5px; /* Pull up slightly under the main brand text */
+  margin-top: 5px; /* Pull up slightly under the main brand text */
 }
 
 
@@ -223,39 +232,60 @@ body:before {
 .outcome-header { /* Row containing image/domain and summary */
   margin-bottom: 2rem;
 }
-.outcome-header .col-md-4 h2, .outcome-header .col-md-8 h1 { /* Specific headings in outcome header */
-    text-align: left; /* Align these to left */
+.outcome-header .col-md-4 h2 { /* Specific to H2s in the left column like DOMAIN, FULFILLED GOAL */
+    text-align: center;    /* Align these to center */
+    font-size: 1.5rem;     /* Keep or adjust existing font-size */
+    margin-bottom: 0.5rem; /* Keep or adjust existing margin */
 }
-.outcome-header .col-md-4 h2 { font-size: 1.5rem; margin-bottom: 0.5rem; } /* Smaller for Domain/Fulfilled Goal */
+.outcome-header .col-md-8 h1 { /* For the H1 in the right column (e.g., Preliminary Structured Solution) */
+    text-align: center;      /* Keep this left-aligned or adjust as desired */
+}
 
 
 /* ================================================== */
 /* ===========  7. Loading Spinner Styles  ============= */
 /* ================================================== */
-.loading-spinner-overlay { /* Full screen overlay */
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background-color: rgba(255, 255, 255, 0.4); /* Slightly more opaque backdrop */
-  display: flex; justify-content: center; align-items: center;
-  z-index: 10000; /* Ensure it's on top of everything */
+.loading-spinner-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
 }
-.spinner-box { /* Box containing the spinner and text */
-  width: auto; min-width: 300px; max-width: 550px;
-  height: auto; min-height: 150px; max-height: 200px;
-  background-color: rgba(255, 255, 255, 0.95);
-  display: flex; justify-content: center; align-items: center;
+
+.spinner-box {
+  width: 50vw; /* Responsive width for the box */
+  max-width: 550px; /* Maximum width for the box */
+  height: 30vh; /* Responsive height for the box */
+  max-height: 175px; /* Maximum height for the box */
+  background-color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
   border-radius: 10px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
-  padding: 25px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+  padding: 20px;
 }
-.spinner-container { display: flex; flex-direction: column; align-items: center; }
+
+.spinner-container { /* This is implicitly the container for icon and text */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .spinner-text {
-  margin-top: 15px;
+  margin-top: 20px;
   font-family: 'Unica One', sans-serif;
   text-transform: uppercase;
-  color: #333; /* Darker text for readability */
-  letter-spacing: 0.3em;
+  color: rgba(0, 0, 0, 0.75);
+  letter-spacing: 0.4em;
   text-align: center;
-  font-size: 0.9rem;
+  white-space: nowrap; /* Prevent text wrapping */
 }
 
 /* Animations in section 17 */
@@ -305,11 +335,12 @@ body:before {
   text-transform: uppercase;
   font-family: 'Unica One', sans-serif;
   font-weight: 500;
-  font-size: 1rem; /* Increased size */
+  font-size: 1rem;
   text-shadow: 1px 1px 0px rgba(0,0,0,0.3);
   color: #ffffff;
-  border-radius: 4px 4px 0 0 !important; /* Ensure top radius for button too */
+  border-radius: 4px 4px 0 0 !important;
 }
+
 .accordion-button:focus { outline: none; box-shadow: none; }
 .accordion-button:not(.collapsed) { color: #ffffff; }
 
@@ -320,10 +351,6 @@ body:before {
   /* border-top: none; */ /* Top border is handled by header */
 }
 
-.phase-colors { /* CSS variables for phase-specific colors */
-  --phase-0: #e91e63; --phase-1: #00bcd4; --phase-2: #9c27b0;
-  --phase-3: #ffc107; --phase-4: #66bd0e;
-}
 
 /* COS Table Styling */
 .phase-table {
@@ -402,23 +429,39 @@ body:before {
   display: inline-block; /* Ensure it behaves well in flow */
 }
 
+/* --- MODIFIED: New Themed CE Pill Styling --- */
 .ce-pill {
-  display: inline-flex; align-items: center;
-  color: #fff !important;
-  background-color: #6c757d; /* Default CE pill background */
+  display: inline-flex;
+  align-items: center;
   text-align: center;
-  text-shadow: 1px 1px 0px rgba(0,0,0,0.2);
-  padding: .25em .6em;
-  font-size: 0.8rem; /* Slightly smaller */
-  border-radius: 10rem;
+  padding: .3em .7em; /* Increased padding */
+  font-size: 0.85rem; /* Slightly larger for better readability */
+  font-weight: 500; /* Medium weight */
+  border-radius: 5px; /* Softer, modern radius */
   cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.2s ease;
-  line-height: 1.3; /* Adjust for vertical centering with text */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  line-height: 1.3;
+  border: 1px solid rgba(0,0,0,0.1); /* Subtle border for definition */
 }
 .ce-pill:hover {
-    background-color: #5a6268;
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
+.ce-pill .ce-pill-icon {
+  margin-right: 0.4em; /* Space between icon and text */
+  font-size: 0.9em; /* Icon size relative to text */
+}
+
+/* Contrast-aware text colors */
+.ce-pill[data-theme="dark"] {
+  color: #ffffff !important;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
+}
+.ce-pill[data-theme="light"] {
+  color: #212529 !important; /* Dark text for light backgrounds */
+  text-shadow: none;
+}
+
 .ce-pill .counter {
   background-color: rgba(255, 255, 255, 0.85) !important;
   color: #212529 !important;
@@ -426,7 +469,7 @@ body:before {
   font-size: 0.7em;
   font-weight: bold;
   padding: 0.1em 0.4em;
-  margin-left: 0.35em;
+  margin-left: 0.5em; /* Increased space */
   border-radius: 10rem;
   line-height: 1;
 }
@@ -472,9 +515,11 @@ body:before {
 /* ================================================== */
 .ssol-title {
     text-align: center; margin-bottom: 10px; display: block;
-    font-family: 'Unica One', sans-serif; font-weight: 500; font-size: 2.8rem;
+    font-family: 'Unica One', sans-serif; font-weight: 500;
+    font-size: 3.5rem; /* Changed from 2.8rem */
     color: #326eb6; text-transform: uppercase; text-shadow: 1px 1px 0px #000000;
-    letter-spacing: 0.15em; line-height: 1;
+    letter-spacing: 0.2em; /* Changed from 0.15em */
+    line-height: 90%; /* Changed from 1 */
 }
 
 .image-wrapper {
@@ -668,25 +713,6 @@ body:before {
 }
 .btn-save-changes:hover { box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); }
 
-/* Dynamic Phase Colors for Modals */
-[data-phase-index="0"] .modal-content { border-color: var(--phase-0) !important; }
-[data-phase-index="0"] .modal-header, [data-phase-index="0"] .ce-modal-header { background-color: var(--phase-0) !important; }
-[data-phase-index="0"] .ce-modal-header .node-icon i { color: var(--phase-0) !important; }
-/* Repeat for phase-1 to phase-4 */
-[data-phase-index="1"] .modal-content { border-color: var(--phase-1) !important; }
-[data-phase-index="1"] .modal-header, [data-phase-index="1"] .ce-modal-header { background-color: var(--phase-1) !important; }
-[data-phase-index="1"] .ce-modal-header .node-icon i { color: var(--phase-1) !important; }
-[data-phase-index="2"] .modal-content { border-color: var(--phase-2) !important; }
-[data-phase-index="2"] .modal-header, [data-phase-index="2"] .ce-modal-header { background-color: var(--phase-2) !important; }
-[data-phase-index="2"] .ce-modal-header .node-icon i { color: var(--phase-2) !important; }
-[data-phase-index="3"] .modal-content { border-color: var(--phase-3) !important; }
-[data-phase-index="3"] .modal-header, [data-phase-index="3"] .ce-modal-header { background-color: var(--phase-3) !important; }
-[data-phase-index="3"] .ce-modal-header .node-icon i { color: var(--phase-3) !important; }
-[data-phase-index="4"] .modal-content { border-color: var(--phase-4) !important; }
-[data-phase-index="4"] .modal-header, [data-phase-index="4"] .ce-modal-header { background-color: var(--phase-4) !important; }
-[data-phase-index="4"] .ce-modal-header .node-icon i { color: var(--phase-4) !important; }
-
-
 /* ================================================== */
 /* =========  22. Tabulator Table Styling  ============ */
 /* ================================================== */
@@ -764,3 +790,10 @@ body:before {
 
 /* Ensure d-none utility class works as expected */
 .d-none { display: none !important; }
+
+/* ================================================== */
+/* =========  25. Goal Card Description Fix  ========= */
+/* ================================================== */
+.goal-description {
+  text-align: left; /* Use left-align for natural word spacing and readability */
+}

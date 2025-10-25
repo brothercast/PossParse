@@ -1,4 +1,5 @@
 import os
+import json
 import uuid
 from dotenv import load_dotenv
 from flask_sqlalchemy import SQLAlchemy
@@ -61,15 +62,32 @@ class CE(db.Model):
     cos = relationship('COS', back_populates='conditional_elements')
 
     def to_dict(self):
-        return {
+        data = {
             'id': str(self.id),
-            'content': self.content,
+            'content': self.content, # This might be the 'name' or 'topic' from form_data
             'node_type': self.node_type,
-            'details': self.details,
-            'cos_id': str(self.cos_id)
+            'cos_id': str(self.cos_id),
+            'form_data': {}, # Will be populated if main CE fields are distinct
+            'table_data': [] # For Tabulator rows
         }
-
-# --- Removed COS_CE_Link --- (It's redundant with the relationship)
+        if self.details:
+            try:
+                details_data = json.loads(self.details)
+                # Assuming details_data could be a dict like {'form_data': {...}, 'table_data': [...]}
+                # Or just the table_data if form_data is stored in other CE fields
+                if isinstance(details_data, dict):
+                    data['form_data'] = details_data.get('form_data', {})
+                    data['table_data'] = details_data.get('table_data', [])
+                elif isinstance(details_data, list): # If details only stores table_data
+                    data['table_data'] = details_data
+            except json.JSONDecodeError:
+                # Handle case where details is not valid JSON or has different structure
+                pass 
+        # Populate form_data from direct CE attributes if they represent the "form"
+        # This depends on how you map form fields to the CE model.
+        # For example, if CE.content is "Research Topic":
+        # data['form_data']['research_topic'] = self.content
+        return data
 
 # --- Moved engine and session creation to a function ---
 def get_engine_and_session():

@@ -201,9 +201,9 @@ async def generate_outcome_data(USE_DATABASE: bool, request, method: str, select
         outcome_data['ssol_summary'] = "Summary generation failed (unexpected error)."
 
 
-    # 3. Generate Structured Solution (Phases, COS, and initial CEs)
+    # 3. Generate Structured Solution (Phases, COS, and initial CEs) with RETRY LOGIC
     structured_solution_prompt = (
-        f"You are an expert in structured problem-solving (SSPEC PossPath). Generate a concise Structured Solution for: '{selected_goal_title}' (Full goal: '{selected_goal_display}').\n"
+        f"You are an expert in structured problem-solving (SSPEC PossPath). Generate a concise Structured Solution for: '{selected_goal_title}' (Full goal: '{html.escape(selected_goal)}').\n"
         f"Organize into phases: Discovery, Engagement, Action, Completion, Legacy.\n"
         f"For EACH phase, generate 1-3 Conditions of Satisfaction (COS).\n"
         f"Within each COS sentence, embed 'Conditional Elements' (CEs) by wrapping them in `<ce type='NodeType'>CE Text</ce>` tags. "
@@ -214,36 +214,56 @@ async def generate_outcome_data(USE_DATABASE: bool, request, method: str, select
         f"Ensure valid JSON. Do NOT include 'id' or 'status' for COS objects in this JSON output."
     )
     structured_solution_messages = [{"role": "user", "content": structured_solution_prompt}]
-    structured_solution_response_text = ""
-    try:
-        current_app.logger.info(f"Generating structured solution (COS/CEs) for SSOL ID: {new_ssol_id_str}...")
-        structured_solution_response_text = await generate_chat_response(structured_solution_messages, role='Structured Solution', task='Generate Phases and COS with CEs')
-        structured_solution_json_from_ai = json.loads(structured_solution_response_text)
+    
+    # --- FIX: Implement Retry Logic ---
+    max_retries = 3
+    retry_delay_seconds = 2
+    structured_solution_json_from_ai = None # Initialize to None
 
-        if isinstance(structured_solution_json_from_ai, dict):
-            # `parse_ai_response_and_generate_html` (from speculate.py) now handles:
-            # - Taking AI's JSON of phases & COS (with <ce> tags in content)
-            # - For each COS:
-            #   - Generating a unique COS ID.
-            #   - Calling `replace_ce_tags_with_pills` to convert <ce> tags to HTML pills (generating CE UUIDs).
-            #   - Extracting CE data from these pills.
-            #   - Saving the COS and its CEs to DB or in-memory store.
-            # - Returns a dict like {'Discovery': [{'id': 'cos_uuid', 'content': 'html_with_pills', ...}, ...]}
-            #   which is suitable for rendering outcome.html.
-            outcome_data['phases'] = parse_ai_response_and_generate_html(
-                USE_DATABASE,
-                structured_solution_json_from_ai, # JSON from AI
-                ssol_id_uuid_for_cos              # Parent SSOL's UUID
+    for attempt in range(max_retries):
+        structured_solution_response_text = ""
+        try:
+            current_app.logger.info(f"Generating structured solution (Attempt {attempt + 1}/{max_retries}) for SSOL ID: {new_ssol_id_str}...")
+            structured_solution_response_text = await generate_chat_response(
+                structured_solution_messages, 
+                role='Structured Solution', 
+                task='Generate Phases and COS with CEs'
             )
-            current_app.logger.info(f"Structured solution (COS/CEs) generated and saved for SSOL ID: {new_ssol_id_str}.")
-        else:
-            current_app.logger.error(f"Expected dict for structured solution, got {type(structured_solution_json_from_ai)}. AI Response: {structured_solution_response_text}")
-            outcome_data['phases'] = {} # Fallback
-    except json.JSONDecodeError as e:
-        current_app.logger.error(f"JSON decoding error for structured solution (SSOL {new_ssol_id_str}). AI Response: {structured_solution_response_text}", exc_info=True)
-        outcome_data['phases'] = {}
-    except Exception as e:
-        current_app.logger.error(f"Error generating/saving structured solution (SSOL {new_ssol_id_str}): {e}", exc_info=True)
+            structured_solution_json_from_ai = json.loads(structured_solution_response_text)
+            
+            # If parsing is successful, break the loop
+            current_app.logger.info(f"Successfully parsed structured solution on attempt {attempt + 1}.")
+            break 
+            
+        except json.JSONDecodeError as e:
+            current_app.logger.error(f"JSON decoding error for structured solution (Attempt {attempt + 1}). AI Response: {structured_solution_response_text}", exc_info=True)
+            if attempt < max_retries - 1:
+                await asyncio.sleep(retry_delay_seconds)
+            else:
+                current_app.logger.error("All retries failed for generating structured solution.")
+                outcome_data['phases'] = {} # Fallback to empty on final failure
+                
+        except Exception as e:
+            current_app.logger.error(f"General error generating structured solution (Attempt {attempt + 1}): {e}", exc_info=True)
+            if attempt < max_retries - 1:
+                await asyncio.sleep(retry_delay_seconds)
+            else:
+                 current_app.logger.error("All retries failed for generating structured solution.")
+                 outcome_data['phases'] = {} # Fallback
+
+    # --- End of Retry Logic ---
+
+    # Proceed only if we successfully got the JSON
+    if isinstance(structured_solution_json_from_ai, dict):
+        outcome_data['phases'] = parse_ai_response_and_generate_html(
+            USE_DATABASE,
+            structured_solution_json_from_ai,
+            ssol_id_uuid_for_cos
+        )
+        current_app.logger.info(f"Structured solution (COS/CEs) processed and saved for SSOL ID: {new_ssol_id_str}.")
+    else:
+        # This case is now handled by the fallback inside the retry loop, but we keep it for safety.
+        current_app.logger.error(f"Failed to generate structured solution after all retries. Final response was not a valid dictionary.")
         outcome_data['phases'] = {}
 
     current_app.logger.info(f"Outcome data generation process complete for SSOL ID: {new_ssol_id_str}.")

@@ -10,14 +10,30 @@ from flask import render_template_string, current_app
 from ce_nodes import NODES, get_valid_node_types
 from ai_service import generate_chat_response, get_grounded_data  # Import get_grounded_data
 
+# --- NEW: Color Contrast Helper ---
+def get_color_theme(hex_color):
+    """Determines if a hex color is light or dark to choose a contrasting text color."""
+    if not hex_color or not hex_color.startswith('#'):
+        return 'dark' # Default for invalid colors
+    hex_color = hex_color.lstrip('#')
+    try:
+        r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        # Using the standard luminance formula
+        luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+        return 'light' if luminance > 0.6 else 'dark' # Threshold adjusted for better results
+    except (ValueError, IndexError):
+        return 'dark' # Default on parsing error
+
 BASE_MODAL_TEMPLATE = """
 <div class="modal fade ceModal" id="ceModal-{{ ceId }}" tabindex="-1" aria-labelledby="ceModalLabel-{{ ceId }}" aria-hidden="true">
     <div class="modal-dialog modal-xl" role="document">
-        <div class="modal-content ce-modal">
+        {# --- MODIFIED: Modal content now gets a data-node-type for styling --- #}
+        <div class="modal-content ce-modal" data-node-type="{{ ceType }}">
             <!-- Modal Header -->
-            <div class="modal-header ce-modal-header" style="background-color: {{ phaseColor }};">
-                <div class="node-icon">
-                    <i class="{{ icon_class }}"></i>
+            {# --- MODIFIED: Header now styled by node_color, not phase_index --- #}
+            <div class="modal-header ce-modal-header" style="background-color: {{ node_color }};">
+                <div class="node-icon" style="background-color: white;">
+                    <i class="{{ icon_class }}" style="color: {{ node_color }};"></i>
                 </div>
                 <h5 class="modal-title ce-title" id="ceModalLabel-{{ ceId }}">
                     {{ ceType.replace('_', ' ').title() }}
@@ -26,91 +42,59 @@ BASE_MODAL_TEMPLATE = """
                 <button type="button" class="close-btn close-button" data-bs-dismiss="modal" aria-label="Close">×</button>
             </div>
 
-            <!-- Modal Body -->
+            <!-- Modal Body (Structure remains the same) -->
             <div class="modal-body ce-modal-body">
                 <!-- SECTION 1: CONTEXT -->
                 <div class="section">
                     <h2 class="section-heading">CONTEXT - Understanding the Context of this Element</h2>
-
-                    <!-- SUB-SECTION 1.1: Condition of Satisfaction Context -->
                     <div class="sub-section">
-                        <h3 class="sub-heading">Condition of Satisfaction Context</h3>
                         <div class="context-label">Source Condition of Satisfaction (COS):</div>
                         <div class="content-block italic">
                             {{ cos_content_with_pills | safe }}
                         </div>
                     </div>
-
-                    <!-- SUB-SECTION 1.2: [CE Type Name] Node Context & Insight -->
                     <div class="sub-section">
-                        <h3 class="sub-heading">{{ ceType.replace('_', ' ').title() }} Node Context & Insight</h3>
-                        <div class="context-label">{{ ceType.replace('_', ' ').title() }} Node & Context:</div>
                         <div class="content-block">
-                            <p><b>Definition:</b></p>
-                            <p class="definition-text">{{ node_info.modal_config.explanation }}</p>
-                            <hr style="margin: 10px 0; border-top: 1px dashed #ccc;">
-                            <p><b>AI Contextual Insight:</b></p>
+                            <p class="context-label">AI Contextual Insight for {{ ceType.replace('_', ' ').title() }}:</p>
                             <p class="content italic">{{ ai_generated_data.contextual_description or 'No AI contextual description available.' }}</p>
                         </div>
                     </div>
                 </div>
-
                 <!-- SECTION 2: DETAILS -->
                 <div class="section">
                     <h2 class="section-heading">DETAILS - Attributes and Specifications of the {{ ceType.replace('_', ' ').title() }}</h2>
-
-                    <!-- FORM FIELDS -->
-                    <div class="form-grid">
-                        {{ form_fields | safe }}
-                    </div>
-
-                    <!-- Resource Action Buttons - Positioned BETWEEN form fields and table -->
+                    <form id="ceForm-{{ ceId }}">
+                        <div class="form-grid">
+                            {{ form_fields | safe }}
+                        </div>
+                    </form>
                     <div class="action-row">
                         <button type="button" class="btn btn-primary" id="addRowButton-{{ ceId }}"><i class="fas fa-plus"></i> Add {{ ceType.replace('_', ' ').title() }}</button>
-                        <button type="button" class="btn btn-primary" id="generateRowButton-{{ ceId }}"><i class="fas fa-magic"></i> Generate {{ ceType.replace('_', ' ').title() }}</button>
+                        <button type="button" class="btn btn-info" id="generateRowButton-{{ ceId }}"><i class="fas fa-magic"></i> Generate {{ ceType.replace('_', ' ').title() }}</button>
                     </div>
                 </div>
-
                 <!-- SECTION 3: RESOURCES -->
                 <div class="section">
                     <h2 class="section-heading">RESOURCES - Data and References for this Element</h2>
                     <h3 class="sub-heading">Related Resources for {{ ceType.replace('_', ' ').title() }}</h3>
-
-                    <!-- TABULATOR TABLE -->
                     <div id="dynamicTable-{{ ceId }}" class="tabulator-table resources-table"></div>
-
-                    <!-- Resource Management Buttons -->
                     <div class="action-row">
                         <button type="button" class="btn btn-danger" id="deleteSelectedRowsButton-{{ ceId }}"><i class="fas fa-trash-alt"></i> Delete Selected</button>
-                        <button type="button" class="btn btn-default" id="duplicateSelectedRowsButton-{{ ceId }}"><i class="fas fa-copy"></i> Duplicate Selected</button>
+                        <button type="button" class="btn btn-secondary" id="duplicateSelectedRowsButton-{{ ceId }}"><i class="fas fa-copy"></i> Duplicate Selected</button>
                     </div>
                 </div>
             </div>
 
             <!-- Modal Footer -->
             <div class="modal-footer ce-modal-footer">
-                <button type="button" class="btn btn-default btn-close-modal" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-light btn-close-modal" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-primary btn-save-changes" data-ce-id="{{ ceId }}">Save Changes</button>
             </div>
         </div>
     </div>
 </div>
 """
-
-DEFAULT_FIELDS_CONFIG = [
-    {"type": "text", "name": "subject", "placeholder": "Subject"},
-    {"type": "textarea", "name": "details", "placeholder": "Details"},
-    {"type": "text", "name": "stakeholders", "placeholder": "Stakeholders"}
-]
-
-DEFAULT_TABULATOR_CONFIG = {
-    "columns": [
-        {"title": "Subject", "field": "subject", "editor": "input"},
-        {"title": "Details", "field": "details", "editor": "input"},
-        {"title": "Stakeholders", "field": "stakeholders", "editor": "input"}
-    ]
-}
-
+# (generate_form_field, generate_form_fields, generate_table_headers functions remain unchanged)
 def generate_form_field(field_type, field_name, field_value='', placeholder='', options=None):
     current_app.logger.debug(f"Generating form field: type={field_type}, name={field_name}, value={field_value}, placeholder={placeholder}")
     field_templates = {
@@ -164,15 +148,7 @@ def generate_table_headers(fields_config):
         header_label = field['name'].replace('_', ' ').title()
         table_headers_html += f"<th><strong>{header_label}</strong></th>"
     return table_headers_html
-
 async def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated_data=None, phase_name=None, phase_index=None, ce_store=None):
-    current_app.logger.debug(f"generate_dynamic_modal - START - ce_type: {ce_type}, phase_name: {phase_name}, phase_index: {phase_index}")
-    current_app.logger.debug(f"CE data: {ce_data}")
-    current_app.logger.debug(f"COS content: {cos_content}")
-    current_app.logger.debug(f"AI generated data: {ai_generated_data}")
-    current_app.logger.debug(f"Phase name: {phase_name}")
-    current_app.logger.debug(f"Phase index: {phase_index}")
-
     node_info = NODES.get(ce_type, NODES['Default'])
     fields_config = node_info['modal_config']['fields']
     tabulator_config = node_info['tabulator_config']
@@ -184,29 +160,21 @@ async def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_gen
 
     node_name = ce_type.replace('_', ' ').title()
     ai_context_description = ai_generated_data.get('contextual_description', 'No contextual description provided.')
+    
+    # --- MODIFIED: Use the node's color and icon directly from NODES ---
+    node_color = node_info.get('color', '#6c757d') # Default to grey
+    icon_class = node_info.get('icon', 'fa-solid fa-question-circle') # Default icon
 
-    # Process the COS content to replace CE tags with CE pills
-    ces = list(ce_store.values())  # Ensure that ce_store contains the correct structure
-    for ce in ces:
-        if 'node_type' not in ce:  # Corrected to use node_type
-            ce['node_type'] = 'Unknown' # Corrected to use node_type
-            current_app.logger.warning(f"Added missing 'node_type' to CE: {ce}")
-
+    # Process the COS content to replace CE tags with CE pills (this function is now heavily modified)
+    ces = list(ce_store.values()) if ce_store else []
     cos_content_with_pills = replace_ce_tags_with_pills(cos_content, ces)
 
-    # Determine phase color
-    phase_colors = ["#e91e63", "#00bcd4", "#9c27b0", "#ffc107", "#66bd0e"]  # Example colors
-    phaseColor = phase_colors[phase_index % len(phase_colors)] if phase_index is not None else "#6c757d"  # Default color
-
-    # Get icon class, awaiting the async function
-    icon_class = NODES[ce_type].get('icon') if ce_type in NODES else await get_node_type_icon_and_name(ce_type)
-
-    current_app.logger.debug(f"generate_dynamic_modal - BEFORE RENDER - Context: {locals()}") # *** ADDED LOGGING - LOG CONTEXT ***
-    modal_content = render_template_string( # <-- CORRECTED: Using render_template_string HERE
+    modal_content = render_template_string(
         BASE_MODAL_TEMPLATE,
-        ceId=ce_data.get('id', 'unknown_ce_id') if ce_data else 'unknown_ce_id', # Pass ceId
-        ceType=ce_type, # Pass ceType
-        icon_class = icon_class,
+        ceId=ce_data.get('id', 'unknown_ce_id') if ce_data else 'unknown_ce_id',
+        ceType=ce_type,
+        icon_class=icon_class,
+        node_color=node_color, # Pass node_color to template
         node_info=node_info,
         form_fields=form_fields,
         table_headers=table_headers,
@@ -215,15 +183,15 @@ async def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_gen
             { 'formatter': 'rowSelection', 'titleFormatter': 'rowSelection', 'hozAlign': 'center', 'headerSort': False, 'cellClick': lambda e, cell: cell.getRow().toggleSelect() },
             *tabulator_config['columns'],
         ],
-        cos_content_with_pills=cos_content_with_pills,  # Use processed COS content with CE pills
+        cos_content_with_pills=cos_content_with_pills,
         ai_generated_data=ai_generated_data,
         phase_name=phase_name,
-        phase_index=phase_index,
-        phaseColor = phaseColor # Pass phaseColor
+        phase_index=phase_index
     )
 
     return modal_content
 
+# (get_node_type_icon_and_name and assign_ce_type functions remain unchanged)
 async def get_node_type_icon_and_name(node_type):
     messages = [
         {"role": "user", "content": f"You are an AI that suggests a FontAwesome 6 Solid (fas) class icon based on the node type name. Output only the icon class in JSON format."},
@@ -263,94 +231,49 @@ def assign_ce_type(ce):
         ce['node_type'] = 'Default' #Corrected to node_type
         logging.info(f"Assigned default 'node_type' to CE: {ce}")
     return ce
+# --- MODIFIED: Heavily updated function for new visual identity system ---
+def replace_ce_tags_with_pills(content, ces_metadata_for_pills=None):
+    if not content:
+        return ""
+    if ces_metadata_for_pills is None:
+        ces_metadata_for_pills = []
 
-def replace_ce_tags_with_pills(content, ces):
     soup = BeautifulSoup(content, 'html.parser')
 
-    # First, find and replace all <ce> tags in the content
     for ce_tag in soup.find_all('ce'):
-        ce_type = ce_tag.get('type', 'Default')  # Default type if not specified
-        ce_uuid = str(uuid.uuid4())
-        new_tag = soup.new_tag('span', attrs={
-            'class': 'badge rounded-pill bg-secondary ce-pill position-relative',
-            'data-ce-id': ce_uuid,
-            'data-ce-type': ce_type
+        ce_type_from_tag = ce_tag.get('type', 'Default')
+        ce_text_from_tag = ce_tag.text
+        
+        node_info = NODES.get(ce_type_from_tag, NODES['Default'])
+        node_color = node_info.get('color', '#95a5a6')
+        node_icon = node_info.get('icon', 'fa-solid fa-question-circle')
+        color_theme = get_color_theme(node_color) # 'light' or 'dark'
+
+        ce_uuid_for_pill = str(uuid.uuid4())
+
+        # Create the new pill structure
+        new_pill_tag = soup.new_tag('span', attrs={
+            'class': 'badge ce-pill position-relative',
+            'data-ce-id': ce_uuid_for_pill,
+            'data-ce-type': ce_type_from_tag,
+            'data-theme': color_theme,
+            'style': f'background-color: {node_color};'
         })
-        new_tag.string = ce_tag.text  # Use the text content of the <ce> tag
+        
+        # Add the icon
+        icon_tag = soup.new_tag('i', attrs={'class': f'{node_icon} ce-pill-icon'})
+        new_pill_tag.append(icon_tag)
 
-        # Add indicator for new CEs (assuming you have a way to identify new CEs, e.g., a flag in 'ce_data')
-        # if ce_data.get('is_new'):
-        #     green_dot = soup.new_tag('span', attrs={
-        #         'class': 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle'
-        #     })
-        #     visually_hidden_text = soup.new_tag('span', attrs={'class': 'visually-hidden'})
-        #     visually_hidden_text.string = 'New CE'
-        #     green_dot.append(visually_hidden_text)
-        #     new_tag.append(green_dot)
+        # Add the text
+        text_node = f' {ce_text_from_tag}' # Add space after icon
+        new_pill_tag.append(text_node)
+        
+        ce_tag.replace_with(new_pill_tag)
 
-        ce_tag.replace_with(new_tag)
-
-    # Then, process the provided 'ces' list to update or add pill counts
-    for ce in ces:
-        ce = assign_ce_type(ce)
-        # Find existing pills by data-ce-id, if available.  Otherwise, fall back to finding by content.
-        if 'id' in ce:
-            existing_pill = soup.find('span', attrs={'data-ce-id': ce['id']})
-        else:
-            existing_pill = soup.find('span', class_='ce-pill', string=ce['content'])
-
-        if existing_pill:
-            # Update existing pill
-            if ce.get('count', 0) > 0:
-                counter_tag = existing_pill.find('span', class_='counter')
-                if counter_tag:
-                    counter_tag.string = str(ce['count'])
-                else:
-                    counter_tag = soup.new_tag('span', attrs={'class': 'badge rounded-pill bg-light text-dark ms-2 counter'})
-                    counter_tag.string = str(ce['count'])
-                    existing_pill.append(counter_tag)
-            if ce.get('is_new'):
-                green_dot = existing_pill.find('span', class_='position-absolute')
-                if not green_dot:
-                  green_dot = soup.new_tag('span', attrs={
-                      'class': 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle'
-                  })
-                  visually_hidden_text = soup.new_tag('span', attrs={'class': 'visually-hidden'})
-                  visually_hidden_text.string = 'New CE'
-                  green_dot.append(visually_hidden_text)
-                  existing_pill.append(green_dot)
-
-
-        else:
-          #Add new pills that may not exist in the original text:
-          ce_uuid = str(uuid.uuid4())
-          new_tag = soup.new_tag('span', attrs={
-              'class': 'badge rounded-pill bg-secondary ce-pill position-relative',
-              'data-ce-id': ce_uuid,
-              'data-ce-type': ce['node_type']
-          })
-          new_tag.string = ce['content']
-
-          # Add counter if applicable
-          if ce.get('count', 0) > 0:
-              counter_tag = soup.new_tag('span', attrs={
-                  'class': 'badge rounded-pill bg-light text-dark ms-2 counter'
-              })
-              counter_tag.string = str(ce['count'])
-              new_tag.append(counter_tag)
-          if ce.get('is_new'):
-                green_dot = soup.new_tag('span', attrs={
-                    'class': 'position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle'
-                })
-                visually_hidden_text = soup.new_tag('span', attrs={'class': 'visually-hidden'})
-                visually_hidden_text.string = 'New CE'
-                green_dot.append(visually_hidden_text)
-                new_tag.append(green_dot)
-          soup.append(new_tag)
-
+    # This function now only handles the initial conversion from <ce> tags.
+    # Updating existing pills with counters etc. should be a separate concern if needed.
     return str(soup)
-
-
+# (get_ce_modal and generate_ai_data functions remain largely unchanged)
 async def get_ce_modal(ce_type):
     modal_html = await generate_dynamic_modal(ce_type)
     return modal_html

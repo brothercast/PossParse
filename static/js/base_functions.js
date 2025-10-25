@@ -1,4 +1,4 @@
-// static/js/base_functions.js
+// static/js/base_functions.js 
 
 /**
  * Applies Textillate animation effect to a collection of elements.
@@ -216,48 +216,90 @@ export function updateGoalCards(data, currentUserInputText, goalCardsContainer) 
   });
 }
 
-/**
- * Shows the loading spinner with a message and icon.
- * @param {string} [message='Generating Outcomes...'] - The message to display.
- * @param {string} [iconClass='fas fa-atom fa-spin fa-3x'] - FontAwesome icon class(es), including any sizing or animation.
- */
-export function showLoadingSpinner(message = 'Generating Outcomes...', iconClass = 'fas fa-atom fa-spin fa-3x') { // DEFAULT ICON CHANGED
+export function showLoadingSpinner(message = 'Generating Outcomes...', iconClass = 'fa-solid fa-network-wired') {
+  console.log("showLoadingSpinner called with message:", message, "and icon:", iconClass);
   const spinner = document.getElementById('loading-spinner');
   const spinnerText = document.getElementById('spinner-text');
   const spinnerIcon = document.getElementById('spinner-icon');
-
   if (spinner && spinnerText && spinnerIcon) {
     spinnerText.textContent = message;
-    spinnerIcon.className = ''; // Clear all existing classes from the icon element first
-
-    // Apply all classes from the iconClass string
-    iconClass.split(' ').forEach(cls => {
-      if (cls.trim()) { // Ensure class is not empty
-        spinnerIcon.classList.add(cls.trim());
-      }
-    });
-    // No need to add a generic 'fa-icon' unless your CSS specifically styles it for sizing.
-    // FontAwesome's own sizing classes (fa-xs, fa-sm, fa-lg, fa-2x to fa-10x) are preferred.
-
-    spinner.classList.remove('d-none', 'fade-out');
+    spinnerIcon.className = iconClass + ' fa-icon';
+    spinner.classList.remove('d-none');
     spinner.classList.add('fade-in');
-  } else {
-    console.warn("Loading spinner elements (spinner, spinner-text, or spinner-icon) not found in the DOM.");
   }
 }
 
-/**
- * Hides the loading spinner.
- */
 export function hideLoadingSpinner() {
+  console.log("hideLoadingSpinner called");
   const spinner = document.getElementById('loading-spinner');
   if (spinner) {
     spinner.classList.remove('fade-in');
     spinner.classList.add('fade-out');
     setTimeout(() => {
       spinner.classList.add('d-none');
-    }, 500); // Match CSS fade-out duration
+      spinner.classList.remove('fade-out');
+    }, 500); // Match the duration of the fade-out animation
   }
+}
+
+/**
+ * Initializes a Tabulator table for the CE modal.
+ * This is now the universal table initialization function.
+ * @param {string} tableElementId - The CSS selector ID for the table element (e.g., '#dynamicTable-...')
+ * @param {Array<object>} initialData - The data array to load immediately.
+ * @param {Array<object>} columnsDefinition - The column definitions array.
+ * @param {string} ceType - The type of Conditional Element (for styling/context).
+ * @param {HTMLElement} modalElement - The parent modal DOM element.
+ * @returns {Tabulator} The Tabulator instance.
+ */
+export function initializeTabulatorTable(tableElementId, initialData = [], columnsDefinition, ceType, modalElement) {
+    // CRITICAL: Ensure Tabulator is available globally (loaded via <script> tag in HTML)
+    if (typeof Tabulator === 'undefined') {
+        console.error("Tabulator is not defined. Ensure 'tabulator.min.js' is loaded globally in outcome.html.");
+        return null;
+    }
+    
+    const tableElement = document.querySelector(tableElementId);
+    if (!tableElement) {
+        console.error(`Tabulator target element not found for ID: ${tableElementId}`);
+        return null;
+    }
+
+    // Tabulator relies on global state; check if it's already initialized
+    // If modalElement has an existing _tabulator instance, destroy it first.
+    if (modalElement._tabulator) {
+        modalElement._tabulator.destroy();
+    }
+
+    // Define the table configuration
+    const table = new Tabulator(tableElement, {
+        data: initialData,
+        layout: "fitColumns", // Fit all columns to the table width
+        responsiveLayout: "collapse", // Collapse rows on smaller screens
+        tooltips: true, // Show tool tips on cells
+        addRowPos: "top", // Add new rows to the top of the table
+        history: true, // Enable undo/redo
+        pagination: "local", // Enable local pagination
+        paginationSize: 5, // Show 5 rows per page
+        movableColumns: true, // Allow column reordering
+        resizableRows: true, // Allow row resizing
+        selectable: true, // Enable row selection
+        columns: columnsDefinition,
+        // Bind the instance to the modal element for easy retrieval
+        dataLoaded: (data) => {
+             // Do nothing special here, rely on explicit binding below
+        },
+        // Enable data editing (must have an editor defined in the column)
+        cellEdited: function(cell){
+            const modal = cell.getTable().element.closest('.ceModal');
+            if(modal) modal.dataset.hasUnsavedChanges = 'true';
+        }
+    });
+    
+    // Explicitly bind the instance to the modal element for other functions to use
+    modalElement._tabulator = table; 
+    console.log(`Tabulator initialized for ${ceType} (${tableElementId}).`);
+    return table;
 }
 
 /**

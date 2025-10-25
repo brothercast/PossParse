@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         form.addEventListener('submit', (event) => {
             event.preventDefault(); // Keep this
             const iconClass = form.querySelector('input[name="domain_icon"]').value;
-            showLoadingSpinner('Speculating Structured Solution...', iconClass);
+            showLoadingSpinner('Speculating Structured Solution', iconClass);
             form.submit(); // Proceed with form submission
         });
     });

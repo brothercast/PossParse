@@ -195,6 +195,10 @@ def save_as_pdf(ssol_id):
 
 # --- COS CRUD Routes ---
 
+# routes.py (Refactored create_cos_route with proper error handling)
+
+# ... (other imports and routes) ...
+
 @routes_bp.route('/create_cos', methods=['POST'])
 async def create_cos_route():
     try:
@@ -216,9 +220,7 @@ async def create_cos_route():
         except ValueError:
             raise BadRequest(f"Invalid ssol_id format: '{ssol_id_str}'. Must be a valid UUID.")
 
-        # speculate_create_cos already handles USE_DATABASE context internally
-        # and performs analysis to embed CE pills.
-        # It returns the new cos_id (string).
+        # speculate_create_cos handles DB/in-memory logic and analysis.
         new_cos_id_str = await speculate_create_cos(
             USE_DATABASE,
             ssol_id=ssol_id_uuid, # Pass UUID object
@@ -229,36 +231,36 @@ async def create_cos_route():
         )
 
         if not new_cos_id_str:
-            raise Exception("Failed to create COS record.")
+            # This is a critical failure within the speculate function
+            raise Exception("Failed to create COS record in the data store.")
 
         # Fetch the newly created COS to get its full data, including processed content
+        created_cos = None
         if USE_DATABASE:
             with app.app_context(): # Ensure app context for DB operations
-                engine, session = get_engine_and_session()
                 # speculate_get_cos_by_id expects a UUID object if db, string if not
                 created_cos = speculate_get_cos_by_id(USE_DATABASE, UUID(new_cos_id_str))
-                if created_cos:
-                    cos_dict = created_cos.to_dict()
-                else:
-                    cos_dict = None
-                session.close()
         else:
             created_cos = speculate_get_cos_by_id(USE_DATABASE, new_cos_id_str)
-            cos_dict = created_cos # In-memory store returns a dict
 
-        if not cos_dict:
+        if not created_cos:
              current_app.logger.error(f"Failed to retrieve newly created COS with ID: {new_cos_id_str}")
-             return jsonify(success=False, error="COS created but could not be retrieved."), 500
+             # Return an error if retrieval fails post-creation
+             return jsonify(success=False, error="COS was created but could not be retrieved immediately."), 500
+
+        # Convert to dictionary for JSON response
+        cos_dict = created_cos.to_dict() if USE_DATABASE else created_cos
 
         return jsonify(success=True, cos=cos_dict), 201 # 201 Created
 
     except BadRequest as e:
         current_app.logger.warning(f"BadRequest in create_cos_route: {e}")
         return jsonify(success=False, error=str(e)), 400
+        
     except Exception as e:
         current_app.logger.error(f"Error creating COS: {e}", exc_info=True)
+   
         return jsonify(success=False, error="An unexpected error occurred while creating the COS."), 500
-
 
 @routes_bp.route('/update_cos/<uuid:cos_id>', methods=['PUT'])
 async def update_cos_route(cos_id): # Changed to async to allow await on speculate_update_cos_by_id if it becomes async

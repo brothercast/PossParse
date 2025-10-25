@@ -1,7 +1,10 @@
+# ce_nodes.py
+
 NODES = {  
     "Default": {  
         "definition": "This node is a default research mode for undefined node types.",  
-        "icon": "fa-solid fa-icons",  
+        "icon": "fa-solid fa-icons",
+        "color": "#95a5a6",  # Neutral Grey
         "modal_config": {  
             "fields": [  
                 {"type": "text", "name": "subject", "placeholder": "Subject"},  
@@ -21,7 +24,8 @@ NODES = {
     },  
     "Research": {  
         "definition": "Aggregates and summarizes research materials and resources pertinent to the COS.",  
-        "icon": "fa-solid fa-flask",  
+        "icon": "fa-solid fa-flask",
+        "color": "#ec407a",  # Light Pink (from Discovery)
         "modal_config": {  
             "fields": [  
                 {"type": "text", "name": "research_topic", "placeholder": "Research Topic"},  
@@ -42,6 +46,7 @@ NODES = {
     "Stakeholder": {
         "definition": "Captures details of stakeholders involved in the COS.",
         "icon": "fa-solid fa-user-friends",
+        "color": "#ffca28",  # Amber (Analogous to Completion)
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "stakeholder_name", "placeholder": "Stakeholder Name"},
@@ -62,29 +67,30 @@ NODES = {
         }
     },
     "Advocacy": {  
-    "definition": "Focuses on efforts to influence public policy and resource allocation decisions.",  
-    "icon": "fa-solid fa-bullhorn",  
-    "modal_config": {  
-        "fields": [  
-            {"type": "text", "name": "campaign_name", "placeholder": "Campaign Name"},  
-            {"type": "textarea", "name": "campaign_objective", "placeholder": "Campaign Objective"},  
-            {"type": "text", "name": "target_audience", "placeholder": "Target Audience"}  
-        ],  
-        "explanation": "Detail the advocacy campaign's objectives and target audience.",  
-        "ai_context": "Provide information on advocacy efforts and campaign strategies pertinent to the COS."  
-    },  
-    "tabulator_config": {  
-        "columns": [  
-            {"title": "Campaign Name", "field": "campaign_name", "editor": "input"},  
-            {"title": "Campaign Objective", "field": "campaign_objective", "editor": "textarea"},  
-            {"title": "Target Audience", "field": "target_audience", "editor": "input"}  
-        ]  
-    }
+        "definition": "Focuses on efforts to influence public policy and resource allocation decisions.",  
+        "icon": "fa-solid fa-bullhorn",
+        "color": "#ff7043",  # Deep Orange (Analogous)
+        "modal_config": {  
+            "fields": [  
+                {"type": "text", "name": "campaign_name", "placeholder": "Campaign Name"},  
+                {"type": "textarea", "name": "campaign_objective", "placeholder": "Campaign Objective"},  
+                {"type": "text", "name": "target_audience", "placeholder": "Target Audience"}  
+            ],  
+            "explanation": "Detail the advocacy campaign's objectives and target audience.",  
+            "ai_context": "Provide information on advocacy efforts and campaign strategies pertinent to the COS."  
+        },  
+        "tabulator_config": {  
+            "columns": [  
+                {"title": "Campaign Name", "field": "campaign_name", "editor": "input"},  
+                {"title": "Campaign Objective", "field": "campaign_objective", "editor": "textarea"},  
+                {"title": "Target Audience", "field": "target_audience", "editor": "input"}  
+            ]  
+        }
     },
-
     "Resource": {
         "definition": "Lists resources or assets essential for achieving the COS.",
         "icon": "fa-solid fa-tools",
+        "color": "#8d6e63",  # Brown (from Completion)
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "resource_name", "placeholder": "Resource Name"},
@@ -105,6 +111,7 @@ NODES = {
     "Praxis": {
         "definition": "Defines actions or tasks necessary to meet the COS.",
         "icon": "fa-solid fa-tasks",
+        "color": "#5c6bc0",  # Indigo (from Action)
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "action_name", "placeholder": "Action Name"},
@@ -125,6 +132,7 @@ NODES = {
     "Timeline": {
         "definition": "Specifies time frames or deadlines associated with the COS.",
         "icon": "fa-solid fa-clock",
+        "color": "#ba68c8",  # Light Purple (from Action)
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "time_frame", "placeholder": "Time Frame"},
@@ -145,6 +153,7 @@ NODES = {
     "Collaboration": {
         "definition": "Focuses on partnerships or collaboration efforts necessary for the COS.",
         "icon": "fa-solid fa-handshake",
+        "color": "#4dd0e1",  # Light Cyan (from Engagement)
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "partner_name", "placeholder": "Partner Name"},
@@ -165,6 +174,7 @@ NODES = {
     "Policy": {
         "definition": "Addresses policy or regulatory aspects pertinent to the COS.",
         "icon": "fa-solid fa-gavel",
+        "color": "#78909c",  # Blue Grey (from Action)
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "policy_name", "placeholder": "Policy Name"},
@@ -185,6 +195,7 @@ NODES = {
     "Legislation": {
         "definition": "Covers legal considerations or requirements pertinent to the COS.",
         "icon": "fa-solid fa-balance-scale",
+        "color": "#546e7a",  # Dark Blue Grey (from Action)
         "modal_config": {
             "fields": [
                 {"type": "textarea", "name": "legal_requirements", "placeholder": "Legal Requirements"},
@@ -205,6 +216,7 @@ NODES = {
     "Environment": {
         "definition": "Addresses environmental factors related to the COS.",
         "icon": "fa-solid fa-leaf",
+        "color": "#66bb6a",  # Green (from Legacy)
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "environmental_factor", "placeholder": "Environmental Factor"},
@@ -225,6 +237,7 @@ NODES = {
     "Risk": {
         "definition": "Identifies potential risks and mitigation strategies for the COS.",
         "icon": "fa-solid fa-exclamation-triangle",
+        "color": "#e53935",  # Red (Alert Color)
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "risk_name", "placeholder": "Risk Name"},
@@ -245,6 +258,7 @@ NODES = {
     "Opportunity": {
         "definition": "Identifies opportunities that can enhance the COS.",
         "icon": "fa-solid fa-lightbulb",
+        "color": "#26c6da",  # Bright Cyan (Analogous)
         "modal_config": {
             "fields": [
                 {"type": "text", "name": "opportunity_name", "placeholder": "Opportunity Name"},

@@ -1,4 +1,4 @@
-# ai_service.py (Refactored for Gemini Image Generation)
+# ai_service.py 
 import os
 import json
 import uuid
@@ -12,23 +12,22 @@ from dotenv import load_dotenv
 from flask import current_app
 from ce_nodes import get_valid_node_types
 from openai import AzureOpenAI
-import re  # Import the regular expression module
-import aiohttp #Import
-# from utilities import sanitize_filename
+import re
+import aiohttp
 
 # Load environment variables
 load_dotenv()
 google_gemini_api_key = os.environ["GOOGLE_GEMINI_API"]
-gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-pro-002")  # STABLE model for text
-gemini_image_model_name = os.getenv("GEMINI_IMAGE_MODEL_NAME", "models/gemini-2.0-flash-exp") # Model for image generation - defaults to flash-exp
+gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-pro-latest")
+gemini_image_model_name = os.getenv("GEMINI_IMAGE_MODEL_NAME", "models/gemini-1.5-flash-latest")
 
-# Initialize Gemini client for text and image (using same API key)
+# Initialize Gemini client
 gemini_client = genai.Client(api_key=google_gemini_api_key)
-
 
 async def send_request_to_gemini(messages, generation_config=None, logger=None):
     """
     Asynchronously sends a request to the Google Gemini API and returns the response.
+    This function now expects that any 'system' roles have already been converted.
     """
     if logger is None:
         logger = current_app.logger
@@ -39,6 +38,8 @@ async def send_request_to_gemini(messages, generation_config=None, logger=None):
         for message in messages:
             if isinstance(message, dict) and 'role' in message and 'content' in message:
                 role = message['role']
+                # --- FIX: REMOVED THE 'system' ROLE CHECK ---
+                # We now only expect 'user' or 'model'.
                 if role not in ("user", "model"):
                     raise ValueError(f"Invalid role: {role}. Role must be 'user' or 'model'.")
                 contents.append(
@@ -56,12 +57,12 @@ async def send_request_to_gemini(messages, generation_config=None, logger=None):
             generation_config.setdefault('safety_settings', [])
             generation_config = types.GenerateContentConfig(**generation_config)
 
-        response = await gemini_client.aio.models.generate_content( # Use gemini_client here
-            model=gemini_model_name, # Use gemini_model_name for TEXT model
+        response = await gemini_client.aio.models.generate_content(
+            model=gemini_model_name,
             contents=contents,
             config=generation_config
         )
-        logger.debug(f"Gemini API response: {response.text}")  # LOG THE raw RESPONSE
+        logger.debug(f"Gemini API response: {response.text}")
         return response.text
 
     except Exception as e:
@@ -71,6 +72,23 @@ async def send_request_to_gemini(messages, generation_config=None, logger=None):
 async def generate_chat_response(messages, role, task, model=None, temperature=0.75, retries=3, backoff_factor=2, logger=None, generation_config=None, system_instruction=None):
     if logger is None:
         logger = current_app.logger
+    
+    # --- System role processing remains the same ---
+    processed_messages = []
+    for msg in messages:
+        if msg.get('role') == 'system':
+            if not processed_messages or processed_messages[0].get('role') != 'user':
+                processed_messages.insert(0, {'role': 'user', 'content': msg['content']})
+            else:
+                processed_messages[0]['content'] = f"{msg['content']}\n\n{processed_messages[0]['content']}"
+        else:
+            processed_messages.append(msg)
+    
+    if system_instruction:
+        if not processed_messages or processed_messages[0].get('role') != 'user':
+            processed_messages.insert(0, {'role': 'user', 'content': system_instruction})
+        else:
+            processed_messages[0]['content'] = f"{system_instruction}\n\n{processed_messages[0]['content']}"
 
     if generation_config is None:
         generation_config = types.GenerateContentConfig(
@@ -88,30 +106,35 @@ async def generate_chat_response(messages, role, task, model=None, temperature=0
     for retry_attempt in range(retries):
         try:
             logger.debug(f"Sending request to Gemini (attempt {retry_attempt + 1})")
-            raw_response = await send_request_to_gemini(messages, generation_config, logger)
+            raw_response = await send_request_to_gemini(processed_messages, generation_config, logger)
 
-            # Extract JSON from the raw response (Robust extraction)
-            match = re.search(r"```json\n(.*?)```", raw_response, re.DOTALL)
+            # --- FIX: More robust regex for JSON extraction ---
+            # This handles optional "json" language tag and surrounding whitespace.
+            match = re.search(r"```(?:json)?\s*\n(.*?)\s*```", raw_response, re.DOTALL)
+            
             if match:
                 response_content = match.group(1).strip()
             else:
-                response_content = raw_response  # Use raw response if no JSON found
-                logger.warning(f"No JSON found in Gemini response.  Using raw response.  Response: {response_content}")
+                response_content = raw_response
+                # This warning is now more meaningful, as it will only trigger if there's truly no markdown block.
+                logger.warning(f"No JSON markdown block found in Gemini response. Using raw response. Response: {response_content}")
+            
             logger.debug(f"Gemini API response (extracted): {response_content}")
-            return response_content  # Return the *extracted* JSON string
-
+            return response_content
 
         except Exception as e:
             last_exception = e
             if retry_attempt < retries - 1:
                 sleep_time = backoff_factor ** (retry_attempt + 1)
-                logger.warning(f"Error in generate_chat_response: {e}.  Retrying in {sleep_time} seconds.")
+                logger.warning(f"Error in generate_chat_response: {e}. Retrying in {sleep_time} seconds.")
                 await asyncio.sleep(sleep_time)
             else:
                 logger.error(f"Error in generate_chat_response: {e}. All retries exhausted.")
     if last_exception:
         raise last_exception
 
+
+# --- CRITICAL FUNCTION: generate_chat_response_with_node_types ---
 async def generate_chat_response_with_node_types(messages, role, task, temperature=0.75, retries=3, backoff_factor=2, logger=None):
     if logger is None:
         logger = current_app.logger
@@ -155,9 +178,8 @@ async def get_grounded_data(query, ce_type):
     """
     Retrieves grounded data from Google Search for a given query and CE type.
     """
-    try: # <-- Line 169 is likely here (start of try block)
-        # client is already initialized at the top as gemini_client
-        model = "gemini-2.0-pro-exp-02-05"  # Or your preferred model for grounding
+    try:
+        model = "gemini-2.0-flash"
 
         contents = [
             types.Content(
@@ -165,7 +187,7 @@ async def get_grounded_data(query, ce_type):
                 parts=[types.Part.from_text(text=query)],
             ),
             types.Content(
-                role="model", #Must have a model response.
+                role="model",
                 parts = [types.Part.from_text(text="Okay, I will search for that.")]
             ),
               types.Content(
@@ -197,79 +219,78 @@ async def get_grounded_data(query, ce_type):
         tools = [types.Tool(google_search=types.GoogleSearch())]
 
         generation_config = types.GenerateContentConfig(
-            temperature=0.4,  # Lower temperature for more factual results
+            temperature=0.4,
             top_p=0.95,
-            top_k=40, #Added top k back in.
-            max_output_tokens=2048,  # Adjust as needed
+            top_k=40,
+            max_output_tokens=2048,
             tools=tools,
         )
-        response = await gemini_client.aio.models.generate_content( # Use gemini_client here
+        response = await gemini_client.aio.models.generate_content(
           model=model,
           contents=contents,
           config=generation_config,
         )
 
-        if response and response.text: # Check if response and response.text are valid
+        if response and response.text:
             # Extract JSON (Robust Extraction)
-            match = re.search(r"```(?:json)?\n([\s\S]*?)```", response.text, re.IGNORECASE) # More lenient regex
+            match = re.search(r"```(?:json)?\n([\s\S]*?)```", response.text, re.IGNORECASE)
             if match:
                 response_content = match.group(1).strip()
                 current_app.logger.debug(f"Gemini API response (extracted): {response_content}")
             else:
-                response_content = response.text # Use full text if no JSON block found
+                response_content = response.text
                 current_app.logger.warning(f"No JSON block found in Gemini response. Using raw response text. Raw Response: {response.text}")
         else:
-            response_content = None # Set it to None
-            current_app.logger.warning(f"Gemini API response or response text is None. Full response object: {response}") # Log full response for debugging
+            response_content = None
+            current_app.logger.warning(f"Gemini API response or response text is None. Full response object: {response}")
 
-        if response_content: # only if we got a valid result
+        if response_content:
           try:
             grounded_data = json.loads(response_content)
           except json.JSONDecodeError as e:
             current_app.logger.error(f"JSONDecode Error: {e}")
             return None
-        else: # no result
+        else:
             return None
 
         return grounded_data
 
-    except Exception as e: # <-- **MISSING or INCORRECT 'except' clause - ADD THIS LINE**
+    except Exception as e:
         current_app.logger.error(f"Error in get_grounded_data: {e}", exc_info=True)
         return None
 
-async def generate_image(prompt): # Renamed from generate_dalle_image
+async def generate_image(prompt):
     from utilities import sanitize_filename
-    from flask import current_app # Ensure current_app is imported
+    from flask import current_app
 
     try:
-        # gemini_client is already initialized at the top
-        # gemini_image_model_name is loaded from env vars at the top
+        contents = prompt
 
-        contents = prompt # Just the prompt string
-
-        generate_content_config = types.GenerateContentConfig(  # Add GenerateContentConfig
-            temperature=1.0, # Match Playground's temperature (or use 0.9 or 0.75 if 1.0 is too creative)
+        generate_content_config = types.GenerateContentConfig(
+            temperature=1.0,
             top_p=0.95,
             top_k=40,
-            max_output_tokens=8192, # Match Playground's max_output_tokens (or adjust if needed)
-            response_modalities=["image", "text"], # Use lowercase "image" and include "text"
-            response_mime_type="text/plain" # Add response_mime_type
+            max_output_tokens=8192,
+            response_modalities=["image", "text"],
+            response_mime_type="text/plain"
         )
 
-        # Log the image prompt here BEFORE making the API call
-        current_app.logger.debug(f"generate_image (Gemini) - Sending prompt to API: '{prompt}'") # Log at DEBUG level
+        current_app.logger.debug(f"generate_image (Gemini) - Sending prompt to API: '{prompt}'")
 
-        response = await gemini_client.aio.models.generate_content( # Still using non-streaming for now
-            model=gemini_image_model_name, # Model from env var
+        response = await gemini_client.aio.models.generate_content(
+            model=gemini_image_model_name,
             contents=contents,
-            config=generate_content_config # Use the configured config
+            config=generate_content_config
         )
 
         image_part = None
-        for part in response.candidates[0].content.parts:
-            if part.inline_data is not None:
-                image_part = part
-                break # Assuming only one image part
+        for candidate in response.candidates:
+             for part in candidate.content.parts:
+                if part.inline_data is not None and part.inline_data.mime_type.startswith('image/'):
+                    image_part = part
+                    break
+             if image_part:
+                 break
 
         if not image_part:
             raise ValueError("No image data found in Gemini response")
@@ -278,17 +299,17 @@ async def generate_image(prompt): # Renamed from generate_dalle_image
         image = Image.open(BytesIO(image_bytes))
 
 
-        unique_filename = f"generated_image_gemini_{uuid.uuid4().hex}.png" # Gemini specific filename
+        unique_filename = f"generated_image_gemini_{uuid.uuid4().hex}.png"
         unique_filename = sanitize_filename(unique_filename)
         static_folder = current_app.static_folder
         image_folder = os.path.join(static_folder, 'images')
         os.makedirs(image_folder, exist_ok=True)
         image_file_path = os.path.join(image_folder, unique_filename)
-        image.save(image_file_path) # Save using Pillow
+        image.save(image_file_path)
 
         web_path = os.path.join('images', unique_filename).replace("\\", "/")
         return web_path
 
     except Exception as e:
-        current_app.logger.error(f"Error in generate_image (Gemini - Refactored Config): {e}", exc_info=True) # Updated log message
+        current_app.logger.error(f"Error in generate_image (Gemini - Refactored Config): {e}", exc_info=True)
         raise
