@@ -1,7 +1,8 @@
-// cos_table.js (Refactored for Bootstrap Table Layout in outcome.html)
-import { displayCEModal } from './ce_cards.js'; // For CE pill clicks
+// cos_table.js (Refactored for Simplicity and Reliability)
+import { displayCEModal } from './ce_cards.js';
+import { showLoadingSpinner, hideLoadingSpinner } from './base_functions.js';
 
-// --- Utility Functions ---
+// --- Utility Functions (Unchanged) ---
 function getBadgeClassFromStatus(status) {
     switch (status) {
         case 'Proposed': return 'bg-info';
@@ -22,154 +23,91 @@ function handleApiResponse(response) {
     return response.json();
 }
 
-// --- DOM Manipulation & State ---
-
-/**
- * Stores the original values of a COS row before entering edit mode.
- * @param {HTMLTableRowElement} cosRow - The <tr> element representing the COS.
- */
+// --- DOM Manipulation & State (Largely Unchanged) ---
 function storeOriginalValues(cosRow) {
     const statusPill = cosRow.querySelector('.status-cell .status-pill');
     const contentDisplay = cosRow.querySelector('.cos-content-cell .cos-content-display');
     const accountablePartyDisplay = cosRow.querySelector('.cos-accountable-party-cell .cos-accountable-party-display');
     const completionDateDisplay = cosRow.querySelector('.cos-completion-date-cell .cos-completion-date-display');
-
     cosRow.dataset.originalValues = JSON.stringify({
         status: statusPill ? statusPill.textContent.trim().toUpperCase() : 'PROPOSED',
-        contentHTML: contentDisplay ? contentDisplay.innerHTML : '', // Store raw HTML with CE pills
+        contentHTML: contentDisplay ? contentDisplay.innerHTML : '',
         accountableParty: accountablePartyDisplay ? accountablePartyDisplay.textContent.trim() : '',
         completionDate: completionDateDisplay ? completionDateDisplay.textContent.trim() : ''
     });
 }
 
-/**
- * Reverts a COS row to its original stored values after cancelling edit.
- * @param {HTMLTableRowElement} cosRow - The <tr> element.
- */
 function revertToOriginalValues(cosRow) {
     if (!cosRow.dataset.originalValues) return;
     const original = JSON.parse(cosRow.dataset.originalValues);
-
-    // Restore Status
     const statusCell = cosRow.querySelector('.status-cell');
     if (statusCell) {
         statusCell.innerHTML = `<span class="status-pill ${getBadgeClassFromStatus(original.status)}">${original.status}</span>`;
     }
-
-    // Restore Content
     const contentDisplay = cosRow.querySelector('.cos-content-cell .cos-content-display');
-    const contentEditDiv = cosRow.querySelector('.cos-content-cell .cos-content-edit');
     if (contentDisplay) contentDisplay.innerHTML = original.contentHTML;
-    if (contentEditDiv) contentEditDiv.querySelector('textarea').value = stripHtmlForTextarea(original.contentHTML);
-
-
-    // Restore Accountable Party
     const accPartyDisplay = cosRow.querySelector('.cos-accountable-party-cell .cos-accountable-party-display');
-    const accPartyEditInput = cosRow.querySelector('.cos-accountable-party-cell .cos-accountable-party-edit');
     if (accPartyDisplay) accPartyDisplay.textContent = original.accountableParty;
-    if (accPartyEditInput) accPartyEditInput.value = original.accountableParty;
-
-    // Restore Completion Date
     const compDateDisplay = cosRow.querySelector('.cos-completion-date-cell .cos-completion-date-display');
-    const compDateEditInput = cosRow.querySelector('.cos-completion-date-cell .cos-completion-date-edit');
     if (compDateDisplay) compDateDisplay.textContent = original.completionDate;
-    if (compDateEditInput) compDateEditInput.value = original.completionDate;
-
-    toggleEditModeUI(cosRow, false); // Switch back to display mode
+    toggleEditModeUI(cosRow, false);
 }
 
-/**
- * Updates the display of a COS row with new data from the server.
- * @param {HTMLTableRowElement} cosRow - The <tr> element.
- * @param {object} cosData - The COS data object from the server.
- */
 function updateRowDisplay(cosRow, cosData) {
     const statusCell = cosRow.querySelector('.status-cell');
-    if (statusCell) { // Should always exist
+    if (statusCell) {
         statusCell.innerHTML = `<span class="status-pill ${getBadgeClassFromStatus(cosData.status)}">${cosData.status.toUpperCase()}</span>`;
     }
-
     const contentDisplay = cosRow.querySelector('.cos-content-cell .cos-content-display');
-    if (contentDisplay) contentDisplay.innerHTML = cosData.content; // Assumes cosData.content has CE pills
-
+    if (contentDisplay) contentDisplay.innerHTML = cosData.content;
     const accountablePartyDisplay = cosRow.querySelector('.cos-accountable-party-cell .cos-accountable-party-display');
-    if (accountablePartyDisplay) accountablePartyDisplay.textContent = cosData.accountable_party || '';
-
+    if (accountablePartyDisplay) accountablePartyDisplay.textContent = cosData.accountable_party || 'N/A';
     const completionDateDisplay = cosRow.querySelector('.cos-completion-date-cell .cos-completion-date-display');
-    if (completionDateDisplay) completionDateDisplay.textContent = cosData.completion_date || '';
-
-    initializeCEPillEventListeners(cosRow.querySelector('.cos-content-cell')); // Re-bind pills in the updated content
+    if (completionDateDisplay) completionDateDisplay.textContent = cosData.completion_date || 'N/A';
 }
 
-
-/**
- * Toggles the UI between display and edit mode for a COS row.
- * @param {HTMLTableRowElement} cosRow - The <tr> element.
- * @param {boolean} editing - True for edit mode, false for display mode.
- */
 function toggleEditModeUI(cosRow, editing) {
-    cosRow.dataset.editing = editing.toString(); // For CSS state styling if needed
-
-    // Toggle visibility of display spans and edit inputs/textareas
+    cosRow.dataset.editing = editing.toString();
     const elementsToToggle = [
         { display: '.cos-content-display', edit: '.cos-content-edit' },
         { display: '.cos-accountable-party-display', edit: '.cos-accountable-party-edit' },
         { display: '.cos-completion-date-display', edit: '.cos-completion-date-edit' }
     ];
-
     elementsToToggle.forEach(pair => {
-        const displayEl = cosRow.querySelector(pair.display);
-        const editEl = cosRow.querySelector(pair.edit);
-        if (displayEl) displayEl.classList.toggle('d-none', editing);
-        if (editEl) editEl.classList.toggle('d-none', !editing);
+        cosRow.querySelector(pair.display)?.classList.toggle('d-none', editing);
+        cosRow.querySelector(pair.edit)?.classList.toggle('d-none', !editing);
     });
 
-    // Handle status pill/dropdown
     const statusCell = cosRow.querySelector('.status-cell');
     const statusPill = statusCell.querySelector('.status-pill');
     const statusDropdown = statusCell.querySelector('select.status-edit-select');
-
     if (editing) {
-        if (statusPill && !statusDropdown) { // Only create dropdown if it doesn't exist
+        if (statusPill && !statusDropdown) {
             const currentStatus = statusPill.textContent.trim();
             statusPill.classList.add('d-none');
-            // statusPill.style.display = 'none';
             statusCell.insertAdjacentHTML('beforeend', createStatusDropdown(currentStatus));
         }
     } else {
-        if (statusDropdown) statusDropdown.remove();
-        if (statusPill) statusPill.classList.remove('d-none');
-        // if (statusPill) statusPill.style.display = '';
+        statusDropdown?.remove();
+        statusPill?.classList.remove('d-none');
     }
 
-    // Toggle action buttons
-    cosRow.querySelector('.edit-cos-button').classList.toggle('d-none', editing);
-    cosRow.querySelector('.update-cos-button').classList.toggle('d-none', !editing);
-    cosRow.querySelector('.cancel-cos-button').classList.toggle('d-none', !editing);
-    cosRow.querySelector('.delete-cos-button').classList.toggle('d-none', editing); // Hide delete in edit mode
-    cosRow.querySelector('.analyze-cos-button').classList.toggle('d-none', editing); // Hide analyze in edit mode
+    cosRow.querySelector('.edit-cos-button')?.classList.toggle('d-none', editing);
+    cosRow.querySelector('.update-cos-button')?.classList.toggle('d-none', !editing);
+    cosRow.querySelector('.cancel-cos-button')?.classList.toggle('d-none', !editing);
+    cosRow.querySelector('.delete-cos-button')?.classList.toggle('d-none', editing);
+    cosRow.querySelector('.analyze-cos-button')?.classList.toggle('d-none', editing);
 }
 
-/**
- * Helper to strip HTML for placing content into a textarea for plain text editing.
- * CE pills will be lost if not re-analyzed on save.
- * @param {string} htmlString
- * @returns {string} Plain text.
- */
 function stripHtmlForTextarea(htmlString) {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = htmlString;
     return tempDiv.textContent || tempDiv.innerText || "";
 }
 
-/**
- * Creates the HTML for the status dropdown.
- * @param {string} selectedStatus - The currently selected status.
- * @returns {string} HTML string for the select element.
- */
 function createStatusDropdown(selectedStatus) {
     const statuses = ['Proposed', 'In Progress', 'Completed', 'Rejected'];
-    let optionsHtml = statuses.map(status =>
+    const optionsHtml = statuses.map(status =>
         `<option value="${status}"${status.toUpperCase() === selectedStatus.toUpperCase() ? ' selected' : ''}>${status}</option>`
     ).join('');
     return `<select class="form-select form-select-sm status-edit-select">${optionsHtml}</select>`;
@@ -178,81 +116,69 @@ function createStatusDropdown(selectedStatus) {
 
 // --- Event Handlers ---
 
-/**
- * Handles clicks within the phase table body (event delegation).
- * @param {Event} event - The click event.
- */
 function handlePhaseTableBodyClick(event) {
-    const button = event.target.closest('button'); // Focus on button clicks
-    if (!button) return;
-
-    const cosRow = button.closest('.cos-row');
-    if (!cosRow) return;
-
-    const cosId = cosRow.dataset.cosId;
-
-    if (button.classList.contains('edit-cos-button')) {
+    const target = event.target;
+    
+    const pill = target.closest('.ce-pill');
+    if (pill) {
         event.preventDefault();
-        if (cosRow.dataset.editing === 'true') return; // Already editing
-        storeOriginalValues(cosRow);
+        handleCEPillClick(pill);
+        return;
+    }
 
-        // Populate textarea with plain text from current display for editing
-        const contentDisplay = cosRow.querySelector('.cos-content-cell .cos-content-display');
-        const contentTextarea = cosRow.querySelector('.cos-content-cell .cos-content-edit textarea');
-        if (contentDisplay && contentTextarea) {
-            contentTextarea.value = stripHtmlForTextarea(contentDisplay.innerHTML);
+    const button = target.closest('button');
+    if (button) {
+        const cosRow = button.closest('.cos-row');
+        if (!cosRow) return;
+        
+        event.preventDefault();
+        const cosId = cosRow.dataset.cosId;
+
+        if (button.classList.contains('edit-cos-button')) {
+            handleEditCOS(cosRow);
+        } else if (button.classList.contains('update-cos-button')) {
+            handleUpdateCOS(cosRow, cosId);
+        } else if (button.classList.contains('cancel-cos-button')) {
+            revertToOriginalValues(cosRow);
+        } else if (button.classList.contains('delete-cos-button')) {
+            handleDeleteCOS(cosRow, cosId);
+        } else if (button.classList.contains('analyze-cos-button')) {
+            handleAnalyzeCOS(button, cosRow, cosId);
         }
-        // Populate other edit fields
-        const accPartyDisplay = cosRow.querySelector('.cos-accountable-party-cell .cos-accountable-party-display');
-        const accPartyEditInput = cosRow.querySelector('.cos-accountable-party-cell .cos-accountable-party-edit');
-        if (accPartyDisplay && accPartyEditInput) accPartyEditInput.value = accPartyDisplay.textContent.trim();
-
-        const compDateDisplay = cosRow.querySelector('.cos-completion-date-cell .cos-completion-date-display');
-        const compDateEditInput = cosRow.querySelector('.cos-completion-date-cell .cos-completion-date-edit');
-        if (compDateDisplay && compDateEditInput) compDateEditInput.value = compDateDisplay.textContent.trim();
-
-        toggleEditModeUI(cosRow, true);
-
-    } else if (button.classList.contains('update-cos-button')) {
-        event.preventDefault();
-        handleUpdateCOS(cosRow, cosId);
-    } else if (button.classList.contains('cancel-cos-button')) {
-        event.preventDefault();
-        revertToOriginalValues(cosRow); // This also calls toggleEditModeUI(cosRow, false)
-    } else if (button.classList.contains('delete-cos-button')) {
-        event.preventDefault();
-        handleDeleteCOS(cosRow, cosId);
-    } else if (button.classList.contains('analyze-cos-button')) {
-        event.preventDefault();
-        handleAnalyzeCOS(button, cosRow, cosId);
     }
 }
 
-/**
- * Handles the update logic for a COS row.
- * @param {HTMLTableRowElement} cosRow - The <tr> element.
- * @param {string} cosId - The ID of the COS.
- */
+function handleEditCOS(cosRow) {
+    if (cosRow.dataset.editing === 'true') return;
+    storeOriginalValues(cosRow);
+    
+    const contentDisplay = cosRow.querySelector('.cos-content-display');
+    const contentTextarea = cosRow.querySelector('.cos-content-edit textarea');
+    if (contentDisplay && contentTextarea) {
+        contentTextarea.value = stripHtmlForTextarea(contentDisplay.innerHTML);
+    }
+    
+    const accPartyDisplay = cosRow.querySelector('.cos-accountable-party-display');
+    const accPartyEditInput = cosRow.querySelector('.cos-accountable-party-edit');
+    if (accPartyDisplay && accPartyEditInput) {
+        accPartyEditInput.value = accPartyDisplay.textContent.trim() === 'N/A' ? '' : accPartyDisplay.textContent.trim();
+    }
+    
+    const compDateDisplay = cosRow.querySelector('.cos-completion-date-display');
+    const compDateEditInput = cosRow.querySelector('.cos-completion-date-edit');
+    if (compDateDisplay && compDateEditInput) {
+        compDateEditInput.value = compDateDisplay.textContent.trim() === 'N/A' ? '' : compDateDisplay.textContent.trim();
+    }
+
+    toggleEditModeUI(cosRow, true);
+}
+
 function handleUpdateCOS(cosRow, cosId) {
-    const contentTextarea = cosRow.querySelector('.cos-content-cell .cos-content-edit textarea');
-    // Sending plain text; backend needs to re-analyze for CE pills.
-    const newContent = contentTextarea ? contentTextarea.value.trim() : '';
-
-    const statusSelect = cosRow.querySelector('.status-cell select.status-edit-select');
-    const newStatus = statusSelect ? statusSelect.value : cosRow.querySelector('.status-cell .status-pill').textContent.trim();
-
-    const accountablePartyInput = cosRow.querySelector('.cos-accountable-party-cell .cos-accountable-party-edit');
-    const newAccountableParty = accountablePartyInput ? accountablePartyInput.value.trim() : '';
-
-    const completionDateInput = cosRow.querySelector('.cos-completion-date-cell .cos-completion-date-edit');
-    const newCompletionDate = completionDateInput ? completionDateInput.value : '';
-
-    const payload = {
-        content: newContent, // Plain text, backend re-analyzes
-        status: newStatus,
-        accountable_party: newAccountableParty,
-        completion_date: newCompletionDate
-    };
+    const newContent = cosRow.querySelector('.cos-content-edit textarea')?.value.trim() || '';
+    const newStatus = cosRow.querySelector('.status-edit-select')?.value || 'Proposed';
+    const newAccountableParty = cosRow.querySelector('.cos-accountable-party-edit')?.value.trim() || '';
+    const newCompletionDate = cosRow.querySelector('.cos-completion-date-edit')?.value || '';
+    const payload = { content: newContent, status: newStatus, accountable_party: newAccountableParty, completion_date: newCompletionDate };
 
     const updateButton = cosRow.querySelector('.update-cos-button');
     const originalButtonHtml = updateButton.innerHTML;
@@ -261,26 +187,21 @@ function handleUpdateCOS(cosRow, cosId) {
 
     fetch(`/update_cos/${cosId}`, {
         method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         body: JSON.stringify(payload)
     })
     .then(handleApiResponse)
     .then(data => {
         if (data.success && data.cos) {
-            updateRowDisplay(cosRow, data.cos); // data.cos.content should have pills
+            updateRowDisplay(cosRow, data.cos);
             toggleEditModeUI(cosRow, false);
         } else {
-            throw new Error(data.error || data.message || 'Update failed to return COS data.');
+            throw new Error(data.error || 'Update failed to return COS data.');
         }
     })
     .catch(error => {
         console.error('Error updating COS:', error);
         alert(`Error: ${error.message}`);
-        // Optionally revert if critical error: revertToOriginalValues(cosRow);
     })
     .finally(() => {
         updateButton.disabled = false;
@@ -288,13 +209,8 @@ function handleUpdateCOS(cosRow, cosId) {
     });
 }
 
-/**
- * Handles deletion of a COS row.
- * @param {HTMLTableRowElement} cosRow - The <tr> element.
- * @param {string} cosId - The ID of the COS.
- */
 function handleDeleteCOS(cosRow, cosId) {
-    if (confirm('Are you sure you want to delete this Condition of Satisfaction? This cannot be undone.')) {
+    if (confirm('Are you sure you want to delete this Condition of Satisfaction?')) {
         fetch(`/delete_cos/${cosId}`, {
             method: 'DELETE',
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
@@ -304,7 +220,7 @@ function handleDeleteCOS(cosRow, cosId) {
             if (data.success) {
                 cosRow.remove();
             } else {
-                throw new Error(data.error || data.message || 'Deletion failed.');
+                throw new Error(data.error || 'Deletion failed.');
             }
         })
         .catch(error => {
@@ -314,27 +230,18 @@ function handleDeleteCOS(cosRow, cosId) {
     }
 }
 
-/**
- * Handles analysis of a COS row's content.
- * @param {HTMLButtonElement} analyzeButton - The analyze button.
- * @param {HTMLTableRowElement} cosRow - The <tr> element.
- * @param {string} cosId - The ID of the COS.
- */
 function handleAnalyzeCOS(analyzeButton, cosRow, cosId) {
     const originalButtonHtml = analyzeButton.innerHTML;
     analyzeButton.disabled = true;
     analyzeButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
 
-    fetch(`/analyze_cos/${cosId}`, { // Route from routes.py
-        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-    })
+    fetch(`/analyze_cos/${cosId}`, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
     .then(handleApiResponse)
     .then(data => {
-        if (data.success && data.analysis_results && data.analysis_results.content_with_ce) {
-            const contentDisplay = cosRow.querySelector('.cos-content-cell .cos-content-display');
+        if (data.success && data.analysis_results?.content_with_ce) {
+            const contentDisplay = cosRow.querySelector('.cos-content-display');
             if (contentDisplay) {
                 contentDisplay.innerHTML = data.analysis_results.content_with_ce;
-                initializeCEPillEventListeners(contentDisplay); // Re-bind pills
             }
         } else {
             throw new Error(data.message || 'Analysis failed to return expected results.');
@@ -346,62 +253,35 @@ function handleAnalyzeCOS(analyzeButton, cosRow, cosId) {
     })
     .finally(() => {
         analyzeButton.disabled = false;
-        analyzeButton.innerHTML = originalButtonHtml; // Restore original icon/text
+        analyzeButton.innerHTML = originalButtonHtml;
     });
 }
 
-/**
- * Handles adding a new COS.
- * @param {Event} event - The click event from the "Add COS" button.
- */
 function handleAddCOSButtonClick(event) {
     const button = event.currentTarget;
-    const phaseNameIdentifier = button.dataset.phase; // e.g., "Discovery_Phase"
     const accordionBody = button.closest('.accordion-body');
-    const ssolId = accordionBody ? accordionBody.dataset.ssolId : null;
-    const table = accordionBody ? accordionBody.querySelector('table.phase-table') : null;
-    const tbody = table ? table.tBodies[0] : null;
-
+    const ssolId = accordionBody?.dataset.ssolId;
     if (!ssolId) {
-        console.error('SSOL ID not found for adding COS.');
         alert('Cannot add COS: Critical data missing.');
         return;
     }
 
-    const payload = {
-        content: 'New Condition of Satisfaction - edit me!', // Default content
-        status: 'Proposed',
-        ssol_id: ssolId,
-        // Optionally, you could send phase_name_identifier if backend uses it
-    };
-
+    const payload = { content: 'New Condition of Satisfaction - edit me!', status: 'Proposed', ssol_id: ssolId };
     button.disabled = true;
     const originalButtonText = button.innerHTML;
     button.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Adding...`;
 
-    fetch(`/create_cos`, { // This route needs to be implemented in routes.py
+    fetch(`/create_cos`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         body: JSON.stringify(payload)
     })
     .then(handleApiResponse)
     .then(data => {
         if (data.success && data.cos) {
-            if (tbody) {
-                const newRow = createCosTableRow(data.cos);
-                tbody.appendChild(newRow);
-            } else if (table) { // Table exists but no tbody (shouldn't happen with valid HTML)
-                const newTbody = document.createElement('tbody');
-                const newRow = createCosTableRow(data.cos);
-                newTbody.appendChild(newRow);
-                table.appendChild(newTbody);
-            } else {
-                // This case means no table existed (phase was empty)
-                // We need to create the table structure
+            let tbody = accordionBody.querySelector('table.phase-table tbody');
+            if (!tbody) {
+                const phaseNameIdentifier = button.dataset.phase;
                 const newTableHtml = `
                     <table class="table table-striped table-hover phase-table" id="${phaseNameIdentifier}-table">
                         <thead>
@@ -413,20 +293,16 @@ function handleAddCOSButtonClick(event) {
                                 <th scope="col" class="text-end actions-header" style="width: 20%;">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
-                        </tbody>
+                        <tbody></tbody>
                     </table>`;
-                const pTag = accordionBody.querySelector('p'); // "No COS found" paragraph
-                if(pTag) pTag.remove();
-                accordionBody.insertAdjacentHTML('afterbegin', newTableHtml); // Insert table at the top
-                const newTbody = accordionBody.querySelector('table.phase-table tbody');
-                if(newTbody){
-                    const newRow = createCosTableRow(data.cos);
-                    newTbody.appendChild(newRow);
-                }
+                accordionBody.querySelector('p')?.remove();
+                accordionBody.insertAdjacentHTML('afterbegin', newTableHtml);
+                tbody = accordionBody.querySelector('tbody');
             }
+            const newRow = createCosTableRow(data.cos);
+            tbody.appendChild(newRow);
         } else {
-            throw new Error(data.error || data.message || 'Failed to create COS.');
+            throw new Error(data.error || 'Failed to create COS.');
         }
     })
     .catch(error => {
@@ -439,20 +315,12 @@ function handleAddCOSButtonClick(event) {
     });
 }
 
-/**
- * Creates a new <tr> element for a COS.
- * @param {object} cos - The COS data object.
- * @returns {HTMLTableRowElement} The new <tr> element.
- */
 function createCosTableRow(cos) {
     const newRow = document.createElement('tr');
-    newRow.classList.add('cos-row');
+    newRow.className = 'cos-row';
     newRow.dataset.cosId = cos.id;
     newRow.dataset.editing = 'false';
-
-    // Ensure cos.content is defined, default to empty string if not
     const cosContentHtml = cos.content || '';
-    // For textarea, strip HTML. Backend will re-analyze and add pills.
     const cosContentText = stripHtmlForTextarea(cosContentHtml);
 
     newRow.innerHTML = `
@@ -466,11 +334,11 @@ function createCosTableRow(cos) {
             </div>
         </td>
         <td class="cos-accountable-party-cell align-middle">
-            <span class="cos-accountable-party-display">${cos.accountable_party || ''}</span>
+            <span class="cos-accountable-party-display">${cos.accountable_party || 'N/A'}</span>
             <input type="text" class="form-control form-control-sm cos-accountable-party-edit d-none" value="${cos.accountable_party || ''}">
         </td>
         <td class="cos-completion-date-cell align-middle">
-            <span class="cos-completion-date-display">${cos.completion_date || ''}</span>
+            <span class="cos-completion-date-display">${cos.completion_date || 'N/A'}</span>
             <input type="date" class="form-control form-control-sm cos-completion-date-edit d-none" value="${cos.completion_date || ''}">
         </td>
         <td class="text-end actions-cell align-middle">
@@ -483,70 +351,30 @@ function createCosTableRow(cos) {
             </div>
         </td>
     `;
-    initializeCEPillEventListeners(newRow.querySelector('.cos-content-cell')); // Init pills for the new row
     return newRow;
 }
 
 
-// --- CE Pill Click Handling ---
-/**
- * Adds event listeners to CE pills.
- * @param {HTMLElement} parentElement - The parent element to search within for CE pills. Defaults to document.
- */
-function initializeCEPillEventListeners(parentElement = document) {
-    parentElement.querySelectorAll('.ce-pill').forEach(pill => {
-        pill.removeEventListener('click', handleCEPillClick); // Prevent duplicates
-        pill.addEventListener('click', handleCEPillClick);
-    });
-}
-
-/**
- * Handles clicks on CE pills to open the CE modal.
- * @param {Event} event - The click event.
- */
-function handleCEPillClick(event) {
-    event.preventDefault(); // Prevent any default action if pill is inside a link
-    const pill = event.currentTarget;
+function handleCEPillClick(pill) {
     const ceId = pill.dataset.ceId;
+    if (!ceId) return;
 
-    if (!ceId) {
-        console.warn('CE Pill clicked without a ce-id.');
-        return;
-    }
+    showLoadingSpinner("Analyzing Conditional Element...");
 
     const ceType = pill.dataset.ceType || "Default";
-    const cosRow = pill.closest('.cos-row'); // Pills are inside cos-content-cell of a cos-row
-    const cosContentDisplay = cosRow ? cosRow.querySelector('.cos-content-cell .cos-content-display') : null;
-    // Send the entire HTML content of the COS, so the modal can display context with other pills
-    const cosContextContent = cosContentDisplay ? cosContentDisplay.innerHTML : '';
+    const cosRow = pill.closest('.cos-row');
+    const cosContentDisplay = cosRow?.querySelector('.cos-content-display');
+    const cosContextContent = cosContentDisplay?.innerHTML || '';
 
-    const accordionItem = cosRow ? cosRow.closest('.accordion-item') : null;
-    const phaseButton = accordionItem ? accordionItem.querySelector('.accordion-header .accordion-button') : null;
-    let phaseName = "Unknown Phase";
-    if (phaseButton) {
-        const buttonTextClone = phaseButton.cloneNode(true);
-        buttonTextClone.querySelectorAll('.phase-progress-bar, .accordion-button-icon').forEach(el => el.remove()); // Remove non-text parts
-        phaseName = buttonTextClone.textContent.trim().replace(/\s*PHASE\s*$/i, "").trim(); // Remove " PHASE" suffix
-    }
+    const accordionItem = cosRow?.closest('.accordion-item');
+    const phaseButton = accordionItem?.querySelector('.accordion-header .accordion-button');
+    const phaseName = phaseButton?.textContent.trim().replace(/\s*PHASE\s*$/i, "").trim() || "Unknown Phase";
     
-    let phaseIndex = 0; // Default
-    if (accordionItem) {
-        const allAccordionItems = Array.from(accordionItem.parentElement.children);
-        phaseIndex = allAccordionItems.indexOf(accordionItem);
-    }
+    const phaseIndex = accordionItem ? Array.from(accordionItem.parentElement.children).indexOf(accordionItem) : 0;
 
+    const ssolGoal = document.querySelector('#ssol-goal')?.textContent.trim() || "SSOL Goal Not Available";
 
-    const ssolGoalElement = document.querySelector('#ssol-goal');
-    const ssolGoal = ssolGoalElement ? ssolGoalElement.textContent.trim() : "SSOL Goal Not Available";
-
-    const payload = {
-        ce_id: ceId,
-        cos_content: cosContextContent, // Send the HTML for context
-        phase_name: phaseName,
-        phase_index: phaseIndex,
-        ssol_goal: ssolGoal,
-        // existing_ces: [] // Populate if you want to send other CEs from THIS COS for advanced context
-    };
+    const payload = { ce_id: ceId, cos_content: cosContextContent, phase_name: phaseName, phase_index: phaseIndex, ssol_goal: ssolGoal };
 
     fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {
         method: 'POST',
@@ -556,24 +384,23 @@ function handleCEPillClick(event) {
     .then(handleApiResponse)
     .then(data => {
         if (data.modal_html) {
-            // displayCEModal is imported from ce_cards.js
-            displayCEModal(data.modal_html, ceId, ceType, cosContextContent, phaseName, phaseIndex, data.ai_generated_data, ssolGoal);
+            // --- BUG FIX #2: Pass both the modal HTML and the ceId ---
+            displayCEModal(data.modal_html, ceId);
         } else {
-            throw new Error(data.error || 'Modal HTML content not found in response.');
+            throw new Error(data.error || 'Modal HTML content not found.');
         }
     })
     .catch(error => {
         console.error('Error fetching or displaying CE modal:', error);
-        alert(`Error interacting with Conditional Element: ${error.message}`);
+        alert(`Error: ${error.message}`);
+    })
+    .finally(() => {
+        hideLoadingSpinner();
     });
 }
 
-
-// --- PDF Export ---
 function triggerPdfExport(ssolId) {
     const printableElement = document.documentElement.cloneNode(true);
-
-    // Remove scripts, action buttons, modals, edit fields for PDF
     const selectorsToRemove = [
         'script', '.cos-actions', '.add-cos', '#save-as-pdf-button',
         '.modal', '#dynamicModalContainer', '.cos-content-edit',
@@ -581,30 +408,15 @@ function triggerPdfExport(ssolId) {
         'select.status-edit-select', '#image-error-container'
     ];
     printableElement.querySelectorAll(selectorsToRemove.join(', ')).forEach(el => el.remove());
-
-    // Ensure all accordions are shown open in PDF
-    printableElement.querySelectorAll('.accordion-collapse').forEach(collapse => {
-        collapse.classList.add('show');
-        collapse.style.display = 'block'; // Force display if .show is not enough
-    });
-    printableElement.querySelectorAll('.accordion-button').forEach(button => {
-        button.classList.remove('collapsed');
-        button.setAttribute('aria-expanded', 'true');
-    });
-
-    // Ensure images use absolute paths
+    printableElement.querySelectorAll('.accordion-collapse').forEach(collapse => collapse.classList.add('show'));
+    printableElement.querySelectorAll('.accordion-button').forEach(button => button.classList.remove('collapsed'));
     printableElement.querySelectorAll('img').forEach(img => {
         if (img.src && !img.src.startsWith('http') && !img.src.startsWith('data:')) {
             try {
                 img.src = new URL(img.getAttribute('src'), window.location.href).href;
-            } catch (e) {
-                console.warn("Could not convert image src to absolute URL:", img.src, e);
-            }
+            } catch (e) { console.warn("Could not convert image src to absolute URL:", img.src, e); }
         }
     });
-    // Ensure static assets like CSS are correctly linked if needed by PDF generator,
-    // though pdfkit usually handles this via the css parameter.
-
     const htmlContent = printableElement.outerHTML;
     const pdfButton = document.getElementById('save-as-pdf-button');
     const originalButtonHtml = pdfButton.innerHTML;
@@ -618,7 +430,7 @@ function triggerPdfExport(ssolId) {
     })
     .then(response => {
         if (!response.ok) {
-            return response.json().then(err => { throw new Error(err.error || `PDF generation failed: ${response.status}`); });
+            return response.json().then(err => { throw new Error(err.error || `PDF generation failed.`); });
         }
         return response.blob();
     })
@@ -629,8 +441,8 @@ function triggerPdfExport(ssolId) {
         a.download = `SSPEC_Solution_${ssolId}.pdf`;
         document.body.appendChild(a);
         a.click();
+        a.remove();
         window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
     })
     .catch(error => {
         console.error('Error saving PDF:', error);
@@ -644,36 +456,21 @@ function triggerPdfExport(ssolId) {
 
 // --- Global Initialization ---
 function initializePageEventListeners() {
-    // Delegate clicks for COS row actions to the tbody of each phase table
-    document.querySelectorAll('.phase-table tbody').forEach(tbody => {
-        tbody.removeEventListener('click', handlePhaseTableBodyClick); // Remove first to avoid duplicates
-        tbody.addEventListener('click', handlePhaseTableBodyClick);
+    document.querySelectorAll('.phase-table-container').forEach(container => {
+        container.removeEventListener('click', handlePhaseTableBodyClick);
+        container.addEventListener('click', handlePhaseTableBodyClick);
     });
 
-    // Attach listeners to "Add COS" buttons
     document.querySelectorAll('.add-cos').forEach(button => {
-        button.removeEventListener('click', handleAddCOSButtonClick); // Remove first
+        button.removeEventListener('click', handleAddCOSButtonClick);
         button.addEventListener('click', handleAddCOSButtonClick);
     });
 
-    // Initialize CE pill listeners on the whole document initially
-    initializeCEPillEventListeners(document);
-
-    // PDF Export Button
     const savePdfButton = document.getElementById('save-as-pdf-button');
-    if (savePdfButton) {
-        savePdfButton.addEventListener('click', (event) => {
-            event.preventDefault();
-            const ssolId = savePdfButton.dataset.ssolId;
-            if (!ssolId) {
-                console.error('SSOL ID missing for PDF.');
-                alert('Cannot generate PDF: SSOL ID is missing.');
-                return;
-            }
-            triggerPdfExport(ssolId);
-        });
-    }
+    savePdfButton?.addEventListener('click', (event) => {
+        event.preventDefault();
+        triggerPdfExport(savePdfButton.dataset.ssolId);
+    });
 }
 
-// Auto-initialize when the DOM is ready
 document.addEventListener('DOMContentLoaded', initializePageEventListeners);

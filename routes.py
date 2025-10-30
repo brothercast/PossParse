@@ -1,4 +1,4 @@
-# routes.py (Refactored Version with create_cos route)
+# routes.py
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, make_response, current_app, send_from_directory
 import os
 import json
@@ -7,9 +7,9 @@ import pdfkit
 import logging
 import asyncio
 from bs4 import BeautifulSoup
-from app import app, USE_DATABASE # app is needed for app_context
+from app import app, USE_DATABASE
 from uuid import UUID
-from utilities import generate_goal, analyze_user_input, generate_sentiment_analysis, generate_ssol_id
+from utilities import generate_goal, analyze_user_input, is_input_compliant, generate_ssol_id
 from utilities import generate_outcome_data, generate_ssol_image as util_generate_ssol_image
 from dotenv import load_dotenv
 from ce_nodes import NODES
@@ -21,8 +21,8 @@ from speculate import get_ce_by_id as speculate_get_ce_by_id, \
                       get_cos_by_id as speculate_get_cos_by_id, \
                       update_cos_by_id as speculate_update_cos_by_id, \
                       delete_cos_by_id as speculate_delete_cos_by_id, \
-                      analyze_cos as speculate_analyze_cos # Added analyze_cos alias
-from models import get_engine_and_session, SSOL, COS # Import COS for type checking if needed
+                      analyze_cos as speculate_analyze_cos
+from models import get_engine_and_session, SSOL, COS
 from urllib.parse import urlparse
 
 load_dotenv()
@@ -61,11 +61,6 @@ async def goal_selection():
             if not goal_options:
                 flash("Could not generate goal options. Please try again.", "warning")
                 return render_template('input.html')
-
-            # Image generation can start here, but ensure it doesn't block response
-            # For DB mode, we need an ssol_id. For non-DB, we might use goal title.
-            # This part needs to align with how ssol_id is established later.
-            # For now, let's assume image generation is tied to outcome creation more directly.
 
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify(goals=goal_options, user_input=user_input)
@@ -110,19 +105,15 @@ async def outcome():
                 f"Do not include any text or labels."
             )
             
-            current_app.logger.info(f"Attempting to generate image for SSOL {ssol_id_str} synchronously (awaiting)...")
-            # AWAIT the image generation directly for debugging
+            current_app.logger.info(f"Attempting to generate image for SSOL {ssol_id_str}...")
             image_web_path = await util_generate_ssol_image(image_prompt, ssol_id=ssol_id_str)
             current_app.logger.info(f"Image generation returned path: {image_web_path} for SSOL {ssol_id_str}")
             
-            # Optionally, update outcome_data if the template uses a direct image path variable from ssol
-            # For now, we assume outcome.html's JS fetches it.
-
             return render_template('outcome.html', ssol=outcome_data, nodes=NODES, ssol_id=ssol_id_str, selected_goal_title=selected_goal_title)
         except Exception as e:
             current_app.logger.error(f"Error generating outcome data or image: {e}", exc_info=True)
-            flash("Error processing your request. Please try again.", "error") # More generic error
-            return redirect(url_for('routes_bp.index')) # Redirect to index on major error
+            flash("Error processing your request. Please try again.", "error")
+            return redirect(url_for('routes_bp.index'))
     return redirect(url_for('routes_bp.index'))
 
 
@@ -135,8 +126,8 @@ async def analyze_input_route():
             return jsonify({'error': 'No text provided'}), 400
         try:
             keywords = await analyze_user_input(user_text)
-            sentiment = await generate_sentiment_analysis(user_text)
-            return jsonify({'keywords': keywords, 'sentiment': sentiment})
+            compliance = await is_input_compliant(user_text)
+            return jsonify({'keywords': keywords, 'compliance': compliance})
         except Exception as e:
             logging.error(f"Error analyzing user input: {e}", exc_info=True)
             return jsonify({'error': 'Error analyzing input'}), 500
@@ -152,24 +143,13 @@ def save_as_pdf(ssol_id):
             raise ValueError("Invalid request: No HTML content provided.")
         html_content = data['htmlContent']
 
-        # Path to your CSS file
         css_file_path = os.path.join(current_app.root_path, 'static', 'styles.css')
-        if not os.path.exists(css_file_path):
-             current_app.logger.error(f"CSS file not found at: {css_file_path}") # Log error
-             # Fallback or error, but for now let's proceed without it if not found, pdfkit might still work
-             css_param = None
-        else:
-            css_param = css_file_path
+        css_param = css_file_path if os.path.exists(css_file_path) else None
+        if not css_param:
+             current_app.logger.error(f"CSS file not found at: {css_file_path}")
 
-        # Ensure local file access for images, etc.
-        # Replace relative static paths with absolute local file paths or external URLs
-        # This example assumes static files are served from the root. Adjust if using a prefix.
-        # For local file access, it's often better to point to the file system path.
-        # However, for images served via Flask, _external=True should generate correct URLs.
+        # Ensure pdfkit can find static assets by using external URLs.
         html_content = html_content.replace('src="/static/', f'src="{url_for("static", filename="", _external=True)}')
-        # For local file system paths (requires enable-local-file-access):
-        # html_content = html_content.replace('src="/static/', 'src="' + os.path.join(current_app.static_folder,''))
-
 
         options = {
             "page-size": "Letter",
@@ -179,7 +159,7 @@ def save_as_pdf(ssol_id):
             "margin-left": "0.75in",
             "encoding": "UTF-8",
             "no-outline": None,
-            "enable-local-file-access": None, # Crucial for local images/CSS if not inlined
+            "enable-local-file-access": None, # Important for local CSS/images if not inlined
         }
 
         pdf = pdfkit.from_string(html_content, False, options=options, css=css_param)
@@ -195,10 +175,6 @@ def save_as_pdf(ssol_id):
 
 # --- COS CRUD Routes ---
 
-# routes.py (Refactored create_cos_route with proper error handling)
-
-# ... (other imports and routes) ...
-
 @routes_bp.route('/create_cos', methods=['POST'])
 async def create_cos_route():
     try:
@@ -207,10 +183,10 @@ async def create_cos_route():
             raise BadRequest('No JSON payload received.')
 
         content = data.get('content')
-        status = data.get('status', 'Proposed') # Default status
+        status = data.get('status', 'Proposed')
         ssol_id_str = data.get('ssol_id')
         accountable_party = data.get('accountable_party')
-        completion_date = data.get('completion_date') # Should be ISO format string or None
+        completion_date = data.get('completion_date')
 
         if not content or not ssol_id_str:
             raise BadRequest('Missing required fields: content and ssol_id are required.')
@@ -220,10 +196,9 @@ async def create_cos_route():
         except ValueError:
             raise BadRequest(f"Invalid ssol_id format: '{ssol_id_str}'. Must be a valid UUID.")
 
-        # speculate_create_cos handles DB/in-memory logic and analysis.
         new_cos_id_str = await speculate_create_cos(
             USE_DATABASE,
-            ssol_id=ssol_id_uuid, # Pass UUID object
+            ssol_id=ssol_id_uuid,
             content=content,
             status=status,
             accountable_party=accountable_party,
@@ -231,27 +206,16 @@ async def create_cos_route():
         )
 
         if not new_cos_id_str:
-            # This is a critical failure within the speculate function
             raise Exception("Failed to create COS record in the data store.")
 
-        # Fetch the newly created COS to get its full data, including processed content
-        created_cos = None
-        if USE_DATABASE:
-            with app.app_context(): # Ensure app context for DB operations
-                # speculate_get_cos_by_id expects a UUID object if db, string if not
-                created_cos = speculate_get_cos_by_id(USE_DATABASE, UUID(new_cos_id_str))
-        else:
-            created_cos = speculate_get_cos_by_id(USE_DATABASE, new_cos_id_str)
+        created_cos_obj = speculate_get_cos_by_id(USE_DATABASE, UUID(new_cos_id_str))
 
-        if not created_cos:
+        if not created_cos_obj:
              current_app.logger.error(f"Failed to retrieve newly created COS with ID: {new_cos_id_str}")
-             # Return an error if retrieval fails post-creation
              return jsonify(success=False, error="COS was created but could not be retrieved immediately."), 500
 
-        # Convert to dictionary for JSON response
-        cos_dict = created_cos.to_dict() if USE_DATABASE else created_cos
-
-        return jsonify(success=True, cos=cos_dict), 201 # 201 Created
+        cos_dict = created_cos_obj.to_dict() if USE_DATABASE else created_cos_obj
+        return jsonify(success=True, cos=cos_dict), 201
 
     except BadRequest as e:
         current_app.logger.warning(f"BadRequest in create_cos_route: {e}")
@@ -259,21 +223,16 @@ async def create_cos_route():
         
     except Exception as e:
         current_app.logger.error(f"Error creating COS: {e}", exc_info=True)
-   
         return jsonify(success=False, error="An unexpected error occurred while creating the COS."), 500
 
 @routes_bp.route('/update_cos/<uuid:cos_id>', methods=['PUT'])
-async def update_cos_route(cos_id): # Changed to async to allow await on speculate_update_cos_by_id if it becomes async
+async def update_cos_route(cos_id):
     try:
         data = request.get_json()
         if not data:
             raise BadRequest('No JSON payload received')
-        cos_id_str = str(cos_id) # Ensure it's a string for in-memory store key if not using UUID object
 
-        # speculate_update_cos_by_id handles USE_DATABASE context internally
-        # It might become async if it involves AI re-analysis for CE pills.
-        # For now, assuming it's synchronous but can be awaited if needed.
-        update_result = await speculate_update_cos_by_id(USE_DATABASE, cos_id, data) # Pass UUID obj
+        update_result = await speculate_update_cos_by_id(USE_DATABASE, cos_id, data)
 
         if update_result['success']:
             return jsonify(success=True, cos=update_result['cos']), 200
@@ -287,9 +246,8 @@ async def update_cos_route(cos_id): # Changed to async to allow await on specula
 
 @routes_bp.route('/delete_cos/<uuid:cos_id>', methods=['DELETE'])
 def delete_cos_route(cos_id):
-    # speculate_delete_cos_by_id handles USE_DATABASE context internally
     try:
-        success = speculate_delete_cos_by_id(USE_DATABASE, cos_id) # Pass UUID obj
+        success = speculate_delete_cos_by_id(USE_DATABASE, cos_id)
 
         if success:
             return jsonify(success=True), 200
@@ -300,10 +258,10 @@ def delete_cos_route(cos_id):
 
 
 # --- SSOL Image ---
-@routes_bp.route('/get_ssol_image/<uuid:ssol_id>') # Keep uuid converter for type safety
-async def get_ssol_image_route(ssol_id): # Renamed parameter to avoid clash with module
+@routes_bp.route('/get_ssol_image/<uuid:ssol_id>')
+async def get_ssol_image_route(ssol_id):
     ssol_id_str = str(ssol_id)
-    image_filename = f"ssol_image_{ssol_id_str}.png" # Standard naming convention
+    image_filename = f"ssol_image_{ssol_id_str}.png"
     image_web_path_relative = os.path.join('images', image_filename).replace("\\", "/")
     image_fs_path = os.path.join(current_app.static_folder, 'images', image_filename)
 
@@ -313,13 +271,12 @@ async def get_ssol_image_route(ssol_id): # Renamed parameter to avoid clash with
         current_app.logger.info(f"GET_SSOL_IMAGE: Found image {image_filename} for SSOL {ssol_id_str}.")
         return jsonify({'image_path': url_for('static', filename=image_web_path_relative), 'status': 'found'})
     else:
-        current_app.logger.warning(f"GET_SSOL_IMAGE: Image {image_filename} for SSOL {ssol_id_str} not found at {image_fs_path}. It might still be generating.")
-        # Return a specific status so client can retry or use default
+        current_app.logger.warning(f"GET_SSOL_IMAGE: Image {image_filename} for SSOL {ssol_id_str} not found.")
         return jsonify({
-            'image_path': url_for('static', filename='images/sspec_default.png'), # Provide default
+            'image_path': url_for('static', filename='images/sspec_default.png'),
             'status': 'pending_or_not_found', 
             'message': 'Image is processing or was not found. Displaying default.'
-        }), 200 # Return 200 but with a status indicator
+        }), 200
 
 # --- CE Routes ---
 @routes_bp.route('/get_ce_by_id', methods=['GET'])
@@ -328,12 +285,11 @@ def get_ce_by_id_route():
     if not ce_id_str:
         return jsonify(error="Missing 'ce_id' parameter"), 400
     try:
-        ce_id = UUID(ce_id_str) # Convert to UUID
-        # speculate_get_ce_by_id handles USE_DATABASE context
+        ce_id = UUID(ce_id_str)
         ce = speculate_get_ce_by_id(USE_DATABASE, ce_id)
 
         if ce:
-            return jsonify(ce=ce.to_dict() if USE_DATABASE else ce) # to_dict if model, else it's already dict
+            return jsonify(ce=ce.to_dict() if USE_DATABASE else ce)
         return jsonify(error="CE not found"), 404
 
     except ValueError:
@@ -343,11 +299,10 @@ def get_ce_by_id_route():
         return jsonify(error="An unexpected error occurred."), 500
 
 
-@routes_bp.route('/analyze_cos/<uuid:cos_id>', methods=['GET']) # Changed to expect UUID
-async def analyze_cos_by_id_route(cos_id): # Renamed from analyze_cos_by_id
-    # speculate_analyze_cos handles USE_DATABASE context
+@routes_bp.route('/analyze_cos/<uuid:cos_id>', methods=['GET'])
+async def analyze_cos_by_id_route(cos_id):
     try:
-        # First, get the COS content
+        cos_content_to_analyze = ""
         if USE_DATABASE:
             with app.app_context():
                 engine, session = get_engine_and_session()
@@ -363,13 +318,8 @@ async def analyze_cos_by_id_route(cos_id): # Renamed from analyze_cos_by_id
                 return jsonify({'success': False, 'message': 'COS not found'}), 404
             cos_content_to_analyze = cos_data['content']
         
-        # Now analyze its content
-        # Pass cos_id (as string) for potential use within analyze_cos if it needs to link CEs back
         analysis_results = await speculate_analyze_cos(cos_content_to_analyze, str(cos_id))
         
-        # If the analysis also updated the COS content in the database (e.g. added pills)
-        # we might want to return the fresh COS object or its content.
-        # For now, just returning analysis_results as per previous structure.
         return jsonify({'success': True, 'analysis_results': analysis_results}), 200
 
     except Exception as e:
@@ -381,53 +331,47 @@ async def analyze_cos_by_id_route(cos_id): # Renamed from analyze_cos_by_id
 async def get_ce_modal_route(ce_type):
     try:
         data = request.get_json()
-        current_app.logger.debug(f"get_ce_modal_route - request.get_json() data: {data}")
+        current_app.logger.debug(f"get_ce_modal_route received data: {data}")
 
         ce_id_str = data.get('ce_id')
         ce_id_obj = UUID(ce_id_str) if ce_id_str else None
 
-
-        # speculate_get_ce_by_id handles USE_DATABASE context
         ce_instance_or_dict = speculate_get_ce_by_id(USE_DATABASE, ce_id_obj) if ce_id_obj else None
         
         ce_data_for_modal = {}
         if ce_instance_or_dict:
-            if USE_DATABASE and hasattr(ce_instance_or_dict, 'to_dict'):
-                ce_data_for_modal = ce_instance_or_dict.to_dict()
-            elif not USE_DATABASE and isinstance(ce_instance_or_dict, dict):
-                 ce_data_for_modal = ce_instance_or_dict
-            # Ensure 'id' is a string for template, even if it was UUID object
+            ce_data_for_modal = ce_instance_or_dict.to_dict() if USE_DATABASE else ce_instance_or_dict
             if 'id' in ce_data_for_modal and isinstance(ce_data_for_modal['id'], UUID):
                 ce_data_for_modal['id'] = str(ce_data_for_modal['id'])
 
+        # --- BUG FIX #1: Strip HTML from COS content before sending to AI ---
+        cos_content_html = data.get('cos_content', '')
+        soup = BeautifulSoup(cos_content_html, 'html.parser')
+        cos_content_text_only = soup.get_text(separator=' ', strip=True)
 
-        cos_content = data.get('cos_content', '')
         phase_name = data.get('phase_name', '')
         phase_index = data.get('phase_index', 0)
         ssol_goal = data.get('ssol_goal','')
-        existing_ces = data.get('existing_ces', []) # For providing context to AI
+        existing_ces = data.get('existing_ces', [])
 
-        current_app.logger.debug(f"get_ce_modal_route - BEFORE generate_dynamic_modal - phase_name: '{phase_name}', phase_index: {phase_index}, ce_data_for_modal: {ce_data_for_modal}")
+        ai_generated_data_for_modal = {}
+        if ce_type:
+             ai_generated_data_for_modal = await generate_ai_data(cos_content_text_only, ce_id_str, ce_type, ssol_goal, existing_ces)
 
-        ai_generated_data_for_modal = {} # Initialize
-        if ce_type: # Only generate if ce_type is meaningful
-             # Pass ce_id_str for logging/identification if needed by generate_ai_data
-             ai_generated_data_for_modal = await generate_ai_data(cos_content, ce_id_str, ce_type, ssol_goal, existing_ces)
-
-        from store import ce_store as in_memory_ce_store # Pass in-memory store for non-DB mode
+        from store import ce_store as in_memory_ce_store
         modal_html = await generate_dynamic_modal(
             ce_type,
-            ce_data=ce_data_for_modal, # Pass the prepared dict
-            cos_content=cos_content,
+            ce_data=ce_data_for_modal,
+            cos_content=cos_content_html, 
             ai_generated_data=ai_generated_data_for_modal,
             phase_name=phase_name,
             phase_index=phase_index,
-            ce_store=in_memory_ce_store # ce_templates.py expects this
+            ce_store=in_memory_ce_store
         )
 
         return jsonify(modal_html=modal_html, ai_generated_data=ai_generated_data_for_modal)
 
-    except ValueError as ve: # For UUID conversion errors
+    except ValueError as ve:
         current_app.logger.error(f"ValueError in get_ce_modal: {ve}", exc_info=True)
         return jsonify(error=f"Invalid data format: {str(ve)}"), 400
     except Exception as e:
@@ -444,7 +388,7 @@ async def ai_query_route():
 
         ce_type = data.get('ce_type')
         cos_content = data.get('cos_content')
-        ce_id = data.get('ce_id') # This could be string or None
+        ce_id = data.get('ce_id')
         ssol_goal = data.get('ssol_goal')
         existing_ces = data.get('existing_ces', [])
 
@@ -461,17 +405,15 @@ async def ai_query_route():
 
 
 @routes_bp.route('/update_ce/<uuid:ce_id>', methods=['PUT'])
-def update_ce_route(ce_id): # ce_id is already a UUID object from Flask's converter
+def update_ce_route(ce_id):
     try:
         data = request.get_json()
         if not data:
             raise BadRequest('No JSON payload received')
 
-        # speculate_update_ce_by_id handles USE_DATABASE context
-        success = speculate_update_ce_by_id(USE_DATABASE, ce_id, data) # Pass UUID object
+        success = speculate_update_ce_by_id(USE_DATABASE, ce_id, data)
 
         if success:
-            # Optionally, fetch and return the updated CE data
             updated_ce_obj = speculate_get_ce_by_id(USE_DATABASE, ce_id)
             if updated_ce_obj:
                 ce_data = updated_ce_obj.to_dict() if USE_DATABASE else updated_ce_obj

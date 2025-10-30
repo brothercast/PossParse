@@ -1,4 +1,4 @@
-// ce_cards.js (Refactored for Stability with MutationObserver)
+// ce_cards.js (Refactored for Stability and Reliability)
 
 import { 
     showLoadingSpinner, 
@@ -101,64 +101,59 @@ const NODES = window.NODES || {};
 // --- Main Entry Point ---
 
 /**
- * Displays the Conditional Element modal, using a MutationObserver for reliability.
+ * Displays the Conditional Element modal using a direct, reliable method.
  * @param {string} modalHtml - The raw HTML for the modal.
  * @param {string} ceId - The ID of the Conditional Element.
- * @param {string} p_ceType - The NodeType of the CE.
  */
-function displayCEModal(modalHtml, ceId, p_ceType) {
+function displayCEModal(modalHtml, ceId) {
     const modalContainer = document.getElementById('dynamicModalContainer');
     if (!modalContainer) {
         console.error('Modal container element (#dynamicModalContainer) not found.');
         return;
     }
     
+    // 1. Inject the HTML into the container.
     modalContainer.innerHTML = modalHtml;
+    
+    // 2. Immediately find the newly added modal element by its ID.
+    const modalElement = document.getElementById(`ceModal-${ceId}`);
+    if (!modalElement) {
+        console.error(`Failed to find modal element #ceModal-${ceId} after injection.`);
+        return;
+    }
 
-    // Use a MutationObserver to wait for the modal to be added to the DOM.
-    // This is more reliable than relying on event timing.
-    const observer = new MutationObserver((mutations, obs) => {
-        const modalElement = document.getElementById(`ceModal-${ceId}`);
-        if (modalElement) {
-            obs.disconnect(); // We've found our modal, no need to observe further.
-            
-            console.log(`displayCEModal() - Observer found modal #${ceId}, proceeding with setup.`);
+    // 3. Create a new Bootstrap modal instance from the element.
+    const modal = new bootstrap.Modal(modalElement);
+    const ceType = modalElement.dataset.nodeType || 'Default';
 
-            const modal = new bootstrap.Modal(modalElement);
+    // 4. Set up the Tabulator table and other event listeners once the modal is fully shown.
+    modalElement.addEventListener('shown.bs.modal', () => {
+        const tableElementId = `#dynamicTable-${ceId}`;
+        // The initial data is now stored in a hidden script tag inside the modal HTML
+        const initialTableDataElement = modalElement.querySelector('.initial-table-data'); 
+        const initialTableData = initialTableDataElement ? JSON.parse(initialTableDataElement.textContent || '[]') : [];
+        
+        // Store the Tabulator instance on the modal element for later access
+        modalElement._tabulator = initializeTabulatorTable(
+            tableElementId, 
+            initialTableData,
+            tabulatorColumnsDefinition(ceType), 
+            ceType, 
+            modalElement
+        );
 
-            // Set up everything AFTER the modal is fully shown to the user.
-            modalElement.addEventListener('shown.bs.modal', () => {
-                console.log(`displayCEModal() - 'shown.bs.modal' event fired for #${ceId}.`);
-                
-                const tableElementId = `#dynamicTable-${ceId}`;
-                const initialTableData = JSON.parse(modalElement.querySelector('.initial-table-data').textContent || '[]');
+        // Attach all other necessary button/form listeners inside the modal
+        setupModalEventListeners(modalElement, ceId);
+        
+    }, { once: true }); // Use { once: true } to ensure this only runs once per show.
 
-                // Initialize Tabulator
-                modalElement._tabulator = initializeTabulatorTable(
-                    tableElementId, 
-                    initialTableData,
-                    tabulatorColumnsDefinition(p_ceType), 
-                    p_ceType, 
-                    modalElement
-                );
+    // 5. Add a cleanup listener to remove the modal from the DOM when it's hidden.
+    modalElement.addEventListener('hidden.bs.modal', () => {
+        modalElement.remove();
+    }, { once: true });
 
-                // Attach all button listeners
-                setupModalEventListeners(modalElement, ceId);
-            }, { once: true }); // Use { once: true } to prevent this from firing multiple times.
-
-            // Cleanup when the modal is hidden
-            modalElement.addEventListener('hidden.bs.modal', () => {
-                modalElement.remove();
-            }, { once: true });
-
-            modal.show();
-        }
-    });
-
-    observer.observe(modalContainer, {
-        childList: true, // Watch for nodes being added or removed
-        subtree: true    // Watch descendants of the container as well
-    });
+    // 6. Show the modal.
+    modal.show();
 }
 
 /**
@@ -185,7 +180,7 @@ function setupModalEventListeners(modalElement, ceId) {
 
     const addRowButton = modalElement.querySelector(`#addRowButton-${ceId}`);
     const saveChangesButton = modalElement.querySelector('.btn-save-changes');
-    // ... other button selectors
+    const deleteSelectedRowsButton = modalElement.querySelector(`#deleteSelectedRowsButton-${ceId}`);
 
     if (addRowButton) {
         addRowButton.addEventListener('click', () => {
@@ -205,7 +200,6 @@ function setupModalEventListeners(modalElement, ceId) {
                 return;
             }
 
-            // The core action: Add data to the table
             table.addRow(rowData, false);
             console.log("Row added to Tabulator in memory.");
             
@@ -221,9 +215,6 @@ function setupModalEventListeners(modalElement, ceId) {
         });
     }
 
-    // Add listeners for Generate, Delete, Duplicate here if they exist...
-    // Example for delete:
-    const deleteSelectedRowsButton = modalElement.querySelector(`#deleteSelectedRowsButton-${ceId}`);
     if(deleteSelectedRowsButton) {
         deleteSelectedRowsButton.addEventListener('click', () => {
             const table = modalElement._tabulator;

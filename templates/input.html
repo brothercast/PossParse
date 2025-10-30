@@ -2,8 +2,7 @@
 
 {% block content %}
   <div class="container mt-4 text-center">
-    {# REMOVE .generated-image and .loaded from this specific image #}
-    <img src="{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}" alt="SSPEC Logo" class="rounded mb-3 img-fluid" style="max-width: 300px; height: auto;"> {# Replaced with img-fluid for responsiveness #}
+    <img src="{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}" alt="SSPEC Logo" class="rounded mb-3 img-fluid" style="max-width: 300px; height: auto;">
     <h1 class="display-4">What do you see as Possible?</h1>
     <p class="lead">
       Explore the realm of possibilities. Define your desired outcome, no matter how ambitious, and let SSPEC PossPath help you chart a course to get there.
@@ -35,13 +34,9 @@
 
     // Show the loading spinner when the form is submitted
     const form = document.getElementById('goal-form');
-    // const spinner = document.getElementById('loading-spinner'); // This spinner ID is not in input.html
 
     form.addEventListener('submit', (e) => {
-      // If you have a general loading spinner defined in base.html with an ID, use it.
-      // Otherwise, showLoadingSpinner might create its own.
-      // if (spinner) spinner.classList.remove('d-none'); 
-      showLoadingSpinner("Processing your possibility..."); // Pass a message to the spinner
+      showLoadingSpinner("Generating Possibile Outcomes"); // Pass a message to the spinner
     });
   </script>
 {% endblock %}

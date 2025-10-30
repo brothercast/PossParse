@@ -1,42 +1,70 @@
 // goal_selection.js
 import {
-    applyTextillateEffect,
-    handleEditButtonClick, // For edit button
-    handleSaveButtonClick, // For save button - will take a callback
-    handleCancelButtonClick, // For cancel button
+    handleEditButtonClick,
+    handleSaveButtonClick,
+    handleCancelButtonClick,
     regenerateGoals,
     showLoadingSpinner,
     hideLoadingSpinner,
-    updateGoalCards // We'll call this directly after regenerateGoals
-    // initializeEventListeners can be called if it only does generic things now
+    updateGoalCards
 } from './base_functions.js';
 
-// Function to apply animations to the current set of cards
-function applyCardAnimations(container) {
-    if (container) {
-        const domainElements = container.querySelectorAll('.domain.domain-text'); // Be more specific
-        const titleElements = container.querySelectorAll('.goal-description.goal-text'); // Assuming these are the titles you want to animate
 
-        // Example of staggered fadeIn for domain text
-        domainElements.forEach((element, index) => {
-            const staggerDelay = index * 150; // Shorter delay
-            element.style.opacity = 0; // Start hidden for fadeIn
-            setTimeout(() => {
-                $(element).animate({ opacity: 1 }, 700);
-            }, staggerDelay);
+// --- Diagonal Pivot Animation Logic (MODIFIED for Staggering) ---
+
+/**
+ * Triggers the animation for a single card's frames and its content.
+ * @param {HTMLElement} container - The .diagonal-pivot-container for a single card.
+ * @param {number} baseDelay - The base delay to start this card's animation.
+ */
+function playDiagonalPivot(container, baseDelay = 0) {
+    if (!container) return;
+
+    const frames = container.querySelectorAll('.diagonal-pivot-frame');
+    const contentItems = container.querySelectorAll('.goal-content-item');
+
+    // Hide content initially
+    contentItems.forEach(item => item.classList.remove('animate'));
+
+    // Animate the frames after the base delay
+    setTimeout(() => {
+        frames.forEach(frame => {
+            frame.classList.remove('animate');
+            void frame.offsetHeight; 
+            frame.classList.add('animate');
         });
 
-        // Apply Textillate to titles (assuming titles are inside .goal-description)
-        // Note: Textillate might re-wrap content. If goal.title is short, use that.
-        // If applyTextillateEffect expects NodeList and handles jQuery wrapping:
-        if (titleElements.length > 0) {
-            applyTextillateEffect(titleElements, 1.2, 50); // Adjusted params
-        }
+        // Stagger the fade-in of the content items
+        // This starts after the pivot animation has begun
+        contentItems.forEach((item, index) => {
+            const contentDelay = index * 150 + 400; // 400ms initial delay + 150ms stagger
+            setTimeout(() => {
+                item.classList.add('animate');
+            }, contentDelay);
+        });
 
-        // Custom animation for .goal-description spans (if you keep that)
-        // This needs to be called if animateGoalText is a separate function
-        // animateGoalText(); // If this function is defined and you want to use it.
-    }
+    }, baseDelay);
+}
+
+
+/**
+ * Initializes the pivot animation for all cards on the page.
+ * @param {string} containerSelector - The CSS selector for the card containers.
+ */
+function initDiagonalPivot(containerSelector = '.diagonal-pivot-container') {
+    const containers = document.querySelectorAll(containerSelector);
+
+    containers.forEach((container, index) => {
+        // Stagger the animation start for each card container from left to right
+        const cardStaggerDelay = index * 250; 
+        playDiagonalPivot(container, cardStaggerDelay);
+    });
+}
+
+// Function to apply animations to a new set of cards
+function applyCardAnimations(container) {
+    // Re-run the global initialization to animate new cards
+    initDiagonalPivot('.diagonal-pivot-container');
 }
 
 
@@ -50,34 +78,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const userInputEdit = document.querySelector('.user-input-edit');
 
     // Initial animations for existing cards
-    if (goalCardsContainer) {
-        applyCardAnimations(goalCardsContainer);
-    }
+    initDiagonalPivot();
 
     // Event listener for "Speculate New Outcomes" button
     if (speculateButton && userInputDisplay && userInputEdit) {
         speculateButton.addEventListener('click', async () => {
-            let currentInputText = '';
-            if (!userInputDisplay.classList.contains('d-none')) {
-                currentInputText = userInputDisplay.textContent.trim();
-            } else {
-                currentInputText = userInputEdit.value.trim();
-            }
+            let currentInputText = userInputDisplay.classList.contains('d-none')
+                ? userInputEdit.value.trim()
+                : userInputDisplay.textContent.trim();
 
             if (currentInputText) {
                 showLoadingSpinner('Speculating New Outcomes...', 'fas fa-sync-alt');
                 try {
-                    const data = await regenerateGoals(currentInputText); // regenerateGoals now returns data
+                    const data = await regenerateGoals(currentInputText);
                     if (data && data.goals) {
-                        updateGoalCards(data, currentInputText, goalCardsContainer); // Pass container
-                        applyCardAnimations(goalCardsContainer); // Re-apply animations
+                        updateGoalCards(data, currentInputText, goalCardsContainer); 
+                        applyCardAnimations(goalCardsContainer); // Re-apply new animations
                     } else {
                         console.error("No goals data received from regenerateGoals");
-                        // Optionally show an error to the user
                     }
                 } catch (error) {
                     console.error("Error regenerating goals:", error);
-                    // Optionally show an error to the user
                 } finally {
                     hideLoadingSpinner();
                 }
@@ -91,17 +112,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (editButton) {
         editButton.addEventListener('click', () => handleEditButtonClick(userInputDisplay, userInputEdit, editButton, saveButton, cancelButton));
     }
-    if (saveButton && userInputDisplay && userInputEdit) {
+    if (saveButton) {
         saveButton.addEventListener('click', async () => {
-            // handleSaveButtonClick now directly updates display and calls callback
             handleSaveButtonClick(userInputDisplay, userInputEdit, editButton, saveButton, cancelButton, async (updatedText) => {
                 if (updatedText) {
                     showLoadingSpinner('Updating Outcomes...', 'fas fa-sync-alt');
                     try {
-                        const data = await regenerateGoals(updatedText); // regenerateGoals returns data
+                        const data = await regenerateGoals(updatedText);
                         if (data && data.goals) {
                              updateGoalCards(data, updatedText, goalCardsContainer);
-                             applyCardAnimations(goalCardsContainer);
+                             applyCardAnimations(goalCardsContainer); 
                         } else {
                             console.error("No goals data received after saving input");
                         }
@@ -121,13 +141,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Event listeners for individual goal selection forms
-    const goalSelectionForms = document.querySelectorAll('.goal-selection-form');
-    goalSelectionForms.forEach((form) => {
-        form.addEventListener('submit', (event) => {
-            event.preventDefault(); // Keep this
+    document.body.addEventListener('submit', (event) => {
+        if (event.target.matches('.goal-selection-form')) {
+            event.preventDefault();
+            const form = event.target;
             const iconClass = form.querySelector('input[name="domain_icon"]').value;
             showLoadingSpinner('Speculating Structured Solution', iconClass);
-            form.submit(); // Proceed with form submission
-        });
+            form.submit();
+        }
     });
 });

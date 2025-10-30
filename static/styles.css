@@ -169,14 +169,122 @@ body:before {
 
 
 /* Retro-futuristic Card (Specific card style for goal selection cards) */
-.retro-futuristic-card {
+retro-futuristic-card {
   border: 3px solid #00bcd4;
   height: 100%;
 }
 .retro-futuristic-card.non-compliant { border-color: red; }
 .retro-futuristic-card.non-compliant:hover { box-shadow: 0 8px 16px rgba(196, 93, 93, 0.2); }
-.retro-futuristic-card.non-compliant .card-body { box-shadow: inset 0 0 10px rgba(196, 93, 93, 0.5); }
 
+
+/* --- Diagonal Pivot Frame Animation --- */
+
+/* --- Diagonal Pivot Frame Animation (MODIFIED) --- */
+
+.diagonal-pivot-container.card {
+    position: relative;
+    perspective: 1200px;
+    transform-style: preserve-3d;
+    padding: 0; 
+}
+
+.diagonal-pivot-frame {
+    position: absolute;
+    inset: 0;
+    border: 4px solid;
+    border-radius: 10px; 
+    background: transparent; /* Make frame background transparent */
+    transform: rotate3d(1, -1, 0, 90deg);
+    pointer-events: none;
+    /* --- MODIFIED: Remove box-shadow from base state --- */
+    transition: box-shadow 0.3s ease-in-out; /* Add transition for smooth glow */
+}
+
+/* --- NEW: Glow on Hover --- */
+.diagonal-pivot-container:hover .diagonal-pivot-frame:nth-child(1) {
+    box-shadow: 0 10px 40px rgba(255, 215, 0, 0.3);
+}
+.diagonal-pivot-container:hover .diagonal-pivot-frame:nth-child(2) {
+    box-shadow: 0 10px 40px rgba(0, 255, 0, 0.3);
+}
+.diagonal-pivot-container:hover .diagonal-pivot-frame:nth-child(3) {
+    box-shadow: 0 10px 40px rgba(0, 191, 255, 0.4);
+}
+.non-compliant:hover .diagonal-pivot-frame:nth-child(1) {
+    box-shadow: 0 10px 40px rgba(255, 215, 0, 0.3);
+}
+.non-compliant:hover .diagonal-pivot-frame:nth-child(2) {
+    box-shadow: 0 10px 40px rgba(255, 165, 0, 0.3);
+}
+.non-compliant:hover .diagonal-pivot-frame:nth-child(3) {
+    box-shadow: 0 10px 40px rgba(220, 53, 69, 0.4);
+}
+
+
+.diagonal-pivot-frame.animate {
+    animation: diagonalCardFlip 1.2s ease-out forwards;
+}
+
+/* Default Compliant Card Colors */
+.diagonal-pivot-frame:nth-child(1) {
+    opacity: 0.6;
+    border-color: #FFD700;
+    animation-delay: 0s;
+}
+
+.diagonal-pivot-frame:nth-child(2) {
+    opacity: 0.7;
+    border-color: #00FF00;
+    animation-delay: 0.15s;
+}
+
+.diagonal-pivot-frame:nth-child(3) {
+    opacity: 1;
+    border-color: #00BFFF;
+    animation-delay: 0.3s;
+}
+
+/* Non-Compliant/Restricted Card Pivot Animation Colors */
+.non-compliant .diagonal-pivot-frame:nth-child(1) {
+    border-color: #FFD700; 
+}
+.non-compliant .diagonal-pivot-frame:nth-child(2) {
+    border-color: #FFA500; 
+}
+.non-compliant .diagonal-pivot-frame:nth-child(3) {
+    border-color: #DC3545; 
+}
+
+
+@keyframes diagonalCardFlip {
+    to {
+        transform: rotate3d(1, -1, 0, 0deg);
+    }
+}
+
+.diagonal-pivot-content.card-body {
+    position: relative;
+    z-index: 10; 
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: #fff;
+    /* --- MODIFIED: Content sits inside the card's main border --- */
+    border-radius: 6px; 
+    padding: 20px;
+}
+
+/* --- NEW: Styles for staggered content fade-in --- */
+.goal-content-item {
+    opacity: 0;
+    transition: opacity 0.6s ease-out; /* Slower fade for a smoother effect */
+}
+
+.goal-content-item.animate {
+    opacity: 1;
+}
 
 /* ================================================== */
 /* ===============  5. Button Styles  ================ */
@@ -429,49 +537,61 @@ body:before {
   display: inline-block; /* Ensure it behaves well in flow */
 }
 
-/* --- MODIFIED: New Themed CE Pill Styling --- */
-.ce-pill {
+/* --- REFINED: Icon Tag Pill Styling --- */
+.ce-pill.btn-group {
+  margin: 2px 4px 2px 0;
+  vertical-align: middle;
+  border-radius: 6px;
+  overflow: hidden; /* This is the key to the seamless look! */
+  border: 1.5px solid var(--node-color, #6c757d);
   display: inline-flex;
-  align-items: center;
-  text-align: center;
-  padding: .3em .7em; /* Increased padding */
-  font-size: 0.85rem; /* Slightly larger for better readability */
-  font-weight: 500; /* Medium weight */
-  border-radius: 5px; /* Softer, modern radius */
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  line-height: 1.3;
-  border: 1px solid rgba(0,0,0,0.1); /* Subtle border for definition */
+  transition: box-shadow 0.2s ease;
 }
-.ce-pill:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-.ce-pill .ce-pill-icon {
-  margin-right: 0.4em; /* Space between icon and text */
-  font-size: 0.9em; /* Icon size relative to text */
+.ce-pill.btn-group:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
-/* Contrast-aware text colors */
-.ce-pill[data-theme="dark"] {
-  color: #ffffff !important;
-  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
-}
-.ce-pill[data-theme="light"] {
-  color: #212529 !important; /* Dark text for light backgrounds */
-  text-shadow: none;
+/* Remove Bootstrap's default btn-group behavior that adds space */
+.ce-pill.btn-group > .btn {
+  margin-left: 0 !important;
 }
 
-.ce-pill .counter {
-  background-color: rgba(255, 255, 255, 0.85) !important;
-  color: #212529 !important;
-  text-shadow: none !important;
-  font-size: 0.7em;
-  font-weight: bold;
-  padding: 0.1em 0.4em;
-  margin-left: 0.5em; /* Increased space */
-  border-radius: 10rem;
-  line-height: 1;
+/* Common styles for the tags inside the pill */
+.ce-pill .btn.ce-pill-icon-tag,
+.ce-pill .btn.ce-pill-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: .20rem .70rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.4;
+  border: none !important;
+  box-shadow: none !important;
+  transition: filter 0.2s ease, background-color 0.2s ease;
+  border-radius: 25; /* Remove individual radius */
+}
+
+/* Specific style for the icon part */
+.ce-pill .btn.ce-pill-icon-tag {
+  background-color: var(--node-color, #6c757d);
+  color: white;
+  /* The dividing line is now handled by the natural separation of the elements */
+}
+
+/* Specific style for the text part */
+.ce-pill .btn.ce-pill-text {
+  background-color: #ffffff;
+  color: #212529;
+}
+
+/* Hover effect */
+.ce-pill.btn-group:hover .ce-pill-icon-tag {
+   filter: brightness(95%);
+}
+.ce-pill.btn-group:hover .ce-pill-text {
+   background-color: #f8f9fa;
 }
 
 
@@ -729,9 +849,9 @@ body:before {
 .tabulator-header .tabulator-col:last-child { border-right: none; }
 .tabulator-row { background-color: #ffffff; border-bottom: 1px solid #f1f3f5; }
 .tabulator-row:nth-child(even) { background-color: #fbfcfd; }
-.tabulator-row:hover { background-color: #e9f2fa; }
-.tabulator-row:last-child { border-bottom: none; }
-.tabulator-cell {
+.tab-row:hover { background-color: #e9f2fa; }
+.tab-row:last-child { border-bottom: none; }
+.tab-cell {
   padding: 10px 12px; border: none; white-space: normal; overflow: visible;
   word-wrap: break-word; height: auto; font-size: 0.9rem;
 }

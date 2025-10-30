@@ -12,7 +12,7 @@
     </thead>
     <tbody>
       <tr>
-        <td class="user-input"> <!-- This td itself is not ideal for direct text content if edit/save target specific children -->
+        <td class="user-input">
           <span class="user-input-display">{{ user_input }}</span>
           <input type="text" class="form-control form-control-sm user-input-edit d-none" value="{{ user_input }}">
         </td>
@@ -32,23 +32,31 @@
   <div class="row card-container">
     {% for goal in goals %}
       <div class="col-md-4 mb-4">
-        <div class="card retro-futuristic-card text-center">
-          <div class="card-body card-content">
-            <div class="card-upper-content">
-                <i class="{{ goal.icon }} fa-2x mb-3"></i>
-                <p class="domain domain-text">{{ goal.domain | title }}</p>
-                <div class="goal-description goal-text">
-                    {{ goal.goal | replace('\n', '<br>') | safe }}
+        <div class="card retro-futuristic-card text-center diagonal-pivot-container {% if not goal.is_compliant %}non-compliant{% endif %}">
+            <div class="diagonal-pivot-frame"></div>
+            <div class="diagonal-pivot-frame"></div>
+            <div class="diagonal-pivot-frame"></div>
+
+            <div class="card-body card-content diagonal-pivot-content">
+                <div class="card-upper-content">
+                    <i class="{{ goal.icon }} fa-2x mt-3 mb-3 goal-content-item"></i>
+                    <p class="domain domain-text goal-content-item">{{ goal.domain | title }}</p>
+                    <div class="goal-description goal-text goal-content-item">
+                        {{ goal.goal | replace('\n', '<br>') | safe }}
+                    </div>
                 </div>
+                <form action="/outcome" method="post" class="goal-selection-form">
+                  <input type="hidden" name="selected_goal" value="{{ goal.goal }}">
+                  <input type="hidden" name="domain" value="{{ goal.domain }}">
+                  <input type="hidden" name="domain_icon" value="{{ goal.icon }}">
+                  <input type="hidden" name="selected_goal_title" value="{{ goal.title }}">
+                  {% if goal.is_compliant %}
+                    <button type="submit" class="btn btn-primary">Select</button>
+                  {% else %}
+                    <a href="{{ url_for('routes_bp.index') }}" class="btn btn-danger">Start Over</a>
+                  {% endif %}
+                </form>
             </div>
-            <form action="/outcome" method="post" class="goal-selection-form">
-              <input type="hidden" name="selected_goal" value="{{ goal.goal }}">
-              <input type="hidden" name="domain" value="{{ goal.domain }}">
-              <input type="hidden" name="domain_icon" value="{{ goal.icon }}">
-              <input type="hidden" name="selected_goal_title" value="{{ goal.title }}">
-              <button type="submit" class="btn btn-primary">Select</button>
-            </form>
-          </div>
         </div>
       </div>
     {% endfor %}
@@ -61,7 +69,6 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Removed the large inline script block -->
 <!-- All JavaScript logic will now be driven by goal_selection.js and base_functions.js -->
 <script type="module" src="{{ url_for('static', filename='js/goal_selection.js') }}"></script>
 {% endblock %}

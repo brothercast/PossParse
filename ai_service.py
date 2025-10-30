@@ -6,6 +6,7 @@ import logging
 import asyncio
 from google import genai
 from google.genai import types
+from google.genai.types import HarmCategory, HarmBlockThreshold
 from PIL import Image
 from io import BytesIO
 from dotenv import load_dotenv
@@ -18,8 +19,8 @@ import aiohttp
 # Load environment variables
 load_dotenv()
 google_gemini_api_key = os.environ["GOOGLE_GEMINI_API"]
-gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-pro-latest")
-gemini_image_model_name = os.getenv("GEMINI_IMAGE_MODEL_NAME", "models/gemini-1.5-flash-latest")
+gemini_model_name = os.getenv("GEMINI_MODEL_NAME")
+gemini_image_model_name = os.getenv("GEMINI_IMAGE_MODEL_NAME")
 
 # Initialize Gemini client
 gemini_client = genai.Client(api_key=google_gemini_api_key)
@@ -38,8 +39,6 @@ async def send_request_to_gemini(messages, generation_config=None, logger=None):
         for message in messages:
             if isinstance(message, dict) and 'role' in message and 'content' in message:
                 role = message['role']
-                # --- FIX: REMOVED THE 'system' ROLE CHECK ---
-                # We now only expect 'user' or 'model'.
                 if role not in ("user", "model"):
                     raise ValueError(f"Invalid role: {role}. Role must be 'user' or 'model'.")
                 contents.append(
@@ -52,9 +51,19 @@ async def send_request_to_gemini(messages, generation_config=None, logger=None):
                 logger.warning(f"Invalid message format: {message}. Skipping this message.")
 
         if generation_config is None:
-            generation_config = types.GenerateContentConfig(safety_settings=[])
+            generation_config = types.GenerateContentConfig(safety_settings=[
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+            ])
         elif isinstance(generation_config, dict):
-            generation_config.setdefault('safety_settings', [])
+            generation_config.setdefault('safety_settings', [
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+            ])
             generation_config = types.GenerateContentConfig(**generation_config)
 
         response = await gemini_client.aio.models.generate_content(
@@ -73,33 +82,43 @@ async def generate_chat_response(messages, role, task, model=None, temperature=0
     if logger is None:
         logger = current_app.logger
     
-    # --- System role processing remains the same ---
     processed_messages = []
     for msg in messages:
         if msg.get('role') == 'system':
-            if not processed_messages or processed_messages[0].get('role') != 'user':
+            if not processed_messages or processed_messages.get('role') != 'user':
                 processed_messages.insert(0, {'role': 'user', 'content': msg['content']})
             else:
-                processed_messages[0]['content'] = f"{msg['content']}\n\n{processed_messages[0]['content']}"
+                processed_messages['content'] = f"{msg['content']}\n\n{processed_messages['content']}"
         else:
             processed_messages.append(msg)
     
     if system_instruction:
-        if not processed_messages or processed_messages[0].get('role') != 'user':
+        if not processed_messages or processed_messages.get('role') != 'user':
             processed_messages.insert(0, {'role': 'user', 'content': system_instruction})
         else:
-            processed_messages[0]['content'] = f"{system_instruction}\n\n{processed_messages[0]['content']}"
+            processed_messages['content'] = f"{system_instruction}\n\n{processed_messages['content']}"
 
     if generation_config is None:
         generation_config = types.GenerateContentConfig(
             temperature=temperature,
             top_p=0.95,
             top_k=40,
-            max_output_tokens=2048,
-            safety_settings=[]
+            max_output_tokens=8192,
+            safety_settings=[
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+            ]
         )
     elif isinstance(generation_config, dict):
-        generation_config.setdefault('safety_settings', [])
+        generation_config.setdefault('safety_settings', [
+            types.SafetySetting(category=HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+            types.SafetySetting(category=HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+            types.SafetySetting(category=HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+            types.SafetySetting(category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+        ])
+        generation_config.setdefault('max_output_tokens', 8192)
         generation_config = types.GenerateContentConfig(**generation_config)
 
     last_exception = None
@@ -108,15 +127,12 @@ async def generate_chat_response(messages, role, task, model=None, temperature=0
             logger.debug(f"Sending request to Gemini (attempt {retry_attempt + 1})")
             raw_response = await send_request_to_gemini(processed_messages, generation_config, logger)
 
-            # --- FIX: More robust regex for JSON extraction ---
-            # This handles optional "json" language tag and surrounding whitespace.
             match = re.search(r"```(?:json)?\s*\n(.*?)\s*```", raw_response, re.DOTALL)
             
             if match:
                 response_content = match.group(1).strip()
             else:
                 response_content = raw_response
-                # This warning is now more meaningful, as it will only trigger if there's truly no markdown block.
                 logger.warning(f"No JSON markdown block found in Gemini response. Using raw response. Response: {response_content}")
             
             logger.debug(f"Gemini API response (extracted): {response_content}")
@@ -134,7 +150,6 @@ async def generate_chat_response(messages, role, task, model=None, temperature=0
         raise last_exception
 
 
-# --- CRITICAL FUNCTION: generate_chat_response_with_node_types ---
 async def generate_chat_response_with_node_types(messages, role, task, temperature=0.75, retries=3, backoff_factor=2, logger=None):
     if logger is None:
         logger = current_app.logger
@@ -145,24 +160,14 @@ async def generate_chat_response_with_node_types(messages, role, task, temperatu
             node_types = get_valid_node_types()
             node_types_str = ', '.join(node_types)
 
-            # Modify messages to include system instruction as a user message
             system_message = {
                 "role": "user",
                 "content": "You are a helpful assistant. Please respond with information in JSON format. Valid Node Types: " + node_types_str + " **The response should be valid JSON.**"
             }
-            messages_with_system = [system_message] + messages  # Prepend system message
+            messages_with_system = [system_message] + messages
 
-
-            generation_config = types.GenerateContentConfig(
-                temperature=temperature,
-                top_p=0.95,
-                top_k=40,
-                max_output_tokens=2048,
-                safety_settings=[],
-            )
-            # NOTE: generate_chat_response already extracts the JSON
-            response_content = await generate_chat_response(messages_with_system, role, task, temperature=temperature, retries=retries, backoff_factor=backoff_factor, logger=logger, generation_config=generation_config)
-            return response_content  # Return the extracted JSON string
+            response_content = await generate_chat_response(messages_with_system, role, task, temperature=temperature, retries=retries, backoff_factor=backoff_factor, logger=logger)
+            return response_content
         except Exception as e:
             last_exception = e
             if retry_attempt < retries - 1:
@@ -179,7 +184,8 @@ async def get_grounded_data(query, ce_type):
     Retrieves grounded data from Google Search for a given query and CE type.
     """
     try:
-        model = "gemini-2.0-flash"
+        # --- MODIFIED: Corrected the model name ---
+        model = "gemini-1.5-flash-latest"
 
         contents = [
             types.Content(
@@ -222,7 +228,7 @@ async def get_grounded_data(query, ce_type):
             temperature=0.4,
             top_p=0.95,
             top_k=40,
-            max_output_tokens=2048,
+            max_output_tokens=8192,
             tools=tools,
         )
         response = await gemini_client.aio.models.generate_content(
@@ -231,24 +237,31 @@ async def get_grounded_data(query, ce_type):
           config=generation_config,
         )
 
+        response_content = ""
         if response and response.text:
-            # Extract JSON (Robust Extraction)
-            match = re.search(r"```(?:json)?\n([\s\S]*?)```", response.text, re.IGNORECASE)
+            # --- MODIFIED: More robust JSON extraction to handle truncated responses ---
+            raw_text = response.text
+            match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw_text, re.DOTALL)
             if match:
                 response_content = match.group(1).strip()
-                current_app.logger.debug(f"Gemini API response (extracted): {response_content}")
+                current_app.logger.debug(f"Gemini API response (extracted from markdown): {response_content}")
             else:
-                response_content = response.text
-                current_app.logger.warning(f"No JSON block found in Gemini response. Using raw response text. Raw Response: {response.text}")
+                # Fallback: Find the first '{' and last '}' if no markdown block is found
+                start = raw_text.find('{')
+                end = raw_text.rfind('}')
+                if start != -1 and end != -1 and end > start:
+                    response_content = raw_text[start:end+1]
+                    current_app.logger.warning(f"No JSON markdown block found. Extracted from curly braces. Raw Response: {raw_text}")
+                else:
+                    current_app.logger.warning(f"No JSON found at all in Gemini response. Raw Response: {raw_text}")
         else:
-            response_content = None
             current_app.logger.warning(f"Gemini API response or response text is None. Full response object: {response}")
 
         if response_content:
           try:
             grounded_data = json.loads(response_content)
           except json.JSONDecodeError as e:
-            current_app.logger.error(f"JSONDecode Error: {e}")
+            current_app.logger.error(f"JSONDecode Error: {e}. Content that failed: '{response_content}'")
             return None
         else:
             return None

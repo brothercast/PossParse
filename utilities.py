@@ -127,60 +127,44 @@ async def generate_outcome_data(USE_DATABASE: bool, request, method: str, select
     outcome_data['user_input'] = html.escape(user_input_from_form)
 
     # 1. Create SSOL Record and get its ID
-    # `create_ssol` (from speculate.py) is synchronous and returns the string ID of the new SSOL.
-    # It handles DB/in-memory logic.
-    # Pass selected_goal_title as title and selected_goal (detailed text) as initial description.
     try:
         new_ssol_id_str = create_ssol(USE_DATABASE, title=selected_goal_title, description=selected_goal)
         outcome_data['ssol_id'] = new_ssol_id_str
-        ssol_id_uuid_for_cos = UUID(new_ssol_id_str) # Convert to UUID for internal use
+        ssol_id_uuid_for_cos = UUID(new_ssol_id_str)
     except Exception as e:
         current_app.logger.error(f"Failed to create SSOL for title '{selected_goal_title}': {e}", exc_info=True)
-        # This is a critical failure, can't proceed without SSOL.
-        # Flash message and redirect or raise to be caught by route.
         raise ValueError(f"SSOL creation failed: {str(e)}") from e
 
     current_app.logger.info(f"SSOL created with ID: {new_ssol_id_str}. Generating outcome data for goal: '{selected_goal_title}'")
 
-    # Sanitize display inputs (already done for user_input_from_form)
+    # Sanitize display inputs
     selected_goal_display = html.escape(selected_goal) if selected_goal else ""
     domain_display = html.escape(domain) if domain else ""
 
     # 2. Generate Summary for the SSOL
     summary_prompt = (
         f"Generate a **detailed but concise summary** for the Structured Solution project: '{selected_goal_title}' (Full goal: '{selected_goal_display}'). "
-        f"Consider the domain: {domain_display}. "
-        f"This summary MUST provide a **comprehensive overview of the entire Structured Solution**, and **use basic HTML markup for formatting** to enhance readability. Include:\n"
-        f"- **A high-level description of the project's overall goal and purpose**, formatted as a paragraph (`<p>`).\n"
-        f"- **A brief overview of each of the five phases** of the Structured Solution highlighting the primary focus of each phase. **Format these phase overviews as an ordered list** (`<ol>`), with each phase description as a list item (`<li>`).\n"
-        f"- **The anticipated overall outcome or impact** of successfully implementing the Structured Solution, formatted as a paragraph (`<p>`).\n"
-        f"Imagine you are writing an **executive summary or abstract** for a project proposal or report that will be displayed on a webpage. "
-        f"Aim for a summary that is approximately **1-2 paragraphs and an ordered list of 5 items (one for each phase)** to thoroughly introduce the SSPEC PossPath output and its key components to someone unfamiliar with the project. "
-        f"**Allowed HTML tags are:** `<p>`, `<ol>`, `<li>`, `<b>`, `<strong>`, `<i>`, `<em>`. **Use these tags to structure and emphasize key parts of the summary.**\n"
+        f"This summary MUST provide a **comprehensive overview** and **use basic HTML markup for formatting** (`<p>`, `<ol>`, `<li>`, `<b>`, `<strong>`, `<i>`, `<em>`).\n"
         f"Return a JSON object with a SINGLE KEY 'summary', containing the summary text **with HTML markup**. "
     )
     summary_messages = [{"role": "user", "content": summary_prompt}]
-    summary_response_text = ""
     try:
         current_app.logger.info(f"Generating summary for SSOL ID: {new_ssol_id_str}...")
         summary_response_text = await generate_chat_response(summary_messages, role='Outcome Summary', task='Generate SSOL Summary')
         summary_data = json.loads(summary_response_text)
         generated_summary_html = summary_data.get('summary', "Summary not available.")
         outcome_data['ssol_summary'] = generated_summary_html
-        current_app.logger.info(f"Summary generation successful for SSOL ID: {new_ssol_id_str}.")
-
+        
         # Update the SSOL record with the generated summary
         if USE_DATABASE:
-            with current_app.app_context(): # Use current_app.app_context() for Flask context
+            with current_app.app_context():
                 engine, SessionLocal = get_engine_and_session()
                 session = SessionLocal()
                 try:
                     ssol_to_update = session.query(SSOL).get(ssol_id_uuid_for_cos)
                     if ssol_to_update:
-                        ssol_to_update.description = generated_summary_html # Assuming summary goes into description
+                        ssol_to_update.description = generated_summary_html
                         session.commit()
-                    else:
-                        current_app.logger.warning(f"SSOL with ID {ssol_id_uuid_for_cos} not found in DB for summary update.")
                 except Exception as db_exc:
                     session.rollback()
                     current_app.logger.error(f"DB error updating SSOL summary: {db_exc}", exc_info=True)
@@ -189,16 +173,8 @@ async def generate_outcome_data(USE_DATABASE: bool, request, method: str, select
         else: # In-memory
             if new_ssol_id_str in ssol_store:
                 ssol_store[new_ssol_id_str]['description'] = generated_summary_html
-                ssol_store[new_ssol_id_str]['summary'] = generated_summary_html # Also store as summary for consistency
-            else:
-                current_app.logger.warning(f"SSOL with ID {new_ssol_id_str} not found in in-memory store for summary update.")
-
-    except json.JSONDecodeError as e:
-        current_app.logger.error(f"JSON decoding error for summary (SSOL {new_ssol_id_str}). AI Response: {summary_response_text}", exc_info=True)
-        outcome_data['ssol_summary'] = f"Summary generation failed (JSON error). Raw output: {html.escape(summary_response_text)}"
     except Exception as e:
         current_app.logger.error(f"Error generating/updating summary (SSOL {new_ssol_id_str}): {e}", exc_info=True)
-        outcome_data['ssol_summary'] = "Summary generation failed (unexpected error)."
 
 
     # 3. Generate Structured Solution (Phases, COS, and initial CEs) with RETRY LOGIC
@@ -215,10 +191,9 @@ async def generate_outcome_data(USE_DATABASE: bool, request, method: str, select
     )
     structured_solution_messages = [{"role": "user", "content": structured_solution_prompt}]
     
-    # --- FIX: Implement Retry Logic ---
     max_retries = 3
     retry_delay_seconds = 2
-    structured_solution_json_from_ai = None # Initialize to None
+    structured_solution_json_from_ai = None
 
     for attempt in range(max_retries):
         structured_solution_response_text = ""
@@ -229,9 +204,19 @@ async def generate_outcome_data(USE_DATABASE: bool, request, method: str, select
                 role='Structured Solution', 
                 task='Generate Phases and COS with CEs'
             )
-            structured_solution_json_from_ai = json.loads(structured_solution_response_text)
             
-            # If parsing is successful, break the loop
+            # --- FIX: Robustly extract JSON from potential markdown blocks ---
+            json_text = structured_solution_response_text
+            match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", structured_solution_response_text)
+            if match:
+                json_text = match.group(1).strip()
+            else: # If no markdown, find the main JSON object
+                start = structured_solution_response_text.find('{')
+                end = structured_solution_response_text.rfind('}')
+                if start != -1 and end != -1 and end > start:
+                    json_text = structured_solution_response_text[start:end+1]
+
+            structured_solution_json_from_ai = json.loads(json_text)
             current_app.logger.info(f"Successfully parsed structured solution on attempt {attempt + 1}.")
             break 
             
@@ -241,7 +226,7 @@ async def generate_outcome_data(USE_DATABASE: bool, request, method: str, select
                 await asyncio.sleep(retry_delay_seconds)
             else:
                 current_app.logger.error("All retries failed for generating structured solution.")
-                outcome_data['phases'] = {} # Fallback to empty on final failure
+                outcome_data['phases'] = {}
                 
         except Exception as e:
             current_app.logger.error(f"General error generating structured solution (Attempt {attempt + 1}): {e}", exc_info=True)
@@ -249,11 +234,8 @@ async def generate_outcome_data(USE_DATABASE: bool, request, method: str, select
                 await asyncio.sleep(retry_delay_seconds)
             else:
                  current_app.logger.error("All retries failed for generating structured solution.")
-                 outcome_data['phases'] = {} # Fallback
+                 outcome_data['phases'] = {}
 
-    # --- End of Retry Logic ---
-
-    # Proceed only if we successfully got the JSON
     if isinstance(structured_solution_json_from_ai, dict):
         outcome_data['phases'] = parse_ai_response_and_generate_html(
             USE_DATABASE,
@@ -262,7 +244,6 @@ async def generate_outcome_data(USE_DATABASE: bool, request, method: str, select
         )
         current_app.logger.info(f"Structured solution (COS/CEs) processed and saved for SSOL ID: {new_ssol_id_str}.")
     else:
-        # This case is now handled by the fallback inside the retry loop, but we keep it for safety.
         current_app.logger.error(f"Failed to generate structured solution after all retries. Final response was not a valid dictionary.")
         outcome_data['phases'] = {}
 
@@ -283,49 +264,87 @@ async def analyze_user_input(text: str) -> list:
         keywords = json.loads(response_text)
         if not isinstance(keywords, list):
             keywords = [str(kw).strip() for kw in response_text.split(',') if kw.strip()] # Fallback
-            current_app.logger.warning(f"Keyword extraction AI response was not a list, used fallback. Response: {response_text}")
-        current_app.logger.debug(f"Keywords for '{text}': {keywords}")
         return keywords
-    except json.JSONDecodeError:
-        current_app.logger.warning(f"JSONDecodeError extracting keywords. Response: {response_text}. Using split fallback.")
-        return [kw.strip() for kw in response_text.split(',') if kw.strip()]
     except Exception as e:
         current_app.logger.error(f"Error in analyze_user_input: {e}", exc_info=True)
-        return [text] # Fallback to returning the original text as a single "keyword"
+        return [text] # Fallback
 
+# --- REMOVED: Deprecated sentiment analysis function ---
+# async def generate_sentiment_analysis(text: str, temperature: float = 0.7) -> str: ...
 
-async def generate_sentiment_analysis(text: str, temperature: float = 0.7) -> str:
+# --- NEW: Doctrine-based Safety Pre-Check ---
+async def is_input_compliant(text: str) -> dict:
+    """
+    Checks if user input complies with the safety doctrine.
+    Returns a dictionary: {'compliant': bool, 'reason': str}
+    """
     from ai_service import generate_chat_response # Local import
-    messages = [
-        {"role": "user", "content": f"What is the primary sentiment expressed in the following text: '{text}'? Respond with a single word: POSITIVE, NEGATIVE, or NEUTRAL, in a JSON object like {{ \"sentiment\": \"SENTIMENT_WORD\" }}."},
-    ]
-    response_text = ""
-    sentiment = "NEUTRAL" # Default
+    
+    # This prompt is based directly on your provided safety doctrine.
+    safety_check_prompt = f"""
+        Analyze the user's input based on the following immutable safety protocol:
+        "Freedom from those conditions that can cause physical, psychological, or social harm to people, 
+        including but not limited to injury, illness, distress, misinformation, radicalization, death, 
+        damage to or loss of property or opportunity, or damage to the environment."
+
+        User Input: "{text}"
+
+        Based on this protocol, classify the input as either "SAFE" or "UNSAFE".
+        Your response MUST be a valid JSON object with a single key "classification".
+        Example for a safe input: {{"classification": "SAFE"}}
+        Example for an unsafe input: {{"classification": "UNSAFE"}}
+    """
+    messages = [{"role": "user", "content": safety_check_prompt}]
+    
     try:
-        response_text = await generate_chat_response(messages, role='Sentiment Analysis', task='Analyze Sentiment', temperature=temperature)
+        response_text = await generate_chat_response(messages, role='Safety Check', task='Classify Input Compliance')
         response_json = json.loads(response_text)
-        sentiment_from_ai = response_json.get("sentiment", "NEUTRAL").upper()
-        if sentiment_from_ai in ["POSITIVE", "NEGATIVE", "NEUTRAL"]:
-            sentiment = sentiment_from_ai
+        classification = response_json.get("classification", "UNSAFE").upper()
+        
+        if classification == "SAFE":
+            return {'compliant': True, 'reason': 'Input is compliant with safety protocols.'}
         else:
-            current_app.logger.warning(f"Sentiment analysis AI returned invalid sentiment '{sentiment_from_ai}'. Defaulting to NEUTRAL. Response: {response_text}")
-            sentiment = "NEUTRAL"
-    except json.JSONDecodeError:
-        current_app.logger.warning(f"JSONDecodeError in sentiment analysis. Response: {response_text}. Attempting inference.")
-        # Basic inference from raw text if it's simple
-        if "POSITIVE" in response_text.upper(): sentiment = "POSITIVE"
-        elif "NEGATIVE" in response_text.upper(): sentiment = "NEGATIVE"
-        else: sentiment = "NEUTRAL"
+            return {'compliant': False, 'reason': 'Input was classified as non-compliant with safety protocols.'}
+
     except Exception as e:
-        current_app.logger.error(f"Error in generate_sentiment_analysis: {e}. Response: {response_text}", exc_info=True)
-        sentiment = "NEUTRAL" # Fallback
-    return sentiment
+        current_app.logger.error(f"Error in is_input_compliant: {e}. Defaulting to non-compliant.", exc_info=True)
+        # Default to non-compliant in case of any error during the check
+        return {'compliant': False, 'reason': 'An error occurred during safety analysis.'}
 
 
-# --- Goal Generation ---
+# --- Goal Generation (Updated with Safety Pre-Check) ---
 async def generate_goal(user_input: str) -> list:
     from ai_service import generate_chat_response # Local import
 
+    # --- NEW: Perform safety check first ---
+    compliance_check = await is_input_compliant(user_input)
+    if not compliance_check['compliant']:
+        current_app.logger.warning(f"User input rejected by safety protocol: '{user_input}'. Reason: {compliance_check['reason']}")
+        return [
+            {
+                'title': 'Input Non-Compliant',
+                'goal': 'The provided input does not comply with the safety protocol, which prevents harm, distress, or the promotion of unsafe acts. Please revise your input.',
+                'domain': 'Safety Protocol',
+                'icon': 'fas fa-shield-alt',
+                'is_compliant': False
+            },
+            {
+                'title': 'Input Non-Compliant',
+                'goal': 'The provided input does not comply with the safety protocol, which prevents harm, distress, or the promotion of unsafe acts. Please revise your input.',
+                'domain': 'Safety Protocol',
+                'icon': 'fas fa-exclamation-triangle',
+                'is_compliant': False
+            },
+            {
+                'title': 'Input Non-Compliant',
+                'goal': 'The provided input does not comply with the safety protocol, which prevents harm, distress, or the promotion of unsafe acts. Please revise your input.',
+                'domain': 'Safety Protocol',
+                'icon': 'fas fa-ban',
+                'is_compliant': False
+            }
+        ]
+
+    # If compliant, proceed with goal generation
     system_message_content = (
         "You are an AI that generates three innovative and *distinct* goal outcomes based on user input. "
         "For EACH goal, you MUST provide: "
@@ -337,47 +356,36 @@ async def generate_goal(user_input: str) -> list:
     )
 
     async def generate_single_set(temp: float):
-        messages = [
-            {"role": "user", "content": system_message_content + f"\n\nUser input for goal generation: '{user_input}'"},
-        ]
-        response_text = ""
+        messages = [{"role": "user", "content": system_message_content + f"\n\nUser input: '{user_input}'"}]
         try:
             response_text = await generate_chat_response(messages, role='Goal Generation', task='Generate Goal Options', temperature=temp)
             goal_options = json.loads(response_text)
-            if isinstance(goal_options, list) and \
-               all(isinstance(g, dict) and all(k in g for k in ['title', 'goal', 'domain', 'icon']) for g in goal_options) and \
-               len(goal_options) > 0: # Ensure at least one goal
-                return goal_options[:3] # Return up to 3
-            else:
-                logging.warning(f"Invalid goal format/count from AI (temp {temp}). Response: {response_text}")
-                return []
-        except json.JSONDecodeError:
-            logging.error(f"JSONDecodeError in generate_single_set (temp {temp}). Response: {response_text}")
+            if isinstance(goal_options, list) and all(isinstance(g, dict) and all(k in g for k in ['title', 'goal', 'domain', 'icon']) for g in goal_options) and len(goal_options) > 0:
+                # --- MODIFIED: Add compliance flag ---
+                for goal in goal_options:
+                    goal['is_compliant'] = True
+                return goal_options[:3]
             return []
         except Exception as e:
             logging.error(f"Error in generate_single_set (temp {temp}): {e}", exc_info=True)
             return []
 
     all_goals = await generate_single_set(temp=0.75)
-    if not all_goals or len(all_goals) < 3: # Try another temp if first fails or gives too few
-        logging.info("Retrying goal generation with different temperature.")
+    if not all_goals or len(all_goals) < 3:
         more_goals = await generate_single_set(temp=0.6)
-        # Simple merge and unique by title (preferring earlier results)
         seen_titles = {g['title'] for g in all_goals}
         for g in more_goals:
             if g['title'] not in seen_titles:
                 all_goals.append(g)
-                seen_titles.add(g['title'])
                 if len(all_goals) >= 3: break
     
     if not all_goals:
-        logging.error("AI goal generation failed after multiple attempts. Creating a basic fallback.")
-        return [{
-            'title': f"Define: {user_input[:30].strip()}",
-            'goal': f"Clearly define and scope the possibility related to '{user_input}'.",
-            'domain': "General",
-            'icon': "fas fa-lightbulb"
-        }]
+        return [{'title': f"Define: {user_input[:30].strip()}", 'goal': f"Clearly define and scope the possibility related to '{user_input}'.", 'domain': "General", 'icon': "fas fa-lightbulb", 'is_compliant': True}]
+    
+    # Ensure all goals have the compliance flag
+    for goal in all_goals:
+        goal['is_compliant'] = True
+        
     return all_goals[:3]
 
 
@@ -390,39 +398,35 @@ def sanitize_filename(filename: str) -> str:
 
 
 # --- SSOL Image Generation & Naming ---
-async def generate_ssol_image(prompt: str, ssol_id=None): # ssol_id can be string or UUID
+async def generate_ssol_image(prompt: str, ssol_id=None):
     """
     Generates an image using ai_service.generate_image and attempts to rename it
-    based on ssol_id for better organization.
-    Returns the web path to the image.
+    based on ssol_id for better organization. Returns the web path to the image.
     """
     try:
-        # `generate_image` from `ai_service` returns a web path like 'images/unique_name.png'
-        # or a default path if generation fails.
+        # ai_generate_image from ai_service now handles its own errors and returns a default path
         temp_web_path = await generate_image(prompt)
 
-        if temp_web_path == url_for('static', filename='images/sspec_default.png') or \
-           temp_web_path == url_for('static', filename='images/SSPEC_Logo_Motion.gif'):
-            current_app.logger.info(f"SSOL Image generation resulted in default image for prompt: {prompt[:50]}...")
-            return temp_web_path # Return default path if AI generation failed or returned placeholder
+        # If it returned the default, no need to rename
+        if 'sspec_default.png' in temp_web_path:
+            current_app.logger.info(f"SSOL Image generation resulted in default image.")
+            return temp_web_path
 
-        # If a unique image was generated and ssol_id is provided, try to rename
         if ssol_id:
             original_filename = os.path.basename(temp_web_path)
-            original_fs_path = os.path.join(current_app.static_folder, 'images', original_filename)
+            # Path needs to be constructed relative to static folder
+            original_fs_path = os.path.join(current_app.static_folder, *temp_web_path.split('/'))
 
             safe_ssol_id_part = sanitize_filename(str(ssol_id))
             _, extension = os.path.splitext(original_filename)
-            if not extension: extension = '.png' # Default extension
+            if not extension: extension = '.png'
 
             new_image_filename = f"ssol_image_{safe_ssol_id_part}{extension}"
             new_fs_path = os.path.join(current_app.static_folder, 'images', new_image_filename)
             
             try:
                 if os.path.exists(original_fs_path):
-                    # Ensure the target directory exists
                     os.makedirs(os.path.dirname(new_fs_path), exist_ok=True)
-                    # If new_fs_path exists, remove it to avoid error on rename (Windows)
                     if os.path.exists(new_fs_path) and original_fs_path != new_fs_path:
                         os.remove(new_fs_path)
                     os.rename(original_fs_path, new_fs_path)
@@ -430,17 +434,17 @@ async def generate_ssol_image(prompt: str, ssol_id=None): # ssol_id can be strin
                     current_app.logger.info(f"SSOL Image renamed to: {new_image_filename}")
                     return final_web_path
                 else:
-                    current_app.logger.warning(f"Original generated image {original_fs_path} not found for renaming based on SSOL ID {ssol_id}.")
-                    return temp_web_path # Return the original uniquely named path
+                    current_app.logger.warning(f"Original generated image {original_fs_path} not found for renaming.")
+                    return temp_web_path
             except OSError as e:
-                current_app.logger.error(f"Error renaming SSOL image for {ssol_id} from {original_filename} to {new_image_filename}: {e}", exc_info=True)
-                return temp_web_path # Return original path on rename error
-        else: # No ssol_id provided, return the uniquely generated path
+                current_app.logger.error(f"Error renaming SSOL image: {e}", exc_info=True)
+                return temp_web_path
+        else:
             return temp_web_path
 
     except Exception as e:
         current_app.logger.error(f"Error in generate_ssol_image utility: {e}", exc_info=True)
-        return url_for('static', filename='images/sspec_default.png') # Fallback to default
+        return url_for('static', filename='images/sspec_default.png') # Fallback
 
 
 # --- SSOL ID Generation (Consider for deprecation if create_ssol is primary) ---
@@ -449,9 +453,9 @@ def generate_ssol_id(USE_DATABASE: bool, selected_goal_title: str) -> str:
     Finds an existing SSOL by title or creates a new one (minimal) and returns its ID.
     NOTE: This might be redundant if speculate.create_ssol is the primary way to create SSOLs.
     """
-    from models import SSOL, get_engine_and_session # Local import
-    from store import ssol_store # Local import
-    from app import app # For app_context
+    from models import SSOL, get_engine_and_session
+    from store import ssol_store
+    from app import app
 
     if USE_DATABASE:
         with app.app_context():
@@ -460,32 +464,23 @@ def generate_ssol_id(USE_DATABASE: bool, selected_goal_title: str) -> str:
             try:
                 ssol_instance = session.query(SSOL).filter_by(title=selected_goal_title).first()
                 if not ssol_instance:
-                    current_app.logger.info(f"generate_ssol_id: No SSOL found for title '{selected_goal_title}', creating a new minimal one.")
                     new_id = uuid.uuid4()
-                    ssol_instance = SSOL(id=new_id, title=selected_goal_title, description="Initial placeholder description.")
+                    ssol_instance = SSOL(id=new_id, title=selected_goal_title, description="Initial placeholder.")
                     session.add(ssol_instance)
                     session.commit()
                     return str(new_id)
                 return str(ssol_instance.id)
             except Exception as e:
                 session.rollback()
-                current_app.logger.error(f"DB error in generate_ssol_id: {e}", exc_info=True)
-                raise # Or return a specific error indicator
+                raise
             finally:
                 session.close()
     else: # In-memory
         for s_id, s_data in ssol_store.items():
             if s_data.get('title') == selected_goal_title:
                 return s_id
-        # Not found, create new minimal one
-        current_app.logger.info(f"generate_ssol_id: No in-memory SSOL for title '{selected_goal_title}', creating new.")
         new_id_str = str(uuid.uuid4())
-        ssol_store[new_id_str] = {
-            'id': new_id_str,
-            'title': selected_goal_title,
-            'description': "Initial placeholder description.",
-            'phases': {} # Initialize phases
-        }
+        ssol_store[new_id_str] = {'id': new_id_str, 'title': selected_goal_title, 'description': "Initial placeholder.", 'phases': {}}
         return new_id_str
 
 
@@ -496,4 +491,4 @@ def get_badge_class_from_status(status: str) -> str:
        'In Progress': 'bg-warning text-dark',
        'Completed': 'bg-success',
        'Rejected': 'bg-danger'
-   }.get(status, 'bg-secondary') # Default if status is unexpected
+   }.get(status, 'bg-secondary')
