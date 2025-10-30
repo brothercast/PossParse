@@ -333,7 +333,7 @@ async def get_ce_modal_route(ce_type):
         data = request.get_json()
         current_app.logger.debug(f"get_ce_modal_route received data: {data}")
 
-        ce_id_str = data.get('ce_id')
+        ce_id_str = data.get('ce_id') # This is the ID of the pill that was clicked
         ce_id_obj = UUID(ce_id_str) if ce_id_str else None
 
         ce_instance_or_dict = speculate_get_ce_by_id(USE_DATABASE, ce_id_obj) if ce_id_obj else None
@@ -366,7 +366,8 @@ async def get_ce_modal_route(ce_type):
             ai_generated_data=ai_generated_data_for_modal,
             phase_name=phase_name,
             phase_index=phase_index,
-            ce_store=in_memory_ce_store
+            ce_store=in_memory_ce_store,
+            explicit_ce_id=ce_id_str # <-- THE FIX: Pass the original pill ID explicitly
         )
 
         return jsonify(modal_html=modal_html, ai_generated_data=ai_generated_data_for_modal)
@@ -377,7 +378,6 @@ async def get_ce_modal_route(ce_type):
     except Exception as e:
         current_app.logger.error(f"Error generating CE modal for type {ce_type}: {e}", exc_info=True)
         return jsonify(error=f"An error occurred: {str(e)}"), 500
-
 
 @routes_bp.route('/ai-query-endpoint', methods=['POST'])
 async def ai_query_route():

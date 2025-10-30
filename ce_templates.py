@@ -114,7 +114,7 @@ def generate_form_fields(fields_config, form_data=None):
         )
     return form_fields_html
 
-async def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated_data=None, phase_name=None, phase_index=None, ce_store=None):
+async def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_generated_data=None, phase_name=None, phase_index=None, ce_store=None, explicit_ce_id=None): # <-- Add new argument
     node_info = NODES.get(ce_type, NODES['Default'])
     fields_config = node_info['modal_config']['fields']
     
@@ -134,11 +134,12 @@ async def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_gen
     ces = list(ce_store.values()) if ce_store else []
     cos_content_with_pills = replace_ce_tags_with_pills(cos_content, ces)
     
-    ce_id = ce_data.get('id', 'new_ce') if ce_data else 'new_ce'
+    # --- THE FIX: Prioritize the explicit ID from the route. Fallback to existing logic. ---
+    ce_id_for_render = explicit_ce_id or (ce_data.get('id') if ce_data else 'new_ce')
     
     return render_template_string(
         BASE_MODAL_TEMPLATE,
-        ceId=ce_id,
+        ceId=ce_id_for_render, # <-- Use the guaranteed correct ID
         ceType=ce_type,
         icon_class=icon_class,
         node_color=node_color,
@@ -149,6 +150,7 @@ async def generate_dynamic_modal(ce_type, ce_data=None, cos_content=None, ai_gen
         phase_name=phase_name,
         phase_index=phase_index
     )
+
 
 def replace_ce_tags_with_pills(content, ces_metadata_for_pills=None):
     if not content: return ""

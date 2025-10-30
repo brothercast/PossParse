@@ -1,10 +1,10 @@
-// ce_cards.js (Refactored for Stability and Reliability)
+// ce_cards.js (Refactored with requestAnimationFrame for reliable modal display)
 
-import { 
-    showLoadingSpinner, 
+import {
+    showLoadingSpinner,
     hideLoadingSpinner,
-    initializeTabulatorTable 
-} from './base_functions.js'; 
+    initializeTabulatorTable
+} from './base_functions.js';
 
 // --- Helper Functions ---
 
@@ -13,7 +13,7 @@ import {
  * @param {HTMLFormElement} form - The form element.
  * @returns {object} - An object containing the form's data.
  */
-function getFormData(form) { 
+function getFormData(form) {
     if (!form) return {};
     const formData = new FormData(form);
     const data = {};
@@ -42,17 +42,17 @@ function clearFormFields(formSelector) {
  * Saves all changes (form data and table data) made in the CE modal to the server.
  * @param {string} ceId - ID of the Conditional Element to save.
  */
-function saveCEChanges(ceId) { 
+function saveCEChanges(ceId) {
     const modalElement = document.querySelector(`#ceModal-${ceId}`);
     if (!modalElement) {
         console.error(`Save failed: Modal for CE ID ${ceId} not found.`);
         return;
     }
-    
+
     const table = modalElement._tabulator;
     const tableData = table ? table.getData() : [];
-    
-     const nonNullRows = tableData.filter(row =>
+
+    const nonNullRows = tableData.filter(row =>
         Object.values(row).some(value => value !== null && (typeof value === 'string' ? value.trim() !== '' : value !== ''))
     );
 
@@ -60,7 +60,7 @@ function saveCEChanges(ceId) {
         table_data: nonNullRows, // Array of objects
         form_data: getFormData(modalElement.querySelector(`#ceForm-${ceId}`)) // Object
     };
-    
+
     const modalInstance = bootstrap.Modal.getInstance(modalElement);
     const saveButton = modalElement.querySelector('.btn-save-changes');
     const originalButtonHtml = saveButton.innerHTML;
@@ -101,7 +101,7 @@ const NODES = window.NODES || {};
 // --- Main Entry Point ---
 
 /**
- * Displays the Conditional Element modal using a direct, reliable method.
+ * Displays the Conditional Element modal, resolving the DOM race condition.
  * @param {string} modalHtml - The raw HTML for the modal.
  * @param {string} ceId - The ID of the Conditional Element.
  */
@@ -111,50 +111,52 @@ function displayCEModal(modalHtml, ceId) {
         console.error('Modal container element (#dynamicModalContainer) not found.');
         return;
     }
-    
+
     // 1. Inject the HTML into the container.
     modalContainer.innerHTML = modalHtml;
-    
-    // 2. Immediately find the newly added modal element by its ID.
-    const modalElement = document.getElementById(`ceModal-${ceId}`);
-    if (!modalElement) {
-        console.error(`Failed to find modal element #ceModal-${ceId} after injection.`);
-        return;
-    }
 
-    // 3. Create a new Bootstrap modal instance from the element.
-    const modal = new bootstrap.Modal(modalElement);
-    const ceType = modalElement.dataset.nodeType || 'Default';
+    // 2. Use requestAnimationFrame to wait for the next repaint cycle.
+    // This ensures the browser has processed the innerHTML change and the new element exists in the DOM.
+    requestAnimationFrame(() => {
+        // 3. NOW, find the newly added modal element by its ID.
+        const modalElement = document.getElementById(`ceModal-${ceId}`);
+        if (!modalElement) {
+            console.error(`Failed to find modal element #ceModal-${ceId} after injection and repaint.`);
+            return;
+        }
 
-    // 4. Set up the Tabulator table and other event listeners once the modal is fully shown.
-    modalElement.addEventListener('shown.bs.modal', () => {
-        const tableElementId = `#dynamicTable-${ceId}`;
-        // The initial data is now stored in a hidden script tag inside the modal HTML
-        const initialTableDataElement = modalElement.querySelector('.initial-table-data'); 
-        const initialTableData = initialTableDataElement ? JSON.parse(initialTableDataElement.textContent || '[]') : [];
-        
-        // Store the Tabulator instance on the modal element for later access
-        modalElement._tabulator = initializeTabulatorTable(
-            tableElementId, 
-            initialTableData,
-            tabulatorColumnsDefinition(ceType), 
-            ceType, 
-            modalElement
-        );
+        // 4. Create a new Bootstrap modal instance from the element.
+        const modal = new bootstrap.Modal(modalElement);
+        const ceType = modalElement.dataset.nodeType || 'Default';
 
-        // Attach all other necessary button/form listeners inside the modal
-        setupModalEventListeners(modalElement, ceId);
-        
-    }, { once: true }); // Use { once: true } to ensure this only runs once per show.
+        // 5. Set up event listeners once the modal is fully shown.
+        modalElement.addEventListener('shown.bs.modal', () => {
+            const tableElementId = `#dynamicTable-${ceId}`;
+            const initialTableDataElement = modalElement.querySelector('.initial-table-data');
+            const initialTableData = initialTableDataElement ? JSON.parse(initialTableDataElement.textContent || '[]') : [];
 
-    // 5. Add a cleanup listener to remove the modal from the DOM when it's hidden.
-    modalElement.addEventListener('hidden.bs.modal', () => {
-        modalElement.remove();
-    }, { once: true });
+            modalElement._tabulator = initializeTabulatorTable(
+                tableElementId,
+                initialTableData,
+                tabulatorColumnsDefinition(ceType),
+                ceType,
+                modalElement
+            );
 
-    // 6. Show the modal.
-    modal.show();
+            setupModalEventListeners(modalElement, ceId);
+
+        }, { once: true });
+
+        // 6. Add a cleanup listener to remove the modal from the DOM when it's hidden.
+        modalElement.addEventListener('hidden.bs.modal', () => {
+            modalElement.remove();
+        }, { once: true });
+
+        // 7. Show the modal.
+        modal.show();
+    });
 }
+
 
 /**
  * Defines the Tabulator table columns based on the CE type.
@@ -202,7 +204,7 @@ function setupModalEventListeners(modalElement, ceId) {
 
             table.addRow(rowData, false);
             console.log("Row added to Tabulator in memory.");
-            
+
             clearFormFields(`#ceForm-${ceId}`);
             modalElement.dataset.hasUnsavedChanges = 'true';
         });

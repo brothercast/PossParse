@@ -185,7 +185,7 @@ async def get_grounded_data(query, ce_type):
     """
     try:
         # --- MODIFIED: Corrected the model name ---
-        model = "gemini-1.5-flash-latest"
+        model = gemini_model_name
 
         contents = [
             types.Content(
