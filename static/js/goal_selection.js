@@ -28,6 +28,9 @@ function playDiagonalPivot(container, baseDelay = 0) {
 
     // Animate the frames after the base delay
     setTimeout(() => {
+        // --- NEW: Add 'animate' class to the container to make it fade in ---
+        container.classList.add('animate');
+
         frames.forEach(frame => {
             frame.classList.remove('animate');
             void frame.offsetHeight; 
@@ -139,6 +142,26 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cancelButton) {
         cancelButton.addEventListener('click', () => handleCancelButtonClick(userInputDisplay, userInputEdit, editButton, saveButton, cancelButton));
     }
+    
+    // --- NEW: Add keyboard shortcuts for the edit input ---
+    if (userInputEdit) {
+        userInputEdit.addEventListener('keydown', (event) => {
+            // If the input field is not visible, do nothing.
+            if (userInputEdit.classList.contains('d-none')) {
+                return;
+            }
+            // On 'Enter', trigger the save button's click event.
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Prevent default form submission
+                saveButton.click();
+            }
+            // On 'Escape', trigger the cancel button's click event.
+            if (event.key === 'Escape') {
+                cancelButton.click();
+            }
+        });
+    }
+
 
     // Event listeners for individual goal selection forms
     document.body.addEventListener('submit', (event) => {

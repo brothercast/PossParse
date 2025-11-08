@@ -161,36 +161,38 @@ export function updateGoalCards(data, currentUserInputText, goalCardsContainer) 
     const goalDescription = (goal.goal || "No description available.").replace(/\n/g, '<br>');
     const goalTitleForForm = goal.title || "Untitled Goal";
     const goalDomain = goal.domain || "General";
-    // Critical: Ensure the icon class string includes necessary FontAwesome sizing/animation
-    // For example, if goal.icon is just "fas fa-atom", and you want it larger and spinning:
-    // const goalIcon = `${goal.icon || "fas fa-question-circle"} fa-2x`; // Add fa-2x for size
-    // Or if goal.icon from backend already contains sizing:
     const goalIcon = goal.icon || "fas fa-question-circle";
-    const isCompliant = typeof goal.compliant === 'undefined' ? true : goal.compliant;
+    // --- FIX: Check for 'is_compliant' from Python backend, default to true if undefined.
+    const isCompliant = typeof goal.is_compliant === 'undefined' ? true : goal.is_compliant;
 
     const cardHtml = `
       <div class="col-md-4 mb-4">
-        <div class="card retro-futuristic-card text-center ${isCompliant ? '' : 'non-compliant'}">
-          <div class="card-body card-content">
-            <div class="card-upper-content">
-                <i class="${goalIcon} mb-3"></i> <!-- Removed fa-2x here, assuming it's part of goalIcon string or CSS -->
-                <p class="domain domain-text">${goalDomain.replace(/\b\w/g, l => l.toUpperCase())}</p>
-                <div class="goal-description goal-text">
-                    ${goalDescription}
+        <div class="card retro-futuristic-card text-center diagonal-pivot-container ${isCompliant ? '' : 'non-compliant'}">
+            <div class="diagonal-pivot-frame"></div>
+            <div class="diagonal-pivot-frame"></div>
+            <div class="diagonal-pivot-frame"></div>
+            <div class="card-body card-content diagonal-pivot-content">
+                <div class="card-upper-content">
+                    <i class="${goalIcon} fa-2x mt-3 mb-3 goal-content-item"></i>
+                    <p class="domain domain-text goal-content-item">${goalDomain.replace(/\b\w/g, l => l.toUpperCase())}</p>
+                    <div class="goal-description goal-text goal-content-item">
+                        ${goalDescription}
+                    </div>
                 </div>
+                ${isCompliant ? `
+                <form action="/outcome" method="post" class="goal-selection-form">
+                  <input type="hidden" name="selected_goal" value="${goal.goal || ''}">
+                  <input type="hidden" name="domain" value="${goalDomain}">
+                  <input type="hidden" name="domain_icon" value="${goalIcon}">
+                  <input type="hidden" name="selected_goal_title" value="${goalTitleForForm}">
+                  <button type="submit" class="btn btn-primary">Select</button>
+                </form>
+                ` : `
+                <div class="goal-selection-form">
+                    <a href="/" class="btn btn-danger">Start Over</a>
+                </div>
+                `}
             </div>
-            ${isCompliant ? `
-            <form action="/outcome" method="post" class="goal-selection-form">
-              <input type="hidden" name="selected_goal" value="${goal.goal || ''}">
-              <input type="hidden" name="domain" value="${goalDomain}">
-              <input type="hidden" name="domain_icon" value="${goalIcon}">
-              <input type="hidden" name="selected_goal_title" value="${goalTitleForForm}">
-              <button type="submit" class="btn btn-primary">Select</button>
-            </form>
-            ` : `
-            <button type="button" class="btn btn-danger start-over-button">Start Over</button>
-            `}
-          </div>
         </div>
       </div>
     `;
@@ -200,21 +202,17 @@ export function updateGoalCards(data, currentUserInputText, goalCardsContainer) 
   const newForms = goalCardsContainer.querySelectorAll('.goal-selection-form');
   newForms.forEach(form => {
     form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      const iconValue = form.querySelector('input[name="domain_icon"]').value;
-      // Ensure iconValue includes sizing for the spinner if it's different from the card icon
-      showLoadingSpinner('Speculating Structured Solution...', `${iconValue} fa-2x`); // Example: add fa-2x
-      form.submit();
-    });
-  });
-
-  const startOverButtons = goalCardsContainer.querySelectorAll('.start-over-button');
-  startOverButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      window.location.href = '/';
+      // Check if the form contains a submit button; if not, it's the non-compliant "Start Over" link wrapper.
+      if (form.querySelector('button[type="submit"]')) {
+          event.preventDefault();
+          const iconValue = form.querySelector('input[name="domain_icon"]').value;
+          showLoadingSpinner('Speculating Structured Solution...', `${iconValue} fa-2x`);
+          form.submit();
+      }
     });
   });
 }
+
 
 export function showLoadingSpinner(message = 'Generating Outcomes...', iconClass = 'fa-solid fa-network-wired') {
   console.log("showLoadingSpinner called with message:", message, "and icon:", iconClass);

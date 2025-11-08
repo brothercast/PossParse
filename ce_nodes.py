@@ -1,282 +1,205 @@
 # ce_nodes.py
+"""
+This file is the definitive manifest for all Conditional Element "Speculation Environments".
 
-NODES = {  
-    "Default": {  
-        "definition": "This node is a default research mode for undefined node types.",  
-        "icon": "fa-solid fa-icons",
-        "color": "#95a5a6",  # Neutral Grey
-        "modal_config": {  
-            "fields": [  
-                {"type": "text", "name": "subject", "placeholder": "Subject"},  
-                {"type": "textarea", "name": "details", "placeholder": "Details"},  
-                {"type": "text", "name": "stakeholders", "placeholder": "Stakeholders"}  
-            ],  
-            "explanation": "Default Resource Node.",  
-            "ai_context": "Provide general information and suggestions to help achieve the Condition of Satisfaction (COS)."  
-        },  
-        "tabulator_config": {  
-            "columns": [  
-                {"title": "Subject", "field": "subject", "editor": "input"},  
-                {"title": "Details", "field": "details", "editor": "input"},  
-                {"title": "Stakeholders", "field": "stakeholders", "editor": "input"}  
-            ]  
-        }  
-    },  
-    "Research": {  
-        "definition": "Aggregates and summarizes research materials and resources pertinent to the COS.",  
+Each node is a blueprint for a mini-application, defining its purpose, UI, and data structures.
+
+- `details_schema`: Defines fields for the high-level "Details" view. These are often narrative
+  summaries that are excellent targets for "Generate" AI actions.
+
+- `resource_schema`: Defines the structured data for items in the "Resources" collection. This
+  drives the Resource Editor form and the rendering of Resource Cards. A variety of `type`
+  values can be used to render different UI controls on the frontend.
+"""
+
+NODES = {
+    "Default": {
+        "definition": "A general-purpose workspace for capturing information, notes, and links that don't fit into a more specialized category.",
+        "icon": "fa-solid fa-cube",
+        "color": "#95a5a6",
+        "details_schema": [
+            {"name": "summary", "label": "Overall Summary", "type": "textarea", "placeholder": "Provide a high-level summary of the information contained in this element."}
+        ],
+        "resource_schema": [
+            {"key": "title", "label": "Title", "type": "text"},
+            {"key": "description", "label": "Description", "type": "textarea"},
+            {"key": "url", "label": "Reference URL", "type": "text"},
+            {"key": "tags", "label": "Tags", "type": "tags"}
+        ]
+    },
+    "Research": {
+        "definition": "A workspace for discovering, analyzing, and synthesizing research materials like papers, articles, and data sources.",
         "icon": "fa-solid fa-flask",
-        "color": "#ec407a",  # Light Pink (from Discovery)
-        "modal_config": {  
-            "fields": [  
-                {"type": "text", "name": "research_topic", "placeholder": "Research Topic"},  
-                {"type": "textarea", "name": "research_summary", "placeholder": "Research Summary"},  
-                {"type": "text", "name": "research_website", "placeholder": "Research Website"}  
-            ],  
-            "explanation": "Capture relevant research aspects of the node.",  
-            "ai_context": "Provide detailed research information, studies, and academic resources relevant to the COS."  
-        },  
-        "tabulator_config": {  
-            "columns": [  
-                {"title": "Research Topic", "field": "research_topic", "editor": "input"},  
-                {"title": "Research Summary", "field": "research_summary", "editor": "textarea"},  
-                {"title": "Research Website", "field": "research_website", "editor": "input"}  
-            ]  
-        }  
-    },  
-    "Stakeholder": {
-        "definition": "Captures details of stakeholders involved in the COS.",
-        "icon": "fa-solid fa-user-friends",
-        "color": "#ffca28",  # Amber (Analogous to Completion)
-        "modal_config": {
-            "fields": [
-                {"type": "text", "name": "stakeholder_name", "placeholder": "Stakeholder Name"},
-                {"type": "textarea", "name": "stakeholder_role", "placeholder": "Stakeholder Role"},
-                {"type": "email", "name": "stakeholder_email", "placeholder": "Stakeholder Email"},
-                {"type": "text", "name": "stakeholder_phone", "placeholder": "Stakeholder Phone"},
-            ],
-            "explanation": "Detail the roles and contact information of stakeholders related to the COS.",
-            "ai_context": "Identify and provide details of stakeholders involved in the COS."
-        },
-        "tabulator_config": {
-            "columns": [
-                {"title": "Stakeholder Name", "field": "stakeholder_name", "editor": "input"},
-                {"title": "Stakeholder Role", "field": "stakeholder_role", "editor": "textarea"},
-                {"title": "Stakeholder Email", "field": "stakeholder_email", "editor": "input"},
-                {"title": "Stakeholder Phone", "field": "stakeholder_phone", "editor": "input"},
-            ]
-        }
-    },
-    "Advocacy": {  
-        "definition": "Focuses on efforts to influence public policy and resource allocation decisions.",  
-        "icon": "fa-solid fa-bullhorn",
-        "color": "#ff7043",  # Deep Orange (Analogous)
-        "modal_config": {  
-            "fields": [  
-                {"type": "text", "name": "campaign_name", "placeholder": "Campaign Name"},  
-                {"type": "textarea", "name": "campaign_objective", "placeholder": "Campaign Objective"},  
-                {"type": "text", "name": "target_audience", "placeholder": "Target Audience"}  
-            ],  
-            "explanation": "Detail the advocacy campaign's objectives and target audience.",  
-            "ai_context": "Provide information on advocacy efforts and campaign strategies pertinent to the COS."  
-        },  
-        "tabulator_config": {  
-            "columns": [  
-                {"title": "Campaign Name", "field": "campaign_name", "editor": "input"},  
-                {"title": "Campaign Objective", "field": "campaign_objective", "editor": "textarea"},  
-                {"title": "Target Audience", "field": "target_audience", "editor": "input"}  
-            ]  
-        }
-    },
-    "Resource": {
-        "definition": "Lists resources or assets essential for achieving the COS.",
-        "icon": "fa-solid fa-tools",
-        "color": "#8d6e63",  # Brown (from Completion)
-        "modal_config": {
-            "fields": [
-                {"type": "text", "name": "resource_name", "placeholder": "Resource Name"},
-                {"type": "textarea", "name": "resource_details", "placeholder": "Resource Details"},
-                {"type": "text", "name": "resource_type", "placeholder": "Resource Type"}
-            ],
-            "explanation": "Provide details about resources or assets required for the COS.",
-            "ai_context": "List and detail resources or assets essential for achieving the COS."
-        },
-        "tabulator_config": {
-            "columns": [
-                {"title": "Resource Name", "field": "resource_name", "editor": "input"},
-                {"title": "Resource Details", "field": "resource_details", "editor": "textarea"},
-                {"title": "Resource Type", "field": "resource_type", "editor": "input"}
-            ]
-        }
-    },
-    "Praxis": {
-        "definition": "Defines actions or tasks necessary to meet the COS.",
-        "icon": "fa-solid fa-tasks",
-        "color": "#5c6bc0",  # Indigo (from Action)
-        "modal_config": {
-            "fields": [
-                {"type": "text", "name": "action_name", "placeholder": "Action Name"},
-                {"type": "textarea", "name": "action_description", "placeholder": "Action Description"},
-                {"type": "text", "name": "responsible_person", "placeholder": "Responsible Person"}
-            ],
-            "explanation": "Specify tasks or actions required to fulfill the COS.",
-            "ai_context": "Detail actions or tasks necessary to meet the COS."
-        },
-        "tabulator_config": {
-            "columns": [
-                {"title": "Action Name", "field": "action_name", "editor": "input"},
-                {"title": "Action Description", "field": "action_description", "editor": "textarea"},
-                {"title": "Responsible Person", "field": "responsible_person", "editor": "input"}
-            ]
-        }
-    },
-    "Timeline": {
-        "definition": "Specifies time frames or deadlines associated with the COS.",
-        "icon": "fa-solid fa-clock",
-        "color": "#ba68c8",  # Light Purple (from Action)
-        "modal_config": {
-            "fields": [
-                {"type": "text", "name": "time_frame", "placeholder": "Time Frame"},
-                {"type": "date", "name": "start_date", "placeholder": "Start Date"},
-                {"type": "date", "name": "end_date", "placeholder": "End Date"}
-            ],
-            "explanation": "Provide time-related information such as deadlines and schedules for the COS.",
-            "ai_context": "Detail time frames or deadlines associated with the COS."
-        },
-        "tabulator_config": {
-            "columns": [
-                {"title": "Time Frame", "field": "time_frame", "editor": "input"},
-                {"title": "Start Date", "field": "start_date", "editor": "input"},
-                {"title": "End Date", "field": "end_date", "editor": "input"}
-            ]
-        }
-    },
-    "Collaboration": {
-        "definition": "Focuses on partnerships or collaboration efforts necessary for the COS.",
-        "icon": "fa-solid fa-handshake",
-        "color": "#4dd0e1",  # Light Cyan (from Engagement)
-        "modal_config": {
-            "fields": [
-                {"type": "text", "name": "partner_name", "placeholder": "Partner Name"},
-                {"type": "textarea", "name": "collaboration_details", "placeholder": "Collaboration Details"},
-                {"type": "text", "name": "contact_person", "placeholder": "Contact Person"}
-            ],
-            "explanation": "Outline collaboration efforts and partnerships related to the COS.",
-            "ai_context": "Detail partnerships or collaboration efforts necessary for the COS."
-        },
-        "tabulator_config": {
-            "columns": [
-                {"title": "Partner Name", "field": "partner_name", "editor": "input"},
-                {"title": "Collaboration Details", "field": "collaboration_details", "editor": "textarea"},
-                {"title": "Contact Person", "field": "contact_person", "editor": "input"}
-            ]
-        }
-    },
-    "Policy": {
-        "definition": "Addresses policy or regulatory aspects pertinent to the COS.",
-        "icon": "fa-solid fa-gavel",
-        "color": "#78909c",  # Blue Grey (from Action)
-        "modal_config": {
-            "fields": [
-                {"type": "text", "name": "policy_name", "placeholder": "Policy Name"},
-                {"type": "textarea", "name": "policy_details", "placeholder": "Policy Details"},
-                {"type": "text", "name": "regulatory_body", "placeholder": "Regulatory Body"}
-            ],
-            "explanation": "Detail policies or regulations impacting the COS.",
-            "ai_context": "Provide information on policies or regulatory aspects pertinent to the COS."
-        },
-        "tabulator_config": {
-            "columns": [
-                {"title": "Policy Name", "field": "policy_name", "editor": "input"},
-                {"title": "Policy Details", "field": "policy_details", "editor": "textarea"},
-                {"title": "Regulatory Body", "field": "regulatory_body", "editor": "input"}
-            ]
-        }
-    },
-    "Legislation": {
-        "definition": "Covers legal considerations or requirements pertinent to the COS.",
-        "icon": "fa-solid fa-balance-scale",
-        "color": "#546e7a",  # Dark Blue Grey (from Action)
-        "modal_config": {
-            "fields": [
-                {"type": "textarea", "name": "legal_requirements", "placeholder": "Legal Requirements"},
-                {"type": "text", "name": "relevant_legislation", "placeholder": "Relevant Legislation"},
-                {"type": "text", "name": "compliance_officer", "placeholder": "Compliance Officer"}
-            ],
-            "explanation": "Detail legal considerations and requirements for the COS.",
-            "ai_context": "Provide information on legal considerations or requirements pertinent to the COS."
-        },
-        "tabulator_config": {
-            "columns": [
-                {"title": "Legal Requirements", "field": "legal_requirements", "editor": "textarea"},
-                {"title": "Relevant Legislation", "field": "relevant_legislation", "editor": "input"},
-                {"title": "Compliance Officer", "field": "compliance_officer", "editor": "input"}
-            ]
-        }
-    },
-    "Environment": {
-        "definition": "Addresses environmental factors related to the COS.",
-        "icon": "fa-solid fa-leaf",
-        "color": "#66bb6a",  # Green (from Legacy)
-        "modal_config": {
-            "fields": [
-                {"type": "text", "name": "environmental_factor", "placeholder": "Environmental Factor"},
-                {"type": "textarea", "name": "impact_assessment", "placeholder": "Impact Assessment"},
-                {"type": "text", "name": "mitigation_strategy", "placeholder": "Mitigation Strategy"}
-            ],
-            "explanation": "Detail environmental factors and their impact on the COS.",
-            "ai_context": "Provide information on environmental factors and impact assessments pertinent to the COS."
-        },
-        "tabulator_config": {
-            "columns": [
-                {"title": "Environmental Factor", "field": "environmental_factor", "editor": "input"},
-                {"title": "Impact Assessment", "field": "impact_assessment", "editor": "textarea"},
-                {"title": "Mitigation Strategy", "field": "mitigation_strategy", "editor": "input"}
-            ]
-        }
+        "color": "#ec407a",
+        "details_schema": [
+            {"name": "research_question", "label": "Primary Research Question", "type": "textarea", "placeholder": "What is the core question this research aims to answer?"},
+            {"name": "executive_summary", "label": "Executive Summary", "type": "textarea", "placeholder": "A high-level synthesis of all curated resources, which can be generated by the Speculate Co-Pilot."}
+        ],
+        "resource_schema": [
+            {"key": "title", "label": "Topic / Paper Title", "type": "text"},
+            {"key": "url", "label": "URL", "type": "text"},
+            {"key": "snippet", "label": "Snippet / Abstract", "type": "textarea"},
+            {"key": "relevance", "label": "Relevance Score", "type": "number", "placeholder": "e.g., 95"},
+            {"key": "status", "label": "Status", "type": "select", "options": ["Pending", "Reviewed", "Verified"]},
+            {"key": "tags", "label": "Tags", "type": "tags", "placeholder": "e.g., clinical-trial, material-science"}
+        ]
     },
     "Risk": {
-        "definition": "Identifies potential risks and mitigation strategies for the COS.",
+        "definition": "A workspace for identifying, assessing, and creating mitigation plans for potential risks.",
         "icon": "fa-solid fa-exclamation-triangle",
-        "color": "#e53935",  # Red (Alert Color)
-        "modal_config": {
-            "fields": [
-                {"type": "text", "name": "risk_name", "placeholder": "Risk Name"},
-                {"type": "textarea", "name": "risk_description", "placeholder": "Risk Description"},
-                {"type": "text", "name": "mitigation_plan", "placeholder": "Mitigation Plan"}
-            ],
-            "explanation": "Detail potential risks and strategies to mitigate them for the COS.",
-            "ai_context": "Identify potential risks and provide mitigation strategies for the COS."
-        },
-        "tabulator_config": {
-            "columns": [
-                {"title": "Risk Name", "field": "risk_name", "editor": "input"},
-                {"title": "Risk Description", "field": "risk_description", "editor": "textarea"},
-                {"title": "Mitigation Plan", "field": "mitigation_plan", "editor": "input"}
-            ]
-        }
+        "color": "#e53935",
+        "details_schema": [
+            {"name": "risk_overview", "label": "Risk Management Overview", "type": "textarea", "placeholder": "Describe the overall approach to identifying and mitigating risks for this COS."}
+        ],
+        "resource_schema": [
+            {"key": "risk_title", "label": "Risk Title", "type": "text"},
+            {"key": "description", "label": "Description", "type": "textarea", "placeholder": "Describe the cause and effect of this risk."},
+            {"key": "likelihood", "label": "Likelihood", "type": "select", "options": ["Low", "Medium", "High", "Very High"]},
+            {"key": "impact", "label": "Impact", "type": "select", "options": ["Low", "Medium", "High", "Critical"]},
+            {"key": "mitigation_plan", "label": "Mitigation Plan", "type": "textarea"}
+        ]
+    },
+    "Stakeholder": {
+        "definition": "A directory for managing information about people, groups, or organizations involved in or affected by the project.",
+        "icon": "fa-solid fa-user-friends",
+        "color": "#ffca28",
+        "details_schema": [
+            {"name": "engagement_strategy", "label": "Overall Engagement Strategy", "type": "textarea", "placeholder": "Describe the plan for managing communications with all stakeholders. Use the SSPEC Network to find potential contacts."}
+        ],
+        "resource_schema": [
+            {"key": "name", "label": "Name", "type": "text"},
+            {"key": "role", "label": "Role / Organization", "type": "text"},
+            {"key": "stance", "label": "Stance", "type": "select", "options": ["Supporter", "Neutral", "Blocker", "Influencer"]},
+            {"key": "engagement_level", "label": "Engagement Level", "type": "select", "options": ["Inform", "Consult", "Collaborate"]},
+            {"key": "contact_info", "label": "Contact Info", "type": "text"}
+        ]
+    },
+    "Praxis": {
+        "definition": "An action-oriented workspace for defining tasks, assigning ownership, and tracking the status of practical work.",
+        "icon": "fa-solid fa-tasks",
+        "color": "#5c6bc0",
+        "details_schema": [
+            {"name": "action_plan_overview", "label": "Action Plan Overview", "type": "textarea", "placeholder": "Describe the overall strategy for the tasks listed below. The Co-Pilot can help break this down into specific actions."}
+        ],
+        "resource_schema": [
+            {"key": "task_name", "label": "Action / Task", "type": "text"},
+            {"key": "owner", "label": "Owner", "type": "text"},
+            {"key": "status", "label": "Status", "type": "select", "options": ["Not Started", "In Progress", "Blocked", "Completed"]},
+            {"key": "due_date", "label": "Due Date", "type": "date"},
+            {"key": "description", "label": "Description & Acceptance Criteria", "type": "textarea"}
+        ]
+    },
+    "Timeline": {
+        "definition": "A workspace for specifying key dates, milestones, and project scheduling.",
+        "icon": "fa-solid fa-clock",
+        "color": "#ba68c8",
+        "details_schema": [
+            {"name": "timeline_summary", "label": "Timeline Summary", "type": "textarea", "placeholder": "Describe any key dependencies, critical path items, or overall project duration."}
+        ],
+        "resource_schema": [
+            {"key": "milestone", "label": "Milestone / Event", "type": "text"},
+            {"key": "start_date", "label": "Start Date", "type": "date"},
+            {"key": "end_date", "label": "End Date", "type": "date"},
+            {"key": "notes", "label": "Notes", "type": "textarea"}
+        ]
+    },
+    "Collaboration": {
+        "definition": "A directory for managing formal partnerships and joint efforts with external entities.",
+        "icon": "fa-solid fa-handshake",
+        "color": "#4dd0e1",
+        "details_schema": [
+            {"name": "collaboration_objective", "label": "Collaboration Objective", "type": "textarea", "placeholder": "What is the primary goal of engaging with these partners? Use the SSPEC Network to find potential collaborators."}
+        ],
+        "resource_schema": [
+            {"key": "partner_name", "label": "Partner Name/Organization", "type": "text"},
+            {"key": "area_of_collaboration", "label": "Area of Collaboration", "type": "text"},
+            {"key": "status", "label": "Status", "type": "select", "options": ["Prospect", "In Discussion", "Active", "Completed"]},
+            {"key": "contact_person", "label": "Primary Contact", "type": "text"}
+        ]
+    },
+    "Policy": {
+        "definition": "A workspace for tracking and analyzing internal policies, guidelines, or organizational rules.",
+        "icon": "fa-solid fa-gavel",
+        "color": "#78909c",
+        "details_schema": [
+            {"name": "policy_landscape", "label": "Internal Policy Landscape", "type": "textarea", "placeholder": "Describe the overall internal policy environment relevant to this COS."}
+        ],
+        "resource_schema": [
+            {"key": "policy_name", "label": "Policy / Guideline Name", "type": "text"},
+            {"key": "governing_dept", "label": "Governing Department", "type": "text"},
+            {"key": "implication", "label": "Implication for Project", "type": "textarea"}
+        ]
+    },
+    "Legislation": {
+        "definition": "A workspace for tracking and analyzing external legal considerations, regulations, and laws.",
+        "icon": "fa-solid fa-balance-scale",
+        "color": "#546e7a",
+        "details_schema": [
+            {"name": "legal_summary", "label": "Legal & Compliance Strategy", "type": "textarea", "placeholder": "Outline the approach to legal and compliance matters."}
+        ],
+        "resource_schema": [
+            {"key": "legal_requirement", "label": "Legal Requirement / Regulation", "type": "text"},
+            {"key": "governing_body", "label": "Governing Body (e.g., FDA, EMA)", "type": "text"},
+            {"key": "jurisdiction", "label": "Jurisdiction", "type": "text"},
+            {"key": "compliance_status", "label": "Compliance Status", "type": "select", "options": ["Compliant", "In Review", "Action Required"]}
+        ]
+    },
+    "Environment": {
+        "definition": "A workspace for analyzing physical, systemic, or market environment factors.",
+        "icon": "fa-solid fa-leaf",
+        "color": "#66bb6a",
+        "details_schema": [
+            {"name": "sustainability_statement", "label": "Sustainability/Impact Statement", "type": "textarea", "placeholder": "Summarize the project's overall environmental or market impact goals."}
+        ],
+        "resource_schema": [
+            {"key": "factor", "label": "Environmental Factor", "type": "text"},
+            {"key": "impact_assessment", "label": "Impact Assessment", "type": "textarea"},
+            {"key": "mitigation_strategy", "label": "Mitigation Strategy", "type": "textarea"}
+        ]
     },
     "Opportunity": {
-        "definition": "Identifies opportunities that can enhance the COS.",
+        "definition": "A workspace for identifying and planning how to capitalize on potential positive outcomes, innovations, or advantages.",
         "icon": "fa-solid fa-lightbulb",
-        "color": "#26c6da",  # Bright Cyan (Analogous)
-        "modal_config": {
-            "fields": [
-                {"type": "text", "name": "opportunity_name", "placeholder": "Opportunity Name"},
-                {"type": "textarea", "name": "opportunity_description", "placeholder": "Opportunity Description"},
-                {"type": "text", "name": "exploitation_plan", "placeholder": "Exploitation Plan"}
-            ],
-            "explanation": "Detail opportunities and strategies to capitalize on them for the COS.",
-            "ai_context": "Identify opportunities and provide strategies to exploit them for the COS."
-        },
-        "tabulator_config": {
-            "columns": [
-                {"title": "Opportunity Name", "field": "opportunity_name", "editor": "input"},
-                {"title": "Opportunity Description", "field": "opportunity_description", "editor": "textarea"},
-                {"title": "Exploitation Plan", "field": "exploitation_plan", "editor": "input"}
-            ]
-        }
+        "color": "#26c6da",
+        "details_schema": [
+            {"name": "opportunity_summary", "label": "Opportunity Landscape", "type": "textarea", "placeholder": "Summarize the key opportunities that could be pursued in relation to this COS."}
+        ],
+        "resource_schema": [
+            {"key": "opportunity_title", "label": "Opportunity", "type": "text"},
+            {"key": "potential_value", "label": "Potential Value / Upside", "type": "text"},
+            {"key": "exploitation_plan", "label": "Exploitation Plan", "type": "textarea"}
+        ]
+    },
+     "Advocacy": {
+        "definition": "A workspace for planning and tracking efforts to build support, influence opinion, and secure buy-in.",
+        "icon": "fa-solid fa-bullhorn",
+        "color": "#ff7043",
+        "details_schema": [
+            {"name": "campaign_goal", "label": "Primary Campaign Goal", "type": "textarea", "placeholder": "What is the single most important outcome of this advocacy effort?"}
+        ],
+        "resource_schema": [
+            {"key": "initiative_name", "label": "Initiative Name", "type": "text"},
+            {"key": "target_audience", "label": "Target Audience", "type": "text"},
+            {"key": "key_message", "label": "Key Message", "type": "textarea"},
+            {"key": "status", "label": "Status", "type": "select", "options": ["Planning", "Active", "Completed"]}
+        ]
+    },
+    "Resource": {
+        "definition": "A workspace for listing and managing the tangible or intangible resources and assets required for the COS.",
+        "icon": "fa-solid fa-tools",
+        "color": "#8d6e63",
+        "details_schema": [
+            {"name": "resource_summary", "label": "Resource Allocation Summary", "type": "textarea", "placeholder": "Provide a high-level summary of resource needs, dependencies, and budget considerations."}
+        ],
+        "resource_schema": [
+            {"key": "resource_name", "label": "Resource Name", "type": "text"},
+            {"key": "resource_type", "label": "Type", "type": "select", "options": ["Funding", "Personnel", "Equipment", "Software", "Data"]},
+            {"key": "quantity", "label": "Quantity/Amount", "type": "text"},
+            {"key": "status", "label": "Allocation Status", "type": "select", "options": ["Requested", "Approved", "Allocated"]}
+        ]
     }
 }
 
-def get_valid_node_types():  
-    return list(NODES.keys()) 
+def get_valid_node_types():
+    """Returns a list of all valid node type keys."""
+    return list(NODES.keys())

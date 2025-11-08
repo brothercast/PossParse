@@ -355,44 +355,56 @@ function createCosTableRow(cos) {
 }
 
 
+/**
+ * Handles the click event on a CE pill. Gathers context, fetches the new 
+ * "Node Application" modal from the server, and triggers its display.
+ * @param {HTMLElement} pill - The CE pill element that was clicked.
+ */
+/**
+ * Handles the click event on a CE pill. Gathers context and calls displayCEModal.
+ * This is now a simple "launcher" for the Node Application.
+ * @param {HTMLElement} pill - The CE pill element that was clicked.
+ */
 function handleCEPillClick(pill) {
     const ceId = pill.dataset.ceId;
-    if (!ceId) return;
-
-    showLoadingSpinner("Analyzing Conditional Element...");
-
     const ceType = pill.dataset.ceType || "Default";
-    const cosRow = pill.closest('.cos-row');
-    const cosContentDisplay = cosRow?.querySelector('.cos-content-display');
-    const cosContextContent = cosContentDisplay?.innerHTML || '';
+    showLoadingSpinner(`Loading ${ceType} Application...`, window.NODES[ceType]?.icon);
 
+    const cosRow = pill.closest('.cos-row');
+    const ssolGoal = document.querySelector('#ssol-goal')?.textContent.trim() || "SSOL Goal Not Available";
+    const cosContextContent = cosRow?.querySelector('.cos-content-display')?.innerHTML || 'COS content not found.';
     const accordionItem = cosRow?.closest('.accordion-item');
-    const phaseButton = accordionItem?.querySelector('.accordion-header .accordion-button');
-    const phaseName = phaseButton?.textContent.trim().replace(/\s*PHASE\s*$/i, "").trim() || "Unknown Phase";
-    
+    const phaseName = accordionItem?.querySelector('.accordion-header .accordion-button')?.textContent.trim().replace(/\s*PHASE\s*$/i, "").trim() || "Unknown Phase";
     const phaseIndex = accordionItem ? Array.from(accordionItem.parentElement.children).indexOf(accordionItem) : 0;
 
-    const ssolGoal = document.querySelector('#ssol-goal')?.textContent.trim() || "SSOL Goal Not Available";
-
-    const payload = { ce_id: ceId, cos_content: cosContextContent, phase_name: phaseName, phase_index: phaseIndex, ssol_goal: ssolGoal };
+    const payload = { 
+        ce_id: ceId, 
+        cos_content: cosContextContent, 
+        phase_name: phaseName, 
+        phase_index: phaseIndex, 
+        ssol_goal: ssolGoal 
+    };
 
     fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify(payload)
     })
-    .then(handleApiResponse)
+    .then(response => {
+        if (!response.ok) return response.json().then(err => { throw new Error(err.error) });
+        return response.json();
+    })
     .then(data => {
-        if (data.modal_html) {
-            // --- BUG FIX #2: Pass both the modal HTML and the ceId ---
-            displayCEModal(data.modal_html, ceId);
+        if (data.modal_html && data.ce_data) {
+            // Pass control to the main application controller
+            displayCEModal(data.modal_html, ceId, ceType, data.ce_data);
         } else {
-            throw new Error(data.error || 'Modal HTML content not found.');
+            throw new Error(data.error || 'Server response was missing required data.');
         }
     })
     .catch(error => {
         console.error('Error fetching or displaying CE modal:', error);
-        alert(`Error: ${error.message}`);
+        alert(`Could not load application. Error: ${error.message}`);
     })
     .finally(() => {
         hideLoadingSpinner();

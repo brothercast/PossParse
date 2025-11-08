@@ -1,494 +1,158 @@
-# utilities.py (Complete, Refactored - Version for SSPEC PossPath)
-import io
-import os
-import re
-import html
-import json
-import time # Keep if any time-related utilities are planned
-import uuid
+# utilities.py
+
 import logging
-import warnings # Keep if warnings module is used explicitly
-from uuid import uuid4, UUID # Ensure UUID is imported
-from PIL import Image # Keep for image processing if any (not directly used here now)
-from bs4 import BeautifulSoup
-from dotenv import load_dotenv
-from ce_nodes import get_valid_node_types # NODES definition is in ce_nodes.py
-from flask import current_app, flash, render_template, url_for # Added url_for
-import asyncio
-import aiohttp # Keep if direct aiohttp calls are made (not in current scope)
-# requests import was likely for old DALL-E, can be removed if not used elsewhere
-# from google.generativeai import types # Used in ai_service.py, not directly here
-from ai_service import generate_image # Import for Gemini image generation
+import json
+import re
+import uuid
+import os
+import shutil
+from typing import Dict, Any, List
 
-load_dotenv()
+from flask import current_app
 
-# --- COS Analysis (Utility version - consider centralizing with speculate.analyze_cos) ---
-async def analyze_cos(cos_content: str, cos_id: str = None) -> dict:
+# Import the high-level functions from YOUR ai_service.py
+from ai_service import generate_chat_response, get_grounded_data, generate_image
+
+# Local Imports
+from ce_nodes import NODES, get_valid_node_types
+from models import SSOL, COS, CE
+
+# --- Logging Setup ---
+logging.basicConfig(level=logging.INFO)
+
+# --- SSPEC Methodology Context ---
+
+def get_sspec_scenario() -> str:
+    """Returns the SSPEC methodology description for AI context."""
+    return """
+    The SSPEC methodology is a structured approach to problem-solving.
+    It involves defining a Strategic Solution aLignment (SSOL), which is a high-level goal,
+    broken into five phases: Discovery, Engagement, Action, Completion, and Legacy.
+    Each phase contains Conditions of Satisfaction (COS), which are verifiable requirements.
+    Each COS is further detailed by Conditional Elements (CEs) using specialized node types.
     """
-    Analyzes COS content using AI to identify CEs.
-    This version is kept in utilities.py as it might be called by routes.py.
-    Returns: {'content_with_ce': <html_string_with_pills>, 'ces': [<ce_data_dict>, ...]}
+
+# --- GOAL SELECTION & INPUT ANALYSIS FUNCTIONS ---
+
+async def generate_goal(user_input: str) -> List[Dict]:
     """
-    from ai_service import generate_chat_response_with_node_types # Local import
-    from ce_templates import replace_ce_tags_with_pills # Local import
+    Generates three goal options from user input and robustly validates the structure.
+    """
+    prompt = f"""Based on the user input '{user_input}', generate three distinct, high-level goal options. Each goal must be a JSON object with these exact keys: "domain", "title", "goal", "icon", "is_compliant". The "icon" must be a Font Awesome class. "is_compliant" must be a boolean."""
+    
+    system_instruction = "You are a JSON-only API. Your entire response MUST be a single, raw, valid JSON array of three objects. Do not use markdown ```json blocks. Do not add any introductory text. All keys and all string values MUST be enclosed in double quotes."
 
-    current_app.logger.debug(f"utilities.analyze_cos called for cos_id: {cos_id} with content: '{cos_content[:100]}...'")
-
-    # AI Prompt to get text with <ce> tags AND a list of identified CEs
-    prompt = (
-        f"Analyze the following Condition of Satisfaction (COS) text: '{cos_content}'. "
-        "Identify all Conditional Elements (CEs) within this text. "
-        "A CE is a specific part of the COS that requires further detail or action. "
-        f"For each CE found, determine its most appropriate 'NodeType' from this list ONLY: {', '.join(get_valid_node_types())}. "
-        "Your response MUST be a valid JSON object with two keys: "
-        "'analyzed_cos_text': This should be the original COS text but with each identified CE " # AI embeds tags
-        "wrapped in <ce type='NodeType'>Your CE Text Here</ce> tags. "
-        "And 'identified_ces': an array of objects, where each object represents a CE and has 'text' and 'type' keys. "
-        "Example JSON: "
-        '{'
-        '  "analyzed_cos_text": "The <ce type=\'Research\'>literature review</ce> must be completed and <ce type=\'Stakeholder\'>key experts</ce> identified.",'
-        '  "identified_ces": ['
-        '    {"text": "literature review", "type": "Research"},'
-        '    {"text": "key experts", "type": "Stakeholder"}'
-        '  ]'
-        '}'
-    )
-
-    messages = [
-        {"role": "system", "content": "You are an expert in analyzing text to identify conditional elements and structure them in JSON. Ensure NodeTypes are from the provided list. The 'analyzed_cos_text' MUST include the <ce> tags."},
-        {"role": "user", "content": prompt},
-    ]
-    response_text = ""
     try:
-        response_text = await generate_chat_response_with_node_types(messages, role='COS Analysis', task='Analyze COS for CEs in Utilities')
-        response_json = json.loads(response_text)
+        messages = [{"role": "user", "content": prompt}]
+        response_str = await generate_chat_response(messages, role="user", task="goal generation", system_instruction=system_instruction)
+        ai_goals = json.loads(response_str)
 
-        ai_analyzed_text_with_tags = response_json.get("analyzed_cos_text", cos_content)
-        # This list is for reference or if replace_ce_tags_with_pills needs it for metadata.
-        # The pills themselves are generated from the tags in ai_analyzed_text_with_tags.
-        ai_identified_ces_list = response_json.get("identified_ces", [])
+        validated_goals = []
+        for goal in ai_goals:
+            if not isinstance(goal, dict): continue
 
-        # `replace_ce_tags_with_pills` converts <ce> tags in `ai_analyzed_text_with_tags` to HTML pills
-        # and generates unique data-ce-id for each.
-        # The second argument (list of CEs) can be used for metadata like counts.
-        ces_metadata_for_pills = []
-        for item in ai_identified_ces_list:
-            if item.get("type") in get_valid_node_types():
-                ces_metadata_for_pills.append({
-                    'content': item.get("text", ""),
-                    'node_type': item.get("type")
-                    # 'id' will be generated by replace_ce_tags_with_pills
-                })
-        
-        content_with_pills_html = replace_ce_tags_with_pills(ai_analyzed_text_with_tags, ces_metadata_for_pills)
-        
-        # Extract structured CE data from the generated pills for the return value
-        # This is what `routes.py`'s `/analyze_cos/<uuid:cos_id>` expects.
-        final_ces_structure = []
-        soup = BeautifulSoup(content_with_pills_html, 'html.parser')
-        for pill_tag in soup.find_all('span', class_='ce-pill'):
-            final_ces_structure.append({
-                'id': pill_tag.get('data-ce-id'),
-                'content': pill_tag.string.strip() if pill_tag.string else "",
-                'node_type': pill_tag.get('data-ce-type'),
-                'cos_id': cos_id # Link back if cos_id was provided
+            validated_goals.append({
+                'domain': goal.get('domain', 'General'),
+                'title': goal.get('title', 'Untitled Goal'),
+                'goal': goal.get('goal', 'No description provided.'),
+                'icon': goal.get('icon', 'fa-solid fa-question-circle'),
+                'is_compliant': goal.get('is_compliant', goal.get('iscompliant', True))
             })
-            
-        return {'content_with_ce': content_with_pills_html, 'ces': final_ces_structure}
-
-    except json.JSONDecodeError as e:
-        current_app.logger.error(f"JSONDecodeError in utilities.analyze_cos for cos_id {cos_id}. AI Response: '{response_text}'", exc_info=True)
-        return {'content_with_ce': html.escape(cos_content), 'ces': []} # Fallback
-    except Exception as e:
-        current_app.logger.error(f"Exception in utilities.analyze_cos for cos_id {cos_id}: {e}", exc_info=True)
-        return {'content_with_ce': html.escape(cos_content), 'ces': []}
-
-
-# --- Outcome Data Generation ---
-async def generate_outcome_data(USE_DATABASE: bool, request, method: str, selected_goal: str = None, domain: str = None, domain_icon: str = None, selected_goal_title: str = None):
-    from ai_service import generate_chat_response # Local import
-    from models import get_engine_and_session, SSOL # Local import
-    from store import ssol_store # Local import
-    from speculate import parse_ai_response_and_generate_html, create_ssol # Local import
-
-    outcome_data = {
-        'user_input': '',
-        'selected_goal': selected_goal, # Detailed goal text
-        'domain_icon': domain_icon,
-        'domain': domain,
-        'ssol_id': None, # Will be populated
-        'ssol_summary': "Summary generation is pending or encountered an issue.",
-        'ssol_title': selected_goal_title, # Catchy title
-        'phases': {},
-        'generated_image_path': url_for('static', filename='images/SSPEC_Logo_Motion.gif') # Default placeholder
-    }
-
-    user_input_from_form = request.form.get('user_text', '').strip() if method == 'POST' else request.args.get('user_text', '').strip()
-    outcome_data['user_input'] = html.escape(user_input_from_form)
-
-    # 1. Create SSOL Record and get its ID
-    try:
-        new_ssol_id_str = create_ssol(USE_DATABASE, title=selected_goal_title, description=selected_goal)
-        outcome_data['ssol_id'] = new_ssol_id_str
-        ssol_id_uuid_for_cos = UUID(new_ssol_id_str)
-    except Exception as e:
-        current_app.logger.error(f"Failed to create SSOL for title '{selected_goal_title}': {e}", exc_info=True)
-        raise ValueError(f"SSOL creation failed: {str(e)}") from e
-
-    current_app.logger.info(f"SSOL created with ID: {new_ssol_id_str}. Generating outcome data for goal: '{selected_goal_title}'")
-
-    # Sanitize display inputs
-    selected_goal_display = html.escape(selected_goal) if selected_goal else ""
-    domain_display = html.escape(domain) if domain else ""
-
-    # 2. Generate Summary for the SSOL
-    summary_prompt = (
-        f"Generate a **detailed but concise summary** for the Structured Solution project: '{selected_goal_title}' (Full goal: '{selected_goal_display}'). "
-        f"This summary MUST provide a **comprehensive overview** and **use basic HTML markup for formatting** (`<p>`, `<ol>`, `<li>`, `<b>`, `<strong>`, `<i>`, `<em>`).\n"
-        f"Return a JSON object with a SINGLE KEY 'summary', containing the summary text **with HTML markup**. "
-    )
-    summary_messages = [{"role": "user", "content": summary_prompt}]
-    try:
-        current_app.logger.info(f"Generating summary for SSOL ID: {new_ssol_id_str}...")
-        summary_response_text = await generate_chat_response(summary_messages, role='Outcome Summary', task='Generate SSOL Summary')
-        summary_data = json.loads(summary_response_text)
-        generated_summary_html = summary_data.get('summary', "Summary not available.")
-        outcome_data['ssol_summary'] = generated_summary_html
         
-        # Update the SSOL record with the generated summary
-        if USE_DATABASE:
-            with current_app.app_context():
-                engine, SessionLocal = get_engine_and_session()
-                session = SessionLocal()
-                try:
-                    ssol_to_update = session.query(SSOL).get(ssol_id_uuid_for_cos)
-                    if ssol_to_update:
-                        ssol_to_update.description = generated_summary_html
-                        session.commit()
-                except Exception as db_exc:
-                    session.rollback()
-                    current_app.logger.error(f"DB error updating SSOL summary: {db_exc}", exc_info=True)
-                finally:
-                    session.close()
-        else: # In-memory
-            if new_ssol_id_str in ssol_store:
-                ssol_store[new_ssol_id_str]['description'] = generated_summary_html
+        logging.info(f"Validated and returning {len(validated_goals)} goal options.")
+        return validated_goals
+
     except Exception as e:
-        current_app.logger.error(f"Error generating/updating summary (SSOL {new_ssol_id_str}): {e}", exc_info=True)
+        logging.error(f"Error in generate_goal: {e}", exc_info=True)
+        return []
 
-
-    # 3. Generate Structured Solution (Phases, COS, and initial CEs) with RETRY LOGIC
-    structured_solution_prompt = (
-        f"You are an expert in structured problem-solving (SSPEC PossPath). Generate a concise Structured Solution for: '{selected_goal_title}' (Full goal: '{html.escape(selected_goal)}').\n"
-        f"Organize into phases: Discovery, Engagement, Action, Completion, Legacy.\n"
-        f"For EACH phase, generate 1-3 Conditions of Satisfaction (COS).\n"
-        f"Within each COS sentence, embed 'Conditional Elements' (CEs) by wrapping them in `<ce type='NodeType'>CE Text</ce>` tags. "
-        f"Valid 'NodeType' values: {', '.join(get_valid_node_types())}. Choose the most contextually appropriate NodeType.\n"
-        f"Output a JSON object. Keys are phase names (e.g., \"Discovery\"). Values are arrays of COS objects.\n"
-        f"Each COS object MUST have ONE key: 'content', with the full COS text including `<ce>` tags.\n"
-        f"Example: {{ \"Discovery\": [{{\"content\": \"Identify <ce type='Stakeholder'>key groups</ce>.\"}}] }}\n"
-        f"Ensure valid JSON. Do NOT include 'id' or 'status' for COS objects in this JSON output."
-    )
-    structured_solution_messages = [{"role": "user", "content": structured_solution_prompt}]
-    
-    max_retries = 3
-    retry_delay_seconds = 2
-    structured_solution_json_from_ai = None
-
-    for attempt in range(max_retries):
-        structured_solution_response_text = ""
-        try:
-            current_app.logger.info(f"Generating structured solution (Attempt {attempt + 1}/{max_retries}) for SSOL ID: {new_ssol_id_str}...")
-            structured_solution_response_text = await generate_chat_response(
-                structured_solution_messages, 
-                role='Structured Solution', 
-                task='Generate Phases and COS with CEs'
-            )
-            
-            # --- FIX: Robustly extract JSON from potential markdown blocks ---
-            json_text = structured_solution_response_text
-            match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", structured_solution_response_text)
-            if match:
-                json_text = match.group(1).strip()
-            else: # If no markdown, find the main JSON object
-                start = structured_solution_response_text.find('{')
-                end = structured_solution_response_text.rfind('}')
-                if start != -1 and end != -1 and end > start:
-                    json_text = structured_solution_response_text[start:end+1]
-
-            structured_solution_json_from_ai = json.loads(json_text)
-            current_app.logger.info(f"Successfully parsed structured solution on attempt {attempt + 1}.")
-            break 
-            
-        except json.JSONDecodeError as e:
-            current_app.logger.error(f"JSON decoding error for structured solution (Attempt {attempt + 1}). AI Response: {structured_solution_response_text}", exc_info=True)
-            if attempt < max_retries - 1:
-                await asyncio.sleep(retry_delay_seconds)
-            else:
-                current_app.logger.error("All retries failed for generating structured solution.")
-                outcome_data['phases'] = {}
-                
-        except Exception as e:
-            current_app.logger.error(f"General error generating structured solution (Attempt {attempt + 1}): {e}", exc_info=True)
-            if attempt < max_retries - 1:
-                await asyncio.sleep(retry_delay_seconds)
-            else:
-                 current_app.logger.error("All retries failed for generating structured solution.")
-                 outcome_data['phases'] = {}
-
-    if isinstance(structured_solution_json_from_ai, dict):
-        outcome_data['phases'] = parse_ai_response_and_generate_html(
-            USE_DATABASE,
-            structured_solution_json_from_ai,
-            ssol_id_uuid_for_cos
-        )
-        current_app.logger.info(f"Structured solution (COS/CEs) processed and saved for SSOL ID: {new_ssol_id_str}.")
-    else:
-        current_app.logger.error(f"Failed to generate structured solution after all retries. Final response was not a valid dictionary.")
-        outcome_data['phases'] = {}
-
-    current_app.logger.info(f"Outcome data generation process complete for SSOL ID: {new_ssol_id_str}.")
-    return outcome_data
-
-
-# --- User Input Analysis ---
-async def analyze_user_input(text: str) -> list:
-    from ai_service import generate_chat_response # Local import
-    messages = [
-        {"role": "system", "content": "You are an AI that analyzes user inputs and extracts relevant keywords. Respond with a JSON array of strings. Example: [\"keyword1\", \"keyword2\"]"},
-        {"role": "user", "content": f"Extract keywords from: '{text}'"},
-    ]
-    response_text = ""
+async def analyze_user_input(user_text: str) -> List[str]:
+    """Analyzes user input and extracts key themes/keywords."""
+    prompt = f'Analyze the following text and extract 3-5 key themes or keywords. Text: "{user_text}". Return as a JSON object with a single key "keywords" containing an array of strings.'
     try:
-        response_text = await generate_chat_response(messages, role='Keyword Extraction', task='Extract Keywords', temperature=0.5)
-        keywords = json.loads(response_text)
-        if not isinstance(keywords, list):
-            keywords = [str(kw).strip() for kw in response_text.split(',') if kw.strip()] # Fallback
-        return keywords
+        messages = [{"role": "user", "content": prompt}]
+        response_str = await generate_chat_response(messages, role="user", task="keyword extraction")
+        result = json.loads(response_str)
+        return result.get('keywords', [])
     except Exception as e:
-        current_app.logger.error(f"Error in analyze_user_input: {e}", exc_info=True)
-        return [text] # Fallback
+        logging.error(f"Error in analyze_user_input: {e}", exc_info=True)
+        return []
 
-# --- REMOVED: Deprecated sentiment analysis function ---
-# async def generate_sentiment_analysis(text: str, temperature: float = 0.7) -> str: ...
-
-# --- NEW: Doctrine-based Safety Pre-Check ---
-async def is_input_compliant(text: str) -> dict:
+async def is_input_compliant(user_text: str) -> dict:
     """
-    Checks if user input complies with the safety doctrine.
-    Returns a dictionary: {'compliant': bool, 'reason': str}
+    Checks if user input is appropriate and constructive.
     """
-    from ai_service import generate_chat_response # Local import
-    
-    # This prompt is based directly on your provided safety doctrine.
-    safety_check_prompt = f"""
-        Analyze the user's input based on the following immutable safety protocol:
-        "Freedom from those conditions that can cause physical, psychological, or social harm to people, 
-        including but not limited to injury, illness, distress, misinformation, radicalization, death, 
-        damage to or loss of property or opportunity, or damage to the environment."
-
-        User Input: "{text}"
-
-        Based on this protocol, classify the input as either "SAFE" or "UNSAFE".
-        Your response MUST be a valid JSON object with a single key "classification".
-        Example for a safe input: {{"classification": "SAFE"}}
-        Example for an unsafe input: {{"classification": "UNSAFE"}}
+    prompt = f"""
+    Analyze the following user input for compliance with safety and constructive use policies.
+    The input should not contain harmful content, hate speech, illegal activities, or be nonsensical.
+    Text: "{user_text}"
+    Return a JSON object with two keys: "compliant" (boolean) and "reason" (a brief, user-friendly explanation ONLY if non-compliant).
     """
-    messages = [{"role": "user", "content": safety_check_prompt}]
-    
     try:
-        response_text = await generate_chat_response(messages, role='Safety Check', task='Classify Input Compliance')
-        response_json = json.loads(response_text)
-        classification = response_json.get("classification", "UNSAFE").upper()
-        
-        if classification == "SAFE":
-            return {'compliant': True, 'reason': 'Input is compliant with safety protocols.'}
+        messages = [{"role": "user", "content": prompt}]
+        response_str = await generate_chat_response(messages, role="user", task="compliance check")
+        result = json.loads(response_str)
+        return {
+            "compliant": result.get('compliant', True),
+            "reason": result.get('reason', '')
+        }
+    except Exception as e:
+        logging.error(f"Error in is_input_compliant: {e}", exc_info=True)
+        return {"compliant": False, "reason": "Could not be analyzed due to a system error."}
+
+# --- OUTCOME & SSOL GENERATION ---
+
+async def generate_outcome_data(ssol_title, ssol_description, domain):
+    """Generates the structured SSOL data (Summary, Phases, COS, CEs) using the AI."""
+    node_types_str = ', '.join(get_valid_node_types())
+    # --- FIX: Modified prompt to request the structure routes.py expects ---
+    prompt = f"""
+    Generate a structured solution for this goal: '{ssol_title}' in the domain of '{domain}'.
+    {get_sspec_scenario()}
+    Your response MUST be a single valid JSON object with TWO top-level keys: 'ssolsummary' and 'phases'.
+    1. 'ssolsummary': A comprehensive overview of the solution, using basic HTML markup for formatting.
+    2. 'phases': An object containing a key for each of the 5 project phases (Discovery, Engagement, Action, Completion, Legacy).
+    For each phase, the value should be an array of 2-3 Condition of Satisfaction (COS) strings.
+    Within each COS string, embed relevant Conditional Elements (CEs) by wrapping them in <ce type="NodeType">CE text</ce> tags.
+    Use ONLY these NodeTypes: {node_types_str}.
+    Example structure: {{"ssolsummary": "<p>Summary here.</p>", "phases": {{"Discovery": ["The <ce type='Research'>market analysis</ce> must be done."], "Engagement": [...]}}}}
+    """
+    messages = [{"role": "user", "content": prompt}]
+    response_str = await generate_chat_response(messages, role="user", task="ssol generation", temperature=0.7)
+    return json.loads(response_str)
+
+# --- CE DATA GENERATION ---
+
+async def generate_ai_data(
+    node_type: str, 
+    cos_content: str, 
+    ssol_goal: str, 
+    agent_mode: str = 'context'
+) -> dict:
+    """
+    Orchestrates AI data generation for CE modals.
+    """
+    node_config = NODES.get(node_type, NODES['Default'])
+    query_context = f"The overall goal is '{ssol_goal}' and the specific requirement is '{cos_content}'."
+    try:
+        if agent_mode == 'speculate':
+            resource_keys = [f"'{f['key']}'" for f in node_config.get('resource_schema', [])]
+            query = f"Find 3 diverse, relevant resources for a '{node_type}' element, considering this context: {query_context}. For each resource, extract data for the following fields: {', '.join(resource_keys)}."
+            return await get_grounded_data(query, node_type)
         else:
-            return {'compliant': False, 'reason': 'Input was classified as non-compliant with safety protocols.'}
-
-    except Exception as e:
-        current_app.logger.error(f"Error in is_input_compliant: {e}. Defaulting to non-compliant.", exc_info=True)
-        # Default to non-compliant in case of any error during the check
-        return {'compliant': False, 'reason': 'An error occurred during safety analysis.'}
-
-
-# --- Goal Generation (Updated with Safety Pre-Check) ---
-async def generate_goal(user_input: str) -> list:
-    from ai_service import generate_chat_response # Local import
-
-    # --- NEW: Perform safety check first ---
-    compliance_check = await is_input_compliant(user_input)
-    if not compliance_check['compliant']:
-        current_app.logger.warning(f"User input rejected by safety protocol: '{user_input}'. Reason: {compliance_check['reason']}")
-        return [
-            {
-                'title': 'Input Non-Compliant',
-                'goal': 'The provided input does not comply with the safety protocol, which prevents harm, distress, or the promotion of unsafe acts. Please revise your input.',
-                'domain': 'Safety Protocol',
-                'icon': 'fas fa-shield-alt',
-                'is_compliant': False
-            },
-            {
-                'title': 'Input Non-Compliant',
-                'goal': 'The provided input does not comply with the safety protocol, which prevents harm, distress, or the promotion of unsafe acts. Please revise your input.',
-                'domain': 'Safety Protocol',
-                'icon': 'fas fa-exclamation-triangle',
-                'is_compliant': False
-            },
-            {
-                'title': 'Input Non-Compliant',
-                'goal': 'The provided input does not comply with the safety protocol, which prevents harm, distress, or the promotion of unsafe acts. Please revise your input.',
-                'domain': 'Safety Protocol',
-                'icon': 'fas fa-ban',
-                'is_compliant': False
-            }
-        ]
-
-    # If compliant, proceed with goal generation
-    system_message_content = (
-        "You are an AI that generates three innovative and *distinct* goal outcomes based on user input. "
-        "For EACH goal, you MUST provide: "
-        "1. 'title': A short, enlivening title (3-7 words), catchy and enrolling. "
-        "2. 'goal': A more detailed goal description (1-3 sentences). "
-        "3. 'domain': A relevant general category (e.g., 'Technology', 'Health', 'Art', NOT a URL). "
-        "4. 'icon': A corresponding FontAwesome 6 Solid (fas) icon class (e.g., 'fas fa-rocket'). "
-        "Return a valid JSON array of exactly three objects. Each object MUST have 'title', 'goal', 'domain', and 'icon' keys. "
-    )
-
-    async def generate_single_set(temp: float):
-        messages = [{"role": "user", "content": system_message_content + f"\n\nUser input: '{user_input}'"}]
-        try:
-            response_text = await generate_chat_response(messages, role='Goal Generation', task='Generate Goal Options', temperature=temp)
-            goal_options = json.loads(response_text)
-            if isinstance(goal_options, list) and all(isinstance(g, dict) and all(k in g for k in ['title', 'goal', 'domain', 'icon']) for g in goal_options) and len(goal_options) > 0:
-                # --- MODIFIED: Add compliance flag ---
-                for goal in goal_options:
-                    goal['is_compliant'] = True
-                return goal_options[:3]
-            return []
-        except Exception as e:
-            logging.error(f"Error in generate_single_set (temp {temp}): {e}", exc_info=True)
-            return []
-
-    all_goals = await generate_single_set(temp=0.75)
-    if not all_goals or len(all_goals) < 3:
-        more_goals = await generate_single_set(temp=0.6)
-        seen_titles = {g['title'] for g in all_goals}
-        for g in more_goals:
-            if g['title'] not in seen_titles:
-                all_goals.append(g)
-                if len(all_goals) >= 3: break
-    
-    if not all_goals:
-        return [{'title': f"Define: {user_input[:30].strip()}", 'goal': f"Clearly define and scope the possibility related to '{user_input}'.", 'domain': "General", 'icon': "fas fa-lightbulb", 'is_compliant': True}]
-    
-    # Ensure all goals have the compliance flag
-    for goal in all_goals:
-        goal['is_compliant'] = True
-        
-    return all_goals[:3]
-
-
-# --- Filename Sanitization ---
-def sanitize_filename(filename: str) -> str:
-    if not filename: return ""
-    filename = re.sub(r'[<>:"/\\|?*\x00-\x1F]', '', filename)
-    filename = re.sub(r'[\s]+', '_', filename)
-    return filename[:100] # Keep filename length reasonable
-
-
-# --- SSOL Image Generation & Naming ---
-async def generate_ssol_image(prompt: str, ssol_id=None):
-    """
-    Generates an image using ai_service.generate_image and attempts to rename it
-    based on ssol_id for better organization. Returns the web path to the image.
-    """
-    try:
-        # ai_generate_image from ai_service now handles its own errors and returns a default path
-        temp_web_path = await generate_image(prompt)
-
-        # If it returned the default, no need to rename
-        if 'sspec_default.png' in temp_web_path:
-            current_app.logger.info(f"SSOL Image generation resulted in default image.")
-            return temp_web_path
-
-        if ssol_id:
-            original_filename = os.path.basename(temp_web_path)
-            # Path needs to be constructed relative to static folder
-            original_fs_path = os.path.join(current_app.static_folder, *temp_web_path.split('/'))
-
-            safe_ssol_id_part = sanitize_filename(str(ssol_id))
-            _, extension = os.path.splitext(original_filename)
-            if not extension: extension = '.png'
-
-            new_image_filename = f"ssol_image_{safe_ssol_id_part}{extension}"
-            new_fs_path = os.path.join(current_app.static_folder, 'images', new_image_filename)
+            if agent_mode == 'context':
+                prompt = f"You are a strategic analyst. Briefly explain the purpose and importance of the '{node_type}' element in the context: {query_context}. Format the response as a JSON object with a single key 'contextual_description'."
+            elif agent_mode == 'generate':
+                detail_fields = [f"'{f['name']}'" for f in node_config.get('details_schema', [])]
+                prompt = f"You are a subject matter expert. Based on the context: {query_context}, generate the summary content for a {node_type} element. Provide these fields: {', '.join(detail_fields)}. Format the output as a valid JSON object."
+            else:
+                return {"error": "Invalid agent mode specified."}
             
-            try:
-                if os.path.exists(original_fs_path):
-                    os.makedirs(os.path.dirname(new_fs_path), exist_ok=True)
-                    if os.path.exists(new_fs_path) and original_fs_path != new_fs_path:
-                        os.remove(new_fs_path)
-                    os.rename(original_fs_path, new_fs_path)
-                    final_web_path = url_for('static', filename=f'images/{new_image_filename}')
-                    current_app.logger.info(f"SSOL Image renamed to: {new_image_filename}")
-                    return final_web_path
-                else:
-                    current_app.logger.warning(f"Original generated image {original_fs_path} not found for renaming.")
-                    return temp_web_path
-            except OSError as e:
-                current_app.logger.error(f"Error renaming SSOL image: {e}", exc_info=True)
-                return temp_web_path
-        else:
-            return temp_web_path
-
+            messages = [{"role": "user", "content": prompt}]
+            response_str = await generate_chat_response(messages, role="user", task=f"{agent_mode} generation", temperature=0.7)
+            return json.loads(response_str)
     except Exception as e:
-        current_app.logger.error(f"Error in generate_ssol_image utility: {e}", exc_info=True)
-        return url_for('static', filename='images/sspec_default.png') # Fallback
+        logging.error(f"Error in orchestrator generate_ai_data for mode '{agent_mode}': {e}", exc_info=True)
+        return {"error": str(e)}
 
-
-# --- SSOL ID Generation (Consider for deprecation if create_ssol is primary) ---
-def generate_ssol_id(USE_DATABASE: bool, selected_goal_title: str) -> str:
-    """
-    Finds an existing SSOL by title or creates a new one (minimal) and returns its ID.
-    NOTE: This might be redundant if speculate.create_ssol is the primary way to create SSOLs.
-    """
-    from models import SSOL, get_engine_and_session
-    from store import ssol_store
-    from app import app
-
-    if USE_DATABASE:
-        with app.app_context():
-            engine, SessionLocal = get_engine_and_session()
-            session = SessionLocal()
-            try:
-                ssol_instance = session.query(SSOL).filter_by(title=selected_goal_title).first()
-                if not ssol_instance:
-                    new_id = uuid.uuid4()
-                    ssol_instance = SSOL(id=new_id, title=selected_goal_title, description="Initial placeholder.")
-                    session.add(ssol_instance)
-                    session.commit()
-                    return str(new_id)
-                return str(ssol_instance.id)
-            except Exception as e:
-                session.rollback()
-                raise
-            finally:
-                session.close()
-    else: # In-memory
-        for s_id, s_data in ssol_store.items():
-            if s_data.get('title') == selected_goal_title:
-                return s_id
-        new_id_str = str(uuid.uuid4())
-        ssol_store[new_id_str] = {'id': new_id_str, 'title': selected_goal_title, 'description': "Initial placeholder.", 'phases': {}}
-        return new_id_str
-
-
-# --- Badge Class for Status ---
-def get_badge_class_from_status(status: str) -> str:
-   return {
-       'Proposed': 'bg-info',
-       'In Progress': 'bg-warning text-dark',
-       'Completed': 'bg-success',
-       'Rejected': 'bg-danger'
-   }.get(status, 'bg-secondary')
+# --- HELPER UTILITIES ---

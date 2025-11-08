@@ -1,0 +1,4260 @@
+Changelog Summary (Version 202502260092):
+Here's a concise summary of the changes between SSPEC PossPath essential files version `202502260091` and `202502260092`:
+
+*   **Version Number Update:** The overall project version has been incremented from `202502260091` to `202502260092`.
+*   **No Functional Code Changes:** A detailed comparison of the provided `ce_cards.js`, `models.py`, and `cos_table.js` files reveals *no functional code modifications or improvements* between version `202502260091` and `202502260092`. The content of these files is identical in both versions.
+
+This indicates that version `202502260092` is likely a minor version bump without any changes to the core logic or functionality within these specific essential files, or the changes are in other, unprovided files.
+
+╔════════════════════════════════╗
+║ SSPEC PossPath Essential Files ║
+║ Date: 2025-11-04               ║
+║ Version: 202502260092          ║
+╚════════════════════════════════╝🌐 Structured Speculation Possibility Pathfinder ("SSPEC PossPath") for short.
+Your task is to develop the Flask Web App as an innovative tool for mass collaboration.
+Essential app files:
+🔵 ce_cards.js:
+// ce_cards.js (Refactored as the "Node Application" Controller)
+
+import { showLoadingSpinner, hideLoadingSpinner } from './base_functions.js';
+
+// --- Helper Functions ---
+
+/**
+ * Extracts data from a form into a key-value object.
+ * @param {HTMLFormElement} form - The form element to extract data from.
+ * @returns {object} The form data as an object.
+ */
+function getFormData(form) {
+    if (!form) return {};
+    const formData = new FormData(form);
+    const data = {};
+    formData.forEach((value, key) => { data[key] = value; });
+    return data;
+}
+
+/**
+ * Clears all input fields within a given form selector.
+ * @param {string} formSelector - The CSS selector for the form.
+ */
+function clearFormFields(formSelector) {
+    const form = document.querySelector(formSelector);
+    if (form) {
+        form.querySelectorAll('input, textarea, select').forEach(field => {
+            field.value = '';
+        });
+    }
+}
+
+/**
+ * Saves all changes from the Node Application to the backend.
+ * @param {string} ceId - The ID of the Conditional Element being saved.
+ * @param {HTMLElement} modalElement - The main modal DOM element.
+ */
+function saveCEChanges(ceId, modalElement) {
+    const table = modalElement._tabulator;
+    const saveButton = modalElement.querySelector('.btn-save-changes');
+
+    // Package the data into the new format expected by the backend.
+    const finalData = {
+        resources: table ? table.getData() : [],
+        details_data: {} // Reserved for future top-level details form
+    };
+
+    const originalButtonHtml = saveButton.innerHTML;
+    saveButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Saving...`;
+    saveButton.disabled = true;
+
+    fetch(`/update_ce/${ceId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(finalData)
+    })
+    .then(response => {
+        if (!response.ok) return response.json().then(err => { throw new Error(err.error || 'Save failed'); });
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            console.log(`CE ${ceId} saved successfully.`);
+            modalElement.dataset.hasUnsavedChanges = 'false';
+            bootstrap.Modal.getInstance(modalElement).hide();
+        } else {
+            throw new Error(data.error || 'An unknown error occurred on the server.');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving CE:', error);
+        alert(`Save Failed: ${error.message}`);
+    })
+    .finally(() => {
+        saveButton.innerHTML = originalButtonHtml;
+        saveButton.disabled = false;
+    });
+}
+
+/**
+ * Initializes the Tabulator table and wires up the "click-to-edit" workflow.
+ * @param {HTMLElement} modalElement - The main modal DOM element.
+ * @param {string} ceId - The ID of the current CE.
+ * @param {string} p_ceType - The NodeType of the CE.
+ * @param {Array} initialResources - The array of resource data to load.
+ */
+function initializeAndWireUpTable(modalElement, ceId, p_ceType, initialResources) {
+    const tableElementId = `#dynamicTable-${ceId}`;
+    const form = modalElement.querySelector(`#ceForm-${ceId}`);
+    const detailsPill = modalElement.querySelector(`a[href="#view-details-${ceId}"]`);
+    const addOrUpdateButton = modalElement.querySelector(`#addOrUpdateButton-${ceId}`);
+    const formHelperText = modalElement.querySelector(`#form-helper-text-${ceId}`);
+
+    const nodeConfig = NODES[p_ceType] || NODES['Default'];
+    const columns = [
+        {formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:40},
+        ...nodeConfig.resource_schema
+    ];
+
+    const table = new Tabulator(tableElementId, {
+        data: initialResources,
+        columns: columns,
+        layout: "fitColumns",
+        height: "100%", // Critical fix for table visibility
+        rowClick: function(e, row) {
+            const rowData = row.getData();
+            
+            // Populate the Details form with the clicked row's data
+            Object.keys(rowData).forEach(key => {
+                const input = form.querySelector(`[name="${key}"]`);
+                if (input) input.value = rowData[key] || '';
+            });
+
+            // Put the form into "edit" mode
+            form.setAttribute('data-editing-row-id', row.getIndex());
+            addOrUpdateButton.innerHTML = `<i class="fas fa-save"></i> Update Resource`;
+            formHelperText.textContent = `You are editing an existing resource. Click to save changes.`;
+            
+            // Programmatically switch to the Details view for the user
+            new bootstrap.Tab(detailsPill).show();
+        },
+    });
+    
+    modalElement._tabulator = table;
+}
+
+/**
+ * Sets up event listeners for the new "Node Application" modal.
+ * @param {HTMLElement} modalElement The modal DOM element.
+ * @param {string} ceId - The ID of the current Conditional Element.
+ */
+function setupModalEventListeners(modalElement, ceId) {
+    const table = modalElement._tabulator;
+    const form = modalElement.querySelector(`#ceForm-${ceId}`);
+    const addOrUpdateButton = modalElement.querySelector(`#addOrUpdateButton-${ceId}`);
+    const saveChangesButton = modalElement.querySelector('.btn-save-changes');
+    const deleteSelectedRowsButton = modalElement.querySelector(`#deleteSelectedRowsButton-${ceId}`);
+    const resourceCounter = modalElement.querySelector('.resource-counter');
+    const formHelperText = modalElement.querySelector(`#form-helper-text-${ceId}`);
+    
+    const resetFormMode = () => {
+        clearFormFields(`#ceForm-${ceId}`);
+        addOrUpdateButton.innerHTML = `<i class="fas fa-plus"></i> Add as New Resource`;
+        formHelperText.textContent = `Click a resource from the list to edit it here.`;
+        form.removeAttribute('data-editing-row-id');
+    };
+
+    // [DETAILS VIEW] Combined "Add" or "Update" button
+    if (addOrUpdateButton) {
+        addOrUpdateButton.addEventListener('click', () => {
+            if (!table) return; // Safety check
+            const rowData = getFormData(form);
+            const editingRowId = form.getAttribute('data-editing-row-id');
+
+            if (editingRowId) {
+                // UPDATE mode
+                table.updateData([{id: editingRowId, ...rowData}]);
+            } else {
+                // ADD mode
+                table.addRow(rowData, true); // Add to top of the table
+            }
+            
+            resetFormMode();
+            resourceCounter.textContent = table.getDataCount();
+            modalElement.dataset.hasUnsavedChanges = 'true';
+        });
+    }
+
+    // [RESOURCES VIEW] Delete button
+    if (deleteSelectedRowsButton) {
+        deleteSelectedRowsButton.addEventListener('click', () => {
+            if (!table) return;
+            const selectedRows = table.getSelectedRows();
+            selectedRows.forEach(row => row.delete());
+            resourceCounter.textContent = table.getDataCount();
+            modalElement.dataset.hasUnsavedChanges = 'true';
+        });
+    }
+
+    // [FOOTER] Save button
+    if (saveChangesButton) {
+        saveChangesButton.addEventListener('click', () => saveCEChanges(ceId, modalElement));
+    }
+
+    // [MODAL-WIDE] Flag unsaved changes on any form input
+    modalElement.addEventListener('input', () => {
+        modalElement.dataset.hasUnsavedChanges = 'true';
+    });
+}
+
+/**
+ * Main function to display the modal. This is the primary export.
+ * @param {string} modalHtml - The raw HTML for the modal.
+ * @param {string} ceId - The ID of the CE.
+ * @param {string} p_ceType - The NodeType of the CE.
+ * @param {object} ceData - The full data object for the CE from the database.
+ */
+function displayCEModal(modalHtml, ceId, p_ceType, ceData) {
+    const modalContainer = document.getElementById('dynamicModalContainer');
+    modalContainer.innerHTML = modalHtml;
+
+    const modalElement = document.getElementById(`ceModal-${ceId}`);
+    if (!modalElement) {
+        console.error(`Failed to find modal element #ceModal-${ceId} after injection.`);
+        return;
+    }
+    
+    const modal = new bootstrap.Modal(modalElement);
+    
+    modalElement.addEventListener('shown.bs.modal', () => {
+        // Extract the initial resource data from the new `data` field
+        const initialResources = (ceData && ceData.data && Array.isArray(ceData.data.resources)) 
+            ? ceData.data.resources 
+            : [];
+
+        // Initialize the table and all event listeners
+        initializeAndWireUpTable(modalElement, ceId, p_ceType, initialResources);
+        setupModalEventListeners(modalElement, ceId);
+    }, { once: true });
+
+    modalElement.addEventListener('hidden.bs.modal', () => {
+        modalElement.remove();
+    });
+
+    modal.show();
+}
+
+// Export the primary function to be used by cos_table.js
+export { displayCEModal };// ce_cards.js (Refactored as the "Node Application" Controller)
+
+📆 models.py:
+# models.py
+import os
+import json
+import uuid
+from dotenv import load_dotenv
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import (create_engine, Column, String, ForeignKey, inspect, 
+                        TEXT, TypeDecorator, Text, Date) # FIX: Added Text and Date to imports
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.orm import scoped_session, sessionmaker, relationship
+from sqlalchemy.ext.declarative import declarative_base
+
+load_dotenv()
+db = SQLAlchemy()
+Base = declarative_base()
+
+
+# A generic JSON type for compatibility with different database backends (e.g., SQLite)
+class JsonEncodedDict(TypeDecorator):
+    """Enables JSON storage by encoding and decoding on the fly."""
+    impl = TEXT
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        return json.dumps(value)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        return json.loads(value)
+
+# Use the efficient native JSONB type if on PostgreSQL, otherwise use our text-based fallback.
+JsonType = JSONB if 'postgresql' in os.environ.get('SQLALCHEMY_DATABASE_URI', '') else JsonEncodedDict
+
+
+class SSOL(db.Model):
+    __tablename__ = 'ssol'
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    cos = relationship('COS', back_populates='ssol', cascade="all, delete-orphan")
+
+    def to_dict(self):
+        return {
+            'id': str(self.id),
+            'title': self.title,
+            'description': self.description,
+            'cos': [c.to_dict() for c in self.cos]
+        }
+
+class COS(db.Model):
+    __tablename__ = 'cos'
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    content = Column(Text, nullable=False)
+    status = Column(String(50), nullable=False, default='Proposed')
+    accountable_party = Column(String(255), nullable=True)
+    completion_date = Column(Date, nullable=True)
+    ssol_id = Column(UUID(as_uuid=True), ForeignKey('ssol.id'), nullable=False)
+    ssol = relationship('SSOL', back_populates='cos')
+    conditional_elements = relationship('CE', back_populates='cos', cascade="all, delete-orphan")
+
+    def to_dict(self):
+        return {
+            'id': str(self.id),
+            'content': self.content,
+            'status': self.status,
+            'accountable_party': self.accountable_party,
+            'completion_date': self.completion_date.isoformat() if self.completion_date else None,
+            'ssol_id': str(self.ssol_id),
+            'conditional_elements': [ce.to_dict() for ce in self.conditional_elements]
+        }
+
+class CE(db.Model):
+    __tablename__ = 'ce'
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    node_type = Column(String(50), nullable=False, default='Default')
+    cos_id = Column(UUID(as_uuid=True), ForeignKey('cos.id'), nullable=False)
+    cos = relationship('COS', back_populates='conditional_elements')
+
+    # --- THE CORE REFACTOR ---
+    # All flexible data is now stored in a single, extensible JSON field.
+    # The old 'content' and 'details' columns are removed.
+    # The default ensures new CEs start with the correct empty structure, preventing errors.
+    data = Column(JsonType, nullable=False, default=lambda: {"details_data": {}, "resources": []})
+
+    def to_dict(self):
+        # The to_dict method now simply returns the stored data along with the ID info.
+        return {
+            'id': str(self.id),
+            'node_type': self.node_type,
+            'cos_id': str(self.cos_id),
+            'data': self.data  # This will contain 'details_data' and 'resources'
+        }
+
+
+def get_engine_and_session():
+    engine = create_engine(os.environ.get('SQLALCHEMY_DATABASE_URI'))
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    session = scoped_session(SessionLocal)
+    return engine, session
+
+
+def create_tables_if_not_exist(engine):
+     if not inspect(engine).has_table("ssol"):
+          Base.metadata.create_all(engine)
+
+🟪 cos_table.js:
+// cos_table.js (Refactored for Simplicity and Reliability)
+import { displayCEModal } from './ce_cards.js';
+import { showLoadingSpinner, hideLoadingSpinner } from './base_functions.js';
+
+// --- Utility Functions (Unchanged) ---
+function getBadgeClassFromStatus(status) {
+    switch (status) {
+        case 'Proposed': return 'bg-info';
+        case 'In Progress': return 'bg-warning text-dark';
+        case 'Completed': return 'bg-success';
+        case 'Rejected': return 'bg-danger';
+        default: return 'bg-secondary';
+    }
+}
+
+function handleApiResponse(response) {
+    if (!response.ok) {
+        return response.json().then(errorData => {
+            const message = errorData.error || errorData.message || JSON.stringify(errorData);
+            throw new Error(`Server responded with ${response.status}: ${message}`);
+        });
+    }
+    return response.json();
+}
+
+// --- DOM Manipulation & State (Largely Unchanged) ---
+function storeOriginalValues(cosRow) {
+    const statusPill = cosRow.querySelector('.status-cell .status-pill');
+    const contentDisplay = cosRow.querySelector('.cos-content-cell .cos-content-display');
+    const accountablePartyDisplay = cosRow.querySelector('.cos-accountable-party-cell .cos-accountable-party-display');
+    const completionDateDisplay = cosRow.querySelector('.cos-completion-date-cell .cos-completion-date-display');
+    cosRow.dataset.originalValues = JSON.stringify({
+        status: statusPill ? statusPill.textContent.trim().toUpperCase() : 'PROPOSED',
+        contentHTML: contentDisplay ? contentDisplay.innerHTML : '',
+        accountableParty: accountablePartyDisplay ? accountablePartyDisplay.textContent.trim() : '',
+        completionDate: completionDateDisplay ? completionDateDisplay.textContent.trim() : ''
+    });
+}
+
+function revertToOriginalValues(cosRow) {
+    if (!cosRow.dataset.originalValues) return;
+    const original = JSON.parse(cosRow.dataset.originalValues);
+    const statusCell = cosRow.querySelector('.status-cell');
+    if (statusCell) {
+        statusCell.innerHTML = `<span class="status-pill ${getBadgeClassFromStatus(original.status)}">${original.status}</span>`;
+    }
+    const contentDisplay = cosRow.querySelector('.cos-content-cell .cos-content-display');
+    if (contentDisplay) contentDisplay.innerHTML = original.contentHTML;
+    const accPartyDisplay = cosRow.querySelector('.cos-accountable-party-cell .cos-accountable-party-display');
+    if (accPartyDisplay) accPartyDisplay.textContent = original.accountableParty;
+    const compDateDisplay = cosRow.querySelector('.cos-completion-date-cell .cos-completion-date-display');
+    if (compDateDisplay) compDateDisplay.textContent = original.completionDate;
+    toggleEditModeUI(cosRow, false);
+}
+
+function updateRowDisplay(cosRow, cosData) {
+    const statusCell = cosRow.querySelector('.status-cell');
+    if (statusCell) {
+        statusCell.innerHTML = `<span class="status-pill ${getBadgeClassFromStatus(cosData.status)}">${cosData.status.toUpperCase()}</span>`;
+    }
+    const contentDisplay = cosRow.querySelector('.cos-content-cell .cos-content-display');
+    if (contentDisplay) contentDisplay.innerHTML = cosData.content;
+    const accountablePartyDisplay = cosRow.querySelector('.cos-accountable-party-cell .cos-accountable-party-display');
+    if (accountablePartyDisplay) accountablePartyDisplay.textContent = cosData.accountable_party || 'N/A';
+    const completionDateDisplay = cosRow.querySelector('.cos-completion-date-cell .cos-completion-date-display');
+    if (completionDateDisplay) completionDateDisplay.textContent = cosData.completion_date || 'N/A';
+}
+
+function toggleEditModeUI(cosRow, editing) {
+    cosRow.dataset.editing = editing.toString();
+    const elementsToToggle = [
+        { display: '.cos-content-display', edit: '.cos-content-edit' },
+        { display: '.cos-accountable-party-display', edit: '.cos-accountable-party-edit' },
+        { display: '.cos-completion-date-display', edit: '.cos-completion-date-edit' }
+    ];
+    elementsToToggle.forEach(pair => {
+        cosRow.querySelector(pair.display)?.classList.toggle('d-none', editing);
+        cosRow.querySelector(pair.edit)?.classList.toggle('d-none', !editing);
+    });
+
+    const statusCell = cosRow.querySelector('.status-cell');
+    const statusPill = statusCell.querySelector('.status-pill');
+    const statusDropdown = statusCell.querySelector('select.status-edit-select');
+    if (editing) {
+        if (statusPill && !statusDropdown) {
+            const currentStatus = statusPill.textContent.trim();
+            statusPill.classList.add('d-none');
+            statusCell.insertAdjacentHTML('beforeend', createStatusDropdown(currentStatus));
+        }
+    } else {
+        statusDropdown?.remove();
+        statusPill?.classList.remove('d-none');
+    }
+
+    cosRow.querySelector('.edit-cos-button')?.classList.toggle('d-none', editing);
+    cosRow.querySelector('.update-cos-button')?.classList.toggle('d-none', !editing);
+    cosRow.querySelector('.cancel-cos-button')?.classList.toggle('d-none', !editing);
+    cosRow.querySelector('.delete-cos-button')?.classList.toggle('d-none', editing);
+    cosRow.querySelector('.analyze-cos-button')?.classList.toggle('d-none', editing);
+}
+
+function stripHtmlForTextarea(htmlString) {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlString;
+    return tempDiv.textContent || tempDiv.innerText || "";
+}
+
+function createStatusDropdown(selectedStatus) {
+    const statuses = ['Proposed', 'In Progress', 'Completed', 'Rejected'];
+    const optionsHtml = statuses.map(status =>
+        `<option value="${status}"${status.toUpperCase() === selectedStatus.toUpperCase() ? ' selected' : ''}>${status}</option>`
+    ).join('');
+    return `<select class="form-select form-select-sm status-edit-select">${optionsHtml}</select>`;
+}
+
+
+// --- Event Handlers ---
+
+function handlePhaseTableBodyClick(event) {
+    const target = event.target;
+    
+    const pill = target.closest('.ce-pill');
+    if (pill) {
+        event.preventDefault();
+        handleCEPillClick(pill);
+        return;
+    }
+
+    const button = target.closest('button');
+    if (button) {
+        const cosRow = button.closest('.cos-row');
+        if (!cosRow) return;
+        
+        event.preventDefault();
+        const cosId = cosRow.dataset.cosId;
+
+        if (button.classList.contains('edit-cos-button')) {
+            handleEditCOS(cosRow);
+        } else if (button.classList.contains('update-cos-button')) {
+            handleUpdateCOS(cosRow, cosId);
+        } else if (button.classList.contains('cancel-cos-button')) {
+            revertToOriginalValues(cosRow);
+        } else if (button.classList.contains('delete-cos-button')) {
+            handleDeleteCOS(cosRow, cosId);
+        } else if (button.classList.contains('analyze-cos-button')) {
+            handleAnalyzeCOS(button, cosRow, cosId);
+        }
+    }
+}
+
+function handleEditCOS(cosRow) {
+    if (cosRow.dataset.editing === 'true') return;
+    storeOriginalValues(cosRow);
+    
+    const contentDisplay = cosRow.querySelector('.cos-content-display');
+    const contentTextarea = cosRow.querySelector('.cos-content-edit textarea');
+    if (contentDisplay && contentTextarea) {
+        contentTextarea.value = stripHtmlForTextarea(contentDisplay.innerHTML);
+    }
+    
+    const accPartyDisplay = cosRow.querySelector('.cos-accountable-party-display');
+    const accPartyEditInput = cosRow.querySelector('.cos-accountable-party-edit');
+    if (accPartyDisplay && accPartyEditInput) {
+        accPartyEditInput.value = accPartyDisplay.textContent.trim() === 'N/A' ? '' : accPartyDisplay.textContent.trim();
+    }
+    
+    const compDateDisplay = cosRow.querySelector('.cos-completion-date-display');
+    const compDateEditInput = cosRow.querySelector('.cos-completion-date-edit');
+    if (compDateDisplay && compDateEditInput) {
+        compDateEditInput.value = compDateDisplay.textContent.trim() === 'N/A' ? '' : compDateDisplay.textContent.trim();
+    }
+
+    toggleEditModeUI(cosRow, true);
+}
+
+function handleUpdateCOS(cosRow, cosId) {
+    const newContent = cosRow.querySelector('.cos-content-edit textarea')?.value.trim() || '';
+    const newStatus = cosRow.querySelector('.status-edit-select')?.value || 'Proposed';
+    const newAccountableParty = cosRow.querySelector('.cos-accountable-party-edit')?.value.trim() || '';
+    const newCompletionDate = cosRow.querySelector('.cos-completion-date-edit')?.value || '';
+    const payload = { content: newContent, status: newStatus, accountable_party: newAccountableParty, completion_date: newCompletionDate };
+
+    const updateButton = cosRow.querySelector('.update-cos-button');
+    const originalButtonHtml = updateButton.innerHTML;
+    updateButton.disabled = true;
+    updateButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+
+    fetch(`/update_cos/${cosId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify(payload)
+    })
+    .then(handleApiResponse)
+    .then(data => {
+        if (data.success && data.cos) {
+            updateRowDisplay(cosRow, data.cos);
+            toggleEditModeUI(cosRow, false);
+        } else {
+            throw new Error(data.error || 'Update failed to return COS data.');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating COS:', error);
+        alert(`Error: ${error.message}`);
+    })
+    .finally(() => {
+        updateButton.disabled = false;
+        updateButton.innerHTML = originalButtonHtml;
+    });
+}
+
+function handleDeleteCOS(cosRow, cosId) {
+    if (confirm('Are you sure you want to delete this Condition of Satisfaction?')) {
+        fetch(`/delete_cos/${cosId}`, {
+            method: 'DELETE',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(handleApiResponse)
+        .then(data => {
+            if (data.success) {
+                cosRow.remove();
+            } else {
+                throw new Error(data.error || 'Deletion failed.');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting COS:', error);
+            alert(`Error: ${error.message}`);
+        });
+    }
+}
+
+function handleAnalyzeCOS(analyzeButton, cosRow, cosId) {
+    const originalButtonHtml = analyzeButton.innerHTML;
+    analyzeButton.disabled = true;
+    analyzeButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+
+    fetch(`/analyze_cos/${cosId}`, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(handleApiResponse)
+    .then(data => {
+        if (data.success && data.analysis_results?.content_with_ce) {
+            const contentDisplay = cosRow.querySelector('.cos-content-display');
+            if (contentDisplay) {
+                contentDisplay.innerHTML = data.analysis_results.content_with_ce;
+            }
+        } else {
+            throw new Error(data.message || 'Analysis failed to return expected results.');
+        }
+    })
+    .catch(error => {
+        console.error('Error analyzing COS:', error);
+        alert(`Analysis Failed: ${error.message}`);
+    })
+    .finally(() => {
+        analyzeButton.disabled = false;
+        analyzeButton.innerHTML = originalButtonHtml;
+    });
+}
+
+function handleAddCOSButtonClick(event) {
+    const button = event.currentTarget;
+    const accordionBody = button.closest('.accordion-body');
+    const ssolId = accordionBody?.dataset.ssolId;
+    if (!ssolId) {
+        alert('Cannot add COS: Critical data missing.');
+        return;
+    }
+
+    const payload = { content: 'New Condition of Satisfaction - edit me!', status: 'Proposed', ssol_id: ssolId };
+    button.disabled = true;
+    const originalButtonText = button.innerHTML;
+    button.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Adding...`;
+
+    fetch(`/create_cos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify(payload)
+    })
+    .then(handleApiResponse)
+    .then(data => {
+        if (data.success && data.cos) {
+            let tbody = accordionBody.querySelector('table.phase-table tbody');
+            if (!tbody) {
+                const phaseNameIdentifier = button.dataset.phase;
+                const newTableHtml = `
+                    <table class="table table-striped table-hover phase-table" id="${phaseNameIdentifier}-table">
+                        <thead>
+                            <tr>
+                                <th scope="col" style="width: 10%;">Status</th>
+                                <th scope="col" style="width: 40%;">Condition of Satisfaction</th>
+                                <th scope="col" style="width: 15%;">Accountable Party</th>
+                                <th scope="col" style="width: 15%;">Completion Date</th>
+                                <th scope="col" class="text-end actions-header" style="width: 20%;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>`;
+                accordionBody.querySelector('p')?.remove();
+                accordionBody.insertAdjacentHTML('afterbegin', newTableHtml);
+                tbody = accordionBody.querySelector('tbody');
+            }
+            const newRow = createCosTableRow(data.cos);
+            tbody.appendChild(newRow);
+        } else {
+            throw new Error(data.error || 'Failed to create COS.');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating COS:', error);
+        alert(`Error: ${error.message}`);
+    })
+    .finally(() => {
+        button.disabled = false;
+        button.innerHTML = originalButtonText;
+    });
+}
+
+function createCosTableRow(cos) {
+    const newRow = document.createElement('tr');
+    newRow.className = 'cos-row';
+    newRow.dataset.cosId = cos.id;
+    newRow.dataset.editing = 'false';
+    const cosContentHtml = cos.content || '';
+    const cosContentText = stripHtmlForTextarea(cosContentHtml);
+
+    newRow.innerHTML = `
+        <td class="status-cell align-middle">
+            <span class="status-pill ${getBadgeClassFromStatus(cos.status)}">${cos.status.toUpperCase()}</span>
+        </td>
+        <td class="cos-content-cell align-middle">
+            <div class="cos-content-display">${cosContentHtml}</div>
+            <div class="cos-content-edit d-none">
+                <textarea class="form-control form-control-sm cos-content-textarea" rows="3">${cosContentText}</textarea>
+            </div>
+        </td>
+        <td class="cos-accountable-party-cell align-middle">
+            <span class="cos-accountable-party-display">${cos.accountable_party || 'N/A'}</span>
+            <input type="text" class="form-control form-control-sm cos-accountable-party-edit d-none" value="${cos.accountable_party || ''}">
+        </td>
+        <td class="cos-completion-date-cell align-middle">
+            <span class="cos-completion-date-display">${cos.completion_date || 'N/A'}</span>
+            <input type="date" class="form-control form-control-sm cos-completion-date-edit d-none" value="${cos.completion_date || ''}">
+        </td>
+        <td class="text-end actions-cell align-middle">
+            <div class="btn-group cos-actions" role="group">
+                <button class="btn btn-sm btn-primary edit-cos-button" title="Edit COS"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-success update-cos-button d-none" title="Update COS"><i class="fas fa-check"></i></button>
+                <button class="btn btn-sm btn-secondary cancel-cos-button d-none" title="Cancel Edit"><i class="fas fa-times"></i></button>
+                <button class="btn btn-sm btn-danger delete-cos-button" title="Delete COS"><i class="fas fa-trash"></i></button>
+                <button class="btn btn-sm btn-info analyze-cos-button" data-cos-id="${cos.id}" title="Analyze COS"><i class="fas fa-search-plus"></i></button>
+            </div>
+        </td>
+    `;
+    return newRow;
+}
+
+
+/**
+ * Handles the click event on a CE pill. Gathers context, fetches the new 
+ * "Node Application" modal from the server, and triggers its display.
+ * @param {HTMLElement} pill - The CE pill element that was clicked.
+ */
+/**
+ * Handles the click event on a CE pill. Gathers context and calls displayCEModal.
+ * This is now a simple "launcher" for the Node Application.
+ * @param {HTMLElement} pill - The CE pill element that was clicked.
+ */
+function handleCEPillClick(pill) {
+    const ceId = pill.dataset.ceId;
+    const ceType = pill.dataset.ceType || "Default";
+    showLoadingSpinner(`Loading ${ceType} Application...`, window.NODES[ceType]?.icon);
+
+    const cosRow = pill.closest('.cos-row');
+    const ssolGoal = document.querySelector('#ssol-goal')?.textContent.trim() || "SSOL Goal Not Available";
+    const cosContextContent = cosRow?.querySelector('.cos-content-display')?.innerHTML || 'COS content not found.';
+    const accordionItem = cosRow?.closest('.accordion-item');
+    const phaseName = accordionItem?.querySelector('.accordion-header .accordion-button')?.textContent.trim().replace(/\s*PHASE\s*$/i, "").trim() || "Unknown Phase";
+    const phaseIndex = accordionItem ? Array.from(accordionItem.parentElement.children).indexOf(accordionItem) : 0;
+
+    const payload = { 
+        ce_id: ceId, 
+        cos_content: cosContextContent, 
+        phase_name: phaseName, 
+        phase_index: phaseIndex, 
+        ssol_goal: ssolGoal 
+    };
+
+    fetch(`/get_ce_modal/${encodeURIComponent(ceType)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(response => {
+        if (!response.ok) return response.json().then(err => { throw new Error(err.error) });
+        return response.json();
+    })
+    .then(data => {
+        if (data.modal_html && data.ce_data) {
+            // Pass control to the main application controller
+            displayCEModal(data.modal_html, ceId, ceType, data.ce_data);
+        } else {
+            throw new Error(data.error || 'Server response was missing required data.');
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching or displaying CE modal:', error);
+        alert(`Could not load application. Error: ${error.message}`);
+    })
+    .finally(() => {
+        hideLoadingSpinner();
+    });
+}
+
+function triggerPdfExport(ssolId) {
+    const printableElement = document.documentElement.cloneNode(true);
+    const selectorsToRemove = [
+        'script', '.cos-actions', '.add-cos', '#save-as-pdf-button',
+        '.modal', '#dynamicModalContainer', '.cos-content-edit',
+        '.cos-accountable-party-edit', '.cos-completion-date-edit',
+        'select.status-edit-select', '#image-error-container'
+    ];
+    printableElement.querySelectorAll(selectorsToRemove.join(', ')).forEach(el => el.remove());
+    printableElement.querySelectorAll('.accordion-collapse').forEach(collapse => collapse.classList.add('show'));
+    printableElement.querySelectorAll('.accordion-button').forEach(button => button.classList.remove('collapsed'));
+    printableElement.querySelectorAll('img').forEach(img => {
+        if (img.src && !img.src.startsWith('http') && !img.src.startsWith('data:')) {
+            try {
+                img.src = new URL(img.getAttribute('src'), window.location.href).href;
+            } catch (e) { console.warn("Could not convert image src to absolute URL:", img.src, e); }
+        }
+    });
+    const htmlContent = printableElement.outerHTML;
+    const pdfButton = document.getElementById('save-as-pdf-button');
+    const originalButtonHtml = pdfButton.innerHTML;
+    pdfButton.disabled = true;
+    pdfButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+
+    fetch(`/save_as_pdf/${ssolId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ htmlContent: htmlContent })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { throw new Error(err.error || `PDF generation failed.`); });
+        }
+        return response.blob();
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `SSPEC_Solution_${ssolId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    })
+    .catch(error => {
+        console.error('Error saving PDF:', error);
+        alert(`PDF Export Error: ${error.message}`);
+    })
+    .finally(() => {
+        pdfButton.disabled = false;
+        pdfButton.innerHTML = originalButtonHtml;
+    });
+}
+
+// --- Global Initialization ---
+function initializePageEventListeners() {
+    document.querySelectorAll('.phase-table-container').forEach(container => {
+        container.removeEventListener('click', handlePhaseTableBodyClick);
+        container.addEventListener('click', handlePhaseTableBodyClick);
+    });
+
+    document.querySelectorAll('.add-cos').forEach(button => {
+        button.removeEventListener('click', handleAddCOSButtonClick);
+        button.addEventListener('click', handleAddCOSButtonClick);
+    });
+
+    const savePdfButton = document.getElementById('save-as-pdf-button');
+    savePdfButton?.addEventListener('click', (event) => {
+        event.preventDefault();
+        triggerPdfExport(savePdfButton.dataset.ssolId);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initializePageEventListeners);
+
+🟥 routes.py:
+# routes.py
+from flask import Blueprint, render_template, request, flash, redirect, url_for, \
+                    jsonify, make_response, current_app, send_from_directory
+import os
+import json
+import uuid
+import pdfkit
+import logging
+import asyncio
+from bs4 import BeautifulSoup
+from app import app, USE_DATABASE
+from uuid import UUID
+from utilities import generate_goal, analyze_user_input, is_input_compliant, \
+                    generate_outcome_data, generate_ai_data, \
+                    generate_ssol_image as util_generate_ssol_image
+from dotenv import load_dotenv
+from ce_templates import generate_dynamic_modal
+from ce_nodes import NODES
+from werkzeug.exceptions import BadRequest, NotFound
+from speculate import get_ce_by_id as speculate_get_ce_by_id, \
+                      update_ce_by_id as speculate_update_ce_by_id, \
+                      create_cos as speculate_create_cos, \
+                      get_cos_by_id as speculate_get_cos_by_id, \
+                      update_cos_by_id as speculate_update_cos_by_id, \
+                      delete_cos_by_id as speculate_delete_cos_by_id, \
+                      analyze_cos as speculate_analyze_cos
+from models import get_engine_and_session, SSOL, COS
+from urllib.parse import urlparse
+
+load_dotenv()
+
+routes_bp = Blueprint('routes_bp', __name__)
+
+# --- Utility Route ---
+@routes_bp.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(current_app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
+
+# --- Basic Pages ---
+@routes_bp.route('/')
+def index():
+    return render_template('input.html')
+
+
+@routes_bp.route('/about')
+def about():
+    return render_template('about.html')
+
+
+# --- Goal Selection ---
+@routes_bp.route('/goal_selection', methods=['POST'])
+async def goal_selection():
+    if request.method == 'POST':
+        user_input = request.form['user_text'].strip()
+        if not user_input:
+            flash("Please enter your possibility or goal.", "error")
+            return render_template('input.html')
+        try:
+            logging.info(f"User Input: '{user_input}'. Calling generate_goal...")
+            goal_options = await generate_goal(user_input)
+            logging.debug(f"generate_goal returned: {goal_options}")
+            if not goal_options:
+                flash("Could not generate goal options. Please try again.", "warning")
+                return render_template('input.html')
+
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify(goals=goal_options, user_input=user_input)
+
+            return render_template('goal_selection.html', goals=goal_options, user_input=user_input)
+        except ValueError as e:
+            flash(str(e), "error")
+            logging.error(f"ValueError in goal_selection: {e}", exc_info=True)
+            return render_template('input.html', user_text=user_input, error_message=str(e))
+        except Exception as e:
+            flash("An unexpected error occurred. Please try again.", "error")
+            logging.error(f"Unexpected error in goal_selection: {e}", exc_info=True)
+            return render_template('input.html', user_text=user_input, error_message=str(e))
+    return redirect(url_for('routes_bp.index'))
+
+
+# --- Outcome Generation ---
+@routes_bp.route('/outcome', methods=['POST'])
+async def outcome():
+    if request.method == 'POST':
+        logging.info(f"Outcome route - Form data received: {request.form}")
+        selected_goal_text = request.form.get('selected_goal', '').strip()
+        domain = request.form.get('domain', '').strip()
+        selected_goal_title = request.form.get('selected_goal_title', '').strip()
+        domain_icon = request.form.get('domain_icon', '').strip()
+
+        if not selected_goal_text:
+            flash("No goal selected. Please select a goal.", "error")
+            return redirect(url_for('routes_bp.index'))
+        try:
+            outcome_data = await generate_outcome_data(USE_DATABASE, request, 'POST', selected_goal_text, domain, domain_icon, selected_goal_title)
+            ssol_id_str = outcome_data['ssol_id']
+            
+            current_app.logger.info(f"SSOL ID: {ssol_id_str}. Preparing to generate image.")
+
+            image_prompt_context = selected_goal_title if selected_goal_title else selected_goal_text
+            image_prompt = (
+                f"A colorful, charming, and visually stunning diorama in the style of 'It's a Small World', "
+                f"depicting '{image_prompt_context}' as a fulfilled goal in the domain of '{domain}'. "
+                f"The scene should include diverse people, use an isometric perspective, and have a 1:1 square aspect ratio. "
+                f"The artwork should evoke a mid-century modern aesthetic, reminiscent of 1960s illustration. "
+                f"Do not include any text or labels."
+            )
+            
+            current_app.logger.info(f"Attempting to generate image for SSOL {ssol_id_str}...")
+            image_web_path = await util_generate_ssol_image(image_prompt, ssol_id=ssol_id_str)
+            current_app.logger.info(f"Image generation returned path: {image_web_path} for SSOL {ssol_id_str}")
+            
+            return render_template('outcome.html', ssol=outcome_data, nodes=NODES, ssol_id=ssol_id_str, selected_goal_title=selected_goal_title)
+        except Exception as e:
+            current_app.logger.error(f"Error generating outcome data or image: {e}", exc_info=True)
+            flash("Error processing your request. Please try again.", "error")
+            return redirect(url_for('routes_bp.index'))
+    return redirect(url_for('routes_bp.index'))
+
+
+# --- Input Analysis ---
+@routes_bp.route('/analyze_input', methods=['POST'])
+async def analyze_input_route():
+    if request.method == 'POST':
+        user_text = request.form.get('user_text')
+        if not user_text:
+            return jsonify({'error': 'No text provided'}), 400
+        try:
+            keywords = await analyze_user_input(user_text)
+            compliance = await is_input_compliant(user_text)
+            return jsonify({'keywords': keywords, 'compliance': compliance})
+        except Exception as e:
+            logging.error(f"Error analyzing user input: {e}", exc_info=True)
+            return jsonify({'error': 'Error analyzing input'}), 500
+    return jsonify({'error': 'Invalid request method'}), 405
+
+
+# --- PDF Export ---
+@routes_bp.route('/save_as_pdf/<uuid:ssol_id>', methods=['POST'])
+def save_as_pdf(ssol_id):
+    try:
+        data = request.get_json()
+        if not data or 'htmlContent' not in data:
+            raise ValueError("Invalid request: No HTML content provided.")
+        html_content = data['htmlContent']
+
+        css_file_path = os.path.join(current_app.root_path, 'static', 'styles.css')
+        css_param = css_file_path if os.path.exists(css_file_path) else None
+        if not css_param:
+             current_app.logger.error(f"CSS file not found at: {css_file_path}")
+
+        # Ensure pdfkit can find static assets by using external URLs.
+        html_content = html_content.replace('src="/static/', f'src="{url_for("static", filename="", _external=True)}')
+
+        options = {
+            "page-size": "Letter",
+            "margin-top": "0.75in",
+            "margin-right": "0.75in",
+            "margin-bottom": "0.75in",
+            "margin-left": "0.75in",
+            "encoding": "UTF-8",
+            "no-outline": None,
+            "enable-local-file-access": None, # Important for local CSS/images if not inlined
+        }
+
+        pdf = pdfkit.from_string(html_content, False, options=options, css=css_param)
+
+        response = make_response(pdf)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename="SSPEC_Solution_{ssol_id}.pdf"'
+        return response
+
+    except Exception as e:
+        current_app.logger.error(f"Exception in save_as_pdf for SSOL {ssol_id}: {e}", exc_info=True)
+        return jsonify(success=False, error=str(e)), 500
+
+# --- COS CRUD Routes ---
+
+@routes_bp.route('/create_cos', methods=['POST'])
+async def create_cos_route():
+    try:
+        data = request.get_json()
+        if not data:
+            raise BadRequest('No JSON payload received.')
+
+        content = data.get('content')
+        status = data.get('status', 'Proposed')
+        ssol_id_str = data.get('ssol_id')
+        accountable_party = data.get('accountable_party')
+        completion_date = data.get('completion_date')
+
+        if not content or not ssol_id_str:
+            raise BadRequest('Missing required fields: content and ssol_id are required.')
+
+        try:
+            ssol_id_uuid = UUID(ssol_id_str)
+        except ValueError:
+            raise BadRequest(f"Invalid ssol_id format: '{ssol_id_str}'. Must be a valid UUID.")
+
+        new_cos_id_str = await speculate_create_cos(
+            USE_DATABASE,
+            ssol_id=ssol_id_uuid,
+            content=content,
+            status=status,
+            accountable_party=accountable_party,
+            completion_date=completion_date
+        )
+
+        if not new_cos_id_str:
+            raise Exception("Failed to create COS record in the data store.")
+
+        created_cos_obj = speculate_get_cos_by_id(USE_DATABASE, UUID(new_cos_id_str))
+
+        if not created_cos_obj:
+             current_app.logger.error(f"Failed to retrieve newly created COS with ID: {new_cos_id_str}")
+             return jsonify(success=False, error="COS was created but could not be retrieved immediately."), 500
+
+        cos_dict = created_cos_obj.to_dict() if USE_DATABASE else created_cos_obj
+        return jsonify(success=True, cos=cos_dict), 201
+
+    except BadRequest as e:
+        current_app.logger.warning(f"BadRequest in create_cos_route: {e}")
+        return jsonify(success=False, error=str(e)), 400
+        
+    except Exception as e:
+        current_app.logger.error(f"Error creating COS: {e}", exc_info=True)
+        return jsonify(success=False, error="An unexpected error occurred while creating the COS."), 500
+
+@routes_bp.route('/update_cos/<uuid:cos_id>', methods=['PUT'])
+async def update_cos_route(cos_id):
+    try:
+        data = request.get_json()
+        if not data:
+            raise BadRequest('No JSON payload received')
+
+        update_result = await speculate_update_cos_by_id(USE_DATABASE, cos_id, data)
+
+        if update_result['success']:
+            return jsonify(success=True, cos=update_result['cos']), 200
+        return jsonify(success=False, error=update_result['message']), update_result.get('status_code', 404)
+    except BadRequest as e:
+        return jsonify(success=False, error=str(e)), 400
+    except Exception as e:
+        current_app.logger.error(f"Error updating COS {cos_id}: {e}", exc_info=True)
+        return jsonify(success=False, error="An unexpected error occurred."), 500
+
+
+@routes_bp.route('/delete_cos/<uuid:cos_id>', methods=['DELETE'])
+def delete_cos_route(cos_id):
+    try:
+        success = speculate_delete_cos_by_id(USE_DATABASE, cos_id)
+
+        if success:
+            return jsonify(success=True), 200
+        return jsonify(success=False, error="COS not found or could not be deleted."), 404
+    except Exception as e:
+        current_app.logger.error(f"Error deleting COS {cos_id}: {e}", exc_info=True)
+        return jsonify(success=False, error="An unexpected error occurred."), 500
+
+
+# --- SSOL Image ---
+@routes_bp.route('/get_ssol_image/<uuid:ssol_id>')
+async def get_ssol_image_route(ssol_id):
+    ssol_id_str = str(ssol_id)
+    image_filename = f"ssol_image_{ssol_id_str}.png"
+    image_web_path_relative = os.path.join('images', image_filename).replace("\\", "/")
+    image_fs_path = os.path.join(current_app.static_folder, 'images', image_filename)
+
+    current_app.logger.info(f"GET_SSOL_IMAGE: Checking for {image_fs_path}")
+
+    if os.path.exists(image_fs_path):
+        current_app.logger.info(f"GET_SSOL_IMAGE: Found image {image_filename} for SSOL {ssol_id_str}.")
+        return jsonify({'image_path': url_for('static', filename=image_web_path_relative), 'status': 'found'})
+    else:
+        current_app.logger.warning(f"GET_SSOL_IMAGE: Image {image_filename} for SSOL {ssol_id_str} not found.")
+        return jsonify({
+            'image_path': url_for('static', filename='images/sspec_default.png'),
+            'status': 'pending_or_not_found', 
+            'message': 'Image is processing or was not found. Displaying default.'
+        }), 200
+
+# --- CE Routes ---
+@routes_bp.route('/get_ce_by_id', methods=['GET'])
+def get_ce_by_id_route():
+    ce_id_str = request.args.get('ce_id')
+    if not ce_id_str:
+        return jsonify(error="Missing 'ce_id' parameter"), 400
+    try:
+        ce_id = UUID(ce_id_str)
+        ce = speculate_get_ce_by_id(USE_DATABASE, ce_id)
+
+        if ce:
+            return jsonify(ce=ce.to_dict() if USE_DATABASE else ce)
+        return jsonify(error="CE not found"), 404
+
+    except ValueError:
+        return jsonify(error=f"Invalid CE ID format: {ce_id_str}"), 400
+    except Exception as e:
+        current_app.logger.error(f"Error getting CE {ce_id_str}: {e}", exc_info=True)
+        return jsonify(error="An unexpected error occurred."), 500
+
+
+@routes_bp.route('/analyze_cos/<uuid:cos_id>', methods=['GET'])
+async def analyze_cos_by_id_route(cos_id):
+    try:
+        cos_content_to_analyze = ""
+        if USE_DATABASE:
+            with app.app_context():
+                engine, session = get_engine_and_session()
+                cos_instance = session.query(COS).get(cos_id)
+                session.close()
+                if not cos_instance:
+                    return jsonify({'success': False, 'message': 'COS not found'}), 404
+                cos_content_to_analyze = cos_instance.content
+        else:
+            from store import cos_store
+            cos_data = cos_store.get(str(cos_id))
+            if not cos_data:
+                return jsonify({'success': False, 'message': 'COS not found'}), 404
+            cos_content_to_analyze = cos_data['content']
+        
+        analysis_results = await speculate_analyze_cos(cos_content_to_analyze, str(cos_id))
+        
+        return jsonify({'success': True, 'analysis_results': analysis_results}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error analyzing COS {cos_id}: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': 'An unexpected error occurred during analysis.'}), 500
+
+
+@routes_bp.route('/get_ce_modal/<string:ce_type>', methods=['POST'])
+async def get_ce_modal_route(ce_type):
+    try:
+        data = request.get_json()
+        ce_id_str = data.get('ce_id')
+        ce_id_obj = UUID(ce_id_str) if ce_id_str else None
+
+        ce_data = speculate_get_ce_by_id(USE_DATABASE, ce_id_obj) if ce_id_obj else {}
+        if not ce_data or 'data' not in ce_data:
+            ce_data = {'id': ce_id_str, 'node_type': ce_type, 'data': {'details_data': {}, 'resources': []}}
+
+        node_config = NODES.get(ce_type, NODES['Default'])
+
+        cos_content_html = data.get('cos_content', '')
+        cos_content_text_only = BeautifulSoup(cos_content_html, 'html.parser').get_text(separator=' ', strip=True)
+
+        ai_generated_data = await generate_ai_data(
+            cos_content_text_only, ce_id_str, ce_type,
+            data.get('ssol_goal', ''), data.get('existing_ces', [])
+        )
+
+        modal_html = await generate_dynamic_modal(
+            ce_type=ce_type,
+            ce_data=ce_data,
+            node_info=node_config,
+            cos_content=cos_content_html,
+            ai_generated_data=ai_generated_data,
+            phase_name=data.get('phase_name', ''),
+            phase_index=data.get('phase_index', 0)
+        )
+
+        # --- FIX: Return BOTH the modal HTML and the CE data object ---
+        return jsonify(modal_html=modal_html, ce_data=ce_data)
+
+    except Exception as e:
+        current_app.logger.error(f"Error in get_ce_modal_route for type {ce_type}: {e}", exc_info=True)
+        return jsonify(error=f"An error occurred: {str(e)}"), 500
+
+@routes_bp.route('/ai-query-endpoint', methods=['POST'])
+async def ai_query_route():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON payload received'}), 400
+
+        ce_type = data.get('ce_type')
+        cos_content = data.get('cos_content')
+        ce_id = data.get('ce_id')
+        ssol_goal = data.get('ssol_goal')
+        existing_ces = data.get('existing_ces', [])
+
+        if not ce_type or not cos_content or not ssol_goal:
+            return jsonify({'error': 'Missing required parameters: ce_type, cos_content, ssol_goal'}), 400
+
+        ai_response = await generate_ai_data(cos_content, ce_id, ce_type, ssol_goal, existing_ces)
+
+        return jsonify({'success': True, 'ai_response': ai_response})
+
+    except Exception as e:
+        current_app.logger.error(f"Error in ai_query_route: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@routes_bp.route('/update_ce/<uuid:ce_id>', methods=['PUT'])
+def update_ce_route(ce_id):
+    try:
+        data = request.get_json()
+        if not data:
+            raise BadRequest('No JSON payload received')
+
+        success = speculate_update_ce_by_id(USE_DATABASE, ce_id, data)
+
+        if success:
+            updated_ce_obj = speculate_get_ce_by_id(USE_DATABASE, ce_id)
+            if updated_ce_obj:
+                ce_data = updated_ce_obj.to_dict() if USE_DATABASE else updated_ce_obj
+                return jsonify(success=True, ce=ce_data), 200
+            return jsonify(success=True, message="CE updated but could not be retrieved."), 200
+        return jsonify(success=False, error="CE not found or could not be updated"), 404
+    except BadRequest as e:
+        return jsonify(success=False, error=str(e)), 400
+    except Exception as e:
+        current_app.logger.error(f"Error updating CE {ce_id}: {e}", exc_info=True)
+        return jsonify(success=False, error="An unexpected error occurred."), 500
+
+🏳️‍🌈 ce_nodes.py:
+# ce_nodes.py (Fully Refactored for New UI Schema)
+
+NODES = {
+    "Default": {
+        "definition": "A default node for undefined types.",
+        "icon": "fa-solid fa-icons",
+        "color": "#95a5a6",
+        "details_schema": [
+            {"name": "subject", "label": "Overall Subject", "type": "text", "placeholder": "Enter the main subject of this element..."},
+            {"name": "summary", "label": "Overall Summary", "type": "textarea", "placeholder": "Provide a high-level summary..."}
+        ],
+        "resource_schema": [
+            {"title": "Title", "field": "title", "editor": "input", "width": 300},
+            {"title": "Description", "field": "description", "editor": "textarea"},
+            {"title": "Reference", "field": "reference", "editor": "input", "formatter": "link"}
+        ]
+    },
+    "Research": {
+        "definition": "Aggregates and summarizes research materials.",
+        "icon": "fa-solid fa-flask",
+        "color": "#ec407a",
+        "details_schema": [
+            {"name": "research_question", "label": "Primary Research Question", "type": "textarea", "placeholder": "What is the core question this research aims to answer?"},
+            {"name": "summary", "label": "Executive Summary", "type": "textarea", "placeholder": "Summarize the key findings from all curated resources."}
+        ],
+        "resource_schema": [
+            {"title": "Topic / Paper Title", "field": "topic", "editor": "input", "width": 350},
+            {"title": "URL", "field": "url", "editor": "input", "formatter": "link", "width": 200},
+            {"title": "Notes", "field": "notes", "editor": "textarea"}
+        ]
+    },
+    "Stakeholder": {
+        "definition": "Captures details of stakeholders involved in the COS.",
+        "icon": "fa-solid fa-user-friends",
+        "color": "#ffca28",
+        "details_schema": [
+            {"name": "engagement_strategy", "label": "Overall Engagement Strategy", "type": "textarea", "placeholder": "Describe the overall plan for managing and communicating with these stakeholders."}
+        ],
+        "resource_schema": [
+            {"title": "Name", "field": "name", "editor": "input", "width": 200},
+            {"title": "Role/Organization", "field": "role", "editor": "input", "width": 250},
+            {"title": "Stance", "field": "stance", "editor": "input", "width": 150},
+            {"title": "Contact", "field": "contact", "editor": "input"}
+        ]
+    },
+    "Advocacy": {
+        "definition": "Focuses on efforts to influence public policy and resource allocation.",
+        "icon": "fa-solid fa-bullhorn",
+        "color": "#ff7043",
+        "details_schema": [
+            {"name": "campaign_goal", "label": "Primary Campaign Goal", "type": "textarea", "placeholder": "What is the single most important outcome of this advocacy effort?"}
+        ],
+        "resource_schema": [
+            {"title": "Initiative Name", "field": "initiative_name", "editor": "input", "width": 250},
+            {"title": "Target Audience", "field": "target_audience", "editor": "input"},
+            {"title": "Key Message", "field": "key_message", "editor": "textarea"}
+        ]
+    },
+    "Resource": {
+        "definition": "Lists resources or assets essential for achieving the COS.",
+        "icon": "fa-solid fa-tools",
+        "color": "#8d6e63",
+        "details_schema": [
+            {"name": "resource_summary", "label": "Resource Allocation Summary", "type": "textarea", "placeholder": "Provide a high-level summary of resource needs and dependencies."}
+        ],
+        "resource_schema": [
+            {"title": "Resource Name", "field": "resource_name", "editor": "input", "width": 250},
+            {"title": "Type", "field": "resource_type", "editor": "input", "width": 150},
+            {"title": "Details/Source", "field": "details", "editor": "textarea"}
+        ]
+    },
+    "Praxis": {
+        "definition": "Defines actions or tasks necessary to meet the COS.",
+        "icon": "fa-solid fa-tasks",
+        "color": "#5c6bc0",
+        "details_schema": [
+            {"name": "action_plan_overview", "label": "Action Plan Overview", "type": "textarea", "placeholder": "Describe the overall strategy for the tasks listed below."}
+        ],
+        "resource_schema": [
+            {"title": "Action/Task", "field": "action_name", "editor": "input", "width": 300},
+            {"title": "Owner", "field": "owner", "editor": "input", "width": 150},
+            {"title": "Status", "field": "status", "editor": "input", "width": 150},
+            {"title": "Description", "field": "description", "editor": "textarea"}
+        ]
+    },
+    "Timeline": {
+        "definition": "Specifies time frames or deadlines associated with the COS.",
+        "icon": "fa-solid fa-clock",
+        "color": "#ba68c8",
+        "details_schema": [
+            {"name": "project_duration", "label": "Total Project Duration", "type": "text", "placeholder": "e.g., 6 Months, Q4 2025"},
+            {"name": "summary", "label": "Timeline Summary", "type": "textarea", "placeholder": "Describe any key dependencies or critical path items."}
+        ],
+        "resource_schema": [
+            {"title": "Milestone", "field": "milestone", "editor": "input", "width": 300},
+            {"title": "Start Date", "field": "start_date", "editor": "input"},
+            {"title": "End Date", "field": "end_date", "editor": "input"},
+            {"title": "Notes", "field": "notes", "editor": "textarea"}
+        ]
+    },
+    "Collaboration": {
+        "definition": "Focuses on partnerships or collaboration efforts for the COS.",
+        "icon": "fa-solid fa-handshake",
+        "color": "#4dd0e1",
+        "details_schema": [
+            {"name": "collaboration_objective", "label": "Collaboration Objective", "type": "textarea", "placeholder": "What is the primary goal of engaging with these partners?"}
+        ],
+        "resource_schema": [
+            {"title": "Partner Name", "field": "partner_name", "editor": "input", "width": 250},
+            {"title": "Area of Collaboration", "field": "collaboration_area", "editor": "input"},
+            {"title": "Contact Person", "field": "contact_person", "editor": "input"}
+        ]
+    },
+    "Policy": {
+        "definition": "Addresses policy or regulatory aspects pertinent to the COS.",
+        "icon": "fa-solid fa-gavel",
+        "color": "#78909c",
+        "details_schema": [
+            {"name": "policy_landscape", "label": "Policy Landscape Summary", "type": "textarea", "placeholder": "Describe the overall regulatory environment."}
+        ],
+        "resource_schema": [
+            {"title": "Policy/Regulation", "field": "policy_name", "editor": "input", "width": 300},
+            {"title": "Governing Body", "field": "regulatory_body", "editor": "input"},
+            {"title": "Implication", "field": "implication", "editor": "textarea"}
+        ]
+    },
+    "Legislation": {
+        "definition": "Covers legal considerations or requirements for the COS.",
+        "icon": "fa-solid fa-balance-scale",
+        "color": "#546e7a",
+        "details_schema": [
+            {"name": "legal_summary", "label": "Legal Strategy Summary", "type": "textarea", "placeholder": "Outline the approach to legal and compliance matters."}
+        ],
+        "resource_schema": [
+            {"title": "Legal Requirement", "field": "legal_requirement", "editor": "input", "width": 300},
+            {"title": "Relevant Statute", "field": "relevant_statute", "editor": "input"},
+            {"title": "Compliance Contact", "field": "compliance_contact", "editor": "input"}
+        ]
+    },
+    "Environment": {
+        "definition": "Addresses environmental factors related to the COS.",
+        "icon": "fa-solid fa-leaf",
+        "color": "#66bb6a",
+        "details_schema": [
+            {"name": "sustainability_statement", "label": "Sustainability Statement", "type": "textarea", "placeholder": "Summarize the project's overall environmental goals or impact."}
+        ],
+        "resource_schema": [
+            {"title": "Environmental Factor", "field": "environmental_factor", "editor": "input", "width": 300},
+            {"title": "Impact Assessment", "field": "impact_assessment", "editor": "textarea"},
+            {"title": "Mitigation Strategy", "field": "mitigation_strategy", "editor": "textarea"}
+        ]
+    },
+    "Risk": {
+        "definition": "Identifies potential risks and mitigation strategies for the COS.",
+        "icon": "fa-solid fa-exclamation-triangle",
+        "color": "#e53935",
+        "details_schema": [
+            {"name": "risk_overview", "label": "Risk Management Overview", "type": "textarea", "placeholder": "Describe the overall approach to identifying and mitigating risks."}
+        ],
+        "resource_schema": [
+            {"title": "Risk", "field": "risk_name", "editor": "input", "width": 300},
+            {"title": "Likelihood", "field": "likelihood", "editor": "input", "width": 120},
+            {"title": "Impact", "field": "impact", "editor": "input", "width": 120},
+            {"title": "Mitigation Plan", "field": "mitigation_plan", "editor": "textarea"}
+        ]
+    },
+    "Opportunity": {
+        "definition": "Identifies opportunities that can enhance the COS.",
+        "icon": "fa-solid fa-lightbulb",
+        "color": "#26c6da",
+        "details_schema": [
+            {"name": "opportunity_summary", "label": "Opportunity Landscape", "type": "textarea", "placeholder": "Summarize the key opportunities related to this COS."}
+        ],
+        "resource_schema": [
+            {"title": "Opportunity", "field": "opportunity_name", "editor": "input", "width": 300},
+            {"title": "Potential Value", "field": "potential_value", "editor": "input"},
+            {"title": "Exploitation Plan", "field": "exploitation_plan", "editor": "textarea"}
+        ]
+    }
+}
+def get_valid_node_types():
+    return list(NODES.keys())
+
+🏪 store.py:
+# store.py  
+ssol_store = {}  
+cos_store = {}  
+ce_store = {}  
+
+🧩 ce_templates.py:
+# ce_templates.py
+from flask import render_template_string
+from utilities import replace_ce_tags_with_pills
+
+# This is the complete, corrected template with all tab content included.
+BASE_MODAL_TEMPLATE = """
+<div class="modal fade ceModal" id="ceModal-{{ ceId }}" tabindex="-1" aria-labelledby="ceModalLabel-{{ ceId }}" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen-xl-down modal-xl" role="document">
+        <div class="modal-content ce-app-shell" data-phase-index="{{ phase_index }}" style="--phase-color: var(--phase-{{ phase_index }});">
+            
+            <div class="modal-header ce-modal-header">
+                <div class="node-icon"><i class="{{ node_info.icon }}"></i></div>
+                <div class="ms-3">
+                    <h5 class="modal-title ce-title">{{ ceType.replace('_', ' ').title() }}</h5>
+                    <p class="phase-name mb-0">// {{ phase_name.title() }} PHASE</p>
+                </div>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body ce-app-body">
+                <div class="ce-app-sidebar">
+                    <ul class="nav nav-pills flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="pill" href="#view-overview-{{ ceId }}">
+                                <i class="fas fa-binoculars fa-fw me-2"></i>Overview
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="pill" href="#view-details-{{ ceId }}">
+                                <i class="fas fa-pencil-alt fa-fw me-2"></i>Resource Editor
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="pill" href="#view-resources-{{ ceId }}">
+                                <i class="fas fa-book fa-fw me-2"></i>Resources
+                                {# Use 'or []' as a safety check in case resources is None #}
+                                <span class="badge rounded-pill bg-light text-dark ms-auto resource-counter">{{ (ce_data.data.resources or []) | length }}</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="ce-app-content tab-content">
+                    {# --- FIX: CONTENT FOR OVERVIEW TAB IS NOW INCLUDED --- #}
+                    <div class="tab-pane fade show active p-4" id="view-overview-{{ ceId }}">
+                        <!-- Dashboard Stats -->
+                        <div class="row mb-4 text-center">
+                            <div class="col-md-4">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title display-6 resource-counter">{{ (ce_data.data.resources or []) | length }}</h5>
+                                        <p class="card-text text-muted">Curated Resources</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title display-6">{{ node_info.resource_schema | length }}</h5>
+                                        <p class="card-text text-muted">Resource Fields</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title display-6">In Progress</h5>
+                                        <p class="card-text text-muted">Status</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- AI Context -->
+                        <div class="sub-section mb-4">
+                            <div class="context-label">AI Contextual Insight</div>
+                            <div class="content-block">
+                                <p>{{ ai_generated_data.contextual_description or 'No AI contextual description was generated.' }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Source COS -->
+                         <div class="sub-section">
+                            <div class="context-label">Source Condition of Satisfaction (COS)</div>
+                            <div class="content-block italic">
+                                {{ cos_content_with_pills | safe }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade p-4" id="view-details-{{ ceId }}">
+                        <div class="details-form-container">
+                            <h4 class="mb-4">Resource Editor</h4>
+                            <form id="ceForm-{{ ceId }}">
+                                {% for field in node_info.resource_schema %}
+                                    <div class="form-group">
+                                        <label for="{{ field.field }}">{{ field.title }}</label>
+                                        {% if field.editor == 'textarea' %}
+                                            <textarea class="form-control" name="{{ field.field }}" placeholder="Enter {{ field.title }}..." rows="3"></textarea>
+                                        {% else %}
+                                            <input type="text" class="form-control" name="{{ field.field }}" placeholder="Enter {{ field.title }}...">
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </form>
+                            <div class="action-row mt-4">
+                                <button type="button" class="btn btn-primary" id="addOrUpdateButton-{{ ceId }}">
+                                    <i class="fas fa-plus"></i> Add as New Resource
+                                </button>
+                                <p class="text-muted small ms-3" id="form-helper-text-{{ ceId }}">
+                                    Click a resource from the list to edit it here.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade p-4" id="view-resources-{{ ceId }}">
+                        <div class="resources-table-wrapper">
+                            <div id="dynamicTable-{{ ceId }}"></div>
+                        </div>
+                         <div class="action-row mt-3">
+                            <button type="button" class="btn btn-danger" id="deleteSelectedRowsButton-{{ ceId }}"><i class="fas fa-trash-alt"></i> Delete Selected</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer ce-modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary btn-save-changes">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+
+async def generate_dynamic_modal(ce_type, ce_data, node_info, cos_content, ai_generated_data, phase_name, phase_index):
+    """
+    Renders the new "Node Application" modal shell.
+    """
+    # Pre-process the COS content to have pills before rendering the template
+    cos_content_with_pills = replace_ce_tags_with_pills(cos_content)
+
+    return render_template_string(
+        BASE_MODAL_TEMPLATE,
+        ceId=ce_data.get('id', 'new_ce'),
+        ceType=ce_type,
+        ce_data=ce_data,
+        node_info=node_info,
+        cos_content_with_pills=cos_content_with_pills,
+        ai_generated_data=ai_generated_data,
+        phase_name=phase_name,
+        phase_index=phase_index
+    )
+
+🟧 ai_service.py:
+# ai_service.py 
+import os
+import json
+import uuid
+import logging
+import asyncio
+from google import genai
+from google.genai import types
+from google.genai.types import HarmCategory, HarmBlockThreshold
+from PIL import Image
+from io import BytesIO
+from dotenv import load_dotenv
+from flask import current_app
+from ce_nodes import get_valid_node_types
+from openai import AzureOpenAI
+import re
+import aiohttp
+
+# Load environment variables
+load_dotenv()
+google_gemini_api_key = os.environ["GOOGLE_GEMINI_API"]
+gemini_model_name = os.getenv("GEMINI_MODEL_NAME")
+gemini_image_model_name = os.getenv("GEMINI_IMAGE_MODEL_NAME")
+
+# Initialize Gemini client
+gemini_client = genai.Client(api_key=google_gemini_api_key)
+
+async def send_request_to_gemini(messages, generation_config=None, logger=None):
+    """
+    Asynchronously sends a request to the Google Gemini API and returns the response.
+    This function now expects that any 'system' roles have already been converted.
+    """
+    if logger is None:
+        logger = current_app.logger
+    try:
+        logger.debug(f"Sending request to Gemini with messages: {messages}")
+
+        contents = []
+        for message in messages:
+            if isinstance(message, dict) and 'role' in message and 'content' in message:
+                role = message['role']
+                if role not in ("user", "model"):
+                    raise ValueError(f"Invalid role: {role}. Role must be 'user' or 'model'.")
+                contents.append(
+                    types.Content(
+                        role=role,
+                        parts=[types.Part(text=message['content'])]
+                    )
+                )
+            else:
+                logger.warning(f"Invalid message format: {message}. Skipping this message.")
+
+        if generation_config is None:
+            generation_config = types.GenerateContentConfig(safety_settings=[
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+            ])
+        elif isinstance(generation_config, dict):
+            generation_config.setdefault('safety_settings', [
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+            ])
+            generation_config = types.GenerateContentConfig(**generation_config)
+
+        response = await gemini_client.aio.models.generate_content(
+            model=gemini_model_name,
+            contents=contents,
+            config=generation_config
+        )
+        logger.debug(f"Gemini API response: {response.text}")
+        return response.text
+
+    except Exception as e:
+        logger.error(f"Error sending request to Gemini API: {e}", exc_info=True)
+        raise
+
+async def generate_chat_response(messages, role, task, model=None, temperature=0.75, retries=3, backoff_factor=2, logger=None, generation_config=None, system_instruction=None):
+    if logger is None:
+        logger = current_app.logger
+    
+    processed_messages = []
+    for msg in messages:
+        if msg.get('role') == 'system':
+            if not processed_messages or processed_messages.get('role') != 'user':
+                processed_messages.insert(0, {'role': 'user', 'content': msg['content']})
+            else:
+                processed_messages['content'] = f"{msg['content']}\n\n{processed_messages['content']}"
+        else:
+            processed_messages.append(msg)
+    
+    if system_instruction:
+        if not processed_messages or processed_messages.get('role') != 'user':
+            processed_messages.insert(0, {'role': 'user', 'content': system_instruction})
+        else:
+            processed_messages['content'] = f"{system_instruction}\n\n{processed_messages['content']}"
+
+    if generation_config is None:
+        generation_config = types.GenerateContentConfig(
+            temperature=temperature,
+            top_p=0.95,
+            top_k=40,
+            max_output_tokens=8192,
+            safety_settings=[
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                types.SafetySetting(category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+            ]
+        )
+    elif isinstance(generation_config, dict):
+        generation_config.setdefault('safety_settings', [
+            types.SafetySetting(category=HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+            types.SafetySetting(category=HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+            types.SafetySetting(category=HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+            types.SafetySetting(category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH),
+        ])
+        generation_config.setdefault('max_output_tokens', 8192)
+        generation_config = types.GenerateContentConfig(**generation_config)
+
+    last_exception = None
+    for retry_attempt in range(retries):
+        try:
+            logger.debug(f"Sending request to Gemini (attempt {retry_attempt + 1})")
+            raw_response = await send_request_to_gemini(processed_messages, generation_config, logger)
+
+            match = re.search(r"```(?:json)?\s*\n(.*?)\s*```", raw_response, re.DOTALL)
+            
+            if match:
+                response_content = match.group(1).strip()
+            else:
+                response_content = raw_response
+                logger.warning(f"No JSON markdown block found in Gemini response. Using raw response. Response: {response_content}")
+            
+            logger.debug(f"Gemini API response (extracted): {response_content}")
+            return response_content
+
+        except Exception as e:
+            last_exception = e
+            if retry_attempt < retries - 1:
+                sleep_time = backoff_factor ** (retry_attempt + 1)
+                logger.warning(f"Error in generate_chat_response: {e}. Retrying in {sleep_time} seconds.")
+                await asyncio.sleep(sleep_time)
+            else:
+                logger.error(f"Error in generate_chat_response: {e}. All retries exhausted.")
+    if last_exception:
+        raise last_exception
+
+
+async def generate_chat_response_with_node_types(messages, role, task, temperature=0.75, retries=3, backoff_factor=2, logger=None):
+    if logger is None:
+        logger = current_app.logger
+
+    last_exception = None
+    for retry_attempt in range(retries):
+        try:
+            node_types = get_valid_node_types()
+            node_types_str = ', '.join(node_types)
+
+            system_message = {
+                "role": "user",
+                "content": "You are a helpful assistant. Please respond with information in JSON format. Valid Node Types: " + node_types_str + " **The response should be valid JSON.**"
+            }
+            messages_with_system = [system_message] + messages
+
+            response_content = await generate_chat_response(messages_with_system, role, task, temperature=temperature, retries=retries, backoff_factor=backoff_factor, logger=logger)
+            return response_content
+        except Exception as e:
+            last_exception = e
+            if retry_attempt < retries - 1:
+                sleep_time = backoff_factor ** (retry_attempt + 1)
+                logger.warning(f"Error in generate_chat_response: {e}. Retrying in {sleep_time} seconds.")
+                await asyncio.sleep(sleep_time)
+            else:
+                logger.error(f"Error in generate_chat_response: {e}. All retries exhausted.")
+    if last_exception:
+        raise last_exception
+
+async def get_grounded_data(query, ce_type):
+    """
+    Retrieves grounded data from Google Search for a given query and CE type.
+    """
+    try:
+        # --- MODIFIED: Corrected the model name ---
+        model = gemini_model_name
+
+        contents = [
+            types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=query)],
+            ),
+            types.Content(
+                role="model",
+                parts = [types.Part.from_text(text="Okay, I will search for that.")]
+            ),
+              types.Content(
+                role="user",
+                parts = [types.Part.from_text(text=(
+                    "You are a helpful assistant that extracts information from Google Search results. "
+                    f"You are assisting with a Conditional Element of type: {ce_type}.  "
+                    "Return a JSON object with the following structure: \n"
+                    "{\n"
+                    " 'results': [\n"
+                    " {\n"
+                    " 'title': 'Title of the search result',\n"
+                    " 'url': 'URL of the search result',\n"
+                    " 'snippet': 'Snippet from the search result',\n"
+                    " 'extracted_data': { ... }  // Data mapped to CE fields\n"
+                    " }\n"
+                    " ],\n"
+                    " 'summary': 'A brief summary of the findings',\n"
+                     " 'attribution': 'Data retrieved via Google Search using Gemini API.'\n"
+                    "}\n"
+                    "The 'extracted_data' field should map relevant information from the snippet to the "
+                    f"fields defined for the CE type '{ce_type}'.  If a field cannot be filled from the snippet, "
+                    "leave it as null or an empty string.  **The response should be valid JSON.**"
+
+                ))]
+            )
+        ]
+
+        tools = [types.Tool(google_search=types.GoogleSearch())]
+
+        generation_config = types.GenerateContentConfig(
+            temperature=0.4,
+            top_p=0.95,
+            top_k=40,
+            max_output_tokens=8192,
+            tools=tools,
+        )
+        response = await gemini_client.aio.models.generate_content(
+          model=model,
+          contents=contents,
+          config=generation_config,
+        )
+
+        response_content = ""
+        if response and response.text:
+            # --- MODIFIED: More robust JSON extraction to handle truncated responses ---
+            raw_text = response.text
+            match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw_text, re.DOTALL)
+            if match:
+                response_content = match.group(1).strip()
+                current_app.logger.debug(f"Gemini API response (extracted from markdown): {response_content}")
+            else:
+                # Fallback: Find the first '{' and last '}' if no markdown block is found
+                start = raw_text.find('{')
+                end = raw_text.rfind('}')
+                if start != -1 and end != -1 and end > start:
+                    response_content = raw_text[start:end+1]
+                    current_app.logger.warning(f"No JSON markdown block found. Extracted from curly braces. Raw Response: {raw_text}")
+                else:
+                    current_app.logger.warning(f"No JSON found at all in Gemini response. Raw Response: {raw_text}")
+        else:
+            current_app.logger.warning(f"Gemini API response or response text is None. Full response object: {response}")
+
+        if response_content:
+          try:
+            grounded_data = json.loads(response_content)
+          except json.JSONDecodeError as e:
+            current_app.logger.error(f"JSONDecode Error: {e}. Content that failed: '{response_content}'")
+            return None
+        else:
+            return None
+
+        return grounded_data
+
+    except Exception as e:
+        current_app.logger.error(f"Error in get_grounded_data: {e}", exc_info=True)
+        return None
+
+async def generate_image(prompt):
+    from utilities import sanitize_filename
+    from flask import current_app
+
+    try:
+        contents = prompt
+
+        generate_content_config = types.GenerateContentConfig(
+            temperature=1.0,
+            top_p=0.95,
+            top_k=40,
+            max_output_tokens=8192,
+            response_modalities=["image", "text"],
+            response_mime_type="text/plain"
+        )
+
+        current_app.logger.debug(f"generate_image (Gemini) - Sending prompt to API: '{prompt}'")
+
+        response = await gemini_client.aio.models.generate_content(
+            model=gemini_image_model_name,
+            contents=contents,
+            config=generate_content_config
+        )
+
+        image_part = None
+        for candidate in response.candidates:
+             for part in candidate.content.parts:
+                if part.inline_data is not None and part.inline_data.mime_type.startswith('image/'):
+                    image_part = part
+                    break
+             if image_part:
+                 break
+
+        if not image_part:
+            raise ValueError("No image data found in Gemini response")
+
+        image_bytes = image_part.inline_data.data
+        image = Image.open(BytesIO(image_bytes))
+
+
+        unique_filename = f"generated_image_gemini_{uuid.uuid4().hex}.png"
+        unique_filename = sanitize_filename(unique_filename)
+        static_folder = current_app.static_folder
+        image_folder = os.path.join(static_folder, 'images')
+        os.makedirs(image_folder, exist_ok=True)
+        image_file_path = os.path.join(image_folder, unique_filename)
+        image.save(image_file_path)
+
+        web_path = os.path.join('images', unique_filename).replace("\\", "/")
+        return web_path
+
+    except Exception as e:
+        current_app.logger.error(f"Error in generate_image (Gemini - Refactored Config): {e}", exc_info=True)
+        raise
+
+⬜ speculate.py:
+# speculate.py (Complete and Refactored with fixes for pill parsing)
+import re
+import os
+import html
+import json
+import uuid
+from uuid import UUID
+import logging
+from bs4 import BeautifulSoup
+from flask import current_app
+from ce_nodes import NODES, get_valid_node_types
+from ce_templates import replace_ce_tags_with_pills
+from sqlalchemy.exc import SQLAlchemyError
+from ai_service import generate_chat_response_with_node_types, generate_chat_response
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# --- NEW SAFE EXTRACTION HELPER ---
+def _safe_get_ai_data(data_dict, key):
+    """Safely retrieves a key, cleaning up surrounding quotes and whitespace."""
+    if not isinstance(data_dict, dict):
+        return None
+    
+    key_variants = [
+        key,
+        key.strip(),
+        f'"{key}"',
+        f'"{key}"'.strip(),
+        f'  "{key}"'.strip(),
+        f' {key} '.strip()
+    ]
+    
+    for k in set(key_variants):
+        if k in data_dict:
+            return data_dict[k]
+        
+        for dict_key in data_dict.keys():
+            if str(dict_key).strip().strip('"').lower() == key.lower():
+                return data_dict[dict_key]
+        
+    return None
+
+# --- COS Analysis and CE Pill Generation ---
+async def analyze_cos(cos_content: str, cos_id: str = None) -> dict:
+    """
+    Analyzes COS content using AI to identify CEs, and prepares content with CE pills.
+    Returns a dictionary: {'content_with_ce': <html_string>, 'ces_data_list': [<ce_dict>, ...]}
+    """
+    prompt = (
+        f"Analyze the following Condition of Satisfaction (COS) text: '{cos_content}'. "
+        "Identify all Conditional Elements (CEs) within this text. "
+        "A CE is a specific part of the COS that requires further detail or action. "
+        f"For each CE found, determine its most appropriate 'NodeType' from this list ONLY: {', '.join(get_valid_node_types())}. "
+        "Your response MUST be a valid JSON object with two keys: "
+        "'analyzed_cos_text': This should be the original COS text but with each identified CE "
+        "wrapped in <ce type='NodeType'>Your CE Text Here</ce> tags. "
+        "And 'identified_ces': an array of objects, where each object represents a CE and has 'text' and 'type' keys. "
+        "Example JSON: "
+        '{'
+        '  "analyzed_cos_text": "The <ce type=\'Research\'>literature review</ce> must be completed and <ce type=\'Stakeholder\'>key experts</ce> identified.",'
+        '  "identified_ces": ['
+        '    {"text": "literature review", "type": "Research"},'
+        '    {"text": "key experts", "type": "Stakeholder"}'
+        '  ]'
+        '}'
+    )
+
+    messages = [
+        {"role": "system", "content": "You are an expert in analyzing text to identify conditional elements and structure them in JSON. Ensure NodeTypes are from the provided list. The 'analyzed_cos_text' MUST include the <ce> tags."},
+        {"role": "user", "content": prompt},
+    ]
+    response_text = ""
+    try:
+        response_text = await generate_chat_response_with_node_types(messages, role='COS Analysis', task='Analyze COS for CEs')
+        response_json = json.loads(response_text)
+
+        ai_analyzed_text_with_tags = response_json.get("analyzed_cos_text", cos_content)
+        
+        # --- FIX: Call replace_ce_tags_with_pills with only one argument ---
+        content_with_pills_html = replace_ce_tags_with_pills(ai_analyzed_text_with_tags)
+
+        final_ces_data_list = []
+        soup = BeautifulSoup(content_with_pills_html, 'html.parser')
+        
+        # --- FIX: Changed 'span' to 'div' to correctly find the new pill structure ---
+        for pill_tag in soup.find_all('div', class_='ce-pill'):
+            # --- FIX: Robustly find the text within the child span ---
+            text_element = pill_tag.find('span', class_='ce-pill-text')
+            pill_text = text_element.string.strip() if text_element and text_element.string else ""
+            
+            final_ces_data_list.append({
+                'id': pill_tag.get('data-ce-id'),
+                'content': pill_text,
+                'node_type': pill_tag.get('data-ce-type'),
+                'cos_id': cos_id
+            })
+        
+        return {'content_with_ce': content_with_pills_html, 'ces_data_list': final_ces_data_list}
+
+    except json.JSONDecodeError as e:
+        current_app.logger.error(f"JSONDecodeError in analyze_cos: {e}. AI Response: '{response_text}'", exc_info=True)
+        return {'content_with_ce': html.escape(cos_content), 'ces_data_list': []}
+    except Exception as e:
+        current_app.logger.error(f"Exception in analyze_cos: {e}. AI Response: '{response_text}'", exc_info=True)
+        return {'content_with_ce': html.escape(cos_content), 'ces_data_list': []}
+
+async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: str, accountable_party: str = None, completion_date=None) -> str:
+    from models import COS, CE, get_engine_and_session
+    from store import ce_store, cos_store
+    from app import app
+    from sqlalchemy.exc import SQLAlchemyError
+
+    analysis_result = {}
+    cos_id_str = None
+    
+    try:
+        new_cos_uuid = uuid.uuid4()
+        cos_id_str = str(new_cos_uuid)
+
+        analysis_result = await analyze_cos(content, cos_id_str)
+        content_with_pills = analysis_result['content_with_ce']
+        extracted_ces_data = analysis_result['ces_data_list']
+
+        if USE_DATABASE:
+            with app.app_context():
+                engine, SessionLocal = get_engine_and_session()
+                session = SessionLocal()
+                try:
+                    if completion_date in ['None', 'N/A', '', None]:
+                         completion_date_for_db = None
+                    else:
+                        completion_date_for_db = completion_date
+
+                    cos_instance = COS(
+                        id=new_cos_uuid,
+                        content=content_with_pills,
+                        status=status,
+                        accountable_party=accountable_party,
+                        completion_date=completion_date_for_db,
+                        ssol_id=ssol_id
+                    )
+                    session.add(cos_instance)
+
+                    for ce_data in extracted_ces_data:
+                        ce_uuid = UUID(ce_data['id'])
+                        ce_instance = CE(
+                            id=ce_uuid,
+                            node_type=ce_data['node_type'], # Simplified from previous version
+                            cos_id=new_cos_uuid,
+                            data={"details_data": {}, "resources": []} # Default data structure
+                        )
+                        session.add(ce_instance)
+                        
+                    session.commit()
+                    
+                except SQLAlchemyError as db_e:
+                    session.rollback()
+                    current_app.logger.error(f"DB Error on create_cos (SSOL: {ssol_id}, COS: {cos_id_str}): {db_e}", exc_info=True)
+                    raise Exception(f"Database error while saving Condition of Satisfaction.") from db_e
+                finally:
+                    if session.is_active: 
+                        session.close()
+        else:
+            cos_record = {
+                'id': cos_id_str,
+                'content': content_with_pills,
+                'status': status,
+                'ssol_id': str(ssol_id),
+                'accountable_party': accountable_party,
+                'completion_date': str(completion_date) if completion_date else None,
+                'conditional_elements': []
+            }
+            cos_store[cos_id_str] = cos_record
+
+            for ce_data in extracted_ces_data:
+                ce_record = {
+                    'id': ce_data['id'], 
+                    'node_type': ce_data['node_type'], 
+                    'cos_id': cos_id_str,
+                    'data': {"details_data": {}, "resources": []} # Default data structure
+                }
+                ce_store[ce_data['id']] = ce_record
+                cos_record['conditional_elements'].append(ce_record)
+        
+        return cos_id_str
+
+    except ValueError as e:
+        current_app.logger.error(f"Data validation error creating COS (SSOL: {ssol_id}): {e}", exc_info=True)
+        raise ValueError(f"Data error: {str(e)}") from e
+    except Exception as e:
+        current_app.logger.error(f"General Error creating COS (SSOL: {ssol_id}, COS: {cos_id_str}): {e}", exc_info=True)
+        raise
+
+def get_cos_by_id(USE_DATABASE: bool, cos_id: UUID):
+    from models import COS, get_engine_and_session
+    from store import cos_store
+    from app import app
+
+    if USE_DATABASE:
+        if not isinstance(cos_id, UUID):
+            try:
+                cos_id = UUID(str(cos_id))
+            except ValueError:
+                current_app.logger.error(f"Invalid UUID format for cos_id: {cos_id}")
+                return None
+        with app.app_context():
+            engine, session = get_engine_and_session()
+            cos = session.query(COS).get(cos_id)
+            session.close()
+            return cos
+    else:
+        return cos_store.get(str(cos_id))
+
+async def update_cos_by_id(USE_DATABASE: bool, cos_id_param: UUID, updated_data: dict) -> dict:
+    from models import COS, CE, get_engine_and_session
+    from store import cos_store, ce_store
+    from app import app
+
+    analysis_result = {}
+    try:
+        cos_id_uuid = cos_id_param
+        cos_id_str = str(cos_id_uuid)
+
+        new_content_text = updated_data.get('content')
+        content_with_pills_for_update = None
+        new_ces_data_list_from_analysis = []
+
+        if new_content_text is not None:
+            analysis_result = await analyze_cos(new_content_text, cos_id_str)
+            content_with_pills_for_update = analysis_result['content_with_ce']
+            new_ces_data_list_from_analysis = analysis_result['ces_data_list']
+            updated_data['content'] = content_with_pills_for_update
+        
+        if USE_DATABASE:
+            with app.app_context():
+                engine, session = get_engine_and_session()
+                cos = session.query(COS).get(cos_id_uuid)
+                if not cos:
+                    session.close()
+                    return {'success': False, 'message': f"COS {cos_id_str} not found.", 'status_code': 404}
+
+                for key, value in updated_data.items():
+                    if key not in ['conditional_elements', 'id', 'ssol_id']:
+                        setattr(cos, key, value)
+                
+                if new_content_text is not None:
+                    session.query(CE).filter_by(cos_id=cos_id_uuid).delete(synchronize_session=False)
+                    session.flush()
+
+                    for ce_data in new_ces_data_list_from_analysis:
+                        new_ce_instance = CE(
+                            id=UUID(ce_data['id']),
+                            node_type=ce_data['node_type'],
+                            cos_id=cos_id_uuid
+                        )
+                        session.add(new_ce_instance)
+                
+                session.commit()
+                updated_cos_dict = cos.to_dict()
+                session.close()
+                return {'success': True, 'cos': updated_cos_dict}
+        else:
+            cos_record = cos_store.get(cos_id_str)
+            if not cos_record:
+                return {'success': False, 'message': f"COS {cos_id_str} not found.", 'status_code': 404}
+
+            for key, value in updated_data.items():
+                if key != 'conditional_elements':
+                    cos_record[key] = value
+            
+            if new_content_text is not None:
+                if 'conditional_elements' in cos_record:
+                    for old_ce in cos_record['conditional_elements']:
+                        ce_store.pop(old_ce['id'], None)
+                cos_record['conditional_elements'] = []
+
+                for ce_data in new_ces_data_list_from_analysis:
+                    new_ce_dict = {
+                        'id': ce_data['id'],
+                        'node_type': ce_data['node_type'],
+                        'cos_id': cos_id_str
+                    }
+                    ce_store[ce_data['id']] = new_ce_dict
+                    cos_record['conditional_elements'].append(new_ce_dict)
+            
+            return {'success': True, 'cos': cos_record}
+
+    except KeyError as e:
+        current_app.logger.error(f"KeyError updating COS {cos_id_param}: {e}. Analysis result: {analysis_result}", exc_info=True)
+        return {'success': False, 'message': f"Data error: {str(e)}", 'status_code': 400}
+    except Exception as e:
+        current_app.logger.error(f"Error updating COS {cos_id_param}: {e}", exc_info=True)
+        if USE_DATABASE and 'session' in locals() and session.is_active:
+            session.rollback(); session.close()
+        return {'success': False, 'message': f"Unexpected error: {str(e)}", 'status_code': 500}
+
+
+def delete_cos_by_id(USE_DATABASE: bool, cos_id: UUID) -> bool:
+    from models import COS, CE, get_engine_and_session
+    from store import cos_store, ce_store
+    from app import app
+
+    try:
+        cos_id_uuid = cos_id
+        cos_id_str = str(cos_id_uuid)
+
+        if USE_DATABASE:
+            with app.app_context():
+                engine, session = get_engine_and_session()
+                session.query(CE).filter_by(cos_id=cos_id_uuid).delete(synchronize_session=False)
+                cos = session.query(COS).get(cos_id_uuid)
+                if cos:
+                    session.delete(cos)
+                    session.commit()
+                    session.close()
+                    return True
+                session.close()
+                return False
+        else:
+            if cos_id_str in cos_store:
+                cos_record = cos_store.get(cos_id_str, {})
+                for ce_data in cos_record.get('conditional_elements', []):
+                    ce_store.pop(ce_data['id'], None)
+                del cos_store[cos_id_str]
+                return True
+            return False
+    except Exception as e:
+        current_app.logger.error(f"Error deleting COS {cos_id}: {e}", exc_info=True)
+        if USE_DATABASE and 'session' in locals() and session.is_active:
+            session.rollback()
+            session.close()
+        return False
+
+# --- SSOL CRUD Operations ---
+def create_ssol(USE_DATABASE: bool, title: str, description: str) -> str:
+    from models import SSOL, get_engine_and_session
+    from store import ssol_store
+    from app import app
+
+    if USE_DATABASE:
+        with app.app_context():
+            engine, session = get_engine_and_session()
+            new_ssol_uuid = uuid.uuid4()
+            ssol = SSOL(id=new_ssol_uuid, title=title, description=description)
+            session.add(ssol)
+            session.commit()
+            ssol_id_to_return = str(new_ssol_uuid)
+            session.close()
+            return ssol_id_to_return
+    else:
+        ssol_id = str(uuid.uuid4())
+        ssol_store[ssol_id] = {'id': ssol_id, 'title': title, 'description': description, 'phases': {}}
+        return ssol_id
+
+def get_ssol_by_id(USE_DATABASE: bool, ssol_id: UUID):
+    from models import SSOL, get_engine_and_session
+    from store import ssol_store
+    from app import app
+    if USE_DATABASE:
+        if not isinstance(ssol_id, UUID): ssol_id = UUID(str(ssol_id))
+        with app.app_context():
+            engine, session = get_engine_and_session()
+            ssol = session.query(SSOL).get(ssol_id)
+            session.close()
+            return ssol
+    else:
+        return ssol_store.get(str(ssol_id))
+
+# --- CE CRUD Operations ---
+def get_ce_by_id(USE_DATABASE: bool, ce_id_param):
+    from models import CE, get_engine_and_session
+    from store import ce_store
+    from app import app
+
+    ce_id_uuid = None
+    if isinstance(ce_id_param, UUID):
+        ce_id_uuid = ce_id_param
+    else:
+        try:
+            ce_id_uuid = UUID(str(ce_id_param))
+        except ValueError:
+            current_app.logger.error(f"Invalid UUID format for ce_id: '{ce_id_param}'")
+            return None
+
+    try:
+        if USE_DATABASE:
+            with app.app_context():
+                engine, SessionLocal = get_engine_and_session()
+                session = SessionLocal()
+                try:
+                    ce_db_instance = session.query(CE).get(ce_id_uuid)
+                    if ce_db_instance:
+                        ce_data_to_return = ce_db_instance.to_dict()
+                    else:
+                        current_app.logger.debug(f"CE with ID {ce_id_uuid} not found in database.")
+                        ce_data_to_return = None
+                except Exception as db_exc:
+                    current_app.logger.error(f"Database error retrieving CE {ce_id_uuid}: {db_exc}", exc_info=True)
+                    ce_data_to_return = None
+                finally:
+                    session.close()
+            return ce_data_to_return
+        else:
+            return ce_store.get(str(ce_id_uuid))
+
+    except ValueError as ve:
+        current_app.logger.error(f"ValueError processing CE ID '{ce_id_param}': {ve}", exc_info=True)
+        return None
+    except Exception as e:
+        current_app.logger.error(f"Unexpected error in get_ce_by_id for CE ID '{ce_id_param}': {e}", exc_info=True)
+        return None
+
+
+def create_ce(USE_DATABASE: bool, node_type: str, cos_id: UUID, data: dict) -> str:
+    from models import CE, get_engine_and_session
+    from store import ce_store
+    from app import app
+
+    new_ce_uuid = uuid.uuid4()
+    ce_id_str = str(new_ce_uuid)
+
+    if USE_DATABASE:
+        with app.app_context():
+            engine, session = get_engine_and_session()
+            ce = CE(id=new_ce_uuid, node_type=node_type, cos_id=cos_id, data=data)
+            session.add(ce)
+            session.commit()
+            session.close()
+    else:
+        ce_data = {'id': ce_id_str, 'node_type': node_type, 'cos_id': str(cos_id), 'data': data}
+        ce_store[ce_id_str] = ce_data
+    return ce_id_str
+
+
+def update_ce_by_id(USE_DATABASE: bool, ce_id: UUID, ce_data: dict) -> bool:
+    from models import CE, get_engine_and_session
+    from store import ce_store
+    from app import app
+
+    ce_id_uuid = ce_id
+    ce_id_str = str(ce_id_uuid)
+
+    if USE_DATABASE:
+        with app.app_context():
+            engine, session = get_engine_and_session()
+            ce = session.query(CE).get(ce_id_uuid)
+            if ce:
+                # The 'data' column is the one we update with the entire payload
+                ce.data = ce_data
+                session.commit()
+                session.close()
+                return True
+            session.close()
+            return False
+    else:
+        if ce_id_str in ce_store:
+            # We update the 'data' field, but keep id, node_type, etc.
+            if 'data' not in ce_store[ce_id_str]:
+                 ce_store[ce_id_str]['data'] = {}
+            ce_store[ce_id_str]['data'] = ce_data
+            return True
+        return False
+
+def delete_ce_by_id(USE_DATABASE: bool, ce_id: UUID) -> bool:
+    from models import CE, get_engine_and_session
+    from store import ce_store
+    from app import app
+    
+    ce_id_uuid = ce_id
+    ce_id_str = str(ce_id_uuid)
+
+    if USE_DATABASE:
+        with app.app_context():
+            engine, session = get_engine_and_session()
+            ce = session.query(CE).get(ce_id_uuid)
+            if ce:
+                session.delete(ce)
+                session.commit()
+                session.close()
+                return True
+            session.close()
+            return False
+    else:
+        return bool(ce_store.pop(ce_id_str, None))
+
+
+# --- Initial SSOL Generation Logic ---
+def parse_ai_response_and_generate_html(USE_DATABASE: bool, response_json: dict, ssol_id_for_cos: UUID) -> dict:
+    from models import COS, CE, get_engine_and_session
+    from store import cos_store, ce_store
+    from app import app
+
+    structured_solution = {}
+    expected_phases = ["Discovery", "Engagement", "Action", "Completion", "Legacy"]
+
+    for phase_name in expected_phases:
+        structured_solution[phase_name] = []
+        cos_list_from_ai = response_json.get(phase_name, [])
+
+        for cos_dict_from_ai in cos_list_from_ai:
+            cos_uuid = uuid.uuid4()
+            cos_id_str = str(cos_uuid)
+            
+            raw_cos_content_from_ai = cos_dict_from_ai.get('content', '')
+            # --- FIX: Call replace_ce_tags_with_pills with only one argument ---
+            content_with_html_pills = replace_ce_tags_with_pills(raw_cos_content_from_ai)
+
+            ces_for_this_cos_data = []
+            soup = BeautifulSoup(content_with_html_pills, 'html.parser')
+
+            # --- BUG FIX: Changed 'span' to 'div' to match the actual HTML of the pills. ---
+            for pill_tag in soup.find_all('div', class_='ce-pill'):
+                ce_pill_id_str = pill_tag.get('data-ce-id')
+                
+                # --- BUG FIX: Extract text from the specific child span for robustness. ---
+                text_element = pill_tag.find('span', class_='ce-pill-text')
+                ce_content_text = text_element.string.strip() if text_element and text_element.string else ""
+                
+                ce_node_type = pill_tag.get('data-ce-type')
+
+                if ce_pill_id_str and ce_node_type:
+                    ce_data_item = {
+                        'id': ce_pill_id_str,
+                        'node_type': ce_node_type,
+                        'cos_id': cos_id_str
+                    }
+                    ces_for_this_cos_data.append(ce_data_item)
+
+                    if USE_DATABASE:
+                        with app.app_context():
+                            engine, session = get_engine_and_session()
+                            ce_instance = CE(
+                                id=UUID(ce_pill_id_str),
+                                node_type=ce_node_type,
+                                cos_id=cos_uuid
+                            )
+                            session.add(ce_instance)
+                    else:
+                        ce_store[ce_pill_id_str] = ce_data_item
+
+            if USE_DATABASE:
+                with app.app_context():
+                    engine, session = get_engine_and_session()
+                    new_cos_db = COS(
+                        id=cos_uuid,
+                        content=content_with_html_pills,
+                        status='Proposed',
+                        ssol_id=ssol_id_for_cos,
+                        accountable_party=None,
+                        completion_date=None
+                    )
+                    session.add(new_cos_db)
+            else:
+                 cos_store[cos_id_str] = {
+                    'id': cos_id_str,
+                    'content': content_with_html_pills,
+                    'status': 'Proposed',
+                    'ssol_id': str(ssol_id_for_cos),
+                    'accountable_party': None,
+                    'completion_date': None,
+                    'conditional_elements': ces_for_this_cos_data
+                }
+
+            structured_solution[phase_name].append({
+                'id': cos_id_str,
+                'content': content_with_html_pills,
+                'status': 'Proposed',
+                'accountable_party': None,
+                'completion_date': None,
+            })
+    
+    if USE_DATABASE:
+        with app.app_context():
+            engine, session = get_engine_and_session()
+            try:
+                session.commit()
+            except Exception as e:
+                session.rollback()
+                current_app.logger.error(f"Error committing initial SSOL COS/CEs: {e}", exc_info=True)
+                raise
+            finally:
+                session.close()
+
+    return structured_solution
+
+📱 app.py:
+# app.py (Final Refactor using Application Factory Pattern)
+import os
+import logging
+from flask import Flask
+from flask_migrate import Migrate
+from dotenv import load_dotenv
+from models import db # Only import the 'db' object from models
+import colorlog
+from ce_nodes import NODES
+
+load_dotenv()
+
+# --- 1. Create App and Extension Instances (Uninitialized) ---
+app = Flask(__name__)
+migrate = Migrate() # Create the Migrate object, but don't connect it to the app yet.
+
+# --- App Configuration ---
+app.secret_key = os.environ.get('SECRET_KEY', 'a_very_secret_default_key')
+USE_DATABASE = os.environ.get('USE_DATABASE', 'False').lower() in ('true', '1', 't', 'y', 'yes')
+
+# --- Logger Configuration ---
+handler = colorlog.StreamHandler()
+handler.setFormatter(colorlog.ColoredFormatter(
+    '%(log_color)s%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+))
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    logger.addHandler(handler)
+
+# --- Jinja Filter ---
+@app.template_filter()
+def get_badge_class_from_status(status):
+   return {
+       'Proposed': 'bg-info',
+       'In Progress': 'bg-warning text-dark',
+       'Completed': 'bg-success',
+       'Rejected': 'bg-danger'
+   }.get(status, 'bg-secondary')
+
+@app.context_processor
+def inject_nodes():
+    """Injects the NODES dictionary into all templates."""
+    return dict(nodes=NODES)
+
+# --- 2. Initialize Extensions Conditionally ---
+# This is the core of the fix. We now initialize the extensions inside the 'if' block.
+if USE_DATABASE:
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_ECHO'] = os.environ.get('SQLALCHEMY_ECHO', 'False').lower() in ('true', '1', 't')
+
+    # Now, connect the db and migrate objects to the configured app.
+    # This ensures the 'db' command is registered only when USE_DATABASE is true.
+    db.init_app(app)
+    migrate.init_app(app, db)
+
+# --- 3. Blueprint Registration ---
+# Import blueprints AFTER the app is configured.
+from routes import routes_bp
+app.register_blueprint(routes_bp)
+
+# --- Main Execution (for `python app.py`) ---
+if __name__ == '__main__':
+    # This block is for direct execution and is not run by the 'flask' command.
+    app.run(debug=True, port=5000)
+
+🟦 outcome.html:
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <!-- Title Row (Spanning Full Width) -->
+    <div class="row">
+        <div class="col text-center">
+            <h1 class="ssol-title">{{ ssol.ssol_title | safe }}</h1>
+        </div>
+    </div>
+
+    <!-- Image and Domain Row -->
+    <div class="row outcome-header">
+        <div class="col-md-4 text-center">
+            <!-- Image Wrapper (for stacking) -->
+            <div class="image-wrapper">
+                <img src="{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}" alt="Loading Structure..." class="rounded mb-3 placeholder-image" id="placeholderImage">
+                <img src="" alt="Structured Solution Visualization" class="rounded mb-3 generated-image" id="ssolImage"> {# src will be set by JS #}
+            </div>
+            <!-- Container for error/status messages -->
+            <div id="image-status-container" class="mt-2 small"></div>
+
+            <h2>Domain</h2>
+            <i class="{{ ssol.domain_icon }} fa-3x mb-3"></i>
+            <p class="domain domain-text text-center">{{ ssol.domain | title }}</p>
+            <h2>Fulfilled Goal</h2>
+            <p><strong>{{ ssol.selected_goal | safe }}</strong></p>
+            <div id="ssol-goal" style="display: none;">{{ ssol.selected_goal | safe }}</div>
+            <div class="text-center mt-4">
+                <button id="save-as-pdf-button" data-ssol-id="{{ ssol_id }}" class="btn btn-info" title="Save as PDF">
+                    <i class="fas fa-download me-2"></i>PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- Summary Column -->
+        <div class="col-md-8">
+            <h1>Preliminary Structured Solution</h1>
+            <p id="ssol-summary">{{ ssol.ssol_summary | safe }}</p>
+        </div>
+    </div>
+
+    <!-- Phases & Conditions of Satisfaction Row (Table structure remains the same) -->
+    <div class="row">
+        <h1>Phases & Conditions of Satisfaction</h1>
+        <div class="col">
+            <div class="accordion mt-4" id="phase-accordion">
+                {% for phase_name, cos_list in ssol.phases.items() %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header phase-colors" id="heading-{{ phase_name | replace(' ', '_') }}">
+                        <button
+                            class="accordion-button"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#collapse-{{ phase_name | replace(' ', '_') }}"
+                            aria-expanded="true" 
+                            aria-controls="collapse-{{ phase_name | replace(' ', '_') }}"
+                            style="background-color: var(--phase-{{ loop.index0 }});">
+                            {{ phase_name | title }} PHASE
+                        </button>
+                    </h2>
+                    <div
+                        id="collapse-{{ phase_name | replace(' ', '_') }}"
+                        class="accordion-collapse collapse show" 
+                        aria-labelledby="heading-{{ phase_name | replace(' ', '_') }}"
+                        data-bs-parent="#phase-accordion">
+                        <div class="accordion-body phase-table-container" data-ssol-id="{{ ssol_id }}" style="border: 2px solid var(--phase-{{ loop.index0 }});">
+                            {% if cos_list %}
+                            <table class="table table-striped table-hover phase-table" id="{{ phase_name | replace(' ', '_') }}-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" style="width: 10%;">Status</th>
+                                        <th scope="col" style="width: 40%;">Condition of Satisfaction</th>
+                                        <th scope="col" style="width: 15%;">Accountable Party</th>
+                                        <th scope="col" style="width: 15%;">Completion Date</th>
+                                        <th scope="col" class="text-end actions-header" style="width: 20%;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for cos in cos_list %}
+                                    <tr class="cos-row" data-cos-id="{{ cos.id }}" data-editing="false">
+                                        <td class="status-cell align-middle">
+                                            <span class="status-pill {{ cos.status | get_badge_class_from_status }}">{{ cos.status | upper }}</span>
+                                        </td>
+                                        <td class="cos-content-cell align-middle">
+                                            <div class="cos-content-display">{{ cos.content | safe }}</div>
+                                            <div class="cos-content-edit d-none">
+                                                <textarea class="form-control form-control-sm cos-content-textarea" rows="3">{{ cos.content | striptags }}</textarea>
+                                            </div>
+                                        </td>
+                                        <td class="cos-accountable-party-cell align-middle">
+                                            <span class="cos-accountable-party-display">{{ cos.accountable_party or 'N/A' }}</span>
+                                            <input type="text" class="form-control form-control-sm cos-accountable-party-edit d-none" value="{{ cos.accountable_party }}">
+                                        </td>
+                                        <td class="cos-completion-date-cell align-middle">
+                                            <span class="cos-completion-date-display">{{ cos.completion_date or 'N/A' }}</span>
+                                            <input type="date" class="form-control form-control-sm cos-completion-date-edit d-none" value="{{ cos.completion_date if cos.completion_date else '' }}">
+                                        </td>
+                                        <td class="text-end actions-cell align-middle">
+                                            <div class="btn-group cos-actions" role="group">
+                                                <button class="btn btn-sm btn-primary edit-cos-button" title="Edit COS"><i class="fas fa-edit"></i></button>
+                                                <button class="btn btn-sm btn-success update-cos-button d-none" title="Update COS"><i class="fas fa-check"></i></button>
+                                                <button class="btn btn-sm btn-secondary cancel-cos-button d-none" title="Cancel Edit"><i class="fas fa-times"></i></button>
+                                                <button class="btn btn-sm btn-danger delete-cos-button" title="Delete COS"><i class="fas fa-trash"></i></button>
+                                                <button class="btn btn-sm btn-info analyze-cos-button" data-cos-id="{{ cos.id }}" title="Analyze COS"><i class="fas fa-search-plus"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            <button class="btn btn-success btn-sm add-cos mt-2" data-phase="{{ phase_name | replace(' ', '_') }}">
+                                <i class="fas fa-plus"></i> Add Condition of Satisfaction
+                            </button>
+                            {% else %}
+                            <p>No Conditions of Satisfaction found for this phase.</p>
+                            <button class="btn btn-success btn-sm add-cos mt-2" data-phase="{{ phase_name | replace(' ', '_') }}">
+                                <i class="fas fa-plus"></i> Add Condition of Satisfaction
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="errorModalLabel">Error</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">{{ error_message }}</div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Placeholder for dynamic modals -->
+    <div id="dynamicModalContainer"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/cos_table.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/ce_cards.js') }}"></script>
+
+<link href="https://unpkg.com/tabulator-tables@4.9.3/dist/css/tabulator.min.css" rel="stylesheet">
+<script src="https://unpkg.com/tabulator-tables@4.9.3/dist/js/tabulator.min.js"></script>
+
+<script type="module">
+  document.addEventListener('DOMContentLoaded', () => {
+    const ssolId = "{{ ssol_id }}"; // From Flask template
+    const ssolImageElement = document.getElementById('ssolImage'); 
+    const placeholderImageElement = document.getElementById('placeholderImage');
+    const imageStatusContainer = document.getElementById('image-status-container'); // Renamed for clarity
+
+    const defaultStaticImagePath = "{{ url_for('static', filename='images/sspec_default.png') }}";
+    const loadingGifPath = "{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}";
+
+    if (ssolImageElement && placeholderImageElement) {
+        // Initial state for fade effect
+        ssolImageElement.src = ""; // Start with empty src for the final image
+        ssolImageElement.style.opacity = '0';
+        placeholderImageElement.src = loadingGifPath;
+        placeholderImageElement.style.opacity = '1';
+        if (imageStatusContainer) imageStatusContainer.innerHTML = ''; // Clear previous messages
+
+        let attempts = 0;
+        const maxAttempts = 7; // Increased attempts
+        const retryDelay = 2500; // Slightly longer delay
+
+        function fetchImageWithRetry() {
+            attempts++;
+            if (imageStatusContainer) { // Update status message
+                imageStatusContainer.innerHTML = `<p class="text-info">Fetching image (attempt ${attempts}/${maxAttempts})...</p>`;
+            }
+
+            fetch(`/get_ssol_image/${ssolId}`)
+              .then(response => {
+                if (!response.ok) {
+                  return response.json().then(err => {
+                    throw new Error(err.error || err.message || `HTTP error! status: ${response.status}`);
+                  }).catch(() => {
+                    throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+                  });
+                }
+                return response.json();
+              })
+              .then(data => {
+                console.log(`Image fetch attempt ${attempts}:`, data); 
+                // Check if a valid, non-default, non-placeholder image path is found
+                if (data.image_path && data.status === 'found' && 
+                    data.image_path !== defaultStaticImagePath && 
+                    data.image_path !== loadingGifPath &&
+                    !data.image_path.includes('SSPEC_Logo_Motion.gif') && // Explicitly check against GIF name part
+                    !data.image_path.includes('sspec_default.png')      // Explicitly check against default name part
+                   ) {
+                  ssolImageElement.src = data.image_path;
+                  ssolImageElement.alt = "Structured Solution Visualization";
+                  ssolImageElement.onload = () => {
+                    placeholderImageElement.style.opacity = '0';
+                    ssolImageElement.style.opacity = '1';
+                    placeholderImageElement.classList.add('hidden');
+                    ssolImageElement.classList.add('loaded');
+                    if (imageStatusContainer) imageStatusContainer.innerHTML = ''; // Clear status on success
+                  };
+                  ssolImageElement.onerror = () => {
+                    console.error('Error loading final SSOL image from path:', data.image_path);
+                    displayDefaultImage("Could not load the retrieved image. Displaying default.");
+                  };
+                } else if (attempts < maxAttempts && (data.status === 'pending_or_not_found' || !data.image_path || data.image_path.includes('sspec_default.png'))) {
+                  // If status is pending, or if the path returned is still a default path, retry
+                  setTimeout(fetchImageWithRetry, retryDelay);
+                } else { 
+                  // Max attempts reached or a non-retryable issue (e.g., explicit error from server that's not 'pending')
+                  displayDefaultImage(data.message || 'Image not available after retries. Displaying default.');
+                }
+              })
+              .catch(error => {
+                console.error(`Error fetching image data (attempt ${attempts}):`, error);
+                if (attempts < maxAttempts) {
+                  if (imageStatusContainer) imageStatusContainer.innerHTML = `<p class="text-danger">Error fetching image (attempt ${attempts}/${maxAttempts}). Retrying...</p>`;
+                  setTimeout(fetchImageWithRetry, retryDelay);
+                } else {
+                  displayDefaultImage('Image loading failed after multiple attempts.');
+                }
+              });
+        }
+
+        function displayDefaultImage(message) {
+            placeholderImageElement.style.opacity = '0'; // Hide placeholder
+            ssolImageElement.src = defaultStaticImagePath;
+            ssolImageElement.alt = "Default SSPEC Image";
+            ssolImageElement.style.opacity = '1'; // Show default
+            ssolImageElement.classList.add('loaded');
+            if (imageStatusContainer) {
+                imageStatusContainer.innerHTML = `<p class="text-warning small mt-1">${message}</p>`;
+            }
+        }
+
+        fetchImageWithRetry(); // Initial call
+    } else {
+        console.warn("Required image elements (ssolImage or placeholderImage) not found.");
+    }
+  });
+</script>
+
+{% endblock %}
+
+🎨 styles.css:
+/* styles.css - Complete and Consolidated Styles (Refactored for Bootstrap Table COS Layout & CE Modals) */
+
+/* ================================================== */
+/* ==============  1. Base Typography & Root Vars ==== */
+/* ================================================== */
+:root {
+  --phase-0: #e91e63; /* Discovery */
+  --phase-1: #00bcd4; /* Engagement */
+  --phase-2: #9c27b0; /* Action */
+  --phase-3: #ffc107; /* Completion */
+  --phase-4: #66bd0e; /* Legacy */
+}
+
+body {
+  font-family: 'Jost', sans-serif;
+  font-weight: 400;
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+h1 {
+  font-family: 'Mr Dafoe', cursive;
+  font-weight: 400;
+  color: #ffa726;
+  text-shadow: 1px 1px 0px #e91e63;
+  font-size: 3.0rem;
+  text-align: center;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+h2, .section-heading {
+  font-family: 'Unica One', sans-serif;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: #104a3a;
+  text-shadow: 1px 1px 0px #000000; /* Consider a more subtle shadow or none */
+}
+
+/* Specific h2 styling for outcome page sections if needed */
+.outcome-header h2,
+.row > h1 { /* Targeting the "Phases & Conditions of Satisfaction" h1 */
+    margin-top: 1.5rem;
+    margin-bottom: .5rem;
+}
+
+.section-heading { /* Used in CE Modals */
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+h3, .sub-heading {
+  font-family: 'Unica One', sans-serif;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: #555;
+}
+
+.sub-heading { /* Used in CE Modals */
+    font-family: 'Unica One', sans-serif;
+    font-weight: 500;
+    color: #333;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.25rem;
+}
+
+
+/* ================================================== */
+/* ==============  2. Navigation Bar  =============== */
+/* ================================================== */
+nav.navbar {
+  background-image: linear-gradient(120deg, #673ab7 0%, #00bcd4 100%);
+  border-bottom: 5px solid #e91e63;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+nav.navbar .navbar-brand {
+  color: #ffffff;
+  font-weight: 500;
+  font-size: 4.5rem; 
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.navbar-brand h1 { /* If h1 is directly in navbar-brand */
+  font-size: inherit; /* Inherit from .navbar-brand for consistency */
+  color: #ffa726; /* Match general h1 color */
+  text-shadow: 1px 1px 0px #e91e63; /* Match general h1 shadow */
+  margin-bottom: 0;
+  line-height: 1;
+}
+
+.structured-speculation {
+  display: block;
+  font-family: 'Unica One', sans-serif;
+  font-weight: 700;
+  text-align: center;
+  font-size: 1rem; /* Adjusted for better fit */
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.85); /* Lighter for better contrast on gradient */
+  letter-spacing: 0.7em; /* Adjusted */
+  line-height: 1;
+  margin-top: 5px; /* Pull up slightly under the main brand text */
+}
+
+
+/* ================================================== */
+/* =========  3. Retro-futuristic Background Pattern ======== */
+/* ================================================== */
+body:before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: radial-gradient(circle at 10% 20%, #e91e63 10%, transparent 10%),
+                    radial-gradient(circle at 90% 20%, #00bcd4 10%, transparent 10%),
+                    radial-gradient(circle at 40% 60%, #9c27b0 10%, transparent 10%),
+                    radial-gradient(circle at 60% 80%, #ffc107 10%, transparent 10%);
+  background-size: 40px 40px;
+  background-attachment: fixed;
+  opacity: 0.3; /* Slightly more subtle */
+  z-index: -1;
+}
+
+
+/* ================================================== */
+/* ===========  4. General Container & Card Styles ========== */
+/* ================================================== */
+.container { /* Main page container */
+  background-color: rgba(255, 255, 255, 0.95); /* Slightly transparent white for depth */
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.card { /* General card styling, like for Goal Selection */
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  transition: box-shadow 0.3s ease-in-out;
+}
+
+.card:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.card-header,
+.card-footer { /* Bootstrap default card header/footer */
+  background-color: #673ab7;
+  color: #ffffff;
+  border-radius: 8px 8px 0 0; /* Match card radius if header is at top */
+}
+.card-footer {
+  border-radius: 0 0 8px 8px;
+}
+
+
+/* Retro-futuristic Card (Specific card style for goal selection cards) */
+retro-futuristic-card {
+  border: 3px solid #00bcd4;
+  height: 100%;
+}
+.retro-futuristic-card.non-compliant { border-color: red; }
+.retro-futuristic-card.non-compliant:hover { box-shadow: 0 8px 16px rgba(196, 93, 93, 0.2); }
+
+
+/* --- Diagonal Pivot Frame Animation --- */
+
+/* --- Diagonal Pivot Frame Animation (MODIFIED) --- */
+
+.diagonal-pivot-container.card {
+    position: relative;
+    perspective: 1200px;
+    transform-style: preserve-3d;
+    padding: 0;
+    /* --- NEW: Make card invisible by default for staggered fade-in --- */
+    opacity: 0;
+    transition: opacity 0.4s ease-in;
+}
+
+/* --- NEW: Add class to trigger the card's visibility --- */
+.diagonal-pivot-container.card.animate {
+    opacity: 1;
+}
+
+.diagonal-pivot-frame {
+    position: absolute;
+    inset: 0;
+    border: 4px solid;
+    border-radius: 10px; 
+    background: transparent; /* Make frame background transparent */
+    transform: rotate3d(1, -1, 0, 90deg);
+    pointer-events: none;
+    /* --- MODIFIED: Remove box-shadow from base state --- */
+    transition: box-shadow 0.3s ease-in-out; /* Add transition for smooth glow */
+}
+
+/* --- NEW: Glow on Hover --- */
+.diagonal-pivot-container:hover .diagonal-pivot-frame:nth-child(1) {
+    box-shadow: 0 10px 40px rgba(255, 215, 0, 0.3);
+}
+.diagonal-pivot-container:hover .diagonal-pivot-frame:nth-child(2) {
+    box-shadow: 0 10px 40px rgba(0, 255, 0, 0.3);
+}
+.diagonal-pivot-container:hover .diagonal-pivot-frame:nth-child(3) {
+    box-shadow: 0 10px 40px rgba(0, 191, 255, 0.4);
+}
+.non-compliant:hover .diagonal-pivot-frame:nth-child(1) {
+    box-shadow: 0 10px 40px rgba(255, 215, 0, 0.3);
+}
+.non-compliant:hover .diagonal-pivot-frame:nth-child(2) {
+    box-shadow: 0 10px 40px rgba(255, 165, 0, 0.3);
+}
+.non-compliant:hover .diagonal-pivot-frame:nth-child(3) {
+    box-shadow: 0 10px 40px rgba(220, 53, 69, 0.4);
+}
+
+
+.diagonal-pivot-frame.animate {
+    animation: diagonalCardFlip 1.2s ease-out forwards;
+}
+
+/* Default Compliant Card Colors */
+.diagonal-pivot-frame:nth-child(1) {
+    opacity: 0.6;
+    border-color: #FFD700;
+    animation-delay: 0s;
+}
+
+.diagonal-pivot-frame:nth-child(2) {
+    opacity: 0.7;
+    border-color: #00FF00;
+    animation-delay: 0.15s;
+}
+
+.diagonal-pivot-frame:nth-child(3) {
+    opacity: 1;
+    border-color: #00BFFF;
+    animation-delay: 0.3s;
+}
+
+/* Non-Compliant/Restricted Card Pivot Animation Colors */
+.non-compliant .diagonal-pivot-frame:nth-child(1) {
+    border-color: #FFD700; 
+}
+.non-compliant .diagonal-pivot-frame:nth-child(2) {
+    border-color: #FFA500; 
+}
+.non-compliant .diagonal-pivot-frame:nth-child(3) {
+    border-color: #DC3545; 
+}
+
+
+@keyframes diagonalCardFlip {
+    to {
+        transform: rotate3d(1, -1, 0, 0deg);
+    }
+}
+
+.diagonal-pivot-content.card-body {
+    position: relative;
+    z-index: 10; 
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: #ffffff33;
+    /* --- MODIFIED: Content sits inside the card's main border --- */
+    border-radius: 6px; 
+    padding: 20px;
+}
+
+/* --- NEW: Styles for staggered content fade-in --- */
+.goal-content-item {
+    opacity: 0;
+    transition: opacity 0.6s ease-out; /* Slower fade for a smoother effect */
+}
+
+.goal-content-item.animate {
+    opacity: 1;
+}
+
+/* ================================================== */
+/* ===============  5. Button Styles  ================ */
+/* ================================================== */
+.btn { /* General button enhancements */
+    transition: all 0.2s ease-in-out;
+}
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-primary {
+  background-color: #ff5722;
+  border-color: #ff5722;
+}
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+  background-color: #e64a19 !important; /* Ensure override */
+  border-color: #d84315 !important;
+}
+
+.btn-danger {
+  color: #fff;
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+.btn-danger:hover {
+  color: #fff;
+  background-color: #c82333 !important;
+  border-color: #bd2130 !important;
+}
+.btn-info { /* Used for PDF button */
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+}
+.btn-info:hover {
+    background-color: #138496 !important;
+    border-color: #117a8b !important;
+}
+.btn-success { /* Used for Add COS, Update COS */
+    background-color: #28a745;
+    border-color: #28a745;
+}
+.btn-success:hover {
+    background-color: #218838 !important;
+    border-color: #1e7e34 !important;
+}
+
+
+/* ================================================== */
+/* ==============  6. Outcome Page Styles  ============ */
+/* ================================================== */
+.outcome-header { /* Row containing image/domain and summary */
+  margin-bottom: 2rem;
+}
+.outcome-header .col-md-4 h2 { /* Specific to H2s in the left column like DOMAIN, FULFILLED GOAL */
+    text-align: center;    /* Align these to center */
+    font-size: 1.5rem;     /* Keep or adjust existing font-size */
+    margin-bottom: 0.5rem; /* Keep or adjust existing margin */
+}
+.outcome-header .col-md-8 h1 { /* For the H1 in the right column (e.g., Preliminary Structured Solution) */
+    text-align: center;      /* Keep this left-aligned or adjust as desired */
+}
+
+
+/* ================================================== */
+/* ===========  7. Loading Spinner Styles  ============= */
+/* ================================================== */
+.loading-spinner-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.spinner-box {
+  width: 50vw; /* Responsive width for the box */
+  max-width: 550px; /* Maximum width for the box */
+  height: 30vh; /* Responsive height for the box */
+  max-height: 175px; /* Maximum height for the box */
+  background-color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+  padding: 20px;
+}
+
+.spinner-container { /* This is implicitly the container for icon and text */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.spinner-text {
+  margin-top: 20px;
+  font-family: 'Unica One', sans-serif;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.75);
+  letter-spacing: 0.4em;
+  text-align: center;
+  white-space: nowrap; /* Prevent text wrapping */
+}
+
+/* Animations in section 17 */
+
+
+/* ================================================== */
+/* ===========  8. Refresh Icon Animation  =========== */
+/* ================================================== */
+#generate-new-goals .refresh-icon { display: inline-block; transition: transform 0.5s ease; }
+#generate-new-goals:hover .refresh-icon { transform: rotate(360deg); }
+
+
+/* ================================================== */
+/* ============  9. Domain Icon Styles  ============== */
+/* ================================================== */
+.domain-text {
+  font-family: 'Unica One', sans-serif;
+  text-transform: uppercase;
+  font-size: 1.3rem; /* Slightly adjusted */
+  color: #555;
+}
+.outcome-header .fa-3x { /* Domain icon on outcome page */
+    color: #00bcd4; /* Match a theme color */
+}
+
+
+/* ================================================== */
+/* ==========  10. Report Section Title (Unused) ======== */
+/* ================================================== */
+/* .report-section-title { ... } */
+
+
+/* ================================================== */
+/* == 11. Phase Accordion & COS Table Styles == */
+/* ================================================== */
+.accordion-header {
+  color: #ffffff;
+  border-radius: 5px 5px 0 0; /* Rounded top corners */
+  margin-bottom: 0; /* No margin if border is directly on accordion-item */
+}
+.accordion-item {
+    margin-bottom: 10px; /* Space between accordion items */
+    border-radius: 5px;
+    border: 1px solid #ddd; /* Overall border for accordion item */
+}
+.accordion-button {
+  text-transform: uppercase;
+  font-family: 'Unica One', sans-serif;
+  font-weight: 500;
+  font-size: 1rem;
+  text-shadow: 1px 1px 0px rgba(0,0,0,0.3);
+  color: #ffffff;
+  border-radius: 4px 4px 0 0 !important;
+}
+
+.accordion-button:focus { outline: none; box-shadow: none; }
+.accordion-button:not(.collapsed) { color: #ffffff; }
+
+.accordion-body.phase-table-container { /* Where the table resides */
+  background-color: #ffffff; /* White background for table area */
+  border-radius: 0 0 5px 5px; /* Rounded bottom corners */
+  padding: 15px;
+  /* border-top: none; */ /* Top border is handled by header */
+}
+
+
+/* COS Table Styling */
+.phase-table {
+    margin-bottom: 1rem; /* Space below table before "Add COS" button */
+    border-collapse: separate; /* Allows border-spacing */
+    border-spacing: 0; /* Remove default spacing if any */
+}
+.phase-table thead th {
+    background-color: #f8f9fa; /* Light grey for table header */
+    color: #343a40;
+    border-bottom-width: 2px; /* Bootstrap default */
+    font-family: 'Jost', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+.phase-table tbody tr.cos-row { /* Each COS row */
+    background-color: #fff; /* Ensure white background for rows */
+}
+.phase-table tbody tr.cos-row:hover {
+    background-color: #f1f8ff; /* Light blue hover for rows */
+}
+.phase-table td {
+    vertical-align: middle; /* Default vertical alignment for all cells */
+    padding: 0.75rem; /* Standard Bootstrap padding */
+    font-size: 0.9rem;
+}
+
+/* Specific Cell Styling */
+.status-cell { text-align: center; } /* Center the status pill */
+.cos-content-cell .cos-content-display {
+    line-height: 1.6;
+    word-break: break-word; /* Ensure long content wraps */
+}
+.cos-content-cell .cos-content-display .ce-pill {
+    margin-right: 4px;
+    margin-bottom: 4px; /* For wrapping */
+}
+.cos-content-textarea { /* Textarea when editing COS content */
+  width: 100%;
+  border-radius: 4px;
+  border: 1px solid #ced4da;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  min-height: 80px; /* Adjust as needed */
+}
+.actions-cell .btn-group.cos-actions { /* Ensure buttons in group are tight */
+    white-space: nowrap;
+}
+.actions-cell .btn-group.cos-actions .btn {
+    margin-right: 3px; /* Small space between buttons */
+}
+.actions-cell .btn-group.cos-actions .btn:last-child {
+    margin-right: 0;
+}
+
+.add-cos.btn { /* "Add Condition of Satisfaction" button */
+    margin-top: 0.5rem; /* Space above it */
+}
+
+
+/* ================================================== */
+/* =========  12. Status & CE Pill Styles  =========== */
+/* ================================================== */
+.status-pill {
+  color: #fff !important;
+  text-align: center;
+  text-transform: uppercase;
+  font-size: 0.65em; /* Smaller for table cell fit */
+  font-weight: 600; /* Bold */
+  text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.2);
+  padding: .3em .7em;
+  border-radius: 10rem;
+  line-height: 1; /* Prevent extra space */
+  display: inline-block; /* Ensure it behaves well in flow */
+}
+
+/* --- REFINED: Icon Tag Pill Styling --- */
+.ce-pill.btn-group {
+  margin: 2px 4px 2px 0;
+  vertical-align: middle;
+  border-radius: 6px;
+  overflow: hidden; /* This is the key to the seamless look! */
+  border: 1.5px solid var(--node-color, #6c757d);
+  display: inline-flex;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease;
+}
+.ce-pill.btn-group:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* Remove Bootstrap's default btn-group behavior that adds space */
+.ce-pill.btn-group > .btn {
+  margin-left: 0 !important;
+}
+
+/* Common styles for the tags inside the pill */
+.ce-pill .btn.ce-pill-icon-tag,
+.ce-pill .btn.ce-pill-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: .20rem .70rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.4;
+  border: none !important;
+  box-shadow: none !important;
+  transition: filter 0.2s ease, background-color 0.2s ease;
+  border-radius: 25; /* Remove individual radius */
+}
+
+/* Specific style for the icon part */
+.ce-pill .btn.ce-pill-icon-tag {
+  background-color: var(--node-color, #6c757d);
+  color: white;
+  /* The dividing line is now handled by the natural separation of the elements */
+}
+
+/* Specific style for the text part */
+.ce-pill .btn.ce-pill-text {
+  background-color: #ffffff;
+  color: #212529;
+}
+
+/* Hover effect */
+.ce-pill.btn-group:hover .ce-pill-icon-tag {
+   filter: brightness(95%);
+}
+.ce-pill.btn-group:hover .ce-pill-text {
+   background-color: #f8f9fa;
+}
+
+
+/* ================================================== */
+/* ==========  13. Badge Color Overrides  ============ */
+/* ================================================== */
+.bg-info { background-color: #007bff !important; } /* Bootstrap 4 blue */
+.bg-warning { color: #212529 !important; background-color: #ffc107 !important; }
+.bg-success { background-color: #28a745 !important; }
+.bg-danger { background-color: #dc3545 !important; }
+.bg-secondary { background-color: #6c757d !important; }
+
+
+/* ================================================== */
+/* ===========  14. Action Column Styles  ============ */
+/* ================================================== */
+.actions-header { /* th for Actions column */
+  white-space: nowrap;
+  min-width: 210px; /* Adjusted for 5 small buttons with icons */
+}
+.actions-cell { /* td for Actions column */
+    white-space: nowrap; /* Keep buttons on one line if possible */
+}
+.actions-cell .btn-group {
+    flex-wrap: nowrap; /* Prevent button group from wrapping */
+}
+
+
+/* ================================================== */
+/* == 15. Card Grid Layout (Goal Selection - Unchanged) == */
+/* ================================================== */
+.card-container { flex-wrap: nowrap !important; justify-content: center; }
+.card { display: flex; flex-direction: column; height: 100%; }
+.card-body { flex-grow: 1; display: flex; flex-direction: column; }
+.card-upper-content { flex-grow: 1; display: flex; flex-direction: column; }
+.card-content { display: flex; flex-direction: column; justify-content: space-between; height: 100%; }
+.goal-selection-form { margin-top: auto; padding-top: 1rem; }
+
+/* ================================================== */
+/* ======  16. Generated Image & Placeholder Styles  ==== */
+/* ================================================== */
+.ssol-title {
+    text-align: center; margin-bottom: 10px; display: block;
+    font-family: 'Unica One', sans-serif; font-weight: 500;
+    font-size: 3.5rem; /* Changed from 2.8rem */
+    color: #326eb6; text-transform: uppercase; text-shadow: 1px 1px 0px #000000;
+    letter-spacing: 0.2em; /* Changed from 0.15em */
+    line-height: 90%; /* Changed from 1 */
+}
+
+.image-wrapper {
+    position: relative; /* For potential future overlay elements if any */
+    display: inline-block; /* Or block, depending on desired centering within col-md-4 */
+    width: 100%; /* Make wrapper take full width of its column */
+    max-width: 300px; /* Max width of the image itself */
+    aspect-ratio: 1 / 1; /* Enforce a square aspect ratio for the space */
+    background-color: #f0f0f0; /* Light background for the reserved space */
+    border-radius: 25px; /* Match image border-radius */
+    margin-bottom: 20px; /* Consistent margin */
+    overflow: hidden; /* If image is not perfectly square, it will be contained */
+}
+
+.ssol-dynamic-image { /* Targets the single image tag by its new class */
+    display: block; /* Remove extra space below inline images */
+    width: 100%;    /* Image fills the wrapper width */
+    height: 100%;   /* Image fills the wrapper height */
+    object-fit: cover; /* Scales the image to maintain its aspect ratio while filling the element’s entire content box. If the image's aspect ratio does not match the aspect ratio of its box, then the object will be clipped to fit. */
+    border-radius: 25px; /* Rounded corners for the image itself */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Subtle shadow */
+    /* No opacity or transition here, it's a direct src change */
+}
+
+.placeholder-image, .generated-image {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover; 
+    border-radius: 25px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+.placeholder-image { opacity: 1; z-index: 1; transition: opacity 0.5s ease-out; }
+.placeholder-image.hidden { opacity: 0; z-index: -1; }
+.generated-image {
+    opacity: 0; z-index: 2; transition: opacity 0.5s ease-in;
+    background-color: #eee; 
+}
+.generated-image.loaded { opacity: 1; }
+
+/* ================================================== */
+/* ========  17. Consolidated Fade Animations  ========= */
+/* ================================================== */
+@keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
+.fade-in { opacity: 0; transition: opacity 1s ease-in; }
+.fade-in.loaded { opacity: 1; }
+
+@keyframes fadeInBlur { 0% { opacity: 0; filter: blur(5px); } 100% { opacity: 1; filter: blur(0); } }
+.loading-spinner-overlay.fade-in { animation: fadeInBlur 0.5s ease-in-out forwards; }
+
+@keyframes fadeOutBlur { 0% { opacity: 1; filter: blur(0px); } 100% { opacity: 0; filter: blur(5px); } }
+.loading-spinner-overlay.fade-out { animation: fadeOutBlur 0.5s ease-in-out forwards; }
+
+@keyframes fadeInScale { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } } /* Adjusted scale */
+@keyframes fadeOutScale { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.95); } } /* Adjusted scale */
+.modal.fade-in { animation: fadeInScale 0.3s forwards; } /* Faster modal fade */
+.modal.fade-out { animation: fadeOutScale 0.3s forwards; }
+
+@keyframes wipeOn { 0% { opacity: 0; transform: scaleX(0); } 100% { opacity: 1; transform: scaleX(1); } }
+.text-wipe-on span { display: inline-block; overflow: hidden; animation: wipeOn 0.1s forwards; opacity: 0; transform-origin: left; }
+
+.text-fade-in { opacity: 0; transition: opacity 0.5s ease-in-out; }
+.fonts-loaded .text-fade-in { opacity: 1; }
+
+
+/* ================================================== */
+/* == 18. Text Input Styles (Goal Input - Unchanged) == */
+/* ================================================== */
+.user-input { font-weight: bold; font-size: 1.2rem; }
+.user-input-display { font-weight: bold; font-size: 1.2rem; }
+.user-input-edit {
+  font-weight: bold; font-size: 1.2rem; border: none;
+  width: 100%; background-color: transparent; padding: 0.25rem;
+}
+.user-input-edit:focus {
+  background-color: #e9ecef; outline: none;
+  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+/* ================================================== */
+/* == 19. Table Row Styles (Goal Input - Unchanged) === */
+/* ================================================== */
+.table-bordered > thead > tr > th { border-bottom: 2px dotted #dee2e6; }
+
+
+/* ================================================== */
+/* ==========  20. Editing State Styles (COS Table)  ============= */
+/* ================================================== */
+/* These control visibility of display spans vs edit inputs within table cells */
+.cos-row td .cos-content-edit,
+.cos-row td .cos-accountable-party-edit,
+.cos-row td .cos-completion-date-edit,
+.cos-row td select.status-edit-select {
+    display: none; /* Hide edit fields by default */
+}
+
+.cos-row[data-editing="true"] td .cos-content-display,
+.cos-row[data-editing="true"] td .cos-accountable-party-display,
+.cos-row[data-editing="true"] td .cos-completion-date-display,
+.cos-row[data-editing="true"] td .status-pill { /* Hide display spans/pill in edit mode */
+    display: none !important;
+}
+
+.cos-row[data-editing="true"] td .cos-content-edit,
+.cos-row[data-editing="true"] td .cos-accountable-party-edit,
+.cos-row[data-editing="true"] td .cos-completion-date-edit,
+.cos-row[data-editing="true"] td select.status-edit-select {
+    display: block; /* Show edit fields in edit mode */
+    width: 100%; /* Make inputs take full cell width */
+}
+.cos-row[data-editing="true"] td select.status-edit-select {
+    font-size: 0.8rem; /* Smaller font for select in table */
+}
+
+
+/* Button visibility toggling (JS also helps with d-none, this is CSS backup/primary) */
+.cos-row .update-cos-button,
+.cos-row .cancel-cos-button {
+    display: none;
+}
+.cos-row[data-editing="true"] .edit-cos-button,
+.cos-row[data-editing="true"] .delete-cos-button, /* Hide delete/analyze during edit */
+.cos-row[data-editing="true"] .analyze-cos-button {
+    display: none !important;
+}
+.cos-row[data-editing="true"] .update-cos-button,
+.cos-row[data-editing="true"] .cancel-cos-button {
+    display: inline-block !important;
+}
+
+
+/* ================================================== */
+/* ===========  21. Modal Custom Styling  ============ */
+/* ================================================== */
+.modal-content {
+  border-radius: 10px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  border: 2px solid transparent; max-height: 90vh;
+  display: flex; flex-direction: column;
+}
+.modal-header.ce-modal-header {
+  display: flex; align-items: center; justify-content: flex-start; /* Changed */
+  padding: 1rem 1.5rem; border-top-left-radius: 8px; border-top-right-radius: 8px;
+  position: relative; color: white;
+}
+.ce-modal-header .node-icon {
+  background-color: white; border-radius: 5px; padding: 8px 10px;
+  margin-right: 1rem; flex-shrink: 0; display: inline-flex;
+  align-items: center; justify-content: center;
+}
+.ce-modal-header .node-icon i { font-size: 1.25rem; }
+
+.ce-modal-header .modal-title.ce-title {
+  font-family: 'Unica One', sans-serif; font-weight: 500; text-transform: uppercase;
+  text-shadow: 1px 1px 1px rgba(0,0,0,0.4); color: white;
+  font-size: 1.6rem; margin-right: 0.5rem; line-height: 1.2;
+}
+
+.ce-modal-header .phase-name {
+  font-family: 'Jost', sans-serif; font-size: 0.85rem; font-style: italic;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.9);
+  margin-left: 1rem; white-space: nowrap; line-height: 1.2;
+}
+
+.modal-header .btn-close {
+    margin-left: auto; /* Push close button to the far right */
+    filter: invert(1) grayscale(100%) brightness(200%); /* Make it white */
+}
+
+.modal-body.ce-modal-body {
+  flex-grow: 1; overflow-y: auto; padding: 2rem;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
+}
+.ce-modal-body .section { margin-bottom: 2rem; }
+.ce-modal-body .section:last-child { margin-bottom: 0.5rem; }
+.ce-modal-body .sub-section { margin-bottom: 1.5rem; }
+
+.modal-body .context-label {
+  font-family: 'Unica One', sans-serif; font-size: 1rem; font-weight: 500;
+  color: #104a3a; margin-bottom: 0.5rem; text-transform: uppercase; display: block;
+}
+.modal-body .content-block {
+  background-color: #f8f9fa; border-left: 3px solid #dee2e6;
+  padding: 0.75rem 1rem; margin-bottom: 1rem; color: #212529; line-height: 1.5;
+}
+.modal-body .content-block.italic { font-style: italic; }
+
+.modal-footer { padding: 1rem 1.5rem; background-color: #f8f9fa; border-top: 1px solid #dee2e6; }
+
+/* ================================================== */
+/* =========  22. Node Application Modal Styling  ===== */
+/* ================================================== */
+
+/* --- A. Shell and Header --- */
+.ce-app-shell {
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #ffffff; /* White background for the main shell */
+}
+
+/* FIX: Ensure header color uses the CSS variable defined on the shell */
+.ce-modal-header {
+    background-color: var(--phase-color);
+    color: white;
+    flex-shrink: 0;
+    border-bottom: none; /* Remove default border */
+}
+.ce-modal-header .node-icon {
+    background-color: white;
+    border-radius: 6px;
+    padding: 8px;
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.ce-modal-header .node-icon i {
+    color: var(--phase-color);
+    font-size: 1.3rem;
+}
+.ce-modal-header .phase-name {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.8rem;
+    font-style: italic;
+}
+.ce-modal-header .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* --- B. Main Body Layout (Sidebar + Content) --- */
+.ce-app-body {
+    flex-grow: 1;
+    display: flex;
+    padding: 0;
+    overflow: hidden; /* Critical: prevents double scrollbars */
+}
+
+/* --- C. Sidebar --- */
+.ce-app-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background-color: #f8f9fa;
+    border-right: 1px solid #dee2e6;
+    padding: 1rem;
+}
+.ce-app-sidebar .nav-pills .nav-link {
+    color: #343a40;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+}
+.ce-app-sidebar .nav-pills .nav-link.active {
+    background-color: var(--phase-color) !important;
+    color: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.ce-app-sidebar .nav-pills .nav-link:not(.active):hover {
+    background-color: #e9ecef;
+}
+
+/* --- D. Content Area --- */
+.ce-app-content {
+    flex-grow: 1;
+    overflow-y: auto; /* The content area is what scrolls */
+}
+
+/* --- E. Details Form & Resources Table --- */
+.details-form-container {
+    max-width: 700px;
+}
+.details-form-container .form-group {
+    margin-bottom: 1.25rem;
+}
+.details-form-container .form-group label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.resources-table-wrapper {
+    height: calc(80vh - 150px); /* Example dynamic height calculation */
+    min-height: 300px;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+}
+.tabulator {
+    height: 100%;
+}
+
+/* ================================================== */
+/* =======  23. Hidden Text Utility Class  =========== */
+/* ================================================== */
+.hidden-text { opacity: 0; }
+
+
+/* ================================================== */
+/* =======  24. CE Modal Specific Styles ============ */
+/* ================================================== */
+.ce-modal-body .section-heading {
+    font-size: 1.4rem; color: #104a3a; text-shadow: none;
+    border-bottom: 1px solid #dee2e6; padding-bottom: 0.5rem; margin-bottom: 1.5rem;
+}
+.ce-modal-body .form-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem 1.5rem; margin-bottom: 2rem;
+}
+.ce-modal-body .form-group label {
+    display: block; margin-bottom: 0.4rem; font-family: 'Jost', sans-serif;
+    font-weight: 500; font-size: 0.9rem; color: #343a40;
+}
+.ce-modal-body .action-row {
+    margin-top: 1.5rem; margin-bottom: 1.5rem; display: flex;
+    flex-wrap: wrap; gap: 0.75rem;
+}
+
+/* ================================================== */
+/* =========  25. Goal Card Description Fix  ========= */
+/* ================================================== */
+.goal-description {
+  text-align: left; /* Use left-align for natural word spacing and readability */
+}
+
+🟨 utilities.py:
+# utilities.py (Professionally Refactored for Clarity and Separation of Concerns)
+
+import os
+import re
+import html
+import json
+import uuid
+import logging
+import asyncio
+from uuid import UUID
+from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+from flask import current_app, url_for
+from ce_nodes import NODES, get_valid_node_types
+from ai_service import generate_image, generate_chat_response
+
+load_dotenv()
+logger = logging.getLogger(__name__)
+
+# ==============================================================================
+# === 1. HIGH-LEVEL ORCHESTRATORS (Complex, multi-step business logic) ========
+# ==============================================================================
+
+async def generate_outcome_data(USE_DATABASE: bool, request, method: str, selected_goal: str = None, domain: str = None, domain_icon: str = None, selected_goal_title: str = None):
+    """
+    Orchestrates the entire process of creating a new SSOL from a user's goal selection.
+    This includes creating the SSOL, generating a summary, and generating the initial
+    structured solution with phases, COS, and CEs.
+    """
+    from models import get_engine_and_session, SSOL
+    from store import ssol_store
+    from speculate import parse_ai_response_and_generate_html, create_ssol
+
+    outcome_data = {
+        'user_input': request.form.get('user_text', '').strip() if method == 'POST' else request.args.get('user_text', '').strip(),
+        'selected_goal': selected_goal,
+        'domain_icon': domain_icon,
+        'domain': domain,
+        'ssol_id': None,
+        'ssol_summary': "Summary generation is pending or encountered an issue.",
+        'ssol_title': selected_goal_title,
+        'phases': {},
+        'generated_image_path': url_for('static', filename='images/SSPEC_Logo_Motion.gif')
+    }
+
+    # 1. Create SSOL Record and get its ID
+    try:
+        new_ssol_id_str = create_ssol(USE_DATABASE, title=selected_goal_title, description=selected_goal)
+        outcome_data['ssol_id'] = new_ssol_id_str
+        ssol_id_uuid_for_cos = UUID(new_ssol_id_str)
+    except Exception as e:
+        logger.error(f"Failed to create SSOL for title '{selected_goal_title}': {e}", exc_info=True)
+        raise ValueError(f"SSOL creation failed: {str(e)}") from e
+
+    logger.info(f"SSOL created with ID: {new_ssol_id_str}. Generating outcome data for goal: '{selected_goal_title}'")
+
+    # 2. Generate Summary for the SSOL
+    summary_prompt = (
+        f"Generate a detailed but concise summary for the Structured Solution project: '{selected_goal_title}' (Full goal: '{html.escape(selected_goal)}'). "
+        f"This summary MUST provide a comprehensive overview and use basic HTML markup for formatting (`<p>`, `<ol>`, `<li>`, `<b>`, `<strong>`, `<i>`, `<em>`).\n"
+        f"Return a JSON object with a SINGLE KEY 'summary', containing the summary text with HTML markup."
+    )
+    summary_messages = [{"role": "user", "content": summary_prompt}]
+    try:
+        logger.info(f"Generating summary for SSOL ID: {new_ssol_id_str}...")
+        summary_response_text = await generate_chat_response(summary_messages, role='Outcome Summary', task='Generate SSOL Summary')
+        summary_data = json.loads(summary_response_text)
+        generated_summary_html = summary_data.get('summary', "Summary not available.")
+        outcome_data['ssol_summary'] = generated_summary_html
+        
+        if USE_DATABASE:
+            with current_app.app_context():
+                _, SessionLocal = get_engine_and_session()
+                session = SessionLocal()
+                try:
+                    ssol_to_update = session.query(SSOL).get(ssol_id_uuid_for_cos)
+                    if ssol_to_update:
+                        ssol_to_update.description = generated_summary_html
+                        session.commit()
+                except Exception as db_exc:
+                    session.rollback()
+                    logger.error(f"DB error updating SSOL summary: {db_exc}", exc_info=True)
+                finally:
+                    session.close()
+        else:
+            if new_ssol_id_str in ssol_store:
+                ssol_store[new_ssol_id_str]['description'] = generated_summary_html
+    except Exception as e:
+        logger.error(f"Error generating/updating summary (SSOL {new_ssol_id_str}): {e}", exc_info=True)
+
+    # 3. Generate Structured Solution (Phases, COS, CEs) with Retry Logic
+    structured_solution_prompt = (
+        f"You are an expert in structured problem-solving (SSPEC PossPath). Generate a concise Structured Solution for: '{selected_goal_title}' (Full goal: '{html.escape(selected_goal)}').\n"
+        f"Organize into phases: Discovery, Engagement, Action, Completion, Legacy.\n"
+        f"For EACH phase, generate 1-3 Conditions of Satisfaction (COS).\n"
+        f"Within each COS sentence, embed 'Conditional Elements' (CEs) by wrapping them in `<ce type='NodeType'>CE Text</ce>` tags. "
+        f"Valid 'NodeType' values: {', '.join(get_valid_node_types())}.\n"
+        f"Output a JSON object. Keys are phase names (e.g., \"Discovery\"). Values are arrays of COS objects.\n"
+        f"Each COS object MUST have ONE key: 'content', with the full COS text including `<ce>` tags.\n"
+    )
+    structured_solution_messages = [{"role": "user", "content": structured_solution_prompt}]
+    
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Generating structured solution (Attempt {attempt + 1}/{max_retries}) for SSOL ID: {new_ssol_id_str}...")
+            response_text = await generate_chat_response(structured_solution_messages, role='Structured Solution', task='Generate Phases and COS')
+            
+            match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", response_text, re.DOTALL)
+            json_text = match.group(1).strip() if match else response_text[response_text.find('{'):response_text.rfind('}')+1]
+
+            structured_solution_json = json.loads(json_text)
+            
+            if isinstance(structured_solution_json, dict):
+                outcome_data['phases'] = parse_ai_response_and_generate_html(USE_DATABASE, structured_solution_json, ssol_id_uuid_for_cos)
+                logger.info(f"Structured solution processed and saved for SSOL ID: {new_ssol_id_str}.")
+                break
+        except (json.JSONDecodeError, AttributeError) as e:
+            logger.error(f"JSON/parsing error on attempt {attempt + 1}: {e}. AI Response: {response_text}", exc_info=True)
+            if attempt == max_retries - 1:
+                logger.error("All retries failed for generating structured solution.")
+                outcome_data['phases'] = {}
+            await asyncio.sleep(2 ** attempt)
+        except Exception as e:
+            logger.error(f"General error on attempt {attempt + 1}: {e}", exc_info=True)
+            if attempt == max_retries - 1:
+                outcome_data['phases'] = {}
+            await asyncio.sleep(2 ** attempt)
+            
+    logger.info(f"Outcome data generation complete for SSOL ID: {new_ssol_id_str}.")
+    return outcome_data
+
+
+async def generate_ssol_image(prompt: str, ssol_id=None):
+    """
+    Orchestrates generating an image via the ai_service and renaming it
+    based on the ssol_id for better organization.
+    """
+    try:
+        temp_web_path = await generate_image(prompt)
+        if 'sspec_default.png' in temp_web_path:
+            logger.info("Image generation resulted in default image.")
+            return temp_web_path
+
+        if ssol_id:
+            original_filename = os.path.basename(temp_web_path)
+            original_fs_path = os.path.join(current_app.static_folder, *temp_web_path.split('/'))
+            safe_ssol_id_part = sanitize_filename(str(ssol_id))
+            _, extension = os.path.splitext(original_filename)
+            extension = extension if extension else '.png'
+            new_image_filename = f"ssol_image_{safe_ssol_id_part}{extension}"
+            new_fs_path = os.path.join(current_app.static_folder, 'images', new_image_filename)
+            
+            try:
+                if os.path.exists(original_fs_path):
+                    os.makedirs(os.path.dirname(new_fs_path), exist_ok=True)
+                    if os.path.exists(new_fs_path) and original_fs_path != new_fs_path:
+                        os.remove(new_fs_path)
+                    os.rename(original_fs_path, new_fs_path)
+                    final_web_path = url_for('static', filename=f'images/{new_image_filename}')
+                    logger.info(f"SSOL Image renamed to: {new_image_filename}")
+                    return final_web_path
+                else:
+                    logger.warning(f"Original generated image not found for renaming: {original_fs_path}")
+            except OSError as e:
+                logger.error(f"Error renaming SSOL image: {e}", exc_info=True)
+            return temp_web_path
+        return temp_web_path
+
+    except Exception as e:
+        logger.error(f"Error in generate_ssol_image utility: {e}", exc_info=True)
+        return url_for('static', filename='images/sspec_default.png')
+
+
+# ==============================================================================
+# === 2. AI PROMPT BUILDERS & BUSINESS LOGIC (Application-specific tasks) ======
+# ==============================================================================
+
+async def generate_ai_data(cos_content, ce_id, ce_type, ssol_goal, existing_ces):
+    """
+    Builds a detailed prompt and calls the AI service to generate contextual data 
+    (description, details, resources) for a specific CE modal.
+    """
+    node_config = NODES.get(ce_type, NODES['Default'])
+    details_fields = [f"'{f['name']}'" for f in node_config.get('details_schema', [])]
+    resource_fields = [f"'{f['field']}'" for f in node_config.get('resource_schema', [])]
+
+    prompt = f"""
+    You are an expert project analyst. Based on the context below, generate a JSON object to pre-populate a worksheet for a specific 'Conditional Element' (CE).
+
+    **Overall Goal (SSOL):** {ssol_goal}
+    **Specific Requirement (COS):** "{cos_content}"
+    **This specific CE is of type '{ce_type}' and is related to the highlighted text within the COS.**
+
+    Your response MUST be a valid JSON object with three keys:
+    1.  `"contextual_description"`: A concise, insightful paragraph explaining WHY this '{ce_type}' element is critical for achieving the COS and the overall SSOL Goal.
+    2.  `"details_data"`: A JSON object with suggested values for the main details of this CE. Available fields are: {', '.join(details_fields)}.
+    3.  `"resources"`: A JSON array of 1-3 suggested resource items relevant to this CE. Each item should be an object with these fields: {', '.join(resource_fields)}.
+    """
+    messages = [{"role": "user", "content": prompt}]
+    
+    try:
+        response_text = await generate_chat_response(messages, role='AI Data Generation', task=f'Generate data for {ce_type}')
+        match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", response_text, re.DOTALL)
+        if match:
+            json_text = match.group(1).strip()
+        else:
+            start = response_text.find('{')
+            end = response_text.rfind('}')
+            json_text = response_text[start:end+1] if start != -1 and end != -1 else response_text
+
+        ai_data = json.loads(json_text)
+        
+        ai_data.setdefault('contextual_description', 'AI analysis could not be generated.')
+        ai_data.setdefault('details_data', {})
+        ai_data.setdefault('resources', [])
+        return ai_data
+    except Exception as e:
+        logger.error(f"Error generating AI data for {ce_type}: {e}", exc_info=True)
+        return {
+            "contextual_description": "An error occurred during AI data generation.",
+            "details_data": {}, "resources": []
+        }
+
+
+async def generate_goal(user_input: str) -> list:
+    """
+    Builds a prompt to generate three distinct goal outcomes based on user input,
+    after performing a compliance check.
+    """
+    compliance_check = await is_input_compliant(user_input)
+    if not compliance_check['compliant']:
+        logger.warning(f"User input rejected by safety protocol: '{user_input}'. Reason: {compliance_check['reason']}")
+        return [
+            {'title': 'Input Non-Compliant', 'goal': 'The provided input does not comply with safety protocols. Please revise your input.', 'domain': 'Safety Protocol', 'icon': 'fa-solid fa-shield-alt', 'is_compliant': False},
+            {'title': 'Input Non-Compliant', 'goal': 'The provided input does not comply with safety protocols. Please revise your input.', 'domain': 'Safety Protocol', 'icon': 'fa-solid fa-exclamation-triangle', 'is_compliant': False},
+            {'title': 'Input Non-Compliant', 'goal': 'The provided input does not comply with safety protocols. Please revise your input.', 'domain': 'Safety Protocol', 'icon': 'fa-solid fa-ban', 'is_compliant': False}
+        ]
+
+    system_message_content = (
+        "You are an AI that generates three innovative and *distinct* goal outcomes based on user input. "
+        "For EACH goal, you MUST provide: 'title' (3-7 words), 'goal' (1-3 sentences), 'domain' (a general category), and 'icon' (a FontAwesome 6 Solid class, e.g., 'fa-solid fa-lightbulb'). " # Corrected instruction for the AI
+        "Return a valid JSON array of exactly three objects."
+    )
+    
+    async def generate_single_set(temp: float):
+        # Using fa-solid in the user message to guide the AI
+        messages = [{"role": "user", "content": system_message_content + f"\n\nUser input: '{user_input}'"}]
+        try:
+            response_text = await generate_chat_response(messages, role='Goal Generation', task='Generate Goal Options', temperature=temp)
+            goal_options = json.loads(response_text)
+            if isinstance(goal_options, list) and all(isinstance(g, dict) and all(k in g for k in ['title', 'goal', 'domain', 'icon']) for g in goal_options):
+                for goal in goal_options:
+                    goal['is_compliant'] = True
+                    # Ensure the class is in the correct format, just in case
+                    if not goal['icon'].startswith('fa-solid '):
+                        goal['icon'] = f"fa-solid {goal['icon'].replace('fas ', '').replace('fa-', '')}"
+                return goal_options[:3]
+            return []
+        except Exception as e:
+            logger.error(f"Error in generate_single_set (temp {temp}): {e}", exc_info=True)
+            return []
+
+    all_goals = await generate_single_set(temp=0.75)
+    if len(all_goals) < 3:
+        more_goals = await generate_single_set(temp=0.6)
+        seen_titles = {g['title'] for g in all_goals}
+        for g in more_goals:
+            if g['title'] not in seen_titles and len(all_goals) < 3:
+                all_goals.append(g)
+    
+    if not all_goals:
+        # Default fallback uses the correct fa-solid syntax
+        return [{'title': f"Define: {user_input[:30].strip()}", 'goal': f"Clearly define and scope the possibility related to '{user_input}'.", 'domain': "General", 'icon': "fa-solid fa-lightbulb", 'is_compliant': True}]
+    
+    for goal in all_goals:
+        goal.setdefault('is_compliant', True)
+        
+    return all_goals[:3]
+
+
+async def is_input_compliant(text: str) -> dict:
+    """
+    Builds a prompt and checks if user input complies with the safety doctrine.
+    """
+    safety_check_prompt = f"""
+        Analyze the user's input based on the safety protocol: "Freedom from those conditions that can cause physical, psychological, or social harm to people...".
+        User Input: "{text}"
+        Classify the input as either "SAFE" or "UNSAFE". Respond with a valid JSON object with a single key "classification".
+    """
+    messages = [{"role": "user", "content": safety_check_prompt}]
+    try:
+        response_text = await generate_chat_response(messages, role='Safety Check', task='Classify Input Compliance')
+        response_json = json.loads(response_text)
+        classification = response_json.get("classification", "UNSAFE").upper()
+        if classification == "SAFE":
+            return {'compliant': True, 'reason': 'Input is compliant with safety protocols.'}
+        return {'compliant': False, 'reason': 'Input was classified as non-compliant.'}
+    except Exception as e:
+        logger.error(f"Error in is_input_compliant: {e}. Defaulting to non-compliant.", exc_info=True)
+        return {'compliant': False, 'reason': 'An error occurred during safety analysis.'}
+
+
+async def analyze_user_input(text: str) -> list:
+    """
+    Builds a prompt to extract relevant keywords from user input.
+    """
+    messages = [
+        {"role": "system", "content": "You are an AI that extracts keywords. Respond with a JSON array of strings."},
+        {"role": "user", "content": f"Extract keywords from: '{text}'"},
+    ]
+    try:
+        response_text = await generate_chat_response(messages, role='Keyword Extraction', task='Extract Keywords', temperature=0.5)
+        keywords = json.loads(response_text)
+        return keywords if isinstance(keywords, list) else [text]
+    except Exception as e:
+        logger.error(f"Error in analyze_user_input: {e}", exc_info=True)
+        return [text]
+
+
+# ==============================================================================
+# === 3. LOW-LEVEL HELPERS (Simple, reusable utility functions) ================
+# ==============================================================================
+
+def sanitize_filename(filename: str) -> str:
+    """Removes illegal characters from a string to make it a valid filename."""
+    if not filename: return ""
+    filename = re.sub(r'[<>:"/\\|?*\x00-\x1F]', '', filename)
+    filename = re.sub(r'[\s]+', '_', filename)
+    return filename[:100]
+
+
+def replace_ce_tags_with_pills(content):
+    """
+    Finds custom <ce> tags in HTML and replaces them with styled Bootstrap pill divs.
+    This is a pure HTML transformation utility.
+    """
+    if not content: return ""
+    soup = BeautifulSoup(content, 'html.parser')
+    for ce_tag in soup.find_all('ce'):
+        ce_type = ce_tag.get('type', 'Default')
+        ce_text = ce_tag.text
+        node_info = NODES.get(ce_type, NODES['Default'])
+        node_color = node_info.get('color', '#95a5a6')
+        node_icon = node_info.get('icon', 'fa-solid fa-question-circle')
+        ce_uuid = str(uuid.uuid4())
+        
+        pill_group = soup.new_tag('div', attrs={
+            'class': 'btn-group ce-pill', 'role': 'group',
+            'data-ce-id': ce_uuid, 'data-ce-type': ce_type,
+            'style': f'--node-color: {node_color};'
+        })
+        icon_tag_part = soup.new_tag('span', attrs={'class': 'btn ce-pill-icon-tag'})
+        icon_element = soup.new_tag('i', attrs={'class': f'{node_icon}'})
+        icon_tag_part.append(icon_element)
+        
+        text_tag_part = soup.new_tag('span', attrs={'class': 'btn ce-pill-text', 'tabindex': '-1'})
+        text_tag_part.string = ce_text
+        
+        pill_group.append(icon_tag_part)
+        pill_group.append(text_tag_part)
+        
+        ce_tag.replace_with(pill_group)
+    return str(soup)
+
+🟩 goal_selection.html:
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+  <h1>What is your Commitment?</h1>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Your Input</th>
+        <th class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="user-input">
+          <span class="user-input-display">{{ user_input }}</span>
+          <input type="text" class="form-control form-control-sm user-input-edit d-none" value="{{ user_input }}">
+        </td>
+        <td class="text-end">
+          <button type="button" class="btn btn-primary btn-sm edit-user-input">Edit</button>
+          <button type="button" class="btn btn-success btn-sm save-user-input d-none">Update</button>
+          <button type="button" class="btn btn-danger btn-sm cancel-user-input d-none">Cancel</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Based on your input, we have speculated three high-level outcomes.
+    Please choose the one that is closest to your desired result, or click the "Speculate New Outcomes" button to
+    generate a new set of possibilities.
+  </p>
+  <div class="row card-container">
+    {% for goal in goals %}
+      <div class="col-md-4 mb-4">
+        <div class="card retro-futuristic-card text-center diagonal-pivot-container {% if not goal.is_compliant %}non-compliant{% endif %}">
+            <div class="diagonal-pivot-frame"></div>
+            <div class="diagonal-pivot-frame"></div>
+            <div class="diagonal-pivot-frame"></div>
+
+            <div class="card-body card-content diagonal-pivot-content">
+                <div class="card-upper-content">
+                    <i class="{{ goal.icon }} fa-2x mt-3 mb-3 goal-content-item"></i>
+                    <p class="domain domain-text goal-content-item">{{ goal.domain | title }}</p>
+                    <div class="goal-description goal-text goal-content-item">
+                        {{ goal.goal | replace('\n', '<br>') | safe }}
+                    </div>
+                </div>
+                <form action="/outcome" method="post" class="goal-selection-form">
+                  <input type="hidden" name="selected_goal" value="{{ goal.goal }}">
+                  <input type="hidden" name="domain" value="{{ goal.domain }}">
+                  <input type="hidden" name="domain_icon" value="{{ goal.icon }}">
+                  <input type="hidden" name="selected_goal_title" value="{{ goal.title }}">
+                  {% if goal.is_compliant %}
+                    <button type="submit" class="btn btn-primary">Select</button>
+                  {% else %}
+                    <a href="{{ url_for('routes_bp.index') }}" class="btn btn-danger">Start Over</a>
+                  {% endif %}
+                </form>
+            </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="text-center">
+    <button type="button" class="btn btn-outline-primary" id="generate-new-goals">
+      <span class="refresh-icon"><i class="fas fa-sync-alt"></i></span> Speculate New Outcomes</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- All JavaScript logic will now be driven by goal_selection.js and base_functions.js -->
+<script type="module" src="{{ url_for('static', filename='js/goal_selection.js') }}"></script>
+{% endblock %}
