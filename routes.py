@@ -13,7 +13,6 @@ from uuid import UUID
 from utilities import generate_goal, analyze_user_input, is_input_compliant, \
                     generate_outcome_data, generate_ai_data, \
                     generate_image
-# --- FIX: Import the new cleanup function ---
 from ai_service import cleanup_gemini_client
 from dotenv import load_dotenv
 from ce_templates import generate_dynamic_modal
@@ -39,14 +38,12 @@ routes_bp = Blueprint('routes_bp', __name__)
 async def teardown_request(exception=None):
     """Clean up resources after each request."""
     await cleanup_gemini_client()
-# --- END FIX ---
 
 # --- Utility Route ---
 @routes_bp.route('/favicon.ico')
 def favicon():
     return send_from_directory(os.path.join(current_app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
-# ... (rest of the file is unchanged) ...
 # --- Basic Pages ---
 @routes_bp.route('/')
 def index():
@@ -59,7 +56,6 @@ def about():
 
 
 # --- Goal Selection ---
-# --- FIX: Convert route to async def and use await ---
 @routes_bp.route('/goal_selection', methods=['POST'])
 async def goal_selection():
     if request.method == 'POST':
@@ -90,64 +86,67 @@ async def goal_selection():
 @routes_bp.route('/outcome', methods=['POST'])
 async def outcome():
     if request.method == 'POST':
-        logging.info(f"Outcome route - Form data received: {request.form}")
+        # ... (getting form data remains the same) ...
         selected_goal_text = request.form.get('selected_goal', '').strip()
         domain = request.form.get('domain', '').strip()
         selected_goal_title = request.form.get('selected_goal_title', '').strip()
         domain_icon = request.form.get('domain_icon', '').strip()
 
         if not selected_goal_text:
-            flash("No goal selected. Please return to the start.", "error")
+            flash("No goal selected.", "error")
             return redirect(url_for('routes_bp.index'))
             
         try:
-            logging.info(f"Creating SSOL entry for '{selected_goal_title}'...")
             ssol_id_str = speculate_create_ssol(USE_DATABASE, selected_goal_title, selected_goal_text)
             ssol_id_uuid = UUID(ssol_id_str)
             logging.info(f"SSOL created with ID: {ssol_id_str}")
 
-            logging.info("Generating structured solution from AI...")
+            # --- SINGLE API CALL for all COS and CEs ---
+            logging.info("Generating structured solution from AI in a single call...")
             structured_solution_json = await generate_outcome_data(
                 ssol_title=selected_goal_title, ssol_description=selected_goal_text, domain=domain
             )
             ssol_summary = structured_solution_json.get('ssolsummary', 'AI failed to generate a summary.')
 
-            logging.info("Saving generated COS and their auto-analyzed CEs...")
+            # --- FAST, LOCAL-ONLY LOOP ---
+            logging.info("Saving generated COS and their CEs (no new API calls)...")
             phases_for_template = {}
             if 'phases' in structured_solution_json:
                 for phase_name, cos_items in structured_solution_json['phases'].items():
                     phases_for_template[phase_name] = []
-                    for cos_item in cos_items:
-                        cos_raw_content = cos_item if isinstance(cos_item, str) else cos_item.get('content')
-                        if cos_raw_content:
+                    for cos_content_with_tags in cos_items:
+                        if cos_content_with_tags:
+                            # This call is now fast, as it only does DB operations.
                             new_cos_id_str = await speculate_create_cos(
-                                USE_DATABASE, ssol_id=ssol_id_uuid, content=cos_raw_content, status='Proposed'
+                                USE_DATABASE, ssol_id=ssol_id_uuid, content=cos_content_with_tags, status='Proposed'
                             )
                             newly_created_cos = speculate_get_cos_by_id(USE_DATABASE, UUID(new_cos_id_str))
                             if newly_created_cos:
                                 phases_for_template[phase_name].append(newly_created_cos.to_dict() if USE_DATABASE else newly_created_cos)
 
+            # ... (rest of the route for template rendering and image generation remains the same) ...
+            
             outcome_data_for_template = {
                 'ssol_id': ssol_id_str, 'ssol_title': selected_goal_title, 'selected_goal': selected_goal_text,
                 'domain': domain, 'domain_icon': domain_icon, 'ssol_summary': ssol_summary, 'phases': phases_for_template,
             }
 
-            logging.info("Constructing 'Mary Blair' image prompt...")
-            image_prompt_text = f"A vibrant, visually stunning futuristic illustration depicting '{selected_goal_title}' as a fulfilled goal, isometric, Mary Blair, 1962"
+            logging.info("Constructing image prompt...")
+            image_prompt_text = f"A vibrant, visually stunning futuristic illustration depicting '{selected_goal_text}' as a fulfilled goal, isometric, Mary Blair, 1962"
             logging.info(f"Calling image generation service for SSOL {ssol_id_str}...")
             await generate_image(image_prompt_text, ssol_id_str)
             
             return render_template('outcome.html', ssol=outcome_data_for_template, nodes=NODES, ssol_id=ssol_id_str, selected_goal_title=selected_goal_title)
 
+
         except Exception as e:
             current_app.logger.error(f"Critical error in /outcome route: {e}", exc_info=True)
-            flash(f"A critical error occurred while generating the solution. Please try again. Error: {e}", "error")
+            flash(f"A critical error occurred while generating the solution. Error: {e}", "error")
             return redirect(url_for('routes_bp.index'))
 
     return redirect(url_for('routes_bp.index'))
 
 # --- Input Analysis ---
-# --- FIX: Convert route to async def and use await ---
 @routes_bp.route('/analyze_input', methods=['POST'])
 async def analyze_input_route():
     if request.method == 'POST':
@@ -325,6 +324,10 @@ async def get_ce_modal_route(ce_type):
     try:
         data = request.get_json()
         ce_id_str = data.get('ce_id')
+        
+        # --- FIX: Receive ce_text from the frontend payload ---
+        ce_text = data.get('ce_text', 'Conditional Element') # Use a default for safety
+
         ce_id_obj = UUID(ce_id_str) if ce_id_str else None
 
         ce_data = speculate_get_ce_by_id(USE_DATABASE, ce_id_obj) if ce_id_obj else {}
@@ -333,30 +336,31 @@ async def get_ce_modal_route(ce_type):
 
         node_config = NODES.get(ce_type, NODES['Default'])
         cos_content_html = data.get('cos_content', '')
-        # It's good practice to get a text-only version for the AI prompt
         cos_content_text_only = BeautifulSoup(cos_content_html, 'html.parser').get_text(separator=' ', strip=True)
 
         ai_generated_data = await generate_ai_data(
             node_type=ce_type,
             cos_content=cos_content_text_only,
             ssol_goal=data.get('ssol_goal', ''),
-            agent_mode='context' # Get the initial overview insight
+            agent_mode='context'
         )
 
-        # --- THE FIX IS HERE: Add the 'await' keyword ---
         modal_html = await generate_dynamic_modal(
-            ce_type=ce_type, ce_data=ce_data, node_info=node_config,
-            cos_content=cos_content_html, ai_generated_data=ai_generated_data,
-            phase_name=data.get('phase_name', ''), phase_index=data.get('phase_index', 0)
+            ce_type=ce_type,
+            ce_text=ce_text,  # --- FIX: Pass the ce_text to the template function ---
+            ce_data=ce_data,
+            node_info=node_config,
+            cos_content=cos_content_html,
+            ai_generated_data=ai_generated_data,
+            phase_name=data.get('phase_name', ''),
+            phase_index=data.get('phase_index', 0)
         )
-        # --- END FIX ---
         
         return jsonify(modal_html=modal_html, ce_data=ce_data)
 
     except Exception as e:
         current_app.logger.error(f"Error in get_ce_modal_route for type {ce_type}: {e}", exc_info=True)
         return jsonify(error=f"An error occurred: {str(e)}"), 500
-
 
 @routes_bp.route('/ai-query-endpoint', methods=['POST'])
 async def ai_query_route():
@@ -372,31 +376,10 @@ async def ai_query_route():
             node_type=data.get('ce_type'),
             cos_content=data.get('cos_content'),
             ssol_goal=data.get('ssol_goal'),
-            agent_mode=data.get('agent_mode', 'speculate')
+            agent_mode=data.get('agent_mode', 'speculate') # e.g., 'speculate', 'generate'
         )
         return jsonify({'success': True, 'ai_response': ai_response})
 
     except Exception as e:
         current_app.logger.error(f"Error in ai_query_route: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
-
-@routes_bp.route('/update_ce/<uuid:ce_id>', methods=['PUT'])
-def update_ce_route(ce_id):
-    try:
-        data = request.get_json()
-        if not data: raise BadRequest('No JSON payload received')
-
-        success = speculate_update_ce_by_id(USE_DATABASE, ce_id, data)
-
-        if success:
-            updated_ce_obj = speculate_get_ce_by_id(USE_DATABASE, ce_id)
-            if updated_ce_obj:
-                ce_data = updated_ce_obj.to_dict() if USE_DATABASE else updated_ce_obj
-                return jsonify(success=True, ce=ce_data), 200
-            return jsonify(success=True, message="CE updated but could not be retrieved."), 200
-        return jsonify(success=False, error="CE not found or could not be updated"), 404
-    except BadRequest as e:
-        return jsonify(success=False, error=str(e)), 400
-    except Exception as e:
-        current_app.logger.error(f"Error updating CE {ce_id}: {e}", exc_info=True)
-        return jsonify(success=False, error="An unexpected error occurred."), 500

@@ -33,6 +33,7 @@ def get_sspec_scenario() -> str:
     """
 
 # --- GOAL SELECTION & INPUT ANALYSIS FUNCTIONS ---
+# ... (generate_goal, analyze_user_input, is_input_compliant remain unchanged) ...
 
 async def generate_goal(user_input: str) -> List[Dict]:
     """
@@ -100,6 +101,7 @@ async def is_input_compliant(user_text: str) -> dict:
         logging.error(f"Error in is_input_compliant: {e}", exc_info=True)
         return {"compliant": False, "reason": "Could not be analyzed due to a system error."}
 
+
 # --- OUTCOME & SSOL GENERATION ---
 
 async def generate_outcome_data(ssol_title, ssol_description, domain):
@@ -130,29 +132,53 @@ async def generate_ai_data(
     agent_mode: str = 'context'
 ) -> dict:
     """
-    Orchestrates AI data generation for CE modals.
+    Orchestrates AI data generation for CE modals with refined, targeted prompts.
     """
     node_config = NODES.get(node_type, NODES['Default'])
-    query_context = f"The overall goal is '{ssol_goal}' and the specific requirement is '{cos_content}'."
+    
     try:
         if agent_mode == 'speculate':
+            # This prompt is for finding external resources (the "Speculate" button)
             resource_keys = [f"'{f['key']}'" for f in node_config.get('resource_schema', [])]
-            query = f"Find 3 diverse, relevant resources for a '{node_type}' element, considering this context: {query_context}. For each resource, extract data for the following fields: {', '.join(resource_keys)}."
+            query = (
+                f"You are a research assistant. Find 3 diverse, relevant resources for a '{node_type}' element. "
+                f"The overall goal is '{ssol_goal}' and the specific requirement is '{cos_content}'. "
+                f"For each resource, extract data for these fields: {', '.join(resource_keys)}."
+            )
+            # This uses Google Search via the AI service
             return await get_grounded_data(query, node_type)
-        else:
-            if agent_mode == 'context':
-                prompt = f"You are a strategic analyst. Briefly explain the purpose and importance of the '{node_type}' element in the context: {query_context}. Format the response as a JSON object with a single key 'contextual_description'."
-            elif agent_mode == 'generate':
-                detail_fields = [f"'{f['name']}'" for f in node_config.get('details_schema', [])]
-                prompt = f"You are a subject matter expert. Based on the context: {query_context}, generate the summary content for a {node_type} element. Provide these fields: {', '.join(detail_fields)}. Format the output as a valid JSON object."
-            else:
-                return {"error": "Invalid agent mode specified."}
-            
+
+        elif agent_mode == 'generate':
+            # This prompt is for filling out the "Details" form (the "Generate" button)
+            detail_fields = [f"'{f['name']}'" for f in node_config.get('details_schema', [])]
+            prompt = (
+                f"You are a subject matter expert. Based on the goal '{ssol_goal}' and the requirement '{cos_content}', "
+                f"generate the summary content for a '{node_type}' element. "
+                f"Provide concise, insightful text for these fields: {', '.join(detail_fields)}. "
+                f"Your response must be a valid JSON object with keys matching these fields."
+            )
             messages = [{"role": "user", "content": prompt}]
-            response_str = await generate_chat_response(messages, role="user", task=f"{agent_mode} generation", temperature=0.7)
+            response_str = await generate_chat_response(messages, role="user", task="generate details")
             return json.loads(response_str)
+
+        else: # Default is 'context' mode
+            # --- THE NEW, SUCCINCT PROMPT ---
+            # This prompt is for the "Summary" card on the Overview tab.
+            prompt = (
+                f"You are a strategic analyst. Your task is to provide a brief, insightful summary for a '{node_type}' element.\n\n"
+                f"## CONTEXT ##\n"
+                f"**Overall Goal (SSOL):** {ssol_goal}\n"
+                f"**Specific Requirement (COS):** {cos_content}\n\n"
+                f"## INSTRUCTIONS ##\n"
+                f"1. Do NOT explain what a '{node_type}' element is.\n"
+                f"2. Directly state the purpose and strategic importance of this specific element in achieving the requirement and the overall goal.\n"
+                f"3. Be concise and actionable. Use Markdown for lists or emphasis if it improves clarity.\n"
+                f"4. Your entire response must be a single JSON object with one key: \"contextual_description\"."
+            )
+            messages = [{"role": "user", "content": prompt}]
+            response_str = await generate_chat_response(messages, role="user", task="contextual insight")
+            return json.loads(response_str)
+
     except Exception as e:
         logging.error(f"Error in orchestrator generate_ai_data for mode '{agent_mode}': {e}", exc_info=True)
-        return {"error": str(e)}
-
-# --- HELPER UTILITIES ---
+        return {"error": str(e), "contextual_description": "Failed to generate AI summary."}

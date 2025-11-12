@@ -152,12 +152,59 @@ function renderBulkActionsBar() {
  * Updates all the dashboard elements on the Overview tab.
  */
 function renderOverviewDashboard() {
+    const statCardContainer = state.modalElement.querySelector('#overview-stat-cards');
+    const connectionsContainer = state.modalElement.querySelector('#overview-connections');
+
+    // --- 1. Update Counters on Tabs/Header ---
     state.modalElement.querySelectorAll('.resource-counter').forEach(el => el.textContent = state.resources.length);
     state.modalElement.querySelectorAll('.connection-counter').forEach(el => el.textContent = state.connections.length);
     
-    const verifiedCount = state.resources.filter(r => r.status === 'Verified').length;
-    const verifiedCounter = state.modalElement.querySelector('#verified-counter');
-    if (verifiedCounter) verifiedCounter.textContent = verifiedCount;
+    // --- 2. Build the Stat Cards ---
+    if (statCardContainer) {
+        const verifiedCount = state.resources.filter(r => r.status === 'Verified').length;
+        // Mock data for AI Insights until that feature is built
+        const aiInsightsCount = 3; 
+        const relevanceScores = state.resources.map(r => r.relevance).filter(Boolean);
+        const avgRelevance = relevanceScores.length > 0
+            ? (relevanceScores.reduce((a, b) => a + b, 0) / relevanceScores.length).toFixed(0) + '%'
+            : 'N/A';
+        
+        const stats = [
+            { label: 'Resources', value: state.resources.length, icon: 'fa-book', color: 'text-primary' },
+            { label: 'Verified', value: verifiedCount, icon: 'fa-check-circle', color: 'text-success' },
+            { label: 'AI Insights', value: aiInsightsCount, icon: 'fa-brain', color: 'text-info' },
+            { label: 'Relevance', value: avgRelevance, icon: 'fa-bullseye', color: 'text-warning' },
+        ];
+
+        statCardContainer.innerHTML = stats.map(stat => `
+            <div class="col">
+                <div class="stat-card text-center">
+                    <i class="fas ${stat.icon} ${stat.color} stat-icon"></i>
+                    <div class="stat-value ${stat.color}">${stat.value}</div>
+                    <div class="stat-label text-uppercase">${stat.label}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // --- 3. Build the Knowledge Connection Cards ---
+    if (connectionsContainer) {
+        // Mock data for connections until that feature is built
+        const mockConnections = [
+            { title: 'Sugar Sustainability', count: 2 },
+            { title: 'Baking Science', count: 3 },
+            { title: 'Carbon Footprint', count: 4 },
+        ];
+        
+        connectionsContainer.innerHTML = mockConnections.map(conn => `
+            <div class="col-md-4">
+                <div class="connection-card">
+                    <div class="fw-bold small">${conn.title}</div>
+                    <div class="text-muted small">${conn.count} connections</div>
+                </div>
+            </div>
+        `).join('');
+    }
 }
 
 function toggleAiSidebar() {

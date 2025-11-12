@@ -24,10 +24,10 @@ def _render_ce_pill_html(ce_id: str, ce_type: str, ce_text: str) -> str:
     node_icon = node_info.get('icon', 'fa-solid fa-question-circle')
     
     return (
-        f'<div class="ce-pill btn-group" role="group" data-ce-id="{ce_id}" data-ce-type="{ce_type}" style="--node-color: {node_color};">'
-        f'<span class="btn ce-pill-icon-tag"><i class="{node_icon}"></i></span>'
-        f'<span class="btn ce-pill-text">{html.escape(ce_text)}</span>'
-        f'</div>'
+        f'<span class="ce-pill" data-ce-id="{ce_id}" data-ce-type="{ce_type}" style="--node-color: {node_color};">'
+        f'<span class="ce-pill-icon"><i class="{node_icon}"></i></span>'
+        f'<span class="ce-pill-text">{html.escape(ce_text)}</span>'
+        f'</span>'
     )
 
 # --- COS Analysis and CE Creation ---
@@ -66,7 +66,8 @@ async def analyze_cos(cos_content: str, cos_id: str = None) -> dict:
 
 async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: str, accountable_party: str = None, completion_date=None) -> str:
     """
-    Creates a COS and its associated CEs, and generates the final HTML content with pills.
+    Creates a COS and its associated CEs by parsing a pre-tagged content string.
+    This function NO LONGER makes an API call.
     """
     from models import COS, CE, db
     from store import ce_store, cos_store
@@ -76,35 +77,39 @@ async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: st
     cos_id_str = str(new_cos_uuid)
 
     try:
-        # 1. Analyze raw text to get AI's tagged version and a clean list of CEs to create.
-        analysis_result = await analyze_cos(content, cos_id_str)
-        content_with_tags = analysis_result['content_with_tags']
-        ces_to_create = analysis_result['identified_ces']
-
+        # 1. Parse the pre-tagged content string to find all <ce> tags.
+        soup = BeautifulSoup(content, 'html.parser')
+        ce_tags = soup.find_all('ce')
+        
         new_ce_instances = []
-        content_with_pills = content_with_tags
+        content_with_pills = content # Start with the original tagged content
 
         # 2. Create CE records and simultaneously build the final HTML for the COS content.
-        for ce_data in ces_to_create:
-            ce_text = ce_data.get('text')
-            ce_type = ce_data.get('type')
-            if not ce_text or not ce_type: continue
+        for tag in ce_tags:
+            ce_text = tag.string
+            ce_type = tag.get('type')
+            if not ce_text or not ce_type or ce_type not in NODES:
+                continue
 
             new_ce_uuid = uuid.uuid4()
             ce_record = {
                 'id': new_ce_uuid,
                 'node_type': ce_type,
-                'cos_id': new_cos_uuid, # This should be the COS's ID
+                'cos_id': new_cos_uuid,
                 'data': {"details_data": {}, "resources": []}
             }
             new_ce_instances.append(ce_record)
             
-            # Replace the simple <ce> tag with a full, rendered HTML pill, including the new ID.
-            ce_tag_to_replace = f"<ce type=\"{ce_type}\">{ce_text}</ce>"
+            # Replace the simple <ce> tag with a full, rendered HTML pill.
             pill_html = _render_ce_pill_html(str(new_ce_uuid), ce_type, ce_text)
-            content_with_pills = content_with_pills.replace(ce_tag_to_replace, pill_html, 1)
+            
+            # This is a bit tricky; we need to replace the tag without destroying the soup
+            tag.replace_with(BeautifulSoup(pill_html, 'html.parser'))
 
-        # 3. Save everything.
+        # Get the final HTML string from the modified soup
+        content_with_pills = str(soup)
+
+        # 3. Save everything to the database or in-memory store.
         if USE_DATABASE:
             with app.app_context():
                 cos_instance = COS(
@@ -118,7 +123,6 @@ async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: st
                     db.session.add(ce_instance)
                 db.session.commit()
         else:
-            # In-memory store logic
             cos_store[cos_id_str] = {'id': cos_id_str, 'content': content_with_pills, 'status': status, 'ssol_id': str(ssol_id)}
             for ce_rec in new_ce_instances:
                 ce_store[str(ce_rec['id'])] = ce_rec
@@ -126,7 +130,7 @@ async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: st
         return cos_id_str
 
     except Exception as e:
-        current_app.logger.error(f"General Error creating COS (SSOL: {ssol_id}, COS: {cos_id_str}): {e}", exc_info=True)
+        current_app.logger.error(f"Error creating COS (SSOL: {ssol_id}): {e}", exc_info=True)
         if USE_DATABASE: db.session.rollback()
         raise
 

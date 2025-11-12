@@ -356,11 +356,6 @@ function createCosTableRow(cos) {
 
 
 /**
- * Handles the click event on a CE pill. Gathers context, fetches the new 
- * "Node Application" modal from the server, and triggers its display.
- * @param {HTMLElement} pill - The CE pill element that was clicked.
- */
-/**
  * Handles the click event on a CE pill. Gathers context and calls displayCEModal.
  * This is now a simple "launcher" for the Node Application.
  * @param {HTMLElement} pill - The CE pill element that was clicked.
@@ -368,7 +363,10 @@ function createCosTableRow(cos) {
 function handleCEPillClick(pill) {
     const ceId = pill.dataset.ceId;
     const ceType = pill.dataset.ceType || "Default";
-    showLoadingSpinner(`Loading ${ceType} Application...`, window.NODES[ceType]?.icon);
+    const ceText = pill.querySelector('.ce-pill-text')?.textContent.trim() || 'Conditional Element';
+
+    const iconClass = (window.NODES && window.NODES[ceType]?.icon) || 'fas fa-cogs';
+    showLoadingSpinner(`Analyzing ${ceType} Element...`, iconClass);
 
     const cosRow = pill.closest('.cos-row');
     const ssolGoal = document.querySelector('#ssol-goal')?.textContent.trim() || "SSOL Goal Not Available";
@@ -379,6 +377,7 @@ function handleCEPillClick(pill) {
 
     const payload = { 
         ce_id: ceId, 
+        ce_text: ceText,
         cos_content: cosContextContent, 
         phase_name: phaseName, 
         phase_index: phaseIndex, 

@@ -4,9 +4,11 @@ This file is the definitive manifest for all Conditional Element "Speculation En
 
 Each node is a blueprint for a mini-application, defining its purpose, UI, and data structures.
 
+- `definition`: A user-facing explanation of the node's purpose.
+- `icon`: The Font Awesome icon class for the node.
+- `color`: A default hex color for branding and identification.
 - `details_schema`: Defines fields for the high-level "Details" view. These are often narrative
   summaries that are excellent targets for "Generate" AI actions.
-
 - `resource_schema`: Defines the structured data for items in the "Resources" collection. This
   drives the Resource Editor form and the rendering of Resource Cards. A variety of `type`
   values can be used to render different UI controls on the frontend.

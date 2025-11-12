@@ -1,0 +1,86 @@
+{
+  "🔵 ce_cards.js": {
+    "Exists": true,
+    "SizeBytes": 16640,
+    "Path": "static/js/ce_cards.js",
+    "LastModified": "2025-11-08 14:50:27"
+  },
+  "🟧 ai_service.py": {
+    "Exists": true,
+    "SizeBytes": 14130,
+    "Path": "ai_service.py",
+    "LastModified": "2025-11-10 21:14:10"
+  },
+  "🟦 outcome.html": {
+    "Exists": true,
+    "SizeBytes": 15155,
+    "Path": "templates/outcome.html",
+    "LastModified": "2025-10-31 20:15:02"
+  },
+  "🏳️‍🌈 ce_nodes.py": {
+    "Exists": true,
+    "SizeBytes": 12824,
+    "Path": "ce_nodes.py",
+    "LastModified": "2025-11-08 15:26:43"
+  },
+  "🟪 cos_table.js": {
+    "Exists": true,
+    "SizeBytes": 22257,
+    "Path": "static/js/cos_table.js",
+    "LastModified": "2025-10-31 20:10:20"
+  },
+  "🟥 routes.py": {
+    "Exists": true,
+    "SizeBytes": 17912,
+    "Path": "routes.py",
+    "LastModified": "2025-11-07 22:04:41"
+  },
+  "🟩 goal_selection.html": {
+    "Exists": true,
+    "SizeBytes": 3388,
+    "Path": "templates/goal_selection.html",
+    "LastModified": "2025-10-29 21:42:54"
+  },
+  "📆 models.py": {
+    "Exists": true,
+    "SizeBytes": 4255,
+    "Path": "models.py",
+    "LastModified": "2025-10-30 20:12:27"
+  },
+  "🏪 store.py": {
+    "Exists": true,
+    "SizeBytes": 66,
+    "Path": "store.py",
+    "LastModified": "2024-08-28 16:42:16"
+  },
+  "🎨 styles.css": {
+    "Exists": true,
+    "SizeBytes": 34556,
+    "Path": "static\\styles.css",
+    "LastModified": "2025-11-08 14:52:51"
+  },
+  "⬜ speculate.py": {
+    "Exists": true,
+    "SizeBytes": 20641,
+    "Path": "speculate.py",
+    "LastModified": "2025-11-07 22:03:07"
+  },
+  "🧩 ce_templates.py": {
+    "Exists": true,
+    "SizeBytes": 12848,
+    "Path": "ce_templates.py",
+    "LastModified": "2025-11-08 15:25:01"
+  },
+  "📱 app.py": {
+    "Exists": true,
+    "SizeBytes": 2661,
+    "Path": "app.py",
+    "LastModified": "2025-11-06 21:56:27"
+  },
+  "🟨 utilities.py": {
+    "Exists": true,
+    "SizeBytes": 8311,
+    "Path": "utilities.py",
+    "LastModified": "2025-11-07 22:02:01"
+  }
+}

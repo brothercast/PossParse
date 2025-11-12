@@ -1,7 +1,5 @@
 # ce_templates.py
 from flask import render_template_string
-# REMOVED: The unnecessary import of a function that no longer exists.
-# from utilities import replace_ce_tags_with_pills
 
 # This is the complete, final template for the "Speculation Environment".
 # It dynamically builds its forms and views based on the NODES dictionary.
@@ -12,11 +10,11 @@ BASE_MODAL_TEMPLATE = """
             
             <div class="modal-header ce-modal-header">
                 <div class="node-icon"><i class="{{ node_info.icon }}"></i></div>
-                <div class="ms-3">
-                    <h5 class="modal-title ce-title">{{ ceType.replace('_', ' ').title() }}</h5>
-                    <p class="phase-name mb-0">// {{ phase_name.title() }} PHASE</p>
+                <div class="ms-3 flex-grow-1 text-truncate">
+                    <span class="modal-title ce-title">{{ ceType.replace('_', ' ').title() }}</span>
+                    <span class="phase-name">// {{ ce_text }} // {{ phase_name.title() }} PHASE</span>
                 </div>
-                <div class="ms-auto d-flex align-items-center">
+                <div class="ms-auto d-flex align-items-center flex-shrink-0">
                     <button class="btn btn-header-action" id="speculate-sidebar-toggle">
                         <i class="fas fa-brain"></i> Speculate Co-Pilot
                     </button>
@@ -35,39 +33,48 @@ BASE_MODAL_TEMPLATE = """
                 <div class="ce-app-content tab-content flex-grow-1">
                     
                     <div class="tab-pane fade show active p-4" id="view-overview-{{ ceId }}">
-                        <div class="row g-4">
+                        <div class="row g-4 overview-grid">
                             <div class="col-lg-8">
                                 <div class="card mb-4 source-cos-card">
                                     <div class="card-body">
                                         <h5 class="card-title text-muted"><i class="fas fa-crosshairs me-2"></i> Source Condition of Satisfaction</h5>
-                                        <p class="card-text fst-italic">
-                                            {{ cos_content_with_pills | safe }}
-                                        </p>
+                                        <div class="content-block mt-3">
+                                            <p class="card-text fst-italic">
+                                                {{ cos_content_with_pills | safe }}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="card ai-insight-card">
                                     <div class="card-body">
-                                        <h5 class="card-title"><i class="fas fa-lightbulb me-2 text-primary"></i> Co-Pilot Contextual Insight</h5>
-                                        <p class="card-text text-muted">
-                                            {{ ai_generated_data.contextual_description or 'Click the "Speculate" button to generate insights based on this element and its parent COS.' }}
-                                        </p>
+                                        <a class="d-flex justify-content-between align-items-center text-decoration-none text-dark" data-bs-toggle="collapse" href="#collapse-summary-{{ ceId }}" role="button" aria-expanded="false">
+                                            <h5 class="card-title mb-0"><i class="fas fa-lightbulb me-2"></i> Summary</h5>
+                                            <i class="fas fa-chevron-down text-muted"></i>
+                                        </a>
+                                        <div class="collapse" id="collapse-summary-{{ ceId }}">
+                                            <div class="content-block mt-3">
+                                                <p class="card-text text-muted" id="summary-content-container">
+                                                    {{ ai_generated_data.contextual_description or 'This is the high-level summary. Use the Co-Pilot to generate this content.' }}
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-lg-4">
-                                <div class="card status-dashboard">
+                                <div class="card overview-stat-card">
                                     <div class="card-header fw-bold">Status Dashboard</div>
                                     <ul class="list-group list-group-flush">
                                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            <div><i class="fas fa-book me-2 text-primary"></i>Resources</div>
+                                            <div><i class="fas fa-book me-2 text-muted"></i>Resources</div>
                                             <span class="badge bg-primary rounded-pill resource-counter">0</span>
                                         </li>
                                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            <div><i class="fas fa-check-circle me-2 text-success"></i>Verified</div>
+                                            <div><i class="fas fa-check-circle me-2 text-muted"></i>Verified</div>
                                             <span class="badge bg-success rounded-pill" id="verified-counter">0</span>
                                         </li>
                                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            <div><i class="fas fa-project-diagram me-2 text-info"></i>Connections</div>
+                                            <div><i class="fas fa-project-diagram me-2 text-muted"></i>Connections</div>
                                             <span class="badge bg-info rounded-pill connection-counter">0</span>
                                         </li>
                                     </ul>
@@ -88,7 +95,6 @@ BASE_MODAL_TEMPLATE = """
                                             <i class="fas fa-wand-magic-sparkles"></i> Enhance
                                         </button>
                                     </div>
-                                    <!-- FIX: Use .get() with a default empty string -->
                                     <textarea id="detail-{{ field.name }}" name="{{ field.name }}" class="form-control" placeholder="{{ field.placeholder }}" rows="5">{{ ce_data.data.details_data.get(field.name, '') }}</textarea>
                                 </div>
                             </div>
@@ -104,9 +110,9 @@ BASE_MODAL_TEMPLATE = """
                         <div id="resources-toolbar" class="p-3 border-bottom bg-light flex-shrink-0"></div>
                         <div id="bulk-actions-bar" class="p-2 border-bottom align-items-center" style="display: none;"></div>
                         <div id="resources-container" class="flex-grow-1" style="overflow-y: auto;"></div>
-                        <div id="resource-editor-container" class="resource-editor" style="display: none;">
-                            <form id="resource-editor-form-{{ ceId }}" class="p-4">
-                                <h4 id="resource-editor-title" class="mb-3">Edit Resource</h4>
+                        <div id="resource-editor-container" class="resource-editor p-4" style="display: none;">
+                            <form id="resource-editor-form-{{ ceId }}">
+                                <h4 id="resource-editor-title" class="mb-3">New Resource</h4>
                                 {% for field in node_info.resource_schema %}
                                 <div class="mb-3">
                                     <label for="editor-{{ field.key }}" class="form-label">{{ field.label }}</label>
@@ -160,21 +166,18 @@ BASE_MODAL_TEMPLATE = """
 </div>
 """
 
-async def generate_dynamic_modal(ce_type, ce_data, node_info, cos_content, ai_generated_data, phase_name, phase_index):
+async def generate_dynamic_modal(ce_type, ce_text, ce_data, node_info, cos_content, ai_generated_data, phase_name, phase_index):
     """
-    Renders the new "Speculation Environment" modal shell.
+    Renders the new "Speculation Environment" modal shell, passing all necessary context.
     """
-    # This is now the correct logic. The cos_content is already processed.
-    cos_content_with_pills = cos_content
-
-    # render_template_string is synchronous, so no 'await' is needed here.
     return render_template_string(
         BASE_MODAL_TEMPLATE,
         ceId=ce_data.get('id', 'new_ce'),
         ceType=ce_type,
+        ce_text=ce_text,
         ce_data=ce_data,
         node_info=node_info,
-        cos_content_with_pills=cos_content_with_pills,
+        cos_content_with_pills=cos_content,
         ai_generated_data=ai_generated_data,
         phase_name=phase_name,
         phase_index=phase_index

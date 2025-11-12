@@ -1,0 +1,86 @@
+{
+  "🎨 styles.css": {
+    "Exists": true,
+    "LastModified": "2025-11-08 14:52:51",
+    "SizeBytes": 34556,
+    "Path": "static\\styles.css"
+  },
+  "🟩 goal_selection.html": {
+    "Exists": true,
+    "LastModified": "2025-10-29 21:42:54",
+    "SizeBytes": 3388,
+    "Path": "templates/goal_selection.html"
+  },
+  "🟥 routes.py": {
+    "Exists": true,
+    "LastModified": "2025-11-07 22:04:41",
+    "SizeBytes": 17912,
+    "Path": "routes.py"
+  },
+  "📆 models.py": {
+    "Exists": true,
+    "LastModified": "2025-10-30 20:12:27",
+    "SizeBytes": 4255,
+    "Path": "models.py"
+  },
+  "🟨 utilities.py": {
+    "Exists": true,
+    "LastModified": "2025-11-07 22:02:01",
+    "SizeBytes": 8311,
+    "Path": "utilities.py"
+  },
+  "🟦 outcome.html": {
+    "Exists": true,
+    "LastModified": "2025-10-31 20:15:02",
+    "SizeBytes": 15155,
+    "Path": "templates/outcome.html"
+  },
+  "🏪 store.py": {
+    "Exists": true,
+    "LastModified": "2024-08-28 16:42:16",
+    "SizeBytes": 66,
+    "Path": "store.py"
+  },
+  "🏳️‍🌈 ce_nodes.py": {
+    "Exists": true,
+    "LastModified": "2025-11-08 15:26:43",
+    "SizeBytes": 12824,
+    "Path": "ce_nodes.py"
+  },
+  "🟧 ai_service.py": {
+    "Exists": true,
+    "LastModified": "2025-11-07 20:49:25",
+    "SizeBytes": 14340,
+    "Path": "ai_service.py"
+  },
+  "🟪 cos_table.js": {
+    "Exists": true,
+    "LastModified": "2025-10-31 20:10:20",
+    "SizeBytes": 22257,
+    "Path": "static/js/cos_table.js"
+  },
+  "🧩 ce_templates.py": {
+    "Exists": true,
+    "LastModified": "2025-11-08 15:25:01",
+    "SizeBytes": 12848,
+    "Path": "ce_templates.py"
+  },
+  "📱 app.py": {
+    "Exists": true,
+    "LastModified": "2025-11-06 21:56:27",
+    "SizeBytes": 2661,
+    "Path": "app.py"
+  },
+  "⬜ speculate.py": {
+    "Exists": true,
+    "LastModified": "2025-11-07 22:03:07",
+    "SizeBytes": 20641,
+    "Path": "speculate.py"
+  },
+  "🔵 ce_cards.js": {
+    "Exists": true,
+    "LastModified": "2025-11-08 14:50:27",
+    "SizeBytes": 16640,
+    "Path": "static/js/ce_cards.js"
+  }
+}

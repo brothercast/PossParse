@@ -507,12 +507,21 @@ retro-futuristic-card {
     margin-bottom: 4px; /* For wrapping */
 }
 
-.cos-content-display .ce-pill {
+.cos-content-display {
     display: inline-block; /* Or 'inline-flex' if it has an icon inside */
     width: auto;           /* Explicitly tell it not to take full width */
     max-width: 100%;       /* Prevent it from overflowing on very small screens */
     vertical-align: middle; /* Aligns it nicely with the surrounding text */
 }
+
+.ce-pill {
+    display: inline-flex; /* Use inline-flex for perfect alignment of icon and text */
+    align-items: center;  /* Vertically align content within the pill */
+    width: auto;          /* Only take up as much space as needed */
+    max-width: 100%;      /* Prevent overflow on small screens */
+    vertical-align: middle; /* Align nicely with surrounding text */
+    margin: 0 2px;        /* Give it a little breathing room */
+  }
 
 .cos-content-textarea { /* Textarea when editing COS content */
   width: 100%;
@@ -544,72 +553,55 @@ retro-futuristic-card {
   color: #fff !important;
   text-align: center;
   text-transform: uppercase;
-  font-size: 0.65em; /* Smaller for table cell fit */
-  font-weight: 600; /* Bold */
+  font-size: 0.65em;
+  font-weight: 600;
   text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.2);
   padding: .3em .7em;
   border-radius: 10rem;
-  line-height: 1; /* Prevent extra space */
-  display: inline-block; /* Ensure it behaves well in flow */
+  line-height: 1;
+  display: inline-block;
 }
 
-/* --- REFINED: Icon Tag Pill Styling --- */
-.ce-pill.btn-group {
-  margin: 2px 4px 2px 0;
-  vertical-align: middle;
+/* --- THE DEFINITIVE CE PILL STYLE (v2) --- */
+.ce-pill {
+  display: inline-flex; 
+  align-items: stretch; /* FIX 1: Make child elements stretch to fill the pill's height */
+  margin: 0 4px; 
   border-radius: 6px;
-  overflow: hidden; /* This is the key to the seamless look! */
+  overflow: hidden;
   border: 1.5px solid var(--node-color, #6c757d);
-  display: inline-flex;
+  background-color: #fff;
+  width: auto;
+  max-width: 100%;
+  vertical-align: middle;
   cursor: pointer;
   transition: box-shadow 0.2s ease;
 }
-.ce-pill.btn-group:hover {
+.ce-pill:hover {
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
-/* Remove Bootstrap's default btn-group behavior that adds space */
-.ce-pill.btn-group > .btn {
-  margin-left: 0 !important;
-}
-
-/* Common styles for the tags inside the pill */
-.ce-pill .btn.ce-pill-icon-tag,
-.ce-pill .btn.ce-pill-text {
+.ce-pill-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: .20rem .70rem;
+  padding: 0 .6rem; /* FIX 2: Adjust padding for vertical balance */
+  background-color: var(--node-color, #6c757d);
+  color: white;
+}
+.ce-pill-text {
+  padding: .25rem .7rem;
   font-size: 0.85rem;
   font-weight: 500;
   line-height: 1.4;
-  border: none !important;
-  box-shadow: none !important;
-  transition: filter 0.2s ease, background-color 0.2s ease;
-  border-radius: 25; /* Remove individual radius */
+  white-space: nowrap;
+  display: flex; /* Add flex to help with vertical alignment */
+  align-items: center;
 }
 
-/* Specific style for the icon part */
-.ce-pill .btn.ce-pill-icon-tag {
-  background-color: var(--node-color, #6c757d);
-  color: white;
-  /* The dividing line is now handled by the natural separation of the elements */
+.modal .content-block .card-text {
+    line-height: 1.8; /* Give a little extra line height to accommodate pills */
 }
-
-/* Specific style for the text part */
-.ce-pill .btn.ce-pill-text {
-  background-color: #ffffff;
-  color: #212529;
-}
-
-/* Hover effect */
-.ce-pill.btn-group:hover .ce-pill-icon-tag {
-   filter: brightness(95%);
-}
-.ce-pill.btn-group:hover .ce-pill-text {
-   background-color: #f8f9fa;
-}
-
 
 /* ================================================== */
 /* ==========  13. Badge Color Overrides  ============ */
@@ -816,6 +808,11 @@ retro-futuristic-card {
   margin-left: 1rem; white-space: nowrap; line-height: 1.2;
 }
 
+.content-block p {
+    display: inline; /* This is a key part of the fix */
+}
+
+
 .modal-header .btn-close {
     margin-left: auto; /* Push close button to the far right */
     filter: invert(1) grayscale(100%) brightness(200%); /* Make it white */
@@ -893,6 +890,24 @@ retro-futuristic-card {
 .ce-modal-header .node-icon i {
     color: var(--phase-color);
 }
+
+.ce-modal-header .modal-title.ce-title {
+  font-size: 1.1rem; /* Make it slightly larger but not huge */
+  font-weight: 700; /* Bold */
+}
+
+.ce-modal-header .phase-name {
+  font-size: 1.1rem; /* MATCH the title size */
+  font-weight: 400; /* Regular weight */
+  color: rgba(255, 255, 255, 0.85);
+  margin-left: 0.5rem;
+  /* Keep the white-space, overflow, etc. from the previous fix */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
 .btn-header-action {
     color: white;
     opacity: 0.8;
@@ -923,31 +938,65 @@ retro-futuristic-card {
 }
 
 /* --- D. OVERVIEW VIEW STYLES --- */
-.progress-container .progress-bar {
-    background-color: var(--phase-color);
-}
-.card.ai-insight-card {
-    border-left: 4px solid var(--phase-color);
-    background-color: #ffffff;
-}
-.card.source-cos-card {
-    background-color: #f8f9fa; /* Match the main background */
-    border-style: dashed;
-    border-color: #ced4da;
+/* --- D. OVERVIEW VIEW STYLES --- */
+
+/* NEW RULE: This fixes the oversized card issue */
+.overview-grid {
+    align-items: start; /* Overrides Bootstrap's default 'stretch' for rows */
 }
 
-.overview-stat-card {
-    border: none;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+.widget-card {
+    background-color: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1.5rem;
+}
+.widget-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+.widget-header h5 {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.stat-card {
+    border: 1px solid #e9ecef;
+    border-radius: 0.75rem;
+    padding: 1rem;
     transition: all 0.2s ease-in-out;
 }
-.overview-stat-card:hover {
+.stat-card:hover {
     transform: translateY(-3px);
     box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    cursor: pointer;
 }
-.overview-stat-card .fa-2x {
-    color: #e9ecef !important; /* Use a very light grey for the background icon */
+.stat-card .stat-icon {
+    font-size: 1.25rem;
 }
+.stat-card .stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-top: 0.5rem;
+}
+.stat-card .stat-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.connection-card {
+    background-color: #fdf6ff;
+    border: 1px solid #e5d5e9;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    transition: all 0.2s ease-in-out;
+}
+.connection-card:hover {
+    box-shadow: 0 4px 12px rgba(123, 75, 148, 0.1);
+    border-color: #c5a9ce;
+}
+
 
 /* --- E. DETAILS VIEW STYLES --- */
 .details-form-container { max-width: 800px; }
