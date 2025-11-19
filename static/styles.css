@@ -179,7 +179,6 @@ retro-futuristic-card {
 
 /* --- Diagonal Pivot Frame Animation --- */
 
-/* --- Diagonal Pivot Frame Animation (MODIFIED) --- */
 
 .diagonal-pivot-container.card {
     position: relative;
@@ -278,8 +277,11 @@ retro-futuristic-card {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    background: #ffffff33;
-    /* --- MODIFIED: Content sits inside the card's main border --- */
+    
+    /* FIX: Change solid background to a semi-transparent one using rgba */
+    background: rgba(255, 255, 255, 0.5); /* 85% opaque white */
+    backdrop-filter: blur(2px); /* Optional: Adds a subtle "frosted glass" effect */
+    
     border-radius: 6px; 
     padding: 20px;
 }
@@ -629,7 +631,7 @@ retro-futuristic-card {
 
 
 /* ================================================== */
-/* == 15. Card Grid Layout (Goal Selection - Unchanged) == */
+/* == 15. Card Grid Layout (Goal Selection) == */
 /* ================================================== */
 .card-container { flex-wrap: nowrap !important; justify-content: center; }
 .card { display: flex; flex-direction: column; height: 100%; }
@@ -849,212 +851,287 @@ retro-futuristic-card {
     flex-direction: column;
     overflow: hidden;
     background-color: #ffffff;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(0,0,0,0.1);
 }
 
-.ce-app-body {
+/* Horizontal container for Main Content + Sidebar */
+.ce-workspace-body {
     flex-grow: 1;
     display: flex;
+    flex-direction: row; /* Split horizontally */
     padding: 0;
-    overflow: hidden; /* Critical to prevent double scrollbars */
+    overflow: hidden; /* Prevent scroll on container */
 }
 
+/* Left Column: Tabs + Views */
+.ce-main-column {
+    flex: 1; /* Takes up all available space */
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Crucial for text truncation inside flex items */
+    position: relative;
+}
+
+/* Right Column: Fixed Sidebar */
+.ai-sidebar { 
+    width: 340px; /* Fixed width */
+    flex-shrink: 0; /* Don't shrink */
+    border-left: 1px solid #dee2e6; 
+    background-color: #ffffff; 
+    display: flex;
+    flex-direction: column;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.02);
+}
+
+/* --- B. SCROLLING AREAS --- */
+/* The actual scrollable area for the main views */
 .ce-app-content {
     flex-grow: 1;
+    overflow-y: auto; 
+    background-color: #f8f9fa;
     display: flex;
-    flex-direction: column; /* Allows toolbars and containers to stack vertically */
-    overflow: hidden;
-    background-color: #f8f9fa; /* A light grey for the main content background */
+    flex-direction: column;
 }
 
-.ai-sidebar {
-    width: 350px;
-    flex-shrink: 0;
-    border-left: 1px solid #dee2e6;
-    background-color: #ffffff;
+/* The scrollable area inside the sidebar */
+#ai-sidebar-content {
+    flex-grow: 1;
     overflow-y: auto;
-    transition: width 0.3s ease;
-}
-
-.tab-content, .tab-pane {
-    height: 100%;
-}
-
-/* --- B. HEADER --- */
-.ce-modal-header {
-    background-color: var(--phase-color);
-    color: white;
-    flex-shrink: 0;
-    border-bottom: none;
-    padding: 1rem 1.5rem;
-}
-.ce-modal-header .node-icon i {
-    color: var(--phase-color);
-}
-
-.ce-modal-header .modal-title.ce-title {
-  font-size: 1.1rem; /* Make it slightly larger but not huge */
-  font-weight: 700; /* Bold */
-}
-
-.ce-modal-header .phase-name {
-  font-size: 1.1rem; /* MATCH the title size */
-  font-weight: 400; /* Regular weight */
-  color: rgba(255, 255, 255, 0.85);
-  margin-left: 0.5rem;
-  /* Keep the white-space, overflow, etc. from the previous fix */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-
-.btn-header-action {
-    color: white;
-    opacity: 0.8;
-    font-weight: 500;
-    border: 1px solid transparent;
-}
-.btn-header-action:hover {
-    opacity: 1;
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-/* --- C. TOP TAB NAVIGATION --- */
-.ce-nav-tabs {
-    border-bottom: 1px solid #dee2e6;
-    padding: 0 1rem;
-    flex-shrink: 0;
-    background-color: #fff;
-}
-.ce-nav-tabs .nav-link {
-    color: #495057;
-    font-weight: 500;
-    border-bottom: 3px solid transparent;
-    padding: 0.75rem 1rem;
-}
-.ce-nav-tabs .nav-link.active {
-    border-bottom-color: var(--phase-color);
-    color: #000;
-}
-
-/* --- D. OVERVIEW VIEW STYLES --- */
-/* --- D. OVERVIEW VIEW STYLES --- */
-
-/* NEW RULE: This fixes the oversized card issue */
-.overview-grid {
-    align-items: start; /* Overrides Bootstrap's default 'stretch' for rows */
-}
-
-.widget-card {
-    background-color: #fff;
-    border: 1px solid #e9ecef;
-    border-radius: 0.75rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-    margin-bottom: 1.5rem;
-}
-.widget-header {
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #e9ecef;
-}
-.widget-header h5 {
-    font-size: 1rem;
-    font-weight: 600;
-}
-
-.stat-card {
-    border: 1px solid #e9ecef;
-    border-radius: 0.75rem;
     padding: 1rem;
-    transition: all 0.2s ease-in-out;
-}
-.stat-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
-    cursor: pointer;
-}
-.stat-card .stat-icon {
-    font-size: 1.25rem;
-}
-.stat-card .stat-value {
-    font-size: 1.75rem;
-    font-weight: 700;
-    margin-top: 0.5rem;
-}
-.stat-card .stat-label {
-    font-size: 0.8rem;
-    color: #6c757d;
 }
 
-.connection-card {
-    background-color: #fdf6ff;
-    border: 1px solid #e5d5e9;
-    border-radius: 0.5rem;
-    padding: 0.75rem;
-    transition: all 0.2s ease-in-out;
+.tab-content, .tab-pane { height: 100%; }
+
+/* Custom Scrollbars */
+.ce-app-content::-webkit-scrollbar,
+#ai-sidebar-content::-webkit-scrollbar,
+.scrolling-content-box::-webkit-scrollbar { 
+    width: 6px; 
 }
-.connection-card:hover {
-    box-shadow: 0 4px 12px rgba(123, 75, 148, 0.1);
-    border-color: #c5a9ce;
+.ce-app-content::-webkit-scrollbar-track,
+#ai-sidebar-content::-webkit-scrollbar-track,
+.scrolling-content-box::-webkit-scrollbar-track { 
+    background: transparent; 
+}
+.ce-app-content::-webkit-scrollbar-thumb,
+#ai-sidebar-content::-webkit-scrollbar-thumb,
+.scrolling-content-box::-webkit-scrollbar-thumb { 
+    background-color: #cbd5e1; 
+    border-radius: 10px; 
+    border: 2px solid transparent; 
+    background-clip: content-box;
+}
+.ce-app-content::-webkit-scrollbar-thumb:hover,
+#ai-sidebar-content::-webkit-scrollbar-thumb:hover,
+.scrolling-content-box::-webkit-scrollbar-thumb:hover { 
+    background-color: #94a3b8; 
 }
 
-
-/* --- E. DETAILS VIEW STYLES --- */
-.details-form-container { max-width: 800px; }
-.btn-enhance-field { font-size: 0.8rem; padding: 0.2rem 0.5rem; }
-
-/* --- F. RESOURCES VIEW STYLES --- */
-#resources-toolbar, #bulk-actions-bar {
-    background-color: #ffffff;
-    padding: 1rem;
-    border-bottom: 1px solid #dee2e6;
-    flex-shrink: 0;
+/* --- C. HEADER --- */
+.ce-modal-header { 
+    background-color: var(--phase-color); 
+    color: white; 
+    flex-shrink: 0; 
+    border-bottom: none; 
+    padding: 0.75rem 1.5rem; 
 }
-.btn-speculate {
-    background: linear-gradient(45deg, #6f42c1, #3b82f6);
-    border: none;
-    color: white;
+.ce-modal-header .node-icon {
+    background-color: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(4px);
+    border-radius: 8px;
+    padding: 8px;
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
 }
-.btn-speculate:hover {
-    color: white;
-    opacity: 0.9;
+.ce-modal-header .node-icon i { 
+    color: white; 
+    font-size: 1.3rem; 
 }
-#resources-container {
-    background-color: #f8f9fa;
-    flex-grow: 1; /* Make it fill available space */
-    overflow-y: auto; /* It's the scrollable area */
+.ce-modal-header .modal-title.ce-title { 
+    font-family: 'Unica One', sans-serif; 
+    font-weight: 500; 
+    font-size: 1.5rem; 
+    letter-spacing: 0.02em;
+    line-height: 1;
 }
-.resource-card {
-    background-color: #fff;
-    border: 1px solid #dee2e6;
-    border-left: 4px solid #dee2e6;
-    border-radius: 0.375rem;
+.ce-modal-header .phase-name { 
+    font-size: 0.75rem; 
+    text-transform: uppercase;
+    font-family: 'Jost', sans-serif;
+    letter-spacing: 0.05em;
+    opacity: 0.9; 
+}
+.btn-header-action { 
+    color: white; 
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    font-weight: 500; 
+    font-size: 0.85rem; 
+    padding: 0.4rem 0.8rem;
     transition: all 0.2s ease;
-    cursor: pointer;
+    border-radius: 6px;
 }
-.resource-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    border-color: #adb5bd;
+.btn-header-action:hover { 
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+    color: white;
 }
-.resource-card.selected {
-    border-left-color: var(--phase-color);
-    background-color: #f0fdf4; /* A light green for selection */
-    border-color: #d1fae5;
+.btn-close { filter: invert(1) grayscale(100%) brightness(200%); opacity: 0.8; }
+.btn-close:hover { opacity: 1; }
+
+/* Progress Bar */
+.progress-bar-container {
+    padding: 0.75rem 1.5rem;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    flex-shrink: 0;
+}
+.progress-bar-container .progress-bar { background-color: var(--phase-color); }
+
+/* --- D. TOP TAB NAVIGATION --- */
+.ce-nav-tabs { 
+    border-bottom: 1px solid #dee2e6; 
+    padding: 0.5rem 1rem 0 1rem; 
+    background-color: #ffffff; 
+    flex-shrink: 0; 
+}
+.ce-nav-tabs .nav-link { 
+    color: #64748b; 
+    font-weight: 500; 
+    font-size: 0.9rem;
+    border: none;
+    border-bottom: 3px solid transparent; 
+    padding: 0.75rem 1.25rem; 
+    transition: color 0.2s ease;
+}
+.ce-nav-tabs .nav-link:hover { color: #334155; background-color: #f8fafc; }
+.ce-nav-tabs .nav-link.active { 
+    border-bottom-color: var(--phase-color); 
+    color: #0f172a; 
+    background: transparent;
 }
 
-#resources-container.grid-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)); gap: 1rem; }
+/* --- E. DASHBOARD & CARDS --- */
+.overview-grid { align-items: start; }
+
+/* Base Card Style */
+.card {
+    border-radius: 0.75rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    background-color: #fff;
+}
+
+/* Context Cards */
+.ai-context-card {
+    background: linear-gradient(to bottom right, #f8fafc, #f1f5f9);
+    border-left: 4px solid var(--phase-color) !important;
+}
+.source-cos-card { 
+    background-color: #ffffff;
+    border: 1px dashed #cbd5e1;
+}
+.source-cos-card .ce-pill {
+    font-style: normal;
+    display: inline-flex;
+    align-items: center;
+    margin: 0 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Metric Cards */
+.metric-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.metric-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Text Areas */
+.scrolling-content-box {
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 6px;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #334155;
+}
+
+/* --- F. DETAILS VIEW STYLES --- */
+.details-form-container { max-width: 800px; margin: 0 auto; }
+.btn-enhance-field { font-size: 0.75rem; padding: 0.2rem 0.6rem; }
+#generate-all-details-btn { 
+    background: linear-gradient(45deg, #6f42c1, #3b82f6); 
+    border: none; 
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: transform 0.1s ease;
+}
+#generate-all-details-btn:active { transform: scale(0.98); }
+
+/* --- G. RESOURCES VIEW STYLES --- */
+#resources-toolbar, #bulk-actions-bar { 
+    background-color: #ffffff; 
+    flex-shrink: 0; 
+    border-bottom: 1px solid #dee2e6; 
+    padding: 1rem; 
+}
+.btn-speculate { 
+    background: linear-gradient(45deg, #6f42c1, #3b82f6); 
+    border: none; 
+    color: white; 
+}
+.btn-speculate:hover { color: white; opacity: 0.9; }
+#resources-container { 
+    background-color: #f8f9fa; 
+    flex-grow: 1; 
+    padding: 1rem;
+}
+
+.resource-card { 
+    background-color: #fff; 
+    border: 1px solid #e2e8f0; 
+    border-radius: 0.5rem; 
+    transition: all 0.2s ease; 
+    cursor: pointer; 
+    position: relative;
+}
+.resource-card:hover { 
+    transform: translateY(-2px); 
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border-color: #cbd5e1; 
+}
+.resource-card.selected { 
+    border-left: 4px solid var(--phase-color); 
+    background-color: #f8fafc; 
+    border-color: #94a3b8;
+}
+
+/* Grid/List Toggles */
+#resources-container.grid-view { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); 
+    gap: 1rem; 
+}
 #resources-container.list-view .resource-card { margin-bottom: 0.5rem; }
 
-/* Custom Badge Colors */
 .bg-primary-soft { background-color: rgba(13, 110, 253, 0.1); color: #0a58ca; }
 .bg-secondary-soft { background-color: rgba(108, 117, 125, 0.1); color: #565e64; }
 
+.resource-editor { background-color: #fff; }
 
-/* --- G. FOOTER --- */
-.ce-modal-footer {
-    background-color: #f8f9fa;
-    border-top: 1px solid #dee2e6;
-    flex-shrink: 0;
+/* --- H. FOOTER --- */
+.ce-modal-footer { 
+    background-color: #ffffff; 
+    border-top: 1px solid #e2e8f0; 
+    flex-shrink: 0; 
+    padding: 0.75rem 1.5rem;
+    box-shadow: 0 -4px 6px -1px rgba(0,0,0,0.02);
 }
 
 /* ================================================== */

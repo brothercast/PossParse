@@ -86,37 +86,36 @@ async def goal_selection():
 @routes_bp.route('/outcome', methods=['POST'])
 async def outcome():
     if request.method == 'POST':
-        # ... (getting form data remains the same) ...
         selected_goal_text = request.form.get('selected_goal', '').strip()
         domain = request.form.get('domain', '').strip()
         selected_goal_title = request.form.get('selected_goal_title', '').strip()
         domain_icon = request.form.get('domain_icon', '').strip()
 
         if not selected_goal_text:
-            flash("No goal selected.", "error")
+            flash("No goal selected. Please try again.", "error")
             return redirect(url_for('routes_bp.index'))
             
         try:
+            # --- Main Logic for SSOL/COS Generation ---
             ssol_id_str = speculate_create_ssol(USE_DATABASE, selected_goal_title, selected_goal_text)
             ssol_id_uuid = UUID(ssol_id_str)
             logging.info(f"SSOL created with ID: {ssol_id_str}")
 
-            # --- SINGLE API CALL for all COS and CEs ---
+            # This is the single, efficient API call to get the entire structure
             logging.info("Generating structured solution from AI in a single call...")
             structured_solution_json = await generate_outcome_data(
                 ssol_title=selected_goal_title, ssol_description=selected_goal_text, domain=domain
             )
             ssol_summary = structured_solution_json.get('ssolsummary', 'AI failed to generate a summary.')
 
-            # --- FAST, LOCAL-ONLY LOOP ---
-            logging.info("Saving generated COS and their CEs (no new API calls)...")
+            # This is the fast, local-only loop with no new API calls
+            logging.info("Saving generated COS and their CEs...")
             phases_for_template = {}
             if 'phases' in structured_solution_json:
                 for phase_name, cos_items in structured_solution_json['phases'].items():
                     phases_for_template[phase_name] = []
                     for cos_content_with_tags in cos_items:
                         if cos_content_with_tags:
-                            # This call is now fast, as it only does DB operations.
                             new_cos_id_str = await speculate_create_cos(
                                 USE_DATABASE, ssol_id=ssol_id_uuid, content=cos_content_with_tags, status='Proposed'
                             )
@@ -124,26 +123,45 @@ async def outcome():
                             if newly_created_cos:
                                 phases_for_template[phase_name].append(newly_created_cos.to_dict() if USE_DATABASE else newly_created_cos)
 
-            # ... (rest of the route for template rendering and image generation remains the same) ...
-            
             outcome_data_for_template = {
-                'ssol_id': ssol_id_str, 'ssol_title': selected_goal_title, 'selected_goal': selected_goal_text,
-                'domain': domain, 'domain_icon': domain_icon, 'ssol_summary': ssol_summary, 'phases': phases_for_template,
+                'ssol_id': ssol_id_str,
+                'ssol_title': selected_goal_title,
+                'selected_goal': selected_goal_text,
+                'domain': domain,
+                'domain_icon': domain_icon,
+                'ssol_summary': ssol_summary,
+                'phases': phases_for_template,
             }
 
-            logging.info("Constructing image prompt...")
-            image_prompt_text = f"A vibrant, visually stunning futuristic illustration depicting '{selected_goal_text}' as a fulfilled goal, isometric, Mary Blair, 1962"
-            logging.info(f"Calling image generation service for SSOL {ssol_id_str}...")
-            await generate_image(image_prompt_text, ssol_id_str)
+            # --- GRACEFUL IMAGE GENERATION ---
+            # This nested try/except block ensures that an image failure
+            # will NOT prevent the main page from loading.
+            try:
+                logging.info("Constructing image prompt...")
+                image_prompt_text = f"A vibrant, visually stunning retro-futuristic illustration depicting '{selected_goal_text}' as a fulfilled goal, isometric, similar to lithographs from Popular Science, 1958, do not include text or captions."
+                logging.info(f"Calling image generation service for SSOL {ssol_id_str}...")
+                await generate_image(image_prompt_text, ssol_id_str)
+            except Exception as img_exc:
+                # If image generation fails, we log the error but do not crash.
+                # The user experience continues seamlessly. The frontend will handle
+                # showing a default image if the generated one is not found.
+                current_app.logger.error(
+                    f"NON-CRITICAL ERROR: Image generation failed for SSOL {ssol_id_str}. "
+                    f"The outcome page will be rendered without it. Reason: {img_exc}",
+                    exc_info=True
+                )
+            # --- END GRACEFUL HANDLING ---
             
+            # This return statement is now reached even if image generation fails.
             return render_template('outcome.html', ssol=outcome_data_for_template, nodes=NODES, ssol_id=ssol_id_str, selected_goal_title=selected_goal_title)
 
-
         except Exception as e:
-            current_app.logger.error(f"Critical error in /outcome route: {e}", exc_info=True)
-            flash(f"A critical error occurred while generating the solution. Error: {e}", "error")
+
+            current_app.logger.error(f"CRITICAL error in /outcome route during SSOL/COS creation: {e}", exc_info=True)
+            flash(f"A critical error occurred while generating the solution. Please try again. Error: {e}", "error")
             return redirect(url_for('routes_bp.index'))
 
+    # Redirect if the request method is not POST
     return redirect(url_for('routes_bp.index'))
 
 # --- Input Analysis ---

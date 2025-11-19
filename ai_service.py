@@ -234,19 +234,18 @@ async def generate_image(prompt: str, ssol_id: str):
         client = get_gemini_client()
         logger.debug(f"generate_image (Gemini) - Sending prompt to API: '{prompt}'")
         
-        # Define generation_config BEFORE the API call
         generation_config = types.GenerateContentConfig(
             response_modalities=["TEXT", "IMAGE"]
         )
         
-        # Now use it in the API call
+        # Now, make the API call using the defined config.
         response = await client.aio.models.generate_content(
             model=gemini_image_model_name,
             contents=prompt,
             config=generation_config
         )
+   
 
-        # Rest of your existing code...
         image_part = None
         for candidate in response.candidates:
             for part in candidate.content.parts:

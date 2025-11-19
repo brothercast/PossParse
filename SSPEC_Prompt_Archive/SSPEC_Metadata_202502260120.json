@@ -1,0 +1,86 @@
+{
+  "📱 app.py": {
+    "Path": "app.py",
+    "Exists": true,
+    "SizeBytes": 2661,
+    "LastModified": "2025-11-06 21:56:27"
+  },
+  "🟪 cos_table.js": {
+    "Path": "static/js/cos_table.js",
+    "Exists": true,
+    "SizeBytes": 22226,
+    "LastModified": "2025-11-11 17:43:24"
+  },
+  "🔵 ce_cards.js": {
+    "Path": "static/js/ce_cards.js",
+    "Exists": true,
+    "SizeBytes": 27132,
+    "LastModified": "2025-11-18 17:05:45"
+  },
+  "🟨 utilities.py": {
+    "Path": "utilities.py",
+    "Exists": true,
+    "SizeBytes": 9509,
+    "LastModified": "2025-11-18 17:50:41"
+  },
+  "📆 models.py": {
+    "Path": "models.py",
+    "Exists": true,
+    "SizeBytes": 4255,
+    "LastModified": "2025-10-30 20:12:27"
+  },
+  "🟥 routes.py": {
+    "Path": "routes.py",
+    "Exists": true,
+    "SizeBytes": 19032,
+    "LastModified": "2025-11-16 16:29:59"
+  },
+  "🟧 ai_service.py": {
+    "Path": "ai_service.py",
+    "Exists": true,
+    "SizeBytes": 14058,
+    "LastModified": "2025-11-14 21:54:47"
+  },
+  "🏪 store.py": {
+    "Path": "store.py",
+    "Exists": true,
+    "SizeBytes": 66,
+    "LastModified": "2024-08-28 16:42:16"
+  },
+  "🟩 goal_selection.html": {
+    "Path": "templates/goal_selection.html",
+    "Exists": true,
+    "SizeBytes": 3388,
+    "LastModified": "2025-10-29 21:42:54"
+  },
+  "🏳️‍🌈 ce_nodes.py": {
+    "Path": "ce_nodes.py",
+    "Exists": true,
+    "SizeBytes": 17006,
+    "LastModified": "2025-11-18 14:56:11"
+  },
+  "🎨 styles.css": {
+    "Path": "static\\styles.css",
+    "Exists": true,
+    "SizeBytes": 33952,
+    "LastModified": "2025-11-18 17:13:28"
+  },
+  "⬜ speculate.py": {
+    "Path": "speculate.py",
+    "Exists": true,
+    "SizeBytes": 20608,
+    "LastModified": "2025-11-11 17:12:02"
+  },
+  "🟦 outcome.html": {
+    "Path": "templates/outcome.html",
+    "Exists": true,
+    "SizeBytes": 15155,
+    "LastModified": "2025-10-31 20:15:02"
+  },
+  "🧩 ce_templates.py": {
+    "Path": "ce_templates.py",
+    "Exists": true,
+    "SizeBytes": 15000,
+    "LastModified": "2025-11-18 17:55:30"
+  }
+}

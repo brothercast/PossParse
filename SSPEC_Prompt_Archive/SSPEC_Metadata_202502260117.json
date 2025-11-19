@@ -1,0 +1,86 @@
+{
+  "🟥 routes.py": {
+    "LastModified": "2025-11-16 16:29:59",
+    "SizeBytes": 19032,
+    "Path": "routes.py",
+    "Exists": true
+  },
+  "🏳️‍🌈 ce_nodes.py": {
+    "LastModified": "2025-11-08 15:26:43",
+    "SizeBytes": 12824,
+    "Path": "ce_nodes.py",
+    "Exists": true
+  },
+  "🟧 ai_service.py": {
+    "LastModified": "2025-11-14 21:54:47",
+    "SizeBytes": 14058,
+    "Path": "ai_service.py",
+    "Exists": true
+  },
+  "🔵 ce_cards.js": {
+    "LastModified": "2025-11-11 18:25:13",
+    "SizeBytes": 19793,
+    "Path": "static/js/ce_cards.js",
+    "Exists": true
+  },
+  "🟨 utilities.py": {
+    "LastModified": "2025-11-11 17:19:57",
+    "SizeBytes": 9602,
+    "Path": "utilities.py",
+    "Exists": true
+  },
+  "🟪 cos_table.js": {
+    "LastModified": "2025-11-11 17:43:24",
+    "SizeBytes": 22226,
+    "Path": "static/js/cos_table.js",
+    "Exists": true
+  },
+  "🎨 styles.css": {
+    "LastModified": "2025-11-14 21:37:07",
+    "SizeBytes": 36027,
+    "Path": "static\\styles.css",
+    "Exists": true
+  },
+  "🟩 goal_selection.html": {
+    "LastModified": "2025-10-29 21:42:54",
+    "SizeBytes": 3388,
+    "Path": "templates/goal_selection.html",
+    "Exists": true
+  },
+  "🟦 outcome.html": {
+    "LastModified": "2025-10-31 20:15:02",
+    "SizeBytes": 15155,
+    "Path": "templates/outcome.html",
+    "Exists": true
+  },
+  "⬜ speculate.py": {
+    "LastModified": "2025-11-11 17:12:02",
+    "SizeBytes": 20608,
+    "Path": "speculate.py",
+    "Exists": true
+  },
+  "🧩 ce_templates.py": {
+    "LastModified": "2025-11-11 18:25:13",
+    "SizeBytes": 13694,
+    "Path": "ce_templates.py",
+    "Exists": true
+  },
+  "📱 app.py": {
+    "LastModified": "2025-11-06 21:56:27",
+    "SizeBytes": 2661,
+    "Path": "app.py",
+    "Exists": true
+  },
+  "🏪 store.py": {
+    "LastModified": "2024-08-28 16:42:16",
+    "SizeBytes": 66,
+    "Path": "store.py",
+    "Exists": true
+  },
+  "📆 models.py": {
+    "LastModified": "2025-10-30 20:12:27",
+    "SizeBytes": 4255,
+    "Path": "models.py",
+    "Exists": true
+  }
+}

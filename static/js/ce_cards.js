@@ -1,435 +1,286 @@
-// ce_cards.js (The "Speculation Environment" Controller)
+// ce_cards.js
 
-// --- STATE MANAGEMENT ---
-// A single source of truth for the entire Node Application. All functions read from and write to this.
 let state = {
     modalElement: null,
     ceId: null,
     ceType: null,
+    activeTab: 'overview',
+    // We now store all collections in a unified object
+    collections: {
+        prerequisites: [],
+        stakeholders: [],
+        assumptions: [],
+        resources: [],
+        connections: []
+    },
     details_data: {},
-    resources: [],
-    connections: [],
-    
-    // UI State
-    viewMode: 'grid', // 'grid' or 'list'
-    selectedResourceIds: new Set(),
-    showAiSidebar: false,
-    searchQuery: '',
-    isSaving: false,
+    aiSidebarContent: '', // Cache content
 };
 
-// --- RENDER FUNCTIONS ---
-
-/**
- * The main render function. Calls all sub-renderers to update the UI based on the current state.
- */
 function render() {
     if (!state.modalElement) return;
-    renderToolbar();
-    renderResources();
-    renderBulkActionsBar();
-    renderOverviewDashboard();
-    toggleAiSidebar();
+    renderProgressBar();
+    renderAllCollections(); // Renders all lists (prerequisites, stakeholders, etc.)
+    renderAiSidebar();
+    updateCounts();
 }
 
-/**
- * Renders the interactive resource cards in the #resources-container.
- */
-function renderResources() {
-    const container = state.modalElement.querySelector('#resources-container');
+function renderAllCollections() {
+    ['prerequisites', 'stakeholders', 'assumptions', 'resources'].forEach(type => {
+        renderCollection(type);
+    });
+}
+
+// Generic renderer for any list-based tab
+function renderCollection(type) {
+    const container = state.modalElement.querySelector(`#container-${type}-${state.ceId}`);
     if (!container) return;
 
-    const filteredResources = state.resources.filter(r => {
-        const query = state.searchQuery.toLowerCase();
-        if (!query) return true;
-        const titleMatch = r.title && r.title.toLowerCase().includes(query);
-        const snippetMatch = r.snippet && r.snippet.toLowerCase().includes(query);
-        const tagMatch = r.tags && r.tags.some(tag => tag.toLowerCase().includes(query));
-        return titleMatch || snippetMatch || tagMatch;
-    });
-
-    container.className = `resources-container p-3 flex-grow-1 ${state.viewMode}-view`;
-    if (filteredResources.length === 0) {
-        container.innerHTML = `<div class="text-center p-5 text-muted"><h4>No Resources Found</h4><p>Try clearing your search or use the "Speculate with AI" button to discover new items.</p></div>`;
+    const items = state.collections[type] || [];
+    
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div class="text-center p-5 text-muted border border-dashed rounded">
+                <i class="fas fa-folder-open fa-2x mb-3 opacity-25"></i>
+                <p>No ${type} added yet.</p>
+            </div>`;
         return;
     }
-    container.innerHTML = filteredResources.map(renderResourceCard).join('');
-}
 
-/**
- * Builds the HTML for a single, rich resource card based on the mockup.
- * @param {object} resource The resource data object.
- * @returns {string} HTML string for the card.
- */
-function renderResourceCard(resource) {
-    const isSelected = state.selectedResourceIds.has(resource.id);
-    const statusIcons = {
-        'Verified': '<i class="fas fa-check-circle text-success" title="Verified"></i>',
-        'Reviewed': '<i class="fas fa-eye text-info" title="Reviewed"></i>',
-        'Pending': '<i class="fas fa-clock text-warning" title="Pending"></i>',
-    };
-    const statusIcon = statusIcons[resource.status] || '';
-
-    return `
-        <div class="card resource-card ${isSelected ? 'selected' : ''}" data-resource-id="${resource.id}">
-            <div class="card-body p-3">
-                <div class="d-flex align-items-start">
-                    <input type="checkbox" class="form-check-input me-3 mt-1 flex-shrink-0" data-id="${resource.id}" ${isSelected ? 'checked' : ''} />
-                    <div class="flex-grow-1">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h6 class="card-title mb-1 me-2">${statusIcon} ${resource.title || 'Untitled'}</h6>
-                            ${resource.relevance ? `<span class="badge bg-primary-soft fw-bold">${resource.relevance}%</span>` : ''}
-                        </div>
-                        <p class="card-text small text-muted mb-2">${resource.snippet || ''}</p>
-                        ${(resource.tags && resource.tags.length) ? `<div class="mt-2">${resource.tags.map(tag => `<span class="badge bg-secondary-soft me-1">${tag}</span>`).join('')}</div>` : ''}
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-/**
- * Renders the toolbar with dynamic controls.
- */
-function renderToolbar() {
-    const toolbar = state.modalElement.querySelector('#resources-toolbar');
-    if(!toolbar) return;
-
-    let speculateButtonText = '<i class="fas fa-brain me-2"></i> Speculate';
-    let speculateButtonTitle = 'Use the SPECULATE Engine to find new resources';
-    if (state.ceType === 'Stakeholder' || state.ceType === 'Collaboration') {
-        speculateButtonText = '<i class="fas fa-network-wired me-2"></i> Query Network';
-        speculateButtonTitle = 'Query the SSPEC Network for contacts and organizations';
-    }
-
-    toolbar.innerHTML = `
-        <div class="row g-2 align-items-center">
-            <div class="col-auto">
-                <div class="btn-group">
-                    <button class="btn btn-primary" id="add-manual-btn" title="Add a new resource manually"><i class="fas fa-plus"></i> Add</button>
-                    <button class="btn btn-info btn-speculate" id="speculate-btn" title="${speculateButtonTitle}">${speculateButtonText}</button>
-                </div>
-            </div>
-            <div class="col">
-                <div class="input-group">
-                    <input type="text" id="resource-search" class="form-control" placeholder="Filter current resources..." value="${state.searchQuery}">
-                    <span class="input-group-text"><i class="fas fa-search"></i></span>
-                </div>
-            </div>
-            <div class="col-auto">
-                 <div class="btn-group view-toggle-group">
-                    <button class="btn btn-outline-secondary ${state.viewMode === 'grid' ? 'active' : ''}" data-view="grid" title="Grid View"><i class="fas fa-th-large"></i></button>
-                    <button class="btn btn-outline-secondary ${state.viewMode === 'list' ? 'active' : ''}" data-view="list" title="List View"><i class="fas fa-bars"></i></button>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-/**
- * Renders the bulk actions bar, showing it only when items are selected.
- */
-function renderBulkActionsBar() {
-    const bar = state.modalElement.querySelector('#bulk-actions-bar');
-    const count = state.selectedResourceIds.size;
-    bar.style.display = count > 0 ? 'flex' : 'none';
-    if(count > 0) {
-        bar.innerHTML = `
-            <div class="d-flex justify-content-between align-items-center w-100">
-                <span class="fw-bold ps-2">${count} item${count > 1 ? 's' : ''} selected</span>
+    // Generate Card HTML based on data
+    container.innerHTML = items.map(item => `
+        <div class="card mb-2 border-start-0 border-end-0 border-top-0 border-bottom shadow-sm" style="border-left: 4px solid var(--phase-color) !important;">
+            <div class="card-body p-3 d-flex justify-content-between align-items-start">
                 <div>
-                    <button class="btn btn-sm btn-outline-secondary me-2"><i class="fas fa-tag me-1"></i> Tag</button>
-                    <button class="btn btn-sm btn-outline-secondary me-2"><i class="fas fa-check-circle me-1"></i> Change Status</button>
-                    <button class="btn btn-sm btn-danger" id="bulk-delete-btn"><i class="fas fa-trash-alt"></i> Delete Selected</button>
+                    <h6 class="fw-bold mb-1">${item.title || item.name || item.hypothesis || 'Untitled'}</h6>
+                    <p class="small text-muted mb-0 text-truncate" style="max-width: 400px;">
+                        ${item.role || item.risk || item.url || ''}
+                    </p>
+                     ${item.tags ? `<span class="badge bg-light text-dark border mt-2">${item.tags}</span>` : ''}
                 </div>
+                <button class="btn btn-sm btn-light text-primary btn-edit-item" 
+                    data-collection="${type}" data-id="${item.id}">
+                    <i class="fas fa-edit"></i>
+                </button>
             </div>
+        </div>
+    `).join('');
+}
+
+function renderAiSidebar() {
+    const content = state.modalElement.querySelector('#ai-sidebar-content');
+    if (!content) return;
+
+    let actionsHtml = '';
+    
+    // Context-Aware Actions
+    if (state.activeTab === 'overview') {
+        actionsHtml = `
+            <button class="btn btn-sm btn-light w-100 text-start mb-2 border"><i class="fas fa-rocket text-primary me-2"></i> Suggest Critical Path</button>
+            <button class="btn btn-sm btn-light w-100 text-start mb-2 border"><i class="fas fa-microchip text-primary me-2"></i> Analyze Feasibility</button>
+        `;
+    } else if (state.activeTab === 'stakeholders') {
+        actionsHtml = `
+            <button class="btn btn-sm btn-light w-100 text-start mb-2 border"><i class="fas fa-user-plus text-success me-2"></i> Identify Key Players</button>
+            <button class="btn btn-sm btn-light w-100 text-start mb-2 border"><i class="fas fa-handshake text-info me-2"></i> Suggest Alignment Strategy</button>
+        `;
+    } else if (state.activeTab === 'assumptions') {
+        actionsHtml = `
+            <button class="btn btn-sm btn-light w-100 text-start mb-2 border"><i class="fas fa-shield-alt text-warning me-2"></i> Challenge Assumptions</button>
+        `;
+    } else {
+        // Default
+        actionsHtml = `
+            <button class="btn btn-sm btn-light w-100 text-start mb-2 border"><i class="fas fa-lightbulb text-warning me-2"></i> Generate Ideas</button>
         `;
     }
+
+    content.innerHTML = `
+        <div class="mb-4">
+            <h6 class="small fw-bold text-muted text-uppercase mb-3">Context: ${state.activeTab}</h6>
+            ${actionsHtml}
+        </div>
+        <div class="mb-4">
+            <h6 class="small fw-bold text-muted text-uppercase mb-3">Chat</h6>
+            <textarea class="form-control form-control-sm mb-2" rows="3" placeholder="Ask SPECULATE..."></textarea>
+            <button class="btn btn-primary btn-sm w-100">Send</button>
+        </div>
+    `;
 }
 
-/**
- * Updates all the dashboard elements on the Overview tab.
- */
-function renderOverviewDashboard() {
-    const statCardContainer = state.modalElement.querySelector('#overview-stat-cards');
-    const connectionsContainer = state.modalElement.querySelector('#overview-connections');
-
-    // --- 1. Update Counters on Tabs/Header ---
-    state.modalElement.querySelectorAll('.resource-counter').forEach(el => el.textContent = state.resources.length);
-    state.modalElement.querySelectorAll('.connection-counter').forEach(el => el.textContent = state.connections.length);
+function updateCounts() {
+    state.modalElement.querySelectorAll('.count-badge').forEach(badge => {
+        const type = badge.dataset.collection;
+        if (state.collections[type]) {
+            badge.textContent = state.collections[type].length;
+        }
+    });
     
-    // --- 2. Build the Stat Cards ---
-    if (statCardContainer) {
-        const verifiedCount = state.resources.filter(r => r.status === 'Verified').length;
-        // Mock data for AI Insights until that feature is built
-        const aiInsightsCount = 3; 
-        const relevanceScores = state.resources.map(r => r.relevance).filter(Boolean);
-        const avgRelevance = relevanceScores.length > 0
-            ? (relevanceScores.reduce((a, b) => a + b, 0) / relevanceScores.length).toFixed(0) + '%'
-            : 'N/A';
-        
-        const stats = [
-            { label: 'Resources', value: state.resources.length, icon: 'fa-book', color: 'text-primary' },
-            { label: 'Verified', value: verifiedCount, icon: 'fa-check-circle', color: 'text-success' },
-            { label: 'AI Insights', value: aiInsightsCount, icon: 'fa-brain', color: 'text-info' },
-            { label: 'Relevance', value: avgRelevance, icon: 'fa-bullseye', color: 'text-warning' },
-        ];
-
-        statCardContainer.innerHTML = stats.map(stat => `
-            <div class="col">
-                <div class="stat-card text-center">
-                    <i class="fas ${stat.icon} ${stat.color} stat-icon"></i>
-                    <div class="stat-value ${stat.color}">${stat.value}</div>
-                    <div class="stat-label text-uppercase">${stat.label}</div>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    // --- 3. Build the Knowledge Connection Cards ---
-    if (connectionsContainer) {
-        // Mock data for connections until that feature is built
-        const mockConnections = [
-            { title: 'Sugar Sustainability', count: 2 },
-            { title: 'Baking Science', count: 3 },
-            { title: 'Carbon Footprint', count: 4 },
-        ];
-        
-        connectionsContainer.innerHTML = mockConnections.map(conn => `
-            <div class="col-md-4">
-                <div class="connection-card">
-                    <div class="fw-bold small">${conn.title}</div>
-                    <div class="text-muted small">${conn.count} connections</div>
-                </div>
-            </div>
-        `).join('');
-    }
+    // Overall progress (mock logic)
+    const totalItems = Object.values(state.collections).flat().length;
+    const progress = Math.min(100, totalItems * 5);
+    const bar = state.modalElement.querySelector('#ce-progress-bar');
+    const label = state.modalElement.querySelector('#ce-progress-label');
+    if (bar) bar.style.width = `${progress}%`;
+    if (label) label.textContent = `${progress}%`;
 }
 
-function toggleAiSidebar() {
-    const sidebar = state.modalElement.querySelector('#ai-sidebar');
-    if (sidebar) sidebar.style.display = state.showAiSidebar ? 'block' : 'none';
-}
+// --- ACTIONS ---
 
-// --- ACTIONS & UI LOGIC ---
+function toggleEditor(collectionType, show, itemData = null) {
+    const container = state.modalElement.querySelector(`#container-${collectionType}-${state.ceId}`);
+    const editor = state.modalElement.querySelector(`#editor-${collectionType}-${state.ceId}`);
+    const form = editor.querySelector('form');
 
-/**
- * Toggles visibility between the resource list and the editor form.
- * @param {boolean} showEditor - True to show editor, false to show list.
- * @param {object|null} resourceData - Data for editing, or null for a new resource.
- */
-function showResourceEditor(showEditor, resourceData = null) {
-    const listContainer = state.modalElement.querySelector('#resources-container');
-    const toolbar = state.modalElement.querySelector('#resources-toolbar');
-    const editor = state.modalElement.querySelector('#resource-editor-container');
-    const form = state.modalElement.querySelector(`#resource-editor-form-${state.ceId}`);
-    const title = state.modalElement.querySelector('#resource-editor-title');
-
-    if (showEditor) {
-        listContainer.style.display = 'none';
-        toolbar.style.display = 'none';
+    if (show) {
+        container.style.display = 'none';
         editor.style.display = 'block';
         form.reset();
-        
-        const nodeConfig = window.NODES[state.ceType] || window.NODES['Default'];
-        if (resourceData) { // Edit mode
-            title.textContent = 'Edit Resource';
-            form.dataset.editingId = resourceData.id;
-            nodeConfig.resource_schema.forEach(field => {
-                const input = form.querySelector(`[name="${field.key}"]`);
-                if (input) input.value = resourceData[field.key] || '';
+        // Pre-fill if editing
+        if (itemData) {
+            form.dataset.editingId = itemData.id;
+            Object.keys(itemData).forEach(key => {
+                const input = form.querySelector(`[name="${key}"]`);
+                if (input) input.value = itemData[key];
             });
-        } else { // Add new mode
-            title.textContent = 'Add New Resource';
+        } else {
             delete form.dataset.editingId;
         }
     } else {
-        listContainer.style.display = 'block';
-        toolbar.style.display = 'block';
+        container.style.display = 'block';
         editor.style.display = 'none';
         delete form.dataset.editingId;
     }
 }
 
-/**
- * Saves all changes from the Node Application to the backend.
- */
-function saveCEChanges() {
-    if (state.isSaving) return;
-    state.isSaving = true;
-    const saveButton = state.modalElement.querySelector('.btn-save-changes');
-    const statusEl = state.modalElement.querySelector('#save-status');
+// --- LISTENERS ---
 
-    // Collect data from the Details form before saving
-    const detailsForm = state.modalElement.querySelector(`#details-form-${state.ceId}`);
-    if (detailsForm) {
-        const detailsFormData = new FormData(detailsForm);
-        state.details_data = Object.fromEntries(detailsFormData.entries());
-    }
-
-    const finalData = {
-        details_data: state.details_data,
-        resources: state.resources,
-        connections: state.connections,
-    };
-
-    saveButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Saving...`;
-    saveButton.disabled = true;
-
-    fetch(`/update_ce/${state.ceId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalData)
-    })
-    .then(response => {
-        if (!response.ok) return response.json().then(err => { throw new Error(err.error || 'Save failed'); });
-        return response.json();
-    })
-    .then(() => {
-        statusEl.textContent = `Saved at ${new Date().toLocaleTimeString()}`;
-        state.modalElement.dataset.hasUnsavedChanges = 'false';
-    })
-    .catch(error => {
-        statusEl.textContent = 'Save Failed!';
-        alert(`Save Failed: ${error.message}`);
-    })
-    .finally(() => {
-        state.isSaving = false;
-        saveButton.innerHTML = `<i class="fas fa-save me-2"></i>Save Changes`;
-        saveButton.disabled = false;
-    });
-}
-
-// --- EVENT HANDLERS ---
 function setupEventListeners() {
     const modal = state.modalElement;
 
-    // --- Main Click Event Delegation ---
+    // Tab Switching -> Update Sidebar Context
+    const tabEl = modal.querySelector('.ce-nav-tabs');
+    if (tabEl) {
+        tabEl.addEventListener('shown.bs.tab', event => {
+            const targetId = event.target.getAttribute('data-bs-target'); // e.g. #view-stakeholders-UUID
+            // Extract middle part "stakeholders"
+            const parts = targetId.split('-');
+            state.activeTab = parts[1]; 
+            renderAiSidebar();
+        });
+    }
+
     modal.addEventListener('click', event => {
-        const target = event.target;
-
-        // Editor Workflow
-        if (target.closest('#add-manual-btn')) { showResourceEditor(true, null); return; }
-        if (target.closest('#cancel-edit-btn')) { showResourceEditor(false); return; }
+        const t = event.target;
         
-        const card = target.closest('.resource-card');
-        if (card && !target.matches('input[type="checkbox"]')) {
-            const resourceId = card.dataset.resourceId;
-            const resourceToEdit = state.resources.find(r => r.id === resourceId);
-            if (resourceToEdit) showResourceEditor(true, resourceToEdit);
-            return;
+        // Add Item Button
+        const addBtn = t.closest('.btn-add-item');
+        if (addBtn) {
+            toggleEditor(addBtn.dataset.collection, true);
         }
 
-        // Resource Selection
-        const cardCheckbox = target.closest('.resource-card .form-check-input');
-        if (cardCheckbox) {
-            const resourceId = cardCheckbox.dataset.id;
-            cardCheckbox.checked ? state.selectedResourceIds.add(resourceId) : state.selectedResourceIds.delete(resourceId);
-            card.classList.toggle('selected');
-            renderBulkActionsBar();
-            return;
+        // Cancel Edit Button
+        if (t.closest('.btn-cancel-edit')) {
+            // Find parent collection type
+            const editor = t.closest('.collection-editor');
+            const type = editor.id.split('-')[1];
+            toggleEditor(type, false);
         }
         
-        // Bulk Delete
-        if (target.closest('#bulk-delete-btn')) {
-            if (confirm(`Are you sure you want to delete ${state.selectedResourceIds.size} selected resources?`)) {
-                const idsToDelete = Array.from(state.selectedResourceIds);
-                state.resources = state.resources.filter(r => !idsToDelete.includes(r.id));
-                state.selectedResourceIds.clear();
-                render(); // Re-render everything
-            }
-            return;
-        }
-
-        // Toolbar: View Mode Toggles
-        const viewButton = target.closest('.view-toggle-group button[data-view]');
-        if (viewButton && viewButton.dataset.view !== state.viewMode) {
-            state.viewMode = viewButton.dataset.view;
-            render(); // Re-render the toolbar and resources
-            return;
+        // Edit specific item
+        const editBtn = t.closest('.btn-edit-item');
+        if (editBtn) {
+            const type = editBtn.dataset.collection;
+            const id = editBtn.dataset.id;
+            const item = state.collections[type].find(i => i.id === id);
+            if (item) toggleEditor(type, true, item);
         }
         
-        // Sidebar Toggles
-        if (target.closest('#speculate-sidebar-toggle')) { state.showAiSidebar = true; toggleAiSidebar(); return; }
-        if (target.closest('#close-sidebar-btn')) { state.showAiSidebar = false; toggleAiSidebar(); return; }
-        
-        // Save Button
-        if (target.closest('.btn-save-changes')) { saveCEChanges(); return; }
+        // Save Main Button
+        if (t.closest('.btn-save-changes')) {
+            saveDataPacket();
+        }
     });
-    
-    // --- Form & Input Event Delegation ---
-    // Resource Editor Form Submission
+
+    // Form Submissions (Generic Handler for all collection editors)
     modal.addEventListener('submit', event => {
-        if (event.target.id === `resource-editor-form-${state.ceId}`) {
+        if (event.target.classList.contains('editor-form')) {
             event.preventDefault();
             const form = event.target;
+            const type = form.dataset.collection;
             const formData = new FormData(form);
-            const resourceObject = Object.fromEntries(formData.entries());
-            const editingId = form.dataset.editingId;
-
-            if (editingId) { // Update existing
-                const index = state.resources.findIndex(r => r.id === editingId);
-                if (index > -1) state.resources[index] = { ...state.resources[index], ...resourceObject };
-            } else { // Add new
-                resourceObject.id = self.crypto.randomUUID();
-                state.resources.push(resourceObject);
+            const data = Object.fromEntries(formData.entries());
+            
+            if (form.dataset.editingId) {
+                // Update
+                const index = state.collections[type].findIndex(i => i.id === form.dataset.editingId);
+                if (index > -1) state.collections[type][index] = { ...state.collections[type][index], ...data };
+            } else {
+                // Add
+                data.id = self.crypto.randomUUID();
+                state.collections[type].push(data);
             }
             
-            modal.dataset.hasUnsavedChanges = 'true';
-            showResourceEditor(false);
+            toggleEditor(type, false);
             render();
-        }
-    });
-
-    // Search input with debounce
-    let searchTimeout;
-    modal.addEventListener('input', event => {
-        modal.dataset.hasUnsavedChanges = 'true'; // Flag any input change
-        if (event.target.id === 'resource-search') {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                state.searchQuery = event.target.value;
-                renderResources();
-            }, 300);
         }
     });
 }
 
+function saveDataPacket() {
+    const btn = state.modalElement.querySelector('.btn-save-changes');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    
+    // Harvest text areas from Narrative tab
+    const narrativeForm = state.modalElement.querySelector(`#narrative-form-${state.ceId}`);
+    if(narrativeForm) {
+        const fd = new FormData(narrativeForm);
+        state.details_data = Object.fromEntries(fd.entries());
+    }
 
-// --- INITIALIZATION ---
-/**
- * Main function to display the modal. This is the primary export.
- */
+    // Build Packet matching `CE` model `data` JSON structure
+    const packet = {
+        details_data: state.details_data,
+        resources: state.collections.resources,
+        prerequisites: state.collections.prerequisites,
+        stakeholders: state.collections.stakeholders,
+        assumptions: state.collections.assumptions,
+        connections: state.collections.connections
+    };
+
+    fetch(`/update_ce/${state.ceId}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(packet)
+    }).then(res => res.json()).then(data => {
+        btn.innerHTML = '<i class="fas fa-check"></i> Saved';
+        setTimeout(() => btn.innerHTML = 'Save Changes', 2000);
+    });
+}
+
 export function displayCEModal(modalHtml, ceId, p_ceType, ceData) {
     const modalContainer = document.getElementById('dynamicModalContainer');
     modalContainer.innerHTML = modalHtml;
     const modalElement = document.getElementById(`ceModal-${ceId}`);
-    if (!modalElement) return console.error('Modal element not found after injection.');
-
     const modal = new bootstrap.Modal(modalElement);
-    
+
     modalElement.addEventListener('shown.bs.modal', () => {
+        const d = ceData?.data || {};
         state = {
-            modalElement, ceId, ceType: p_ceType,
-            details_data: ceData?.data?.details_data || {},
-            resources: (ceData?.data?.resources || []).map(r => ({ ...r, id: r.id || self.crypto.randomUUID() })),
-            connections: ceData?.data?.connections || [],
-            viewMode: 'grid', selectedResourceIds: new Set(), showAiSidebar: false, searchQuery: '', isSaving: false,
+            modalElement, ceId, ceType: p_ceType, activeTab: 'overview',
+            collections: {
+                prerequisites: d.prerequisites || [],
+                stakeholders: d.stakeholders || [],
+                assumptions: d.assumptions || [],
+                resources: d.resources || [],
+                connections: d.connections || []
+            },
+            details_data: d.details_data || {},
         };
-        render(); // Initial render
+        render();
         setupEventListeners();
     }, { once: true });
 
-    modalElement.addEventListener('hidden.bs.modal', (event) => {
-        if(modalElement.dataset.hasUnsavedChanges === 'true') {
-            if(!confirm("You have unsaved changes that will be lost. Are you sure you want to close?")) {
-                event.preventDefault();
-                return;
-            }
-        }
-        modalElement.remove(); // Cleanup DOM
-    });
-
+    modalElement.addEventListener('hidden.bs.modal', () => modalElement.remove());
     modal.show();
 }

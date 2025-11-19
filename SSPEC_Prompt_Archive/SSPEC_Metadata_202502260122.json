@@ -1,0 +1,86 @@
+{
+  "🟧 ai_service.py": {
+    "Path": "ai_service.py",
+    "LastModified": "2025-11-14 21:54:47",
+    "Exists": true,
+    "SizeBytes": 14058
+  },
+  "🟥 routes.py": {
+    "Path": "routes.py",
+    "LastModified": "2025-11-16 16:29:59",
+    "Exists": true,
+    "SizeBytes": 19032
+  },
+  "🟩 goal_selection.html": {
+    "Path": "templates/goal_selection.html",
+    "LastModified": "2025-10-29 21:42:54",
+    "Exists": true,
+    "SizeBytes": 3388
+  },
+  "📱 app.py": {
+    "Path": "app.py",
+    "LastModified": "2025-11-06 21:56:27",
+    "Exists": true,
+    "SizeBytes": 2661
+  },
+  "🟦 outcome.html": {
+    "Path": "templates/outcome.html",
+    "LastModified": "2025-10-31 20:15:02",
+    "Exists": true,
+    "SizeBytes": 15155
+  },
+  "📆 models.py": {
+    "Path": "models.py",
+    "LastModified": "2025-10-30 20:12:27",
+    "Exists": true,
+    "SizeBytes": 4255
+  },
+  "🔵 ce_cards.js": {
+    "Path": "static/js/ce_cards.js",
+    "LastModified": "2025-11-18 22:30:01",
+    "Exists": true,
+    "SizeBytes": 23342
+  },
+  "🧩 ce_templates.py": {
+    "Path": "ce_templates.py",
+    "LastModified": "2025-11-18 22:18:54",
+    "Exists": true,
+    "SizeBytes": 17006
+  },
+  "🏳️‍🌈 ce_nodes.py": {
+    "Path": "ce_nodes.py",
+    "LastModified": "2025-11-18 14:56:11",
+    "Exists": true,
+    "SizeBytes": 17006
+  },
+  "🟨 utilities.py": {
+    "Path": "utilities.py",
+    "LastModified": "2025-11-18 20:15:13",
+    "Exists": true,
+    "SizeBytes": 10006
+  },
+  "🎨 styles.css": {
+    "Path": "static\\styles.css",
+    "LastModified": "2025-11-18 21:06:22",
+    "Exists": true,
+    "SizeBytes": 38294
+  },
+  "🏪 store.py": {
+    "Path": "store.py",
+    "LastModified": "2024-08-28 16:42:16",
+    "Exists": true,
+    "SizeBytes": 66
+  },
+  "⬜ speculate.py": {
+    "Path": "speculate.py",
+    "LastModified": "2025-11-11 17:12:02",
+    "Exists": true,
+    "SizeBytes": 20608
+  },
+  "🟪 cos_table.js": {
+    "Path": "static/js/cos_table.js",
+    "LastModified": "2025-11-11 17:43:24",
+    "Exists": true,
+    "SizeBytes": 22226
+  }
+}
