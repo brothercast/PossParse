@@ -1,0 +1,86 @@
+{
+  "🧩 ce_templates.py": {
+    "Path": "ce_templates.py",
+    "SizeBytes": 14084,
+    "Exists": true,
+    "LastModified": "2025-11-18 22:59:18"
+  },
+  "🟧 ai_service.py": {
+    "Path": "ai_service.py",
+    "SizeBytes": 14058,
+    "Exists": true,
+    "LastModified": "2025-11-14 21:54:47"
+  },
+  "🟥 routes.py": {
+    "Path": "routes.py",
+    "SizeBytes": 21863,
+    "Exists": true,
+    "LastModified": "2025-11-19 13:14:46"
+  },
+  "🟩 goal_selection.html": {
+    "Path": "templates/goal_selection.html",
+    "SizeBytes": 3388,
+    "Exists": true,
+    "LastModified": "2025-10-29 21:42:54"
+  },
+  "🟦 outcome.html": {
+    "Path": "templates/outcome.html",
+    "SizeBytes": 15155,
+    "Exists": true,
+    "LastModified": "2025-10-31 20:15:02"
+  },
+  "🎨 styles.css": {
+    "Path": "static\\styles.css",
+    "SizeBytes": 38294,
+    "Exists": true,
+    "LastModified": "2025-11-18 21:06:22"
+  },
+  "📆 models.py": {
+    "Path": "models.py",
+    "SizeBytes": 4255,
+    "Exists": true,
+    "LastModified": "2025-10-30 20:12:27"
+  },
+  "🟪 cos_table.js": {
+    "Path": "static/js/cos_table.js",
+    "SizeBytes": 22226,
+    "Exists": true,
+    "LastModified": "2025-11-11 17:43:24"
+  },
+  "🏳️‍🌈 ce_nodes.py": {
+    "Path": "ce_nodes.py",
+    "SizeBytes": 22415,
+    "Exists": true,
+    "LastModified": "2025-11-19 13:08:12"
+  },
+  "🏪 store.py": {
+    "Path": "store.py",
+    "SizeBytes": 66,
+    "Exists": true,
+    "LastModified": "2024-08-28 16:42:16"
+  },
+  "⬜ speculate.py": {
+    "Path": "speculate.py",
+    "SizeBytes": 20608,
+    "Exists": true,
+    "LastModified": "2025-11-11 17:12:02"
+  },
+  "🟨 utilities.py": {
+    "Path": "utilities.py",
+    "SizeBytes": 11199,
+    "Exists": true,
+    "LastModified": "2025-11-18 22:55:40"
+  },
+  "🔵 ce_cards.js": {
+    "Path": "static/js/ce_cards.js",
+    "SizeBytes": 11064,
+    "Exists": true,
+    "LastModified": "2025-11-18 23:00:06"
+  },
+  "📱 app.py": {
+    "Path": "app.py",
+    "SizeBytes": 2661,
+    "Exists": true,
+    "LastModified": "2025-11-06 21:56:27"
+  }
+}

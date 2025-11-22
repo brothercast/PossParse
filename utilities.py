@@ -145,9 +145,19 @@ def replace_ce_tags_with_pills(content):
 # --- GOAL SELECTION & INPUT ANALYSIS ---
 
 async def generate_goal(user_input: str) -> List[Dict]:
-    prompt = f"""Based on the user input '{user_input}', generate three distinct, high-level goal options. Each goal must be a JSON object with these exact keys: "domain", "title", "goal", "icon", "is_compliant". The "icon" must be a Font Awesome class. "is_compliant" must be a boolean."""
+    prompt = f"""
+    Based on the user input '{user_input}', generate three distinct, high-level goal options. 
+    Each goal must be a JSON object with these exact keys: "domain", "title", "goal", "icon", "is_compliant". 
+    
+    ICON RULES (CRITICAL):
+    1. Use valid 'FontAwesome 6 Free' class names (e.g., 'fa-solid fa-robot').
+    2. DO NOT guess v7 icons. Stick to established v6 Solid icons.
+    3. Ensure the icon is from the 'Free' set, not 'Pro'.
+    
+    "is_compliant" must be a boolean.
+    """
+    
     system_instruction = "You are a JSON-only API. Your entire response MUST be a single, raw, valid JSON array of three objects."
-
     try:
         messages = [{"role": "user", "content": prompt}]
         response_str = await generate_chat_response(messages, role="user", task="goal generation", system_instruction=system_instruction)
@@ -198,10 +208,20 @@ async def generate_outcome_data(ssol_title, ssol_description, domain):
     prompt = f"""
     Generate a structured solution for: '{ssol_title}' in domain '{domain}'.
     {get_sspec_scenario()}
+    
     Response MUST be a single JSON object with keys: 'ssolsummary' (HTML string) and 'phases' (Object with 5 phase keys).
     Each phase contains an array of COS strings.
-    Embed CEs in COS strings using <ce type="NodeType">CE text</ce>.
-    NodeTypes: {node_types_str}.
+    
+    FORMATTING RULES FOR CEs:
+    1. You MUST identify MULTIPLE Conditional Elements within a single COS if they represent distinct concepts (e.g., a tool AND a person AND a policy).
+    2. Embed them using <ce type="NodeType">Label</ce>.
+    3. The "Label" text inside the tags must be a concise TITLE (2-5 words). Do not wrap whole sentences.
+    
+    Example:
+    Input: "We need to get approval from the City Council and buy a 3D Printer."
+    Good Output: "We need to get <ce type='Stakeholder'>City Council Approval</ce> and acquire a <ce type='Resource'>3D Printer</ce>."
+    
+    Valid NodeTypes: {node_types_str}.
     """
     messages = [{"role": "user", "content": prompt}]
     response_str = await generate_chat_response(messages, role="user", task="ssol generation", temperature=0.7)

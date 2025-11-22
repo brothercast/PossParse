@@ -1,23 +1,23 @@
 # routes.py
-from flask import Blueprint, render_template, request, flash, redirect, url_for, \
-                    jsonify, make_response, current_app, send_from_directory
 import os
 import json
 import uuid
-import pdfkit
 import logging
 import asyncio
+import pdfkit
+from uuid import UUID
+from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from app import USE_DATABASE
-from uuid import UUID
-from utilities import generate_goal, analyze_user_input, is_input_compliant, \
-                    generate_outcome_data, generate_ai_data, \
-                    generate_image
-from ai_service import cleanup_gemini_client
-from dotenv import load_dotenv
-from ce_templates import generate_dynamic_modal
 from ce_nodes import NODES
 from werkzeug.exceptions import BadRequest, NotFound
+from models import get_engine_and_session, SSOL, COS
+from ce_templates import generate_dynamic_modal
+from ai_service import cleanup_gemini_client, generate_chat_response
+from flask import Blueprint, render_template, request, flash, redirect, url_for, \
+                    jsonify, make_response, current_app, send_from_directory
+from utilities import generate_goal, analyze_user_input, is_input_compliant, \
+                    generate_outcome_data, generate_ai_data, generate_image
 from speculate import get_ce_by_id as speculate_get_ce_by_id, \
                       update_ce_by_id as speculate_update_ce_by_id, \
                       create_cos as speculate_create_cos, \
@@ -26,20 +26,18 @@ from speculate import get_ce_by_id as speculate_get_ce_by_id, \
                       delete_cos_by_id as speculate_delete_cos_by_id, \
                       analyze_cos as speculate_analyze_cos, \
                       create_ssol as speculate_create_ssol
-from models import get_engine_and_session, SSOL, COS
-
 
 load_dotenv()
 
 routes_bp = Blueprint('routes_bp', __name__)
 
-# --- FIX: Add the teardown handler to the blueprint ---
+# --- Lifecycle Management ---
 @routes_bp.teardown_app_request
 async def teardown_request(exception=None):
-    """Clean up resources after each request."""
+    """Clean up AI resources after each request."""
     await cleanup_gemini_client()
 
-# --- Utility Route ---
+# --- Utility Routes ---
 @routes_bp.route('/favicon.ico')
 def favicon():
     return send_from_directory(os.path.join(current_app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
@@ -49,11 +47,9 @@ def favicon():
 def index():
     return render_template('input.html')
 
-
 @routes_bp.route('/about')
 def about():
     return render_template('about.html')
-
 
 # --- Goal Selection ---
 @routes_bp.route('/goal_selection', methods=['POST'])
@@ -64,9 +60,8 @@ async def goal_selection():
             flash("Please enter your possibility or goal.", "error")
             return render_template('input.html')
         try:
-            logging.info(f"User Input: '{user_input}'. Calling generate_goal...")
+            current_app.logger.info(f"User Input: '{user_input}'. Calling generate_goal...")
             goal_options = await generate_goal(user_input)
-            logging.debug(f"generate_goal returned: {goal_options}")
 
             if not goal_options:
                 flash("Could not generate goal options. Please try again or rephrase your input.", "warning")
@@ -77,9 +72,9 @@ async def goal_selection():
 
             return render_template('goal_selection.html', goals=goal_options, user_input=user_input)
         except Exception as e:
-            flash(f"An unexpected error occurred while generating goals: {e}", "error")
-            logging.error(f"Unexpected error in goal_selection: {e}", exc_info=True)
-            return render_template('input.html', user_text=user_input, error_message=str(e))
+            current_app.logger.error(f"Unexpected error in goal_selection: {e}", exc_info=True)
+            flash(f"An unexpected error occurred: {e}", "error")
+            return render_template('input.html', user_text=user_input)
     return redirect(url_for('routes_bp.index'))
 
 # --- Outcome Generation ---
@@ -96,20 +91,25 @@ async def outcome():
             return redirect(url_for('routes_bp.index'))
             
         try:
-            # --- Main Logic for SSOL/COS Generation ---
-            ssol_id_str = speculate_create_ssol(USE_DATABASE, selected_goal_title, selected_goal_text)
+            # Create SSOL
+            ssol_id_str = speculate_create_ssol(
+            USE_DATABASE, 
+            selected_goal_title, 
+            selected_goal_text, 
+            domain=domain
+        )
             ssol_id_uuid = UUID(ssol_id_str)
-            logging.info(f"SSOL created with ID: {ssol_id_str}")
-
-            # This is the single, efficient API call to get the entire structure
-            logging.info("Generating structured solution from AI in a single call...")
+            current_app.logger.info(f"SSOL created with ID: {ssol_id_str}")
+            
+            # Generate Structure
+            current_app.logger.info("Generating structured solution from AI...")
             structured_solution_json = await generate_outcome_data(
                 ssol_title=selected_goal_title, ssol_description=selected_goal_text, domain=domain
             )
             ssol_summary = structured_solution_json.get('ssolsummary', 'AI failed to generate a summary.')
 
-            # This is the fast, local-only loop with no new API calls
-            logging.info("Saving generated COS and their CEs...")
+            # Save COS items
+            current_app.logger.info("Saving generated COS and their CEs...")
             phases_for_template = {}
             if 'phases' in structured_solution_json:
                 for phase_name, cos_items in structured_solution_json['phases'].items():
@@ -133,54 +133,269 @@ async def outcome():
                 'phases': phases_for_template,
             }
 
-            # --- GRACEFUL IMAGE GENERATION ---
-            # This nested try/except block ensures that an image failure
-            # will NOT prevent the main page from loading.
+            # Async Image Generation (Non-blocking/Graceful fail)
             try:
-                logging.info("Constructing image prompt...")
-                image_prompt_text = f"A vibrant, visually stunning retro-futuristic illustration depicting '{selected_goal_text}' as a fulfilled goal, isometric, similar to lithographs from Popular Science, 1958, do not include text or captions."
-                logging.info(f"Calling image generation service for SSOL {ssol_id_str}...")
-                await generate_image(image_prompt_text, ssol_id_str)
+                current_app.logger.info("Dispatching image generation task...")
+                image_prompt = f"""A vibrant, isometric, mid-century retro illustration of '{selected_goal_title}: {selected_goal_text}' 
+                                    fulfilled, painterly lithograph style, 1950s Popular Science magazine cover, 
+                                    saturated colors, idealized realism, optimistic composition, featuring 
+                                    people of diverse ethnicities, ages, genders, and abilities, no text.
+                                    """
+                await generate_image(image_prompt, ssol_id_str)
             except Exception as img_exc:
-                # If image generation fails, we log the error but do not crash.
-                # The user experience continues seamlessly. The frontend will handle
-                # showing a default image if the generated one is not found.
-                current_app.logger.error(
-                    f"NON-CRITICAL ERROR: Image generation failed for SSOL {ssol_id_str}. "
-                    f"The outcome page will be rendered without it. Reason: {img_exc}",
-                    exc_info=True
-                )
-            # --- END GRACEFUL HANDLING ---
-            
-            # This return statement is now reached even if image generation fails.
-            return render_template('outcome.html', ssol=outcome_data_for_template, nodes=NODES, ssol_id=ssol_id_str, selected_goal_title=selected_goal_title)
+                current_app.logger.error(f"Image generation failed for SSOL {ssol_id_str}: {img_exc}")
+
+            return render_template('outcome.html', ssol=outcome_data_for_template, nodes=NODES, ssol_id=ssol_id_str)
 
         except Exception as e:
-
-            current_app.logger.error(f"CRITICAL error in /outcome route during SSOL/COS creation: {e}", exc_info=True)
-            flash(f"A critical error occurred while generating the solution. Please try again. Error: {e}", "error")
+            current_app.logger.error(f"CRITICAL error in /outcome: {e}", exc_info=True)
+            flash(f"A critical error occurred while generating the solution. Error: {e}", "error")
             return redirect(url_for('routes_bp.index'))
 
-    # Redirect if the request method is not POST
     return redirect(url_for('routes_bp.index'))
 
-# --- Input Analysis ---
-@routes_bp.route('/analyze_input', methods=['POST'])
-async def analyze_input_route():
-    if request.method == 'POST':
-        user_text = request.form.get('user_text')
-        if not user_text:
-            return jsonify({'error': 'No text provided'}), 400
-        try:
-            keywords = await analyze_user_input(user_text)
-            compliance_data = await is_input_compliant(user_text)
-            return jsonify({'keywords': keywords, 'compliance': compliance_data})
-        except Exception as e:
-            logging.error(f"Error analyzing user input: {e}", exc_info=True)
-            return jsonify({'error': 'Error analyzing input'}), 500
-    return jsonify({'error': 'Invalid request method'}), 405
 
-# --- PDF Export ---
+# --- Modal Generation (The Speculation Environment Shell) ---
+@routes_bp.route('/get_ce_modal/<string:ce_type>', methods=['POST'])
+async def get_ce_modal_route(ce_type):
+    try:
+        data = request.get_json()
+        ce_id_str = data.get('ce_id')
+        ce_text = data.get('ce_text', 'Conditional Element')
+
+        ce_id_obj = UUID(ce_id_str) if ce_id_str else None
+        ce_data = speculate_get_ce_by_id(USE_DATABASE, ce_id_obj) if ce_id_obj else {}
+        
+        # Initialize data structure if empty or missing
+        if not ce_data or 'data' not in ce_data:
+            ce_data = {
+                'id': ce_id_str, 
+                'node_type': ce_type, 
+                'data': {
+                    'details_data': {}, 
+                    'resources': [],
+                    'prerequisites': [],
+                    'stakeholders': [],
+                    'assumptions': [],
+                    'connections': []
+                }
+            }
+
+        node_config = NODES.get(ce_type, NODES['Default'])
+        
+        # Get basic context (Overview) from AI
+        cos_content_html = data.get('cos_content', '')
+        cos_content_text = BeautifulSoup(cos_content_html, 'html.parser').get_text(separator=' ', strip=True)
+        
+        ai_generated_data = await generate_ai_data(
+            node_type=ce_type,
+            cos_content=cos_content_text,
+            ssol_goal=data.get('ssol_goal', ''),
+            agent_mode='context'
+        )
+
+        modal_html = await generate_dynamic_modal(
+            ce_type=ce_type,
+            ce_text=ce_text,
+            ce_data=ce_data,
+            node_info=node_config,
+            cos_content=cos_content_html,
+            ai_generated_data=ai_generated_data,
+            phase_name=data.get('phase_name', ''),
+            phase_index=data.get('phase_index', 0)
+        )
+        
+        return jsonify(modal_html=modal_html, ce_data=ce_data)
+
+    except Exception as e:
+        current_app.logger.error(f"Error in get_ce_modal_route: {e}", exc_info=True)
+        return jsonify(error=f"An error occurred: {str(e)}"), 500
+
+
+# --- THE UNIVERSAL INTELLIGENCE ROUTE (The Brain) ---
+@routes_bp.route('/speculate_context', methods=['POST'])
+async def speculate_context_route():
+    """
+    The Universal Brain of the Speculation Environment.
+    It handles two types of requests:
+    1. 'collections': Generating lists of items (Prerequisites, Stakeholders, etc.)
+    2. 'narrative': generating text for specific details fields (Summary, Context, etc.)
+    """
+    try:
+        data = request.get_json()
+        ce_type = data.get('ce_type')           # e.g. 'Research', 'Risk'
+        context = data.get('context')           # e.g. 'prerequisites', 'narrative'
+        sub_context = data.get('sub_context')   # e.g. 'summary' (only for narrative)
+        cos_text = data.get('cos_text', 'Achieve the goal.')
+
+        # 1. Load Node Configuration & Prompts
+        # Fallback to Default if the specific node type isn't found
+        node_config = NODES.get(ce_type, NODES['Default'])
+        prompts_map = node_config.get('prompts', {})
+        
+        # Ensure we have access to Default prompts if the specific node misses one
+        default_prompts = NODES['Default'].get('prompts', {})
+
+        final_prompt = ""
+        system_instruction = "You are the SPECULATE Engine. Respond ONLY with valid JSON. Do not use markdown formatting."
+
+        # 2. Branch Logic: Narrative vs. Collections
+        if context == 'narrative':
+            # --- Narrative Mode (Text Generation) ---
+            
+            # Try to find a specific narrative prompt, otherwise use a smart fallback
+            raw_prompt = prompts_map.get('narrative', default_prompts.get('narrative'))
+            
+            if not raw_prompt:
+                # Hard fallback if not defined in nodes yet
+                raw_prompt = """
+                Act as a strategic project manager. Write a professional 1-paragraph '{field}' 
+                for a '{node_type}' element needed to achieve: '{cos_text}'.
+                Focus on clarity, actionability, and value.
+                Return strictly JSON: {{ "text": "Your generated text here." }}
+                """
+            
+            # Inject the specific field name (e.g. 'Executive Summary') and context
+            field_label = sub_context.replace('_', ' ').title() if sub_context else "Description"
+            final_prompt = raw_prompt.format(
+                cos_text=cos_text, 
+                field=field_label, 
+                node_type=ce_type
+            )
+
+        else:
+            # --- Collection Mode (List Generation) ---
+            
+            # Retrieve the specific collection prompt (e.g., for 'prerequisites')
+            raw_prompt = prompts_map.get(context, default_prompts.get(context))
+            
+            if not raw_prompt:
+                # Hard fallback
+                raw_prompt = f"Analyze '{cos_text}'. List 3 strategic items for {{context}}. Return JSON array."
+            
+            # Inject context
+            final_prompt = raw_prompt.format(cos_text=cos_text)
+
+        # 3. Execute SPECULATE Engine (AI Call)
+        current_app.logger.info(f"Speculating {ce_type} -> {context} ({sub_context or 'list'})")
+        
+        ai_response_str = await generate_chat_response(
+            messages=[{"role": "user", "content": final_prompt}], 
+            role="Speculate Engine", 
+            task=f"Speculate {context}",
+            system_instruction=system_instruction,
+            temperature=0.7
+        )
+        
+        # 4. Clean and Parse JSON
+        try:
+            # Strip Markdown backticks if present (Common LLM artifact)
+            cleaned_response = ai_response_str.replace("```json", "").replace("```", "").strip()
+            parsed_json = json.loads(cleaned_response)
+        except json.JSONDecodeError:
+            current_app.logger.warning(f"Failed to parse AI JSON: {ai_response_str}")
+            return jsonify({'success': False, 'error': 'AI returned invalid format. Please try again.'}), 500
+
+        # 5. Return Formatted Data
+        if context == 'narrative':
+            # Expecting object: { "text": "..." }
+            text_content = parsed_json.get('text', '') if isinstance(parsed_json, dict) else str(parsed_json)
+            return jsonify({
+                'success': True, 
+                'text': text_content, 
+                'field': sub_context
+            })
+        else:
+            # Expecting list: [ {...}, {...} ]
+            # Handle case where AI wraps list in a root object like { "items": [...] }
+            if isinstance(parsed_json, dict):
+                # Try to find the first list value
+                for key, val in parsed_json.items():
+                    if isinstance(val, list):
+                        suggestions = val
+                        break
+                else:
+                    suggestions = [] # Fallback
+            elif isinstance(parsed_json, list):
+                suggestions = parsed_json
+            else:
+                suggestions = []
+
+            return jsonify({
+                'success': True, 
+                'suggestions': suggestions, 
+                'context': context
+            })
+
+    except Exception as e:
+        current_app.logger.error(f"Speculation Error in routes: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# --- Data Operations (CRUD) ---
+
+@routes_bp.route('/update_ce/<uuid:ce_id>', methods=['PUT'])
+def update_ce_route(ce_id):
+    try:
+        data = request.get_json()
+        if not data: raise BadRequest('No JSON payload')
+        
+        # We store the entire structure (collections + details) in the 'data' JSON column
+        success = speculate_update_ce_by_id(USE_DATABASE, ce_id, data)
+        
+        if success:
+            return jsonify(success=True), 200
+        return jsonify(success=False, error="Update failed"), 500
+    except Exception as e:
+        current_app.logger.error(f"Error updating CE {ce_id}: {e}")
+        return jsonify(success=False, error=str(e)), 500
+
+
+@routes_bp.route('/create_cos', methods=['POST'])
+async def create_cos_route():
+    try:
+        data = request.get_json()
+        new_cos_id = await speculate_create_cos(
+            USE_DATABASE, 
+            UUID(data['ssol_id']), 
+            data['content'], 
+            data.get('status', 'Proposed'),
+            data.get('accountable_party'),
+            data.get('completion_date')
+        )
+        if new_cos_id:
+            cos_obj = speculate_get_cos_by_id(USE_DATABASE, UUID(new_cos_id))
+            return jsonify(success=True, cos=cos_obj.to_dict() if USE_DATABASE else cos_obj), 201
+        return jsonify(success=False, error="Creation failed"), 500
+    except Exception as e:
+        return jsonify(success=False, error=str(e)), 500
+
+@routes_bp.route('/update_cos/<uuid:cos_id>', methods=['PUT'])
+async def update_cos_route(cos_id):
+    try:
+        data = request.get_json()
+        result = await speculate_update_cos_by_id(USE_DATABASE, cos_id, data)
+        if result['success']: return jsonify(success=True, cos=result['cos'])
+        return jsonify(success=False, error=result['message']), result['status_code']
+    except Exception as e:
+        return jsonify(success=False, error=str(e)), 500
+
+@routes_bp.route('/delete_cos/<uuid:cos_id>', methods=['DELETE'])
+def delete_cos_route(cos_id):
+    if speculate_delete_cos_by_id(USE_DATABASE, cos_id):
+        return jsonify(success=True)
+    return jsonify(success=False, error="Deletion failed"), 404
+
+
+# --- Image & Export Operations ---
+
+@routes_bp.route('/get_ssol_image/<uuid:ssol_id>')
+def get_ssol_image_route(ssol_id):
+    img_path = f"images/ssol_image_{ssol_id}.png"
+    full_path = os.path.join(current_app.static_folder, img_path)
+    if os.path.exists(full_path):
+        return jsonify({'image_path': url_for('static', filename=img_path), 'status': 'found'})
+    return jsonify({'status': 'pending_or_not_found'}), 200
+
 @routes_bp.route('/save_as_pdf/<uuid:ssol_id>', methods=['POST'])
 def save_as_pdf(ssol_id):
     try:
@@ -191,9 +406,8 @@ def save_as_pdf(ssol_id):
 
         css_file_path = os.path.join(current_app.root_path, 'static', 'styles.css')
         css_param = css_file_path if os.path.exists(css_file_path) else None
-        if not css_param:
-             current_app.logger.error(f"CSS file not found at: {css_file_path}")
 
+        # Convert relative paths to absolute
         html_content = html_content.replace('src="/static/', f'src="{url_for("static", filename="", _external=True)}')
 
         options = {
@@ -213,191 +427,16 @@ def save_as_pdf(ssol_id):
         current_app.logger.error(f"Exception in save_as_pdf for SSOL {ssol_id}: {e}", exc_info=True)
         return jsonify(success=False, error=str(e)), 500
 
-# --- COS CRUD Routes ---
-@routes_bp.route('/create_cos', methods=['POST'])
-async def create_cos_route():
+# --- Input Analysis ---
+
+@routes_bp.route('/analyze_input', methods=['POST'])
+async def analyze_input_route():
     try:
-        data = request.get_json()
-        if not data: raise BadRequest('No JSON payload received.')
-
-        content = data.get('content')
-        ssol_id_str = data.get('ssol_id')
-        if not content or not ssol_id_str:
-            raise BadRequest('Missing required fields: content and ssol_id are required.')
-        
-        ssol_id_uuid = UUID(ssol_id_str)
-
-        new_cos_id_str = await speculate_create_cos(
-            USE_DATABASE,
-            ssol_id=ssol_id_uuid,
-            content=content,
-            status=data.get('status', 'Proposed'),
-            accountable_party=data.get('accountable_party'),
-            completion_date=data.get('completion_date')
-        )
-
-        if not new_cos_id_str:
-            raise Exception("Failed to create COS record in the data store.")
-
-        created_cos_obj = speculate_get_cos_by_id(USE_DATABASE, UUID(new_cos_id_str))
-        if not created_cos_obj:
-             return jsonify(success=False, error="COS created but could not be retrieved."), 500
-
-        cos_dict = created_cos_obj.to_dict() if USE_DATABASE else created_cos_obj
-        return jsonify(success=True, cos=cos_dict), 201
-
-    except BadRequest as e:
-        return jsonify(success=False, error=str(e)), 400
+        txt = request.form.get('user_text')
+        if not txt: return jsonify({'error': 'No text'}), 400
+        return jsonify({
+            'keywords': await analyze_user_input(txt), 
+            'compliance': await is_input_compliant(txt)
+        })
     except Exception as e:
-        current_app.logger.error(f"Error creating COS: {e}", exc_info=True)
-        return jsonify(success=False, error="An unexpected error occurred while creating the COS."), 500
-
-@routes_bp.route('/update_cos/<uuid:cos_id>', methods=['PUT'])
-async def update_cos_route(cos_id):
-    try:
-        data = request.get_json()
-        if not data: raise BadRequest('No JSON payload received')
-        
-        update_result = await speculate_update_cos_by_id(USE_DATABASE, cos_id, data)
-
-        if update_result['success']:
-            return jsonify(success=True, cos=update_result['cos']), 200
-        return jsonify(success=False, error=update_result['message']), update_result.get('status_code', 404)
-    except BadRequest as e:
-        return jsonify(success=False, error=str(e)), 400
-    except Exception as e:
-        current_app.logger.error(f"Error updating COS {cos_id}: {e}", exc_info=True)
-        return jsonify(success=False, error="An unexpected error occurred."), 500
-
-@routes_bp.route('/delete_cos/<uuid:cos_id>', methods=['DELETE'])
-def delete_cos_route(cos_id):
-    try:
-        success = speculate_delete_cos_by_id(USE_DATABASE, cos_id)
-        if success:
-            return jsonify(success=True), 200
-        return jsonify(success=False, error="COS not found or could not be deleted."), 404
-    except Exception as e:
-        current_app.logger.error(f"Error deleting COS {cos_id}: {e}", exc_info=True)
-        return jsonify(success=False, error="An unexpected error occurred."), 500
-
-# --- SSOL Image ---
-@routes_bp.route('/get_ssol_image/<uuid:ssol_id>')
-def get_ssol_image_route(ssol_id):
-    ssol_id_str = str(ssol_id)
-    image_filename = f"ssol_image_{ssol_id_str}.png"
-    image_web_path_relative = os.path.join('images', image_filename).replace("\\", "/")
-    image_fs_path = os.path.join(current_app.static_folder, 'images', image_filename)
-    
-    current_app.logger.info(f"GET_SSOL_IMAGE: Checking for {image_fs_path}")
-    
-    if os.path.exists(image_fs_path):
-        current_app.logger.info(f"GET_SSOL_IMAGE: Found image {image_filename} for SSOL {ssol_id_str}.")
-        return jsonify({'image_path': url_for('static', filename=image_web_path_relative), 'status': 'found'})
-    else:
-        current_app.logger.warning(f"GET_SSOL_IMAGE: Image {image_filename} for SSOL {ssol_id_str} not found.")
-        return jsonify({ 'status': 'pending_or_not_found', 'message': 'Image is processing or was not found.' }), 200
-
-# --- CE Routes ---
-@routes_bp.route('/get_ce_by_id', methods=['GET'])
-def get_ce_by_id_route():
-    ce_id_str = request.args.get('ce_id')
-    if not ce_id_str:
-        return jsonify(error="Missing 'ce_id' parameter"), 400
-    try:
-        ce_id = UUID(ce_id_str)
-        ce = speculate_get_ce_by_id(USE_DATABASE, ce_id)
-        if ce:
-            return jsonify(ce=ce.to_dict() if USE_DATABASE else ce)
-        return jsonify(error="CE not found"), 404
-    except ValueError:
-        return jsonify(error=f"Invalid CE ID format: {ce_id_str}"), 400
-    except Exception as e:
-        current_app.logger.error(f"Error getting CE {ce_id_str}: {e}", exc_info=True)
-        return jsonify(error="An unexpected error occurred."), 500
-
-@routes_bp.route('/analyze_cos/<uuid:cos_id>', methods=['GET'])
-async def analyze_cos_by_id_route(cos_id):
-    try:
-        cos_content_to_analyze = ""
-        if USE_DATABASE:
-            cos_instance = speculate_get_cos_by_id(USE_DATABASE, cos_id)
-            if not cos_instance:
-                return jsonify({'success': False, 'message': 'COS not found'}), 404
-            cos_content_to_analyze = cos_instance.content
-        else:
-            from store import cos_store
-            cos_data = cos_store.get(str(cos_id))
-            if not cos_data:
-                return jsonify({'success': False, 'message': 'COS not found'}), 404
-            cos_content_to_analyze = cos_data['content']
-        
-        analysis_results = await speculate_analyze_cos(cos_content_to_analyze, str(cos_id))
-        return jsonify({'success': True, 'analysis_results': analysis_results}), 200
-    except Exception as e:
-        current_app.logger.error(f"Error analyzing COS {cos_id}: {e}", exc_info=True)
-        return jsonify({'success': False, 'message': 'An unexpected error occurred during analysis.'}), 500
-
-@routes_bp.route('/get_ce_modal/<string:ce_type>', methods=['POST'])
-async def get_ce_modal_route(ce_type):
-    try:
-        data = request.get_json()
-        ce_id_str = data.get('ce_id')
-        
-        # --- FIX: Receive ce_text from the frontend payload ---
-        ce_text = data.get('ce_text', 'Conditional Element') # Use a default for safety
-
-        ce_id_obj = UUID(ce_id_str) if ce_id_str else None
-
-        ce_data = speculate_get_ce_by_id(USE_DATABASE, ce_id_obj) if ce_id_obj else {}
-        if not ce_data or 'data' not in ce_data:
-            ce_data = {'id': ce_id_str, 'node_type': ce_type, 'data': {'details_data': {}, 'resources': []}}
-
-        node_config = NODES.get(ce_type, NODES['Default'])
-        cos_content_html = data.get('cos_content', '')
-        cos_content_text_only = BeautifulSoup(cos_content_html, 'html.parser').get_text(separator=' ', strip=True)
-
-        ai_generated_data = await generate_ai_data(
-            node_type=ce_type,
-            cos_content=cos_content_text_only,
-            ssol_goal=data.get('ssol_goal', ''),
-            agent_mode='context'
-        )
-
-        modal_html = await generate_dynamic_modal(
-            ce_type=ce_type,
-            ce_text=ce_text,  # --- FIX: Pass the ce_text to the template function ---
-            ce_data=ce_data,
-            node_info=node_config,
-            cos_content=cos_content_html,
-            ai_generated_data=ai_generated_data,
-            phase_name=data.get('phase_name', ''),
-            phase_index=data.get('phase_index', 0)
-        )
-        
-        return jsonify(modal_html=modal_html, ce_data=ce_data)
-
-    except Exception as e:
-        current_app.logger.error(f"Error in get_ce_modal_route for type {ce_type}: {e}", exc_info=True)
-        return jsonify(error=f"An error occurred: {str(e)}"), 500
-
-@routes_bp.route('/ai-query-endpoint', methods=['POST'])
-async def ai_query_route():
-    try:
-        data = request.get_json()
-        if not data: return jsonify({'error': 'No JSON payload received'}), 400
-
-        required_params = ['ce_type', 'cos_content', 'ssol_goal']
-        if not all(key in data for key in required_params):
-            return jsonify({'error': f'Missing required parameters: {required_params}'}), 400
-        
-        ai_response = await generate_ai_data(
-            node_type=data.get('ce_type'),
-            cos_content=data.get('cos_content'),
-            ssol_goal=data.get('ssol_goal'),
-            agent_mode=data.get('agent_mode', 'speculate') # e.g., 'speculate', 'generate'
-        )
-        return jsonify({'success': True, 'ai_response': ai_response})
-
-    except Exception as e:
-        current_app.logger.error(f"Error in ai_query_route: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'error': str(e)}), 500

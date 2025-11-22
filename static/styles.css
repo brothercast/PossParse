@@ -1,4 +1,4 @@
-/* styles.css - Complete and Consolidated Styles (Refactored for Bootstrap Table COS Layout & CE Modals) */
+/* styles.css - The Complete SSPEC Stylesheet (v2025.4) */
 
 /* ================================================== */
 /* ==============  1. Base Typography & Root Vars ==== */
@@ -29,87 +29,247 @@ h1 {
   margin-bottom: 1rem;
 }
 
-h2, .section-heading {
-  font-family: 'Unica One', sans-serif;
-  font-weight: 500;
-  text-transform: uppercase;
-  color: #104a3a;
-  text-shadow: 1px 1px 0px #000000; /* Consider a more subtle shadow or none */
+h2, h3, h4, h5, h6, .ce-title {
+    font-family: 'Unica One', cursive;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
-/* Specific h2 styling for outcome page sections if needed */
-.outcome-header h2,
-.row > h1 { /* Targeting the "Phases & Conditions of Satisfaction" h1 */
-    margin-top: 1.5rem;
-    margin-bottom: .5rem;
-}
-
-.section-heading { /* Used in CE Modals */
+.section-heading {
+    font-family: 'Unica One', sans-serif;
     font-size: 1.5rem;
+    color: #104a3a;
+    border-bottom: 1px solid #e0e0e0;
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid #e0e0e0;
 }
 
-h3, .sub-heading {
-  font-family: 'Unica One', sans-serif;
-  font-weight: 500;
-  text-transform: uppercase;
-  color: #555;
+/* ================================================== */
+/* ==============  2. The Speculation Environment  === */
+/* ================================================== */
+
+/* A. The Shell (Modal Layout) */
+.ce-app-shell {
+    height: 90vh; 
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: #ffffff;
+    border-radius: 0.5rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(0,0,0,0.1);
 }
 
-.sub-heading { /* Used in CE Modals */
-    font-family: 'Unica One', sans-serif;
+/* --- B. THE NEW HEADER LAYOUT --- */
+.ce-modal-header {
+    background: linear-gradient(135deg, var(--phase-color), rgba(0,0,0,0.2) 100%), var(--phase-color);
+    color: white;
+    flex-shrink: 0;
+    padding: 1rem 1.5rem;
+    border: none;
+    display: flex;
+    align-items: center;
+}
+
+.ce-modal-header .node-icon {
+    background-color: rgba(255,255,255,0.2);
+    width: 48px; height: 48px; /* Slightly larger for presence */
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 12px; /* Softer radius */
+    backdrop-filter: blur(4px);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);
+    margin-right: 1rem;
+}
+.ce-modal-header .node-icon i { font-size: 1.5rem; color: #fff; }
+
+/* Line 1: Title & Badge */
+.ce-header-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+    line-height: 1;
+}
+
+.ce-modal-header .modal-title.ce-title {
+    font-family: 'Unica One', cursive;
     font-weight: 500;
-    color: #333;
-    font-size: 1rem;
+    font-size: 2.0rem; /* Larger per screenshot */
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin: 0;
+}
+
+/* The Phase Badge (Discovery Phase) */
+.phase-badge {
+    background-color: rgba(255,255,255,0.25);
+    border: 1px solid rgba(255,255,255,0.4);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-family: 'Unica One', cursive;
+    font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-top: 1.5rem;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.25rem;
+    color: #fff;
+    text-shadow: none;
+    backdrop-filter: blur(2px);
 }
 
-
-/* ================================================== */
-/* ==============  2. Navigation Bar  =============== */
-/* ================================================== */
-nav.navbar {
-  background-image: linear-gradient(120deg, #673ab7 0%, #00bcd4 100%);
-  border-bottom: 5px solid #e91e63;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+/* Line 2: Metadata (// PROJECT TITAN...) */
+.ce-header-metadata {
+    font-family: 'Jost', monospace; /* Monospace vibe for technical feel */
+    font-weight: 500;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: rgba(255, 255, 255, 0.75);
 }
 
-nav.navbar .navbar-brand {
-  color: #ffffff;
-  font-weight: 500;
-  font-size: 4.5rem; 
-  padding-top: 0;
-  padding-bottom: 0;
+/* Header Actions */
+.btn-header-action {
+    color: white; 
+    background: transparent; 
+    border: none;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+.btn-header-action:hover { background: rgba(255,255,255,0.2); }
+
+
+/* --- C. WORKSPACE LAYOUT (Sidebar Split) --- */
+.ce-workspace-body {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: row; 
+    overflow: hidden;
 }
 
-.navbar-brand h1 { /* If h1 is directly in navbar-brand */
-  font-size: inherit; /* Inherit from .navbar-brand for consistency */
-  color: #ffa726; /* Match general h1 color */
-  text-shadow: 1px 1px 0px #e91e63; /* Match general h1 shadow */
-  margin-bottom: 0;
-  line-height: 1;
+.ce-main-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background-color: #ffffff; /* Cleaner white background for content */
 }
 
-.structured-speculation {
-  display: block;
-  font-family: 'Unica One', sans-serif;
-  font-weight: 700;
-  text-align: center;
-  font-size: 1rem; /* Adjusted for better fit */
-  text-transform: uppercase;
-  color: rgba(0, 0, 0, 0.85); /* Lighter for better contrast on gradient */
-  letter-spacing: 0.7em; /* Adjusted */
-  line-height: 1;
-  margin-top: 5px; /* Pull up slightly under the main brand text */
+/* The Fixed AI Sidebar */
+.ai-sidebar {
+    width: 360px; /* Slightly wider per screenshot */
+    flex-shrink: 0;
+    border-left: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    z-index: 5;
 }
 
+/* --- D. NAVIGATION & TABS --- */
+.ce-nav-tabs {
+    background: white;
+    padding: 0 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    flex-shrink: 0;
+}
+.ce-nav-tabs .nav-link {
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-family: 'Jost', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 1rem 0;
+    margin-right: 2rem;
+    position: relative;
+    border-bottom: 3px solid transparent;
+    transition: color 0.2s;
+}
+.ce-nav-tabs .nav-link:hover { color: var(--phase-color); }
+.ce-nav-tabs .nav-link.active {
+    color: #0f172a;
+    border-bottom-color: var(--phase-color);
+}
+/* Icons in tabs */
+.ce-nav-tabs .nav-link i { margin-right: 6px; opacity: 0.7; }
+
+
+/* --- E. CONTENT TYPOGRAPHY --- */
+/* The "Blurb" describing the tab */
+.tab-context-description {
+    font-family: 'Jost', sans-serif;
+    color: #64748b;
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px dashed #e2e8f0;
+    line-height: 1.5;
+}
+
+/* Section Headers inside tabs */
+.content-header {
+    font-family: 'Unica One', cursive;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #334155;
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+.content-header::before {
+    content: '// ';
+    color: #cbd5e1;
+    margin-right: 8px;
+    font-weight: 300;
+}
+
+/* --- F. OVERVIEW CARDS & DASHBOARD --- */
+/* Status Card (Calibrating/Active) */
+.dashboard-status-card {
+    background: white;
+    border-radius: 0;
+    border-left: 6px solid var(--phase-color);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    padding: 2rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.status-card-label {
+    font-size: 0.75rem; letter-spacing: 1.5px; text-transform: uppercase;
+    color: #94a3b8; margin-bottom: 0.5rem;
+}
+.status-card-value {
+    font-family: 'Unica One', sans-serif;
+    font-size: 3.5rem;
+    line-height: 1;
+    color: #1e293b;
+    text-transform: uppercase;
+}
+
+/* Metric Cards */
+.metric-card-modern {
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    border-radius: 8px;
+    padding: 1.25rem;
+    transition: all 0.2s ease;
+}
+.metric-card-modern:hover {
+    border-color: var(--phase-color);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px -5px rgba(0,0,0,0.05);
+}
+.metric-value { font-size: 2rem; font-weight: 700; color: #334155; line-height: 1; }
+.metric-label { font-size: 0.7rem; text-transform: uppercase; font-weight: 600; color: #94a3b8; margin-top: 0.5rem; }
+
+/* --- G. SCROLLBARS --- */
+.ce-app-content { flex-grow: 1; overflow-y: auto; padding: 2rem; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
 
 /* ================================================== */
 /* =========  3. Retro-futuristic Background Pattern ======== */
@@ -564,43 +724,57 @@ retro-futuristic-card {
   display: inline-block;
 }
 
-/* --- THE DEFINITIVE CE PILL STYLE (v2) --- */
+/* ================================================== */
+/* =========  12. Status & CE Pill Styles  =========== */
+/* ================================================== */
+
+/* --- THE DEFINITIVE CE PILL STYLE (v3 - Capsule Shape) --- */
 .ce-pill {
   display: inline-flex; 
-  align-items: stretch; /* FIX 1: Make child elements stretch to fill the pill's height */
-  margin: 0 4px; 
-  border-radius: 6px;
+  align-items: stretch; 
+  margin: 2px 4px; 
+  /* This creates the full pill shape regardless of width */
+  border-radius: 999px; 
   overflow: hidden;
-  border: 1.5px solid var(--node-color, #6c757d);
+  border: 1px solid var(--node-color, #6c757d);
   background-color: #fff;
   width: auto;
   max-width: 100%;
   vertical-align: middle;
   cursor: pointer;
-  transition: box-shadow 0.2s ease;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
+
 .ce-pill:hover {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+  transform: translateY(-1px);
 }
 
 .ce-pill-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 .6rem; /* FIX 2: Adjust padding for vertical balance */
+  padding: 0.35em 0.6em; 
   background-color: var(--node-color, #6c757d);
   color: white;
-}
-.ce-pill-text {
-  padding: .25rem .7rem;
-  font-size: 0.85rem;
-  font-weight: 500;
-  line-height: 1.4;
-  white-space: nowrap;
-  display: flex; /* Add flex to help with vertical alignment */
-  align-items: center;
+  /* Ensure the icon side hugs the capsule curve */
+  border-top-left-radius: 999px;
+  border-bottom-left-radius: 999px;
+  /* Slight overlap to prevent white gap lines */
+  margin-right: -1px; 
 }
 
+.ce-pill-text {
+  padding: 0.25em 0.8em 0.25em 0.6em; /* More padding on right for balance */
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #495057;
+  white-space: nowrap; /* Encourages "Label" feel */
+  display: flex;
+  align-items: center;
+}
 .modal .content-block .card-text {
     line-height: 1.8; /* Give a little extra line height to accommodate pills */
 }
@@ -786,39 +960,9 @@ retro-futuristic-card {
   border: 2px solid transparent; max-height: 90vh;
   display: flex; flex-direction: column;
 }
-.modal-header.ce-modal-header {
-  display: flex; align-items: center; justify-content: flex-start; /* Changed */
-  padding: 1rem 1.5rem; border-top-left-radius: 8px; border-top-right-radius: 8px;
-  position: relative; color: white;
-}
-.ce-modal-header .node-icon {
-  background-color: white; border-radius: 5px; padding: 8px 10px;
-  margin-right: 1rem; flex-shrink: 0; display: inline-flex;
-  align-items: center; justify-content: center;
-}
-.ce-modal-header .node-icon i { font-size: 1.25rem; }
 
-.ce-modal-header .modal-title.ce-title {
-  font-family: 'Unica One', sans-serif; font-weight: 500; text-transform: uppercase;
-  text-shadow: 1px 1px 1px rgba(0,0,0,0.4); color: white;
-  font-size: 1.6rem; margin-right: 0.5rem; line-height: 1.2;
-}
-
-.ce-modal-header .phase-name {
-  font-family: 'Jost', sans-serif; font-size: 0.85rem; font-style: italic;
-  text-transform: uppercase; color: rgba(255, 255, 255, 0.9);
-  margin-left: 1rem; white-space: nowrap; line-height: 1.2;
-}
-
-.content-block p {
-    display: inline; /* This is a key part of the fix */
-}
-
-
-.modal-header .btn-close {
-    margin-left: auto; /* Push close button to the far right */
-    filter: invert(1) grayscale(100%) brightness(200%); /* Make it white */
-}
+/* REMOVED THE OLD GENERIC MODAL STYLING THAT WAS CAUSING CONFLICTS */
+/* The specialized .ce-modal-header rules above now handle everything */
 
 .modal-body.ce-modal-body {
   flex-grow: 1; overflow-y: auto; padding: 2rem;
@@ -840,329 +984,323 @@ retro-futuristic-card {
 
 .modal-footer { padding: 1rem 1.5rem; background-color: #f8f9fa; border-top: 1px solid #dee2e6; }
 
-/* =================================================================== */
-/* =========  22. SPECULATION ENVIRONMENT MODAL STYLING  =============== */
-/* =================================================================== */
-
-/* --- A. SHELL & LAYOUT --- */
-.ce-app-shell {
-    height: 90vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background-color: #ffffff;
-    border-radius: 0.5rem;
-    border: 1px solid rgba(0,0,0,0.1);
-}
-
-/* Horizontal container for Main Content + Sidebar */
-.ce-workspace-body {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: row; /* Split horizontally */
-    padding: 0;
-    overflow: hidden; /* Prevent scroll on container */
-}
-
-/* Left Column: Tabs + Views */
-.ce-main-column {
-    flex: 1; /* Takes up all available space */
-    display: flex;
-    flex-direction: column;
-    min-width: 0; /* Crucial for text truncation inside flex items */
-    position: relative;
-}
-
-/* Right Column: Fixed Sidebar */
-.ai-sidebar { 
-    width: 340px; /* Fixed width */
-    flex-shrink: 0; /* Don't shrink */
-    border-left: 1px solid #dee2e6; 
-    background-color: #ffffff; 
-    display: flex;
-    flex-direction: column;
-    box-shadow: -4px 0 24px rgba(0,0,0,0.02);
-}
-
-/* --- B. SCROLLING AREAS --- */
-/* The actual scrollable area for the main views */
-.ce-app-content {
-    flex-grow: 1;
-    overflow-y: auto; 
-    background-color: #f8f9fa;
-    display: flex;
-    flex-direction: column;
-}
-
-/* The scrollable area inside the sidebar */
-#ai-sidebar-content {
-    flex-grow: 1;
-    overflow-y: auto;
-    padding: 1rem;
-}
-
-.tab-content, .tab-pane { height: 100%; }
-
-/* Custom Scrollbars */
-.ce-app-content::-webkit-scrollbar,
-#ai-sidebar-content::-webkit-scrollbar,
-.scrolling-content-box::-webkit-scrollbar { 
-    width: 6px; 
-}
-.ce-app-content::-webkit-scrollbar-track,
-#ai-sidebar-content::-webkit-scrollbar-track,
-.scrolling-content-box::-webkit-scrollbar-track { 
-    background: transparent; 
-}
-.ce-app-content::-webkit-scrollbar-thumb,
-#ai-sidebar-content::-webkit-scrollbar-thumb,
-.scrolling-content-box::-webkit-scrollbar-thumb { 
-    background-color: #cbd5e1; 
-    border-radius: 10px; 
-    border: 2px solid transparent; 
-    background-clip: content-box;
-}
-.ce-app-content::-webkit-scrollbar-thumb:hover,
-#ai-sidebar-content::-webkit-scrollbar-thumb:hover,
-.scrolling-content-box::-webkit-scrollbar-thumb:hover { 
-    background-color: #94a3b8; 
-}
-
-/* --- C. HEADER --- */
-.ce-modal-header { 
-    background-color: var(--phase-color); 
-    color: white; 
-    flex-shrink: 0; 
-    border-bottom: none; 
-    padding: 0.75rem 1.5rem; 
-}
-.ce-modal-header .node-icon {
-    background-color: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(4px);
-    border-radius: 8px;
-    padding: 8px;
-    width: 42px;
-    height: 42px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
-}
-.ce-modal-header .node-icon i { 
-    color: white; 
-    font-size: 1.3rem; 
-}
-.ce-modal-header .modal-title.ce-title { 
-    font-family: 'Unica One', sans-serif; 
-    font-weight: 500; 
-    font-size: 1.5rem; 
-    letter-spacing: 0.02em;
-    line-height: 1;
-}
-.ce-modal-header .phase-name { 
-    font-size: 0.75rem; 
-    text-transform: uppercase;
-    font-family: 'Jost', sans-serif;
-    letter-spacing: 0.05em;
-    opacity: 0.9; 
-}
-.btn-header-action { 
-    color: white; 
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    font-weight: 500; 
-    font-size: 0.85rem; 
-    padding: 0.4rem 0.8rem;
-    transition: all 0.2s ease;
-    border-radius: 6px;
-}
-.btn-header-action:hover { 
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-1px);
-    color: white;
-}
-.btn-close { filter: invert(1) grayscale(100%) brightness(200%); opacity: 0.8; }
-.btn-close:hover { opacity: 1; }
-
-/* Progress Bar */
-.progress-bar-container {
-    padding: 0.75rem 1.5rem;
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #dee2e6;
-    flex-shrink: 0;
-}
-.progress-bar-container .progress-bar { background-color: var(--phase-color); }
-
-/* --- D. TOP TAB NAVIGATION --- */
-.ce-nav-tabs { 
-    border-bottom: 1px solid #dee2e6; 
-    padding: 0.5rem 1rem 0 1rem; 
-    background-color: #ffffff; 
-    flex-shrink: 0; 
-}
-.ce-nav-tabs .nav-link { 
-    color: #64748b; 
-    font-weight: 500; 
-    font-size: 0.9rem;
-    border: none;
-    border-bottom: 3px solid transparent; 
-    padding: 0.75rem 1.25rem; 
-    transition: color 0.2s ease;
-}
-.ce-nav-tabs .nav-link:hover { color: #334155; background-color: #f8fafc; }
-.ce-nav-tabs .nav-link.active { 
-    border-bottom-color: var(--phase-color); 
-    color: #0f172a; 
-    background: transparent;
-}
-
-/* --- E. DASHBOARD & CARDS --- */
-.overview-grid { align-items: start; }
-
-/* Base Card Style */
-.card {
-    border-radius: 0.75rem;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    background-color: #fff;
-}
-
-/* Context Cards */
-.ai-context-card {
-    background: linear-gradient(to bottom right, #f8fafc, #f1f5f9);
-    border-left: 4px solid var(--phase-color) !important;
-}
-.source-cos-card { 
-    background-color: #ffffff;
-    border: 1px dashed #cbd5e1;
-}
-.source-cos-card .ce-pill {
-    font-style: normal;
-    display: inline-flex;
-    align-items: center;
-    margin: 0 4px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-}
-
-/* Metric Cards */
-.metric-card {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.metric-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
-}
-
-/* Text Areas */
-.scrolling-content-box {
-    max-height: 200px;
-    overflow-y: auto;
-    padding-right: 6px;
-    font-size: 0.95rem;
-    line-height: 1.6;
-    color: #334155;
-}
-
-/* --- F. DETAILS VIEW STYLES --- */
-.details-form-container { max-width: 800px; margin: 0 auto; }
-.btn-enhance-field { font-size: 0.75rem; padding: 0.2rem 0.6rem; }
-#generate-all-details-btn { 
-    background: linear-gradient(45deg, #6f42c1, #3b82f6); 
-    border: none; 
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    transition: transform 0.1s ease;
-}
-#generate-all-details-btn:active { transform: scale(0.98); }
-
-/* --- G. RESOURCES VIEW STYLES --- */
-#resources-toolbar, #bulk-actions-bar { 
-    background-color: #ffffff; 
-    flex-shrink: 0; 
-    border-bottom: 1px solid #dee2e6; 
-    padding: 1rem; 
-}
-.btn-speculate { 
-    background: linear-gradient(45deg, #6f42c1, #3b82f6); 
-    border: none; 
-    color: white; 
-}
-.btn-speculate:hover { color: white; opacity: 0.9; }
-#resources-container { 
-    background-color: #f8f9fa; 
-    flex-grow: 1; 
-    padding: 1rem;
-}
-
-.resource-card { 
-    background-color: #fff; 
-    border: 1px solid #e2e8f0; 
-    border-radius: 0.5rem; 
-    transition: all 0.2s ease; 
-    cursor: pointer; 
-    position: relative;
-}
-.resource-card:hover { 
-    transform: translateY(-2px); 
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    border-color: #cbd5e1; 
-}
-.resource-card.selected { 
-    border-left: 4px solid var(--phase-color); 
-    background-color: #f8fafc; 
-    border-color: #94a3b8;
-}
-
-/* Grid/List Toggles */
-#resources-container.grid-view { 
-    display: grid; 
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); 
-    gap: 1rem; 
-}
-#resources-container.list-view .resource-card { margin-bottom: 0.5rem; }
-
-.bg-primary-soft { background-color: rgba(13, 110, 253, 0.1); color: #0a58ca; }
-.bg-secondary-soft { background-color: rgba(108, 117, 125, 0.1); color: #565e64; }
-
-.resource-editor { background-color: #fff; }
-
-/* --- H. FOOTER --- */
-.ce-modal-footer { 
-    background-color: #ffffff; 
-    border-top: 1px solid #e2e8f0; 
-    flex-shrink: 0; 
-    padding: 0.75rem 1.5rem;
-    box-shadow: 0 -4px 6px -1px rgba(0,0,0,0.02);
-}
-
 /* ================================================== */
-/* =======  23. Hidden Text Utility Class  =========== */
-/* ================================================== */
-.hidden-text { opacity: 0; }
-
-
-/* ================================================== */
-/* =======  24. CE Modal Specific Styles ============ */
-/* ================================================== */
-.ce-modal-body .section-heading {
-    font-size: 1.4rem; color: #104a3a; text-shadow: none;
-    border-bottom: 1px solid #dee2e6; padding-bottom: 0.5rem; margin-bottom: 1.5rem;
-}
-.ce-modal-body .form-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1rem 1.5rem; margin-bottom: 2rem;
-}
-.ce-modal-body .form-group label {
-    display: block; margin-bottom: 0.4rem; font-family: 'Jost', sans-serif;
-    font-weight: 500; font-size: 0.9rem; color: #343a40;
-}
-.ce-modal-body .action-row {
-    margin-top: 1.5rem; margin-bottom: 1.5rem; display: flex;
-    flex-wrap: wrap; gap: 0.75rem;
-}
-
-/* ================================================== */
-/* =========  25. Goal Card Description Fix  ========= */
+/* =========  22. Goal Card Description Fix  ========= */
 /* ================================================== */
 .goal-description {
   text-align: left; /* Use left-align for natural word spacing and readability */
+}
+
+/* ================================================== */
+/* ======  23. Speculation System UI Components  ===== */
+/* ================================================== */
+
+/* --- A. The Readiness Bar (Segmented) --- */
+.readiness-bar {
+    display: flex;
+    gap: 2px;
+    height: 6px;
+    width: 100%;
+    background: rgba(0,0,0,0.15);
+    margin-top: auto;
+}
+
+.readiness-segment {
+    flex: 1;
+    background-color: #fff;
+    opacity: 0.2;
+    transition: opacity 0.4s ease, background-color 0.3s ease;
+}
+
+.readiness-segment.filled {
+    opacity: 0.95;
+    box-shadow: 0 0 4px rgba(255,255,255,0.5);
+}
+
+/* --- B. System Status Card (The "Calibrating" Box) --- */
+.system-status-card {
+    background-color: #ffffff;
+    /* Subtle, static technical grid background */
+    background-image: radial-gradient(#e2e8f0 1.5px, transparent 1.5px);
+    background-size: 16px 16px;
+    
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden; /* Keeps the big icon clipped inside */
+    min-height: 180px; /* Ensure vertical space */
+    border: 1px solid #d1d5db;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+}
+
+.status-indicator {
+    width: 6px;
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background-color: var(--phase-color);
+    z-index: 5;
+}
+
+/* The Massive Background Icon Anchor */
+.system-status-card .display-4 {
+    position: absolute;
+    bottom: -20px;
+    right: -10px;
+    font-size: 12rem !important; /* Massive size */
+    opacity: 0.08;  /* Very subtle watermark */
+    transform: rotate(-15deg);
+    pointer-events: none;
+    color: #333;
+    line-height: 1;
+    z-index: 0;
+}
+
+/* The Scan Line Animation (Triggered via JS: .scan-line) */
+.scan-overlay {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 40%; /* Width of the "light" beam */
+    background: linear-gradient(to right, 
+        transparent 0%, 
+        rgba(255, 255, 255, 0.4) 50%, 
+        transparent 100%);
+    border-right: 2px solid var(--phase-color); /* The leading edge laser */
+    opacity: 0;
+    z-index: 1;
+    pointer-events: none;
+    animation: systemScan 2.5s ease-in-out infinite;
+}
+
+@keyframes systemScan {
+    0% { transform: translateX(-150%) skewX(-15deg); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateX(350%) skewX(-15deg); opacity: 0; }
+}
+
+/* --- C. Proposed Items (AI Suggestions) --- */
+.card.proposed-item {
+    border: 1.5px dashed var(--phase-color);
+    background-color: #fdfdfd;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.card.proposed-item:hover {
+    background-color: #fff;
+    border-style: solid; /* Solidify on hover */
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+}
+
+/* The "AI PROPOSED" Badge */
+.badge-proposed {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6); /* "AI Purple" Gradient */
+    color: white;
+    font-family: 'Unica One', cursive;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    padding: 0.35em 0.6em;
+    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.25);
+}
+
+/* Accept/Reject Action Buttons */
+.btn-accept-item {
+    color: #198754;
+    border-color: #198754;
+    transition: all 0.2s;
+}
+.btn-accept-item:hover {
+    background-color: #198754;
+    color: white;
+    box-shadow: 0 2px 5px rgba(25, 135, 84, 0.3);
+}
+
+/* --- D. Ghost State (The "One-Hit" Trigger) --- */
+.ghost-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    /* Subtle technical background for empty state */
+    background-image: linear-gradient(0deg, transparent 24%, rgba(226, 232, 240, .5) 25%, rgba(226, 232, 240, .5) 26%, transparent 27%, transparent 74%, rgba(226, 232, 240, .5) 75%, rgba(226, 232, 240, .5) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(226, 232, 240, .5) 25%, rgba(226, 232, 240, .5) 26%, transparent 27%, transparent 74%, rgba(226, 232, 240, .5) 75%, rgba(226, 232, 240, .5) 76%, transparent 77%, transparent);
+    background-size: 50px 50px;
+    background-color: #fafafa;
+    
+    border-radius: 8px;
+    border: 2px dashed #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 300px;
+    transition: all 0.3s ease;
+}
+
+.ghost-state:hover {
+    background-color: #fff;
+    border-color: var(--phase-color);
+    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1);
+}
+
+.ghost-icon-container {
+    width: 72px; height: 72px;
+    background: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 0 0 8px rgba(226, 232, 240, 0.4), 0 4px 6px rgba(0,0,0,0.05);
+    color: #94a3b8;
+}
+
+.ghost-state .btn-lg {
+    font-family: 'Unica One', cursive;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 1.1rem;
+}
+
+/* --- E. Metric Card Modernization (Match Mockup) --- */
+.metric-card-modern {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1.25rem;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s ease-out;
+}
+
+.metric-card-modern:hover {
+    border-color: var(--phase-color);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.06);
+}
+
+.metric-card-modern .corner-accent {
+    position: absolute;
+    top: 0; right: 0;
+    width: 0; height: 0;
+    border-style: solid;
+    border-width: 0 30px 30px 0;
+    border-color: transparent var(--phase-color) transparent transparent;
+    opacity: 0.15;
+}
+
+/* ================================================== */
+/* =========  26. Dashboard HUD & Scan Effects  ====== */
+/* ================================================== */
+
+/* A. The "Monitor" Background for the Overview Tab */
+/* Adds a subtle technical grid to the overview area */
+#view-overview-container {
+    background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+    background-position: 0 0;
+    height: 100%;
+    min-height: 400px; /* Ensure pattern shows even if empty */
+}
+
+/* B. The Status Card (The "Calibrating" Box) */
+.dashboard-status-card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px; /* Slightly sharper for tech feel */
+    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden; /* Keeps the scan line inside */
+    transition: all 0.3s ease;
+}
+
+/* The "Bar" on the left of the status card */
+.dashboard-status-card::before {
+    content: "";
+    position: absolute; top: 0; left: 0; width: 6px; height: 100%;
+    background: var(--phase-color); 
+    z-index: 5;
+}
+
+.status-card-value {
+    font-family: 'Unica One', cursive;
+    font-size: 3.5rem;
+    line-height: 0.9;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #1e293b;
+    margin-top: 0.5rem;
+}
+
+/* C. The Scan Line Animation */
+/* This creates the "searching" laser effect when AI is working */
+.scan-line {
+    position: absolute; 
+    top: 0; left: 0; width: 100%; height: 30%; /* Beam height */
+    background: linear-gradient(to bottom, transparent 0%, rgba(var(--phase-color), 0.2) 50%, transparent 100%);
+    animation: scanner 2.5s infinite ease-in-out;
+    pointer-events: none;
+    display: none; /* Toggled via JS class 'scanning' */
+    z-index: 1;
+}
+
+/* Apply this class to the card via JS to turn it on */
+.dashboard-status-card.scanning .scan-line { 
+    display: block; 
+    /* Fallback color if var variable fails */
+    background: linear-gradient(to bottom, transparent 0%, rgba(100, 149, 237, 0.2) 50%, transparent 100%);
+}
+
+@keyframes scanner {
+    0% { transform: translateY(-150%); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(350%); opacity: 0; }
+}
+
+/* ================================================== */
+/* =========  24. Intelligence Sidebar Styling  ====== */
+/* ================================================== */
+
+/* The cards that appear in the right-hand sidebar */
+.ai-suggestion-card {
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid #6366f1; /* "AI Purple" Accent */
+    background: #f8fafc;
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease-out;
+    border-radius: 6px;
+    padding: 10px;
+}
+
+.ai-suggestion-card:hover {
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+    transform: translateX(-3px); /* Slide left slightly on hover */
+    border-left-width: 5px;
+}
+
+.ai-suggestion-card h6 {
+    font-family: 'Jost', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #333;
+    margin-bottom: 4px;
+}
+
+.ai-suggestion-card p {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-bottom: 0;
+    line-height: 1.4;
+}
+
+/* Sidebar Buttons (e.g. "Suggest Stakeholders") */
+.btn-gradient-purple {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    transition: opacity 0.2s;
+}
+.btn-gradient-purple:hover {
+    color: white;
+    opacity: 0.9;
+    box-shadow: 0 4px 10px rgba(118, 75, 162, 0.3);
 }

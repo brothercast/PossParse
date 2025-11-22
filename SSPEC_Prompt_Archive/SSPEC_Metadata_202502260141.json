@@ -1,0 +1,86 @@
+{
+  "📆 models.py": {
+    "SizeBytes": 4255,
+    "LastModified": "2025-10-30 20:12:27",
+    "Exists": true,
+    "Path": "models.py"
+  },
+  "🎨 styles.css": {
+    "SizeBytes": 37553,
+    "LastModified": "2025-11-20 15:45:34",
+    "Exists": true,
+    "Path": "static\\styles.css"
+  },
+  "🟨 utilities.py": {
+    "SizeBytes": 11974,
+    "LastModified": "2025-11-20 15:03:39",
+    "Exists": true,
+    "Path": "utilities.py"
+  },
+  "🟩 goal_selection.html": {
+    "SizeBytes": 3388,
+    "LastModified": "2025-10-29 21:42:54",
+    "Exists": true,
+    "Path": "templates/goal_selection.html"
+  },
+  "🔵 ce_cards.js": {
+    "SizeBytes": 21778,
+    "LastModified": "2025-11-19 22:05:59",
+    "Exists": true,
+    "Path": "static/js/ce_cards.js"
+  },
+  "🏪 store.py": {
+    "SizeBytes": 66,
+    "LastModified": "2024-08-28 16:42:16",
+    "Exists": true,
+    "Path": "store.py"
+  },
+  "📱 app.py": {
+    "SizeBytes": 2661,
+    "LastModified": "2025-11-06 21:56:27",
+    "Exists": true,
+    "Path": "app.py"
+  },
+  "🟪 cos_table.js": {
+    "SizeBytes": 22226,
+    "LastModified": "2025-11-11 17:43:24",
+    "Exists": true,
+    "Path": "static/js/cos_table.js"
+  },
+  "🟥 routes.py": {
+    "SizeBytes": 16823,
+    "LastModified": "2025-11-20 15:55:10",
+    "Exists": true,
+    "Path": "routes.py"
+  },
+  "🏳️‍🌈 ce_nodes.py": {
+    "SizeBytes": 22415,
+    "LastModified": "2025-11-19 13:08:12",
+    "Exists": true,
+    "Path": "ce_nodes.py"
+  },
+  "🟦 outcome.html": {
+    "SizeBytes": 15155,
+    "LastModified": "2025-10-31 20:15:02",
+    "Exists": true,
+    "Path": "templates/outcome.html"
+  },
+  "🧩 ce_templates.py": {
+    "SizeBytes": 16227,
+    "LastModified": "2025-11-20 15:45:00",
+    "Exists": true,
+    "Path": "ce_templates.py"
+  },
+  "🟧 ai_service.py": {
+    "SizeBytes": 14058,
+    "LastModified": "2025-11-14 21:54:47",
+    "Exists": true,
+    "Path": "ai_service.py"
+  },
+  "⬜ speculate.py": {
+    "SizeBytes": 21769,
+    "LastModified": "2025-11-20 15:45:00",
+    "Exists": true,
+    "Path": "speculate.py"
+  }
+}

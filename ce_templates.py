@@ -7,185 +7,256 @@ BASE_MODAL_TEMPLATE = """
     <div class="modal-dialog modal-fullscreen-xl-down modal-xl" role="document">
         <div class="modal-content ce-app-shell" data-phase-index="{{ phase_index }}" style="--phase-color: var(--phase-{{ phase_index }});">
             
-            <!-- HEADER -->
+            <!-- HEADER (Refactored per Prototype) -->
             <div class="modal-header ce-modal-header">
                 <div class="node-icon"><i class="{{ node_info.icon }}"></i></div>
-                <div class="ms-3 flex-grow-1 text-truncate">
-                    <div class="modal-title ce-title">{{ ceType.replace('_', ' ').title() }}</div>
-                    <div class="phase-name opacity-90">// {{ ce_text }} // {{ phase_name.title() }} PHASE</div>
+                <div class="ms-2 flex-grow-1">
+                    <!-- Row 1: Title & Badge -->
+                    <div class="ce-header-title-row">
+                        <h5 class="modal-title ce-title">{{ ceType.upper() }} NODE</h5>
+                        <div class="phase-badge">{{ phase_name.upper() }} PHASE</div>
+                    </div>
+                    <!-- Row 2: Metadata -->
+                    <div class="ce-header-metadata">
+                        // {{ ce_text }} // STRUCTURED SOLUTION // ID: {{ ceId.split('-')[0] }}
+                    </div>
                 </div>
+                
                 <div class="ms-auto d-flex align-items-center gap-2">
-                     <button class="btn btn-header-action" id="speculate-sidebar-toggle" title="Open Co-Pilot">
+                     <!-- Visual Status Pill -->
+                     <div class="bg-white bg-opacity-25 rounded-pill px-3 py-1 me-3 text-white small fw-bold border border-white border-opacity-25 d-none d-md-block">
+                        <i class="fas fa-circle text-success me-1" style="font-size:6px; vertical-align:middle;"></i> ONLINE
+                     </div>
+                     
+                     <button class="btn btn-header-action" id="speculate-sidebar-toggle" title="Toggle Intelligence">
                         <i class="fas fa-columns"></i>
                     </button>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn btn-header-action" data-bs-dismiss="modal" aria-label="Close">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
             </div>
 
-            <!-- PROGRESS BAR -->
-            <div class="progress-bar-container">
-                <div class="d-flex align-items-center">
-                    <span class="small text-uppercase fw-bold text-muted me-3" style="font-size: 0.7rem; letter-spacing: 0.5px;">Readiness</span>
-                    <div class="progress flex-grow-1" style="height: 6px; background-color: #e9ecef;">
-                        <div id="ce-progress-bar" class="progress-bar" role="progressbar" style="width: 0%; transition: width 0.6s ease;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
-                    </div>
-                    <span id="ce-progress-label" class="small fw-bold ms-3 text-muted" style="width: 35px; text-align: right;">0%</span>
-                </div>
-            </div>
-
-            <!-- MAIN WORKSPACE -->
-            <div class="modal-body ce-workspace-body p-0 d-flex overflow-hidden">
+            <!-- WORKSPACE -->
+            <div class="modal-body ce-workspace-body p-0">
                 
-                <div class="ce-main-column d-flex flex-column flex-grow-1 overflow-hidden" style="min-width: 0;">
+                <!-- LEFT: MAIN CONTENT -->
+                <div class="ce-main-column">
                     
-                    <!-- STRATEGIC TABS -->
+                    <!-- TABS (Consolidated) -->
                     <ul class="nav nav-tabs ce-nav-tabs" role="tablist">
-                        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#view-overview-{{ ceId }}">Overview</button></li>
-                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#view-narrative-{{ ceId }}">Narrative</button></li>
-                        
-                        <!-- Dynamic Collection Tabs -->
-                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#view-prerequisites-{{ ceId }}">Prerequisites <span class="badge rounded-pill bg-light text-dark ms-1 count-badge" data-collection="prerequisites">0</span></button></li>
-                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#view-stakeholders-{{ ceId }}">Stakeholders <span class="badge rounded-pill bg-light text-dark ms-1 count-badge" data-collection="stakeholders">0</span></button></li>
-                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#view-assumptions-{{ ceId }}">Assumptions <span class="badge rounded-pill bg-light text-dark ms-1 count-badge" data-collection="assumptions">0</span></button></li>
-                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#view-resources-{{ ceId }}">Resources <span class="badge rounded-pill bg-light text-dark ms-1 count-badge" data-collection="resources">0</span></button></li>
-                        
-                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#view-connections-{{ ceId }}">Connections <span class="badge rounded-pill bg-light text-dark ms-1 count-badge" data-collection="connections">0</span></button></li>
+                        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#view-overview-{{ ceId }}"><i class="fas fa-home"></i> Overview</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#view-prerequisites-{{ ceId }}"><i class="fas fa-tasks"></i> Prerequisites</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#view-stakeholders-{{ ceId }}"><i class="fas fa-users"></i> Stakeholders</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#view-assumptions-{{ ceId }}"><i class="fas fa-shield-alt"></i> Assumptions</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#view-resources-{{ ceId }}"><i class="fas fa-database"></i> Resources</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#view-connections-{{ ceId }}"><i class="fas fa-project-diagram"></i> Connections</button></li>
                     </ul>
 
-                    <div class="ce-app-content tab-content flex-grow-1 overflow-y-auto bg-light">
+                    <div class="ce-app-content tab-content">
                         
-                        <!-- 1. OVERVIEW -->
-                        <div class="tab-pane fade show active p-4" id="view-overview-{{ ceId }}">
-                            <!-- (Overview content same as before, focused on dashboard metrics) -->
-                             <div class="card ai-context-card border-0 shadow-sm mb-4">
-                                <div class="card-body p-4">
-                                    <div class="d-flex align-items-start gap-3">
-                                        <div class="text-primary mt-1"><i class="fas fa-sparkles fa-lg"></i></div>
-                                        <div class="flex-grow-1">
-                                            <h6 class="fw-bold text-uppercase small text-muted mb-2">Strategic Insight</h6>
-                                            <p class="text-dark mb-0" style="line-height: 1.6;">
-                                                {{ ai_generated_data.contextual_description or 'Analyzing strategic context...' }}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Source COS -->
-                            <div class="card border shadow-sm source-cos-card">
-                                <div class="card-body">
-                                    <h6 class="fw-bold text-secondary text-uppercase small mb-2"><i class="fas fa-crosshairs me-2"></i>Source Requirement</h6>
-                                    <div class="p-3 bg-white rounded border border-light-subtle">
-                                        <p class="fst-italic mb-0 text-dark small">{{ cos_content_with_pills | safe }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 2. NARRATIVE (Previously Details) -->
-                        <div class="tab-pane fade p-4" id="view-narrative-{{ ceId }}">
-                            <div class="details-form-container mx-auto">
-                                <form id="narrative-form-{{ ceId }}">
-                                {% for field in node_info.details_schema %}
-                                <div class="card mb-3 shadow-sm border-light">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <label class="form-label mb-0 fw-bold text-secondary">{{ field.label }}</label>
-                                            <button type="button" class="btn btn-sm btn-light text-primary btn-enhance-field" data-field="{{ field.key }}"><i class="fas fa-magic"></i></button>
-                                        </div>
-                                        <textarea name="{{ field.key }}" class="form-control bg-light border-0" rows="4">{{ ce_data.data.details_data.get(field.key, '') }}</textarea>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                                </form>
-                            </div>
-                        </div>
-
-                        <!-- 3-6. UNIVERSAL COLLECTIONS (Generated Loop) -->
-                        {% for collection in ['prerequisites', 'stakeholders', 'assumptions', 'resources'] %}
-                        {% set schema = node_info[collection[:-1] + '_schema'] %}
-                        <div class="tab-pane fade d-flex flex-column h-100" id="view-{{ collection }}-{{ ceId }}">
+                        <!-- 1. OVERVIEW TAB (Now includes Narrative) -->
+                        <div class="tab-pane fade show active" id="view-overview-{{ ceId }}">
                             
-                            <!-- Toolbar -->
-                            <div class="p-3 border-bottom bg-white flex-shrink-0 d-flex justify-content-between align-items-center">
-                                <div class="btn-group">
-                                    <button class="btn btn-primary btn-add-item" data-collection="{{ collection }}"><i class="fas fa-plus me-1"></i> Add {{ collection[:-1]|capitalize }}</button>
-                                    <button class="btn btn-outline-primary btn-speculate-collection" data-collection="{{ collection }}"><i class="fas fa-brain me-1"></i> Suggest</button>
+                            <div class="content-header">Overview</div>
+                            
+                            <div class="row g-4 mb-5">
+                                <!-- Big Status Card -->
+                                <div class="col-md-7">
+                                    <div class="dashboard-status-card">
+                                        <div class="status-card-label">Current State</div>
+                                        <div class="status-card-value mb-2">Awaiting Input<span class="text-warning" style="vertical-align: middle; font-size: 2rem; line-height:0;">•</span></div>
+                                        <p class="text-muted mb-0" style="max-width: 90%;">
+                                            This node is currently initialized. To begin, select the <strong>Speculate</strong> action on any tab to generate a strategic draft.
+                                        </p>
+                                    </div>
                                 </div>
-                                <input type="text" class="form-control form-control-sm w-auto search-collection" data-collection="{{ collection }}" placeholder="Filter...">
+                                
+                                <!-- Confidence / Metrics -->
+                                <div class="col-md-5">
+                                    <div class="row g-3 h-100">
+                                        <div class="col-6">
+                                            <div class="metric-card-modern h-100 d-flex flex-column justify-content-center text-center">
+                                                <div class="metric-value count-badge" data-collection="prerequisites">0</div>
+                                                <div class="metric-label">Prerequisites</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="metric-card-modern h-100 d-flex flex-column justify-content-center text-center">
+                                                <div class="metric-value count-badge" data-collection="stakeholders">0</div>
+                                                <div class="metric-label">Stakeholders</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="metric-card-modern h-100 d-flex flex-column justify-content-center text-center">
+                                                <div class="metric-value count-badge" data-collection="assumptions">0</div>
+                                                <div class="metric-label">Assumptions</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="metric-card-modern h-100 d-flex flex-column justify-content-center text-center">
+                                                <div class="metric-value text-success">Online</div>
+                                                <div class="metric-label">Status</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <!-- List Container -->
-                            <div class="flex-grow-1 p-3 overflow-y-auto collection-container" id="container-{{ collection }}-{{ ceId }}" data-collection="{{ collection }}">
-                                <!-- JS renders cards here -->
+                            <!-- Merged Narrative Section -->
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div class="content-header mb-0">Executive Narrative</div>
+                                        <button class="btn btn-sm btn-link text-decoration-none" onclick="document.getElementById('narrative-details').classList.toggle('d-none')">
+                                            Expand / Edit <i class="fas fa-chevron-down"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Display (Summary only) -->
+                                    <div class="p-4 bg-white rounded border shadow-sm mb-4">
+                                        <div class="d-flex gap-3">
+                                            <div class="text-muted"><i class="fas fa-quote-left fa-2x opacity-25"></i></div>
+                                            <div>
+                                                <h6 class="fw-bold text-dark">Synopsis</h6>
+                                                <p class="mb-0 text-muted">
+                                                    {{ ce_data.data.details_data.get('summary', 'No narrative generated yet. Use the AI to draft an executive summary.') }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Hidden Editing Form (Folded here instead of separate tab) -->
+                                    <div id="narrative-details" class="d-none">
+                                        <form id="narrative-form-{{ ceId }}" class="bg-white p-4 border rounded">
+                                            {% for field in node_info.details_schema %}
+                                            <div class="mb-3">
+                                                <label class="small fw-bold text-uppercase text-muted">{{ field.label }}</label>
+                                                <textarea name="{{ field.key }}" class="form-control bg-light" rows="3">{{ ce_data.data.details_data.get(field.key, '') }}</textarea>
+                                            </div>
+                                            {% endfor %}
+                                            <div class="text-end">
+                                                <button type="button" class="btn btn-primary btn-sm btn-save-changes">Save Narrative</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4 pt-4 border-top">
+                                <div class="content-header">Source Condition</div>
+                                <div class="p-3 border border-dashed rounded text-muted fst-italic">
+                                    {{ cos_content_with_pills | safe }}
+                                </div>
                             </div>
 
-                            <!-- Hidden Editor (One per collection type to handle schema differences) -->
-                            <div class="collection-editor p-4 bg-white border-top" id="editor-{{ collection }}-{{ ceId }}" style="display: none;">
-                                <h5 class="mb-3 fw-bold">Edit {{ collection[:-1]|capitalize }}</h5>
+                        </div>
+
+                        <!-- 2-5. COLLECTIONS (Loop with Descriptions) -->
+                        {% for collection in ['prerequisites', 'stakeholders', 'assumptions', 'resources'] %}
+                        <div class="tab-pane fade h-100 d-flex flex-column" id="view-{{ collection }}-{{ ceId }}">
+                            <div class="content-header">{{ collection|upper }}</div>
+                            
+                            <!-- Contextual Blurb -->
+                            <p class="tab-context-description">
+                                {% if collection == 'prerequisites' %}
+                                    Identify dependencies and critical paths that must be cleared before this node is valid.
+                                {% elif collection == 'stakeholders' %}
+                                    Map the human network, institutions, and key decision-makers required for success.
+                                {% elif collection == 'assumptions' %}
+                                    List unvalidated risks and hypotheses that could jeopardize the outcome.
+                                {% elif collection == 'resources' %}
+                                    Gather files, links, and evidentiary support to verify this condition.
+                                {% endif %}
+                            </p>
+
+                            <!-- Toolbar -->
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="btn-group">
+                                    <button class="btn btn-primary btn-sm px-3 btn-add-item" data-collection="{{ collection }}">
+                                        <i class="fas fa-plus me-2"></i> Manual Entry
+                                    </button>
+                                    <!-- "One-Hit" Generator Button -->
+                                    <button class="btn btn-outline-primary btn-sm px-3 btn-speculate-collection" data-collection="{{ collection }}">
+                                        <i class="fas fa-magic me-2"></i> Auto-Generate
+                                    </button>
+                                </div>
+                                <div class="input-group input-group-sm" style="width: 250px;">
+                                    <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                                    <input type="text" class="form-control" placeholder="Filter...">
+                                </div>
+                            </div>
+
+                            <!-- List -->
+                            <div class="flex-grow-1 overflow-y-auto collection-container" id="container-{{ collection }}-{{ ceId }}" data-collection="{{ collection }}">
+                                <!-- JS Renders Cards Here -->
+                            </div>
+
+                            <!-- Hidden Form -->
+                            <div class="collection-editor mt-3 bg-white border p-4 shadow-sm rounded" id="editor-{{ collection }}-{{ ceId }}" style="display: none;">
+                                <div class="d-flex justify-content-between mb-3">
+                                    <h6 class="fw-bold text-uppercase">Edit Entry</h6>
+                                    <button type="button" class="btn-close btn-cancel-edit"></button>
+                                </div>
                                 <form class="editor-form" data-collection="{{ collection }}">
+                                    {% set schema = node_info.get(collection[:-1] + '_schema', []) %}
                                     {% for field in schema %}
                                     <div class="mb-3">
-                                        <label class="form-label small fw-bold text-muted text-uppercase">{{ field.label }}</label>
+                                        <label class="form-label small text-muted fw-bold">{{ field.label }}</label>
                                         {% if field.type == 'textarea' %}
-                                            <textarea name="{{ field.key }}" class="form-control" rows="2"></textarea>
+                                            <textarea name="{{ field.key }}" class="form-control"></textarea>
                                         {% elif field.type == 'select' %}
-                                            <select name="{{ field.key }}" class="form-select">
-                                                {% for option in field.options %}<option value="{{ option }}">{{ option }}</option>{% endfor %}
-                                            </select>
-                                        {% elif field.type == 'slider' %}
-                                            <input type="range" name="{{ field.key }}" class="form-range" min="0" max="100">
+                                            <select name="{{ field.key }}" class="form-select">{% for o in field.options %}<option value="{{ o }}">{{ o }}</option>{% endfor %}</select>
                                         {% else %}
                                             <input type="text" name="{{ field.key }}" class="form-control">
                                         {% endif %}
                                     </div>
                                     {% endfor %}
-                                    <div class="d-flex justify-content-end gap-2">
-                                        <button type="button" class="btn btn-light btn-cancel-edit">Cancel</button>
-                                        <button type="submit" class="btn btn-success">Save</button>
+                                    <div class="text-end">
+                                        <button type="submit" class="btn btn-success btn-sm">Save Item</button>
                                     </div>
                                 </form>
                             </div>
                         </div>
                         {% endfor %}
-                        
-                        <!-- 7. CONNECTIONS TAB -->
-                         <div class="tab-pane fade p-4" id="view-connections-{{ ceId }}">
-                            <div id="connections-container" class="text-center p-5 text-muted">
+
+                        <!-- CONNECTIONS -->
+                        <div class="tab-pane fade" id="view-connections-{{ ceId }}">
+                            <div class="content-header">CONNECTIONS</div>
+                            <p class="tab-context-description">Visualize and manage dependencies between this node and other elements of the Structured Solution.</p>
+                            <div class="text-center p-5 text-muted border border-dashed rounded mt-4">
                                 <i class="fas fa-project-diagram fa-3x mb-3 opacity-25"></i>
-                                <h5>Knowledge Graph</h5>
-                                <p>Connections allow for vectorizing the relationship between this CE and the broader SSOL.</p>
+                                <h5>No active connections.</h5>
                             </div>
                         </div>
 
                     </div>
                 </div>
 
-                <!-- AI SIDEBAR (Right Column) -->
-                <div class="ai-sidebar d-flex flex-column border-start">
-                    <div class="sidebar-header p-3 text-white bg-primary d-flex align-items-center">
-                         <h6 class="mb-0 fw-bold"><i class="fas fa-brain me-2"></i> SPECULATE Engine</h6>
+                <!-- RIGHT: INTELLIGENCE SIDEBAR -->
+                <div class="ai-sidebar d-flex flex-column">
+                    <div class="p-3 border-bottom bg-white">
+                        <h6 class="text-uppercase fw-bold mb-1" style="font-family:'Unica One'; letter-spacing:1px; font-size:1.1rem;">Intelligence</h6>
+                        <div class="small text-muted"><i class="fas fa-circle text-success me-1" style="font-size:6px; vertical-align:middle;"></i> ONLINE</div>
                     </div>
                     <div class="p-3 overflow-y-auto flex-grow-1" id="ai-sidebar-content"></div>
                 </div>
 
-            </div>
-
-            <div class="modal-footer ce-modal-footer">
-                <div class="small text-muted me-auto"><i class="fas fa-circle text-success" style="font-size: 8px;"></i> Systems Active</div>
-                <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary px-4 btn-save-changes">Save Changes</button>
             </div>
         </div>
     </div>
 </div>
 """
 
-# Generate function remains the same
 async def generate_dynamic_modal(ce_type, ce_text, ce_data, node_info, cos_content, ai_generated_data, phase_name, phase_index):
+    # FIX: Force UUID to String to prevent 'uuid' has no attribute 'split' error
+    ce_id_str = str(ce_data.get('id', 'new_ce'))
+    
     cos_content_with_pills = replace_ce_tags_with_pills(cos_content)
+    
     return render_template_string(
         BASE_MODAL_TEMPLATE,
-        ceId=ce_data.get('id', 'new_ce'),
+        ceId=ce_id_str,  # Passing the safe string
         ceType=ce_type,
         ce_text=ce_text,
         ce_data=ce_data,

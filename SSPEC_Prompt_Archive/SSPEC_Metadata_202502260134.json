@@ -1,0 +1,86 @@
+{
+  "🏪 store.py": {
+    "Path": "store.py",
+    "Exists": true,
+    "LastModified": "2024-08-28 16:42:16",
+    "SizeBytes": 66
+  },
+  "🔵 ce_cards.js": {
+    "Path": "static/js/ce_cards.js",
+    "Exists": true,
+    "LastModified": "2025-11-19 22:05:59",
+    "SizeBytes": 21778
+  },
+  "📆 models.py": {
+    "Path": "models.py",
+    "Exists": true,
+    "LastModified": "2025-10-30 20:12:27",
+    "SizeBytes": 4255
+  },
+  "🟨 utilities.py": {
+    "Path": "utilities.py",
+    "Exists": true,
+    "LastModified": "2025-11-19 21:40:23",
+    "SizeBytes": 11740
+  },
+  "📱 app.py": {
+    "Path": "app.py",
+    "Exists": true,
+    "LastModified": "2025-11-06 21:56:27",
+    "SizeBytes": 2661
+  },
+  "⬜ speculate.py": {
+    "Path": "speculate.py",
+    "Exists": true,
+    "LastModified": "2025-11-19 21:44:35",
+    "SizeBytes": 21699
+  },
+  "🧩 ce_templates.py": {
+    "Path": "ce_templates.py",
+    "Exists": true,
+    "LastModified": "2025-11-19 20:54:04",
+    "SizeBytes": 15890
+  },
+  "🟦 outcome.html": {
+    "Path": "templates/outcome.html",
+    "Exists": true,
+    "LastModified": "2025-10-31 20:15:02",
+    "SizeBytes": 15155
+  },
+  "🟪 cos_table.js": {
+    "Path": "static/js/cos_table.js",
+    "Exists": true,
+    "LastModified": "2025-11-11 17:43:24",
+    "SizeBytes": 22226
+  },
+  "🟧 ai_service.py": {
+    "Path": "ai_service.py",
+    "Exists": true,
+    "LastModified": "2025-11-14 21:54:47",
+    "SizeBytes": 14058
+  },
+  "🟩 goal_selection.html": {
+    "Path": "templates/goal_selection.html",
+    "Exists": true,
+    "LastModified": "2025-10-29 21:42:54",
+    "SizeBytes": 3388
+  },
+  "🎨 styles.css": {
+    "Path": "static\\styles.css",
+    "Exists": true,
+    "LastModified": "2025-11-19 21:23:26",
+    "SizeBytes": 36777
+  },
+  "🟥 routes.py": {
+    "Path": "routes.py",
+    "Exists": true,
+    "LastModified": "2025-11-19 21:31:48",
+    "SizeBytes": 16553
+  },
+  "🏳️‍🌈 ce_nodes.py": {
+    "Path": "ce_nodes.py",
+    "Exists": true,
+    "LastModified": "2025-11-19 13:08:12",
+    "SizeBytes": 22415
+  }
+}
