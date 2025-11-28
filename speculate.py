@@ -129,6 +129,12 @@ async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: st
     new_cos_uuid = uuid.uuid4()
     cos_id_str = str(new_cos_uuid)
 
+    # Safety Check: Content must be string
+    if isinstance(content, dict):
+        content = content.get('text') or content.get('content') or json.dumps(content)
+    elif not isinstance(content, str):
+        content = str(content)
+
     try:
         # 1. Parse Tags
         soup = BeautifulSoup(content, 'html.parser')
@@ -193,6 +199,7 @@ async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: st
         current_app.logger.error(f"Error creating COS: {e}", exc_info=True)
         raise
 
+# --- THIS WAS THE MISSING FUNCTION ---
 async def update_cos_by_id(USE_DATABASE: bool, cos_id: UUID, updated_data: dict) -> dict:
     from models import COS, CE, get_engine_and_session
     from store import cos_store, ce_store
@@ -205,6 +212,12 @@ async def update_cos_by_id(USE_DATABASE: bool, cos_id: UUID, updated_data: dict)
         
         # If content changed, re-analyze and generate pills/CEs
         if new_content is not None:
+            # Safety Check again
+            if isinstance(new_content, dict):
+                new_content = new_content.get('text') or json.dumps(new_content)
+            elif not isinstance(new_content, str):
+                new_content = str(new_content)
+                    
             analysis = await analyze_cos(new_content, str(cos_id))
             soup = BeautifulSoup(analysis['content_with_tags'], 'html.parser')
             ce_tags = soup.find_all('ce')
@@ -215,7 +228,7 @@ async def update_cos_by_id(USE_DATABASE: bool, cos_id: UUID, updated_data: dict)
                 new_ce_instances.append({
                     'id': new_id, 
                     'node_type': c_type, 
-                    'data': {"details_data": {}, "resources": []}
+                    'data': {"details_data": {}, "resources": [], "prerequisites": [], "stakeholders": [], "assumptions": [], "connections": []}
                 })
                 pill = _render_ce_pill_html(str(new_id), c_type, c_txt)
                 tag.replace_with(BeautifulSoup(pill, 'html.parser'))
@@ -259,8 +272,15 @@ def get_cos_by_id(USE_DATABASE: bool, cos_id: UUID):
         with app.app_context():
             engine, session = get_engine_and_session()
             cos = session.query(COS).get(cos_id)
+            
+            # Convert to dict inside session to avoid DetachedInstanceError
+            if cos:
+                data = cos.to_dict()
+                session.close()
+                return data
+            
             session.close()
-            return cos
+            return None
     return cos_store.get(str(cos_id))
 
 def delete_cos_by_id(USE_DATABASE: bool, cos_id: UUID) -> bool:

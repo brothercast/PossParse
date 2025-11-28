@@ -1,0 +1,86 @@
+{
+  "⬜ speculate.py": {
+    "LastModified": "2025-11-22 19:26:07",
+    "Path": "speculate.py",
+    "Exists": true,
+    "SizeBytes": 13985
+  },
+  "📱 app.py": {
+    "LastModified": "2025-11-06 21:56:27",
+    "Path": "app.py",
+    "Exists": true,
+    "SizeBytes": 2661
+  },
+  "🏪 store.py": {
+    "LastModified": "2024-08-28 16:42:16",
+    "Path": "store.py",
+    "Exists": true,
+    "SizeBytes": 66
+  },
+  "🟦 outcome.html": {
+    "LastModified": "2025-11-22 00:49:25",
+    "Path": "templates/outcome.html",
+    "Exists": true,
+    "SizeBytes": 15192
+  },
+  "🏳️‍🌈 ce_nodes.py": {
+    "LastModified": "2025-11-20 20:01:54",
+    "Path": "ce_nodes.py",
+    "Exists": true,
+    "SizeBytes": 25624
+  },
+  "🟨 utilities.py": {
+    "LastModified": "2025-11-22 19:57:27",
+    "Path": "utilities.py",
+    "Exists": true,
+    "SizeBytes": 13254
+  },
+  "📆 models.py": {
+    "LastModified": "2025-11-20 20:10:43",
+    "Path": "models.py",
+    "Exists": true,
+    "SizeBytes": 5261
+  },
+  "🟪 cos_table.js": {
+    "LastModified": "2025-11-22 01:39:30",
+    "Path": "static/js/cos_table.js",
+    "Exists": true,
+    "SizeBytes": 15547
+  },
+  "🟧 ai_service.py": {
+    "LastModified": "2025-11-14 21:54:47",
+    "Path": "ai_service.py",
+    "Exists": true,
+    "SizeBytes": 14058
+  },
+  "🧩 ce_templates.py": {
+    "LastModified": "2025-11-22 19:11:01",
+    "Path": "ce_templates.py",
+    "Exists": true,
+    "SizeBytes": 20271
+  },
+  "🟩 goal_selection.html": {
+    "LastModified": "2025-11-22 18:37:39",
+    "Path": "templates/goal_selection.html",
+    "Exists": true,
+    "SizeBytes": 7867
+  },
+  "🟥 routes.py": {
+    "LastModified": "2025-11-20 20:32:05",
+    "Path": "routes.py",
+    "Exists": true,
+    "SizeBytes": 19510
+  },
+  "🔵 ce_cards.js": {
+    "LastModified": "2025-11-22 19:17:48",
+    "Path": "static/js/ce_cards.js",
+    "Exists": true,
+    "SizeBytes": 23115
+  },
+  "🎨 styles.css": {
+    "LastModified": "2025-11-22 19:53:57",
+    "Path": "static\\styles.css",
+    "Exists": true,
+    "SizeBytes": 19920
+  }
+}

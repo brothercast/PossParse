@@ -1,0 +1,86 @@
+{
+  "🟪 cos_table.js": {
+    "Path": "static/js/cos_table.js",
+    "LastModified": "2025-11-25 17:57:28",
+    "Exists": true,
+    "SizeBytes": 15547
+  },
+  "🏳️‍🌈 ce_nodes.py": {
+    "Path": "ce_nodes.py",
+    "LastModified": "2025-11-20 20:01:54",
+    "Exists": true,
+    "SizeBytes": 25624
+  },
+  "📆 models.py": {
+    "Path": "models.py",
+    "LastModified": "2025-11-20 20:10:43",
+    "Exists": true,
+    "SizeBytes": 5261
+  },
+  "📱 app.py": {
+    "Path": "app.py",
+    "LastModified": "2025-11-06 21:56:27",
+    "Exists": true,
+    "SizeBytes": 2661
+  },
+  "🟥 routes.py": {
+    "Path": "routes.py",
+    "LastModified": "2025-11-25 19:23:06",
+    "Exists": true,
+    "SizeBytes": 20469
+  },
+  "🟦 outcome.html": {
+    "Path": "templates/outcome.html",
+    "LastModified": "2025-11-25 18:30:56",
+    "Exists": true,
+    "SizeBytes": 15890
+  },
+  "🟧 ai_service.py": {
+    "Path": "ai_service.py",
+    "LastModified": "2025-11-14 21:54:47",
+    "Exists": true,
+    "SizeBytes": 14058
+  },
+  "⬜ speculate.py": {
+    "Path": "speculate.py",
+    "LastModified": "2025-11-25 19:29:30",
+    "Exists": true,
+    "SizeBytes": 13897
+  },
+  "🎨 styles.css": {
+    "Path": "static\\styles.css",
+    "LastModified": "2025-11-25 19:59:20",
+    "Exists": true,
+    "SizeBytes": 26499
+  },
+  "🟨 utilities.py": {
+    "Path": "utilities.py",
+    "LastModified": "2025-11-25 18:53:42",
+    "Exists": true,
+    "SizeBytes": 10635
+  },
+  "🧩 ce_templates.py": {
+    "Path": "ce_templates.py",
+    "LastModified": "2025-11-25 20:27:41",
+    "Exists": true,
+    "SizeBytes": 21708
+  },
+  "🟩 goal_selection.html": {
+    "Path": "templates/goal_selection.html",
+    "LastModified": "2025-11-22 18:37:39",
+    "Exists": true,
+    "SizeBytes": 7867
+  },
+  "🔵 ce_cards.js": {
+    "Path": "static/js/ce_cards.js",
+    "LastModified": "2025-11-25 20:23:34",
+    "Exists": true,
+    "SizeBytes": 21508
+  },
+  "🏪 store.py": {
+    "Path": "store.py",
+    "LastModified": "2024-08-28 16:42:16",
+    "Exists": true,
+    "SizeBytes": 66
+  }
+}

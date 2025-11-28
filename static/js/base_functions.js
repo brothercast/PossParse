@@ -1,47 +1,137 @@
-// static/js/base_functions.js 
+// static/js/base_functions.js
+// SSPEC Horizon Edition - Core Utilities
+
+// --- LOADING SPINNER STATE ---
+// Tracks how many concurrent processes are requesting the spinner
+let spinnerRequestCount = 0;
+let spinnerInterval;
+
+const LOADING_MESSAGES = [
+    "Accessing SSPEC Neural Network...",
+    "Vectorizing inputs...",
+    "Consulting domain strategies...",
+    "Drafting executive narrative...",
+    "Identifying critical dependencies...",
+    "Optimizing resource paths...",
+    "Finalizing data packet..."
+];
+
 
 /**
- * Applies Textillate animation effect to a collection of elements.
- * @param {NodeListOf<Element>|Array<Element>} elements - The elements to animate.
- * @param {number} [delayScale=1.2] - Textillate delayScale option.
- * @param {number} [delayOffset=50] - Offset for staggering animations.
- * @param {boolean} [fadeEffect=false] - If true, uses a simple jQuery fadeIn instead of Textillate.
+ * Displays the Horizon Loading HUD.
+ * Keeps track of requests so it doesn't vanish prematurely during auto-population.
+ * @param {string} title - The main header (e.g. "INITIALIZING NODE")
+ * @param {string} iconClass - FontAwesome class (e.g. "fa-circle-notch")
  */
-export function applyTextillateEffect(elements, delayScale = 1.2, delayOffset = 50, fadeEffect = false) {
-  const baseDelay = 30;
-  const animationDuration = 700; // Animation duration in milliseconds
-  const elementsArray = Array.from(elements); // Ensure it's an array
+export function showLoadingSpinner(title = "PROCESSING", iconClass = "fa-circle-notch") {
+    spinnerRequestCount++;
+    console.log(`Spinner Requested: ${title} (Active Requests: ${spinnerRequestCount})`);
 
-  elementsArray.forEach((element, index) => {
-    const elementDelay = baseDelay + index * delayOffset;
-    if (fadeEffect) {
-      $(element).hide().delay(elementDelay).fadeIn(animationDuration);
+    // 1. Find or Create Overlay
+    let overlay = document.querySelector('.loading-spinner-overlay');
+    
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'loading-spinner-overlay fade-in';
+        document.body.appendChild(overlay);
     } else {
-      $(element).textillate({
-        initialDelay: elementDelay,
-        in: {
-          effect: 'flipInY',
-          delayScale: delayScale,
-          delay: baseDelay,
-          sync: false,
-          shuffle: false,
-          reverse: false,
-          duration: animationDuration,
-        },
-        loop: false,
-        autoStart: true,
-      });
+        // Critical: Ensure bootstrap d-none is removed if present
+        overlay.classList.remove('d-none');
+        overlay.classList.remove('fade-out'); // Stop any hiding animation
+        overlay.classList.add('fade-in');
     }
-  });
+
+    // 2. Render Structure (Horizon Style)
+    // If already visible, we update the text/icon but don't nuke DOM to prevent flickering
+    const existingTitle = overlay.querySelector('.spinner-title');
+    
+    if (existingTitle && overlay.style.display !== 'none') {
+        existingTitle.textContent = title;
+        // Update icon
+        const iconContainer = overlay.querySelector('.spinner-icon');
+        if (iconContainer) {
+             iconContainer.innerHTML = `<i class="fas ${iconClass} ${iconClass.includes('spin') ? '' : 'fa-spin'}"></i>`;
+        }
+    } else {
+        // Fresh Render
+        overlay.innerHTML = `
+            <div class="spinner-box">
+                <div class="spinner-icon">
+                    <i class="fas ${iconClass} ${iconClass.includes('spin') ? '' : 'fa-spin'}"></i>
+                </div>
+                <div class="spinner-content" style="display:flex; flex-direction:column; align-items:flex-start;">
+                    <div class="spinner-title" style="line-height:1.1;">${title}</div>
+                    <div class="spinner-text font-body small text-muted" id="dynamic-spinner-text">Initializing protocols...</div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // 3. Make Visible
+    overlay.style.display = 'flex';
+
+    // 4. Start Talking
+    startStatusUpdates();
 }
+
+export function hideLoadingSpinner() {
+    spinnerRequestCount--;
+    console.log(`Spinner Release. Remaining: ${spinnerRequestCount}`);
+
+    // Only hide if NO other processes are waiting
+    if (spinnerRequestCount <= 0) {
+        spinnerRequestCount = 0; // Safety reset
+        const overlay = document.querySelector('.loading-spinner-overlay');
+        
+        if (overlay) {
+            stopStatusUpdates(); 
+            overlay.classList.remove('fade-in');
+            overlay.classList.add('fade-out'); // CSS Animation
+            
+            // Wait for animation to finish before DOM hiding
+            setTimeout(() => {
+                if (spinnerRequestCount === 0) {
+                    overlay.style.display = 'none';
+                    overlay.classList.add('d-none'); // Re-apply d-none for Bootstrap safety
+                    overlay.classList.remove('fade-out');
+                }
+            }, 500); // Match CSS transition time
+        }
+    }
+}
+
+// --- Message Cycler ---
+function startStatusUpdates() {
+    const textEl = document.getElementById('dynamic-spinner-text');
+    let index = 0;
+    
+    if (spinnerInterval) clearInterval(spinnerInterval);
+    
+    spinnerInterval = setInterval(() => {
+        const currentEl = document.getElementById('dynamic-spinner-text');
+        if (currentEl) {
+            // Simple opacity pulse for transition
+            currentEl.style.opacity = 0.5;
+            setTimeout(() => {
+                currentEl.innerText = LOADING_MESSAGES[index];
+                currentEl.style.opacity = 1;
+                index = (index + 1) % LOADING_MESSAGES.length;
+            }, 300);
+        } else {
+            stopStatusUpdates();
+        }
+    }, 2000); 
+}
+
+function stopStatusUpdates() {
+    if (spinnerInterval) clearInterval(spinnerInterval);
+    spinnerInterval = null;
+}
+
+// --- INPUT HANDLING ---
 
 /**
  * Handles the click event for the "Edit User Input" button.
- * @param {HTMLElement} userInputDisplay - The span displaying the user input.
- * @param {HTMLInputElement} userInputEdit - The input field for editing.
- * @param {HTMLButtonElement} editButton - The edit button.
- * @param {HTMLButtonElement} saveButton - The save button.
- * @param {HTMLButtonElement} cancelButton - The cancel button.
  */
 export function handleEditButtonClick(userInputDisplay, userInputEdit, editButton, saveButton, cancelButton) {
   if (userInputDisplay && userInputEdit && editButton && saveButton && cancelButton) {
@@ -59,12 +149,6 @@ export function handleEditButtonClick(userInputDisplay, userInputEdit, editButto
 
 /**
  * Handles the click event for the "Save User Input" button.
- * @param {HTMLElement} userInputDisplay - The span displaying the user input.
- * @param {HTMLInputElement} userInputEdit - The input field for editing.
- * @param {HTMLButtonElement} editButton - The edit button.
- * @param {HTMLButtonElement} saveButton - The save button.
- * @param {HTMLButtonElement} cancelButton - The cancel button.
- * @param {function(string)} callback - Function to call with the updated text.
  */
 export function handleSaveButtonClick(userInputDisplay, userInputEdit, editButton, saveButton, cancelButton, callback) {
   if (userInputDisplay && userInputEdit && editButton && saveButton && cancelButton) {
@@ -85,11 +169,6 @@ export function handleSaveButtonClick(userInputDisplay, userInputEdit, editButto
 
 /**
  * Handles the click event for the "Cancel User Input" button.
- * @param {HTMLElement} userInputDisplay - The span displaying the user input.
- * @param {HTMLInputElement} userInputEdit - The input field for editing.
- * @param {HTMLButtonElement} editButton - The edit button.
- * @param {HTMLButtonElement} saveButton - The save button.
- * @param {HTMLButtonElement} cancelButton - The cancel button.
  */
 export function handleCancelButtonClick(userInputDisplay, userInputEdit, editButton, saveButton, cancelButton) {
   if (userInputDisplay && userInputEdit && editButton && saveButton && cancelButton) {
@@ -104,11 +183,10 @@ export function handleCancelButtonClick(userInputDisplay, userInputEdit, editBut
   }
 }
 
+// --- GOAL REGENERATION ---
+
 /**
  * Fetches new goal suggestions from the server.
- * @param {string} user_input_text - The user's input text.
- * @returns {Promise<object>} - A promise that resolves with the JSON data of goals.
- * @throws {Error} - Throws an error if the fetch fails or the response is not ok.
  */
 export async function regenerateGoals(user_input_text) {
   try {
@@ -140,9 +218,7 @@ export async function regenerateGoals(user_input_text) {
 
 /**
  * Updates the goal cards displayed on the page.
- * @param {object} data - The data object containing the array of goals.
- * @param {string} currentUserInputText - The current user input text.
- * @param {HTMLElement} goalCardsContainer - The container element for the goal cards.
+ * UPDATED FOR HORIZON MONOLITH DESIGN (Clean Rectangular Cards with 3D Flip)
  */
 export function updateGoalCards(data, currentUserInputText, goalCardsContainer) {
   if (!goalCardsContainer) {
@@ -157,156 +233,114 @@ export function updateGoalCards(data, currentUserInputText, goalCardsContainer) 
 
   goalCardsContainer.innerHTML = '';
 
-  data.goals.forEach((goal) => {
+  data.goals.forEach((goal, index) => {
     const goalDescription = (goal.goal || "No description available.").replace(/\n/g, '<br>');
-    const goalTitleForForm = goal.title || "Untitled Goal";
+    const goalTitle = goal.title || "Untitled Goal";
     const goalDomain = goal.domain || "General";
     const goalIcon = goal.icon || "fas fa-question-circle";
-    // --- FIX: Check for 'is_compliant' from Python backend, default to true if undefined.
+    // Check compliance, default to true if undefined
     const isCompliant = typeof goal.is_compliant === 'undefined' ? true : goal.is_compliant;
 
+    // Cycle Colors: Coral, Cyan, Purple (Horizon Palette)
+    const i = index;
+    const accentColors = ['#ff7043', '#00bcd4', '#ab47bc'];
+    const accent = isCompliant ? accentColors[i % 3] : '#ef5350';
+    
+    // Card Back Gradient (Face Down)
+    const backGrad = isCompliant 
+        ? [
+            'linear-gradient(135deg, #ff7043 0%, #f4511e 100%)', 
+            'linear-gradient(135deg, #26c6da 0%, #00bcd4 100%)', 
+            'linear-gradient(135deg, #ab47bc 0%, #7b1fa2 100%)'
+          ][i % 3]
+        : 'linear-gradient(135deg, #ffeb3b 0%, #ff9800 40%, #d32f2f 100%)';
+
+    // Header Plate Gradient (Face Up)
+    const headerGrad = isCompliant
+        ? [
+            'linear-gradient(135deg, #ffcc80 0%, #ff7043 100%)',
+            'linear-gradient(135deg, #80deea 0%, #00bcd4 100%)',
+            'linear-gradient(135deg, #e1bee7 0%, #ab47bc 100%)'
+          ][i % 3]
+        : 'linear-gradient(135deg, #ffcdd2 0%, #ef5350 100%)';
+
+    // Animation Timing (Staggered)
+    const animDelay = i * 0.2;
+    // The "Hold" before flip: 1.2s base + 0.6s stagger per card
+    const revealDelay = 1200 + (i * 600);
+
     const cardHtml = `
-      <div class="col-md-4 mb-4">
-        <div class="card retro-futuristic-card text-center diagonal-pivot-container ${isCompliant ? '' : 'non-compliant'}">
-            <div class="diagonal-pivot-frame"></div>
-            <div class="diagonal-pivot-frame"></div>
-            <div class="diagonal-pivot-frame"></div>
-            <div class="card-body card-content diagonal-pivot-content">
-                <div class="card-upper-content">
-                    <i class="${goalIcon} fa-2x mt-3 mb-3 goal-content-item"></i>
-                    <p class="domain domain-text goal-content-item">${goalDomain.replace(/\b\w/g, l => l.toUpperCase())}</p>
-                    <div class="goal-description goal-text goal-content-item">
-                        ${goalDescription}
-                    </div>
-                </div>
-                ${isCompliant ? `
-                <form action="/outcome" method="post" class="goal-selection-form">
-                  <input type="hidden" name="selected_goal" value="${goal.goal || ''}">
-                  <input type="hidden" name="domain" value="${goalDomain}">
-                  <input type="hidden" name="domain_icon" value="${goalIcon}">
-                  <input type="hidden" name="selected_goal_title" value="${goalTitleForForm}">
-                  <button type="submit" class="btn btn-primary">Select</button>
-                </form>
-                ` : `
-                <div class="goal-selection-form">
-                    <a href="/" class="btn btn-danger">Start Over</a>
-                </div>
-                `}
+      <!-- CARD WRAPPER (Handles the "Deal" entrance) -->
+      <div class="flip-card ${!isCompliant ? 'rejected' : ''}" style="animation-delay: ${animDelay}s;">
+        <div class="flip-card-inner" data-delay="${revealDelay}">
+          
+          <!-- BACK (Face Down - Visible First) -->
+          <div class="flip-card-back" style="background: ${backGrad};">
+            <div class="card-pattern-overlay"></div>
+            <div class="position-relative z-2 d-flex flex-column align-items-center">
+              <div class="bg-white bg-opacity-25 p-4 rounded-circle border border-2 border-white border-opacity-50 shadow-lg mb-3 backdrop-blur">
+                <i class="${goalIcon} fa-3x text-white drop-shadow"></i>
+              </div>
+              ${!isCompliant ? `
+              <div class="font-data text-white small text-uppercase bg-black bg-opacity-25 px-3 py-1 rounded-pill border border-white border-opacity-25 mt-2">
+                Protocol Violation
+              </div>` : ''}
             </div>
+          </div>
+
+          <!-- FRONT (Face Up - Hidden First) -->
+          <div class="flip-card-front">
+            <div class="card-header-plate" style="background: ${headerGrad};">
+               <div class="card-domain-badge shadow-sm">${goalDomain.toUpperCase()}</div>
+               <div class="card-icon-float">
+                  <i class="${goalIcon} fa-2x" style="color: ${accent};"></i>
+               </div>
+            </div>
+
+            <div class="card-body">
+              <h3 class="card-title">${goalTitle}</h3>
+              <p class="card-desc small">${goalDescription}</p>
+            </div>
+
+            <div class="card-footer bg-transparent border-0 p-0 pb-4">
+              ${isCompliant ? `
+              <form action="/outcome" method="post">
+                <input type="hidden" name="selected_goal" value="${goal.goal}">
+                <input type="hidden" name="domain" value="${goalDomain}">
+                <input type="hidden" name="domain_icon" value="${goalIcon}">
+                <input type="hidden" name="selected_goal_title" value="${goalTitle}">
+                <button type="submit" class="btn-select-pill w-100 shadow-md" style="background-color: ${accent};">
+                  SELECT PROTOCOL
+                </button>
+              </form>` : `
+              <button class="btn-select-pill w-100" style="background-color: #ef5350; cursor: not-allowed; opacity: 0.8;">
+                  PROTOCOL VIOLATION
+              </button>`}
+            </div>
+          </div>
+
         </div>
       </div>
     `;
+    
     goalCardsContainer.insertAdjacentHTML('beforeend', cardHtml);
   });
 
-  const newForms = goalCardsContainer.querySelectorAll('.goal-selection-form');
-  newForms.forEach(form => {
-    form.addEventListener('submit', (event) => {
-      // Check if the form contains a submit button; if not, it's the non-compliant "Start Over" link wrapper.
-      if (form.querySelector('button[type="submit"]')) {
-          event.preventDefault();
-          const iconValue = form.querySelector('input[name="domain_icon"]').value;
-          showLoadingSpinner('Speculating Structured Solution...', `${iconValue} fa-2x`);
-          form.submit();
-      }
-    });
-  });
-}
-
-
-export function showLoadingSpinner(message = 'Generating Outcomes...', iconClass = 'fa-solid fa-network-wired') {
-  console.log("showLoadingSpinner called with message:", message, "and icon:", iconClass);
-  const spinner = document.getElementById('loading-spinner');
-  const spinnerText = document.getElementById('spinner-text');
-  const spinnerIcon = document.getElementById('spinner-icon');
-  if (spinner && spinnerText && spinnerIcon) {
-    spinnerText.textContent = message;
-    spinnerIcon.className = iconClass + ' fa-icon';
-    spinner.classList.remove('d-none');
-    spinner.classList.add('fade-in');
-  }
-}
-
-export function hideLoadingSpinner() {
-  console.log("hideLoadingSpinner called");
-  const spinner = document.getElementById('loading-spinner');
-  if (spinner) {
-    spinner.classList.remove('fade-in');
-    spinner.classList.add('fade-out');
-    setTimeout(() => {
-      spinner.classList.add('d-none');
-      spinner.classList.remove('fade-out');
-    }, 500); // Match the duration of the fade-out animation
-  }
+  // Trigger Flip Animation for newly added cards after they render
+  setTimeout(() => {
+      const cards = goalCardsContainer.querySelectorAll('.flip-card-inner');
+      cards.forEach(card => {
+          const delay = parseInt(card.dataset.delay) || 1000;
+          setTimeout(() => {
+              card.closest('.flip-card').classList.add('revealed');
+          }, delay);
+      });
+  }, 100);
 }
 
 /**
- * Initializes a Tabulator table for the CE modal.
- * This is now the universal table initialization function.
- * @param {string} tableElementId - The CSS selector ID for the table element (e.g., '#dynamicTable-...')
- * @param {Array<object>} initialData - The data array to load immediately.
- * @param {Array<object>} columnsDefinition - The column definitions array.
- * @param {string} ceType - The type of Conditional Element (for styling/context).
- * @param {HTMLElement} modalElement - The parent modal DOM element.
- * @returns {Tabulator} The Tabulator instance.
- */
-export function initializeTabulatorTable(tableElementId, initialData = [], columnsDefinition, ceType, modalElement) {
-    // CRITICAL: Ensure Tabulator is available globally (loaded via <script> tag in HTML)
-    if (typeof Tabulator === 'undefined') {
-        console.error("Tabulator is not defined. Ensure 'tabulator.min.js' is loaded globally in outcome.html.");
-        return null;
-    }
-    
-    const tableElement = document.querySelector(tableElementId);
-    if (!tableElement) {
-        console.error(`Tabulator target element not found for ID: ${tableElementId}`);
-        return null;
-    }
-
-    // Tabulator relies on global state; check if it's already initialized
-    // If modalElement has an existing _tabulator instance, destroy it first.
-    if (modalElement._tabulator) {
-        modalElement._tabulator.destroy();
-    }
-
-    // Define the table configuration
-    const table = new Tabulator(tableElement, {
-        data: initialData,
-        layout: "fitColumns", // Fit all columns to the table width
-        responsiveLayout: "collapse", // Collapse rows on smaller screens
-        tooltips: true, // Show tool tips on cells
-        addRowPos: "top", // Add new rows to the top of the table
-        history: true, // Enable undo/redo
-        pagination: "local", // Enable local pagination
-        paginationSize: 5, // Show 5 rows per page
-        movableColumns: true, // Allow column reordering
-        resizableRows: true, // Allow row resizing
-        selectable: true, // Enable row selection
-        columns: columnsDefinition,
-        // Bind the instance to the modal element for easy retrieval
-        dataLoaded: (data) => {
-             // Do nothing special here, rely on explicit binding below
-        },
-        // Enable data editing (must have an editor defined in the column)
-        cellEdited: function(cell){
-            const modal = cell.getTable().element.closest('.ceModal');
-            if(modal) modal.dataset.hasUnsavedChanges = 'true';
-        }
-    });
-    
-    // Explicitly bind the instance to the modal element for other functions to use
-    modalElement._tabulator = table; 
-    console.log(`Tabulator initialized for ${ceType} (${tableElementId}).`);
-    return table;
-}
-
-/**
- * Initializes generic event listeners. Specific page listeners are handled in their respective JS files.
+ * Initializes generic event listeners.
  */
 export function initializeEventListeners() {
-  console.log("Base initializeEventListeners called - for truly generic, site-wide listeners if any.");
-  // Edit/Save/Cancel for user input on goal_selection.html are now set up in goal_selection.js
-  // by calling the specific handler functions from this file with the correct DOM elements.
+  console.log("Horizon Base Functions: Initialized.");
 }
-
-console.log("base_functions.js has been loaded.");

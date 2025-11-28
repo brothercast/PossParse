@@ -1,12 +1,13 @@
-// ce_cards.js (The Speculation Environment Controller - Phase 4 Final)
+// ce_cards.js (The Speculation Environment Controller - Horizon Fusion v2025.23)
 
-// --- STATE MANAGEMENT ---
+import { showLoadingSpinner, hideLoadingSpinner } from './base_functions.js';
+
+// --- 1. STATE MANAGEMENT ---
 let state = {
     modalElement: null,
     ceId: null,
     ceType: null,
     activeTab: 'overview',
-    // Unified storage for all list-based data
     collections: {
         prerequisites: [],
         stakeholders: [],
@@ -14,31 +15,38 @@ let state = {
         resources: [],
         connections: []
     },
-    // Storage for text-based form data (Narrative)
     details_data: {},
-    isSaving: false,
-    sidebarContext: 'Overview'
+    nodeSchema: {},
+    isSaving: false
 };
 
-// --- INITIALIZATION ---
+// --- 2. PERSONA MATRIX ---
+const PERSONAS = {
+    "Research": { title: "DEEP TRUTH ENGINE", icon: "fa-flask", class: "persona-research", tone: "Empirical" },
+    "Risk": { title: "SECURITY OVERWATCH", icon: "fa-shield-virus", class: "persona-risk", tone: "Critical" },
+    "Stakeholder": { title: "NETWORK DIPLOMAT", icon: "fa-handshake", class: "persona-stakeholder", tone: "Strategic" },
+    "Advocacy": { title: "AMPLIFIER", icon: "fa-bullhorn", class: "persona-advocacy", tone: "Persuasive" },
+    "Environment": { title: "SYSTEM ECOLOGIST", icon: "fa-leaf", class: "persona-research", tone: "Holistic" },
+    "Timeline": { title: "TEMPORAL ARCHITECT", icon: "fa-stopwatch", class: "persona-default", tone: "Linear" },
+    "Default": { title: "SPECULATE CO-PILOT", icon: "fa-brain", class: "persona-default", tone: "Helpful" }
+};
 
-/**
- * Main entry point called by the parent page to launch the modal.
- * @param {string} modalHtml - The raw HTML string of the modal shell.
- * @param {string} ceId - The UUID of the Conditional Element.
- * @param {string} p_ceType - The Node Type (e.g., 'Risk', 'Research').
- * @param {object} ceData - The existing data payload from the database.
- */
+// --- 3. INITIALIZATION ---
+
 export function displayCEModal(modalHtml, ceId, p_ceType, ceData) {
     const modalContainer = document.getElementById('dynamicModalContainer');
     modalContainer.innerHTML = modalHtml;
-    const modalElement = document.getElementById(`ceModal-${ceId}`);
     
-    // Bootstrap Modal Instance
+    const modalElement = document.getElementById(`ceModal-${ceId}`);
+    if (!modalElement) return console.error("Modal element not found.");
+
     const modal = new bootstrap.Modal(modalElement);
 
     modalElement.addEventListener('shown.bs.modal', () => {
-        // Hydrate State from DB or set defaults
+        // 1. Resolve Schema
+        const nodeConfig = (window.NODES && window.NODES[p_ceType]) ? window.NODES[p_ceType] : (window.NODES['Default']);
+
+        // 2. Hydrate State
         const d = ceData?.data || {};
         state = {
             modalElement, 
@@ -53,160 +61,157 @@ export function displayCEModal(modalHtml, ceId, p_ceType, ceData) {
                 connections: d.connections || []
             },
             details_data: d.details_data || {},
-            isSaving: false,
-            sidebarContext: 'Overview'
+            nodeSchema: nodeConfig,
+            isSaving: false
         };
         
+        // 3. Boot System
         render(); 
         setupEventListeners();
         
-        // --- THE "ONE-HIT" TRIGGER ---
+        // 4. Auto-Start ("One-Hit" Check)
         checkAndTriggerAutoPopulation();
 
     }, { once: true });
 
-    // Cleanup on close
-    modalElement.addEventListener('hidden.bs.modal', () => {
-        modalElement.remove();
-    });
-
+    modalElement.addEventListener('hidden.bs.modal', () => modalElement.remove());
     modal.show();
 }
 
-// --- AUTOMATION LOGIC ---
+// --- 4. AUTOMATION LOGIC ---
 
 function checkAndTriggerAutoPopulation() {
-    // Heuristic: If all collections are empty, this is a "Fresh Node".
-    const isFresh = ['prerequisites', 'stakeholders', 'assumptions'].every(key => 
-        state.collections[key].length === 0
-    );
-
+    const isFresh = ['prerequisites', 'stakeholders', 'assumptions'].every(k => state.collections[k].length === 0);
+    
     if (isFresh) {
-        console.log("Fresh Node Detected. Initiating System Scan...");
+        console.log("System Scan Initiated: Fresh Node Detected");
         
-        // Visual Feedback in the Status Card
+        const statusCard = state.modalElement.querySelector('.system-status-card');
         const statusValue = state.modalElement.querySelector('.status-card-value');
-        if (statusValue) {
-            statusValue.innerHTML = '<span class="text-primary"><i class="fas fa-circle-notch fa-spin"></i> INITIATING...</span>';
+        
+        if (statusCard && statusValue) {
+            statusValue.innerText = "SCANNING...";
+            statusValue.classList.add('text-primary');
+            statusCard.classList.add('scanning'); 
         }
 
-        // 1. Draft the Narrative Summary first
-        triggerEnhancement('summary', null, true);
-
-        // 2. Sequential Generation of Strategic Layers (Staggered for effect)
-        // We don't generate Resources automatically yet, just the logic layers.
-        setTimeout(() => triggerSpeculation('prerequisites'), 1000);
-        setTimeout(() => triggerSpeculation('stakeholders'), 2500);
-        setTimeout(() => triggerSpeculation('assumptions'), 4000);
+        triggerEnhancement('summary', null); 
+        setTimeout(() => triggerSpeculation('prerequisites'), 1200);
+        setTimeout(() => triggerSpeculation('stakeholders'), 2800);
+        setTimeout(() => triggerSpeculation('assumptions'), 4200);
     }
 }
 
-// --- RENDER PIPELINE ---
+// --- 5. RENDER PIPELINE ---
 
 function render() {
     if (!state.modalElement) return;
-    
     renderAllCollections();
-    updateDashboard(); // Calculates progress and updates metrics
-    renderAiSidebar();
+    renderOverviewStream();
+    renderSidebarPersona();
+    renderAiSidebarContent();
+    updateDashboard();
 }
 
 function renderAllCollections() {
-    // Loop through each collection type and render its specific list
-    ['prerequisites', 'stakeholders', 'assumptions', 'resources', 'connections'].forEach(type => {
+    ['prerequisites', 'stakeholders', 'assumptions', 'resources'].forEach(type => {
         renderCollectionList(type);
     });
 }
 
-/**
- * Renders cards for a specific collection. Handles "Ghost States" and "Proposed Items".
- */
+function renderOverviewStream() {
+    const container = state.modalElement.querySelector('#overview-logic-stream');
+    if(!container) return;
+
+    let signals = [];
+    (state.collections.prerequisites || []).slice(0, 3).forEach(i => 
+        signals.push({ type: 'PREREQ', text: i.title, icon: 'fa-check-square', color: 'text-primary' })
+    );
+    (state.collections.assumptions || []).slice(0, 2).forEach(i => 
+        signals.push({ type: 'RISK', text: i.hypothesis, icon: 'fa-exclamation-circle', color: 'text-danger' })
+    );
+
+    if (signals.length === 0) {
+        container.innerHTML = `<div class="text-center p-4 opacity-50"><i class="fas fa-wind mb-2"></i><div class="font-data small">No Signals</div></div>`;
+        return;
+    }
+
+    container.innerHTML = `<ul class="list-group list-group-flush">` + signals.map(s => `
+        <li class="list-group-item px-3 py-2 border-0 border-bottom signal-item type-${s.type}">
+            <div class="d-flex align-items-center">
+                <i class="fas ${s.icon} ${s.color} me-3"></i>
+                <div class="text-truncate font-body small fw-bold text-dark">${s.text || 'Untitled'}</div>
+            </div>
+        </li>
+    `).join('') + `</ul>`;
+}
+
 function renderCollectionList(type) {
     const container = state.modalElement.querySelector(`#container-${type}-${state.ceId}`);
     if (!container) return;
 
     const items = state.collections[type] || [];
-    
-    // 1. GHOST STATE (Empty Tab)
+
     if (items.length === 0) {
-        let emptyMsg = "No items defined.";
-        let btnText = "Auto-Generate";
         let icon = "fa-wind";
-
-        if (type === 'prerequisites') { emptyMsg = "Define dependencies to clear the path."; btnText = "Speculate Prerequisites"; icon = "fa-tasks"; }
-        if (type === 'stakeholders') { emptyMsg = "Map the human network."; btnText = "Query SSPEC Network"; icon = "fa-users"; }
-        if (type === 'assumptions') { emptyMsg = "Identify risks and theories."; btnText = "Analyze Risks"; icon = "fa-shield-alt"; }
-        if (type === 'resources') { emptyMsg = "Gather evidence and assets."; btnText = "Find Resources"; icon = "fa-database"; }
-
+        let text = "Auto-Generate";
+        if (type === 'prerequisites') { icon = "fa-list-check"; text = "Speculate Prerequisites"; }
+        if (type === 'stakeholders') { icon = "fa-users-viewfinder"; text = "Query Network"; }
+        
         container.innerHTML = `
-            <div class="ghost-state">
-                <div class="ghost-icon-container"><i class="fas ${icon} fa-2x"></i></div>
-                <h5 class="text-uppercase mb-2" style="font-family:'Unica One'">System Standing By</h5>
-                <p class="text-muted small mb-4">${emptyMsg}</p>
-                <button class="btn btn-primary px-4 btn-speculate-collection shadow-sm" data-collection="${type}">
-                    <i class="fas fa-magic me-2"></i> ${btnText}
+            <div class="text-center p-5 opacity-50 border border-dashed rounded bg-light mt-3">
+                <i class="fas ${icon} fa-2x mb-3 text-muted"></i>
+                <p class="font-data small text-muted mb-3">DATA STREAM EMPTY</p>
+                <button class="btn btn-sm btn-outline-primary font-data rounded-pill px-4 btn-speculate-collection" data-collection="${type}">
+                    <i class="fas fa-magic me-2"></i> ${text}
                 </button>
             </div>`;
         return;
     }
 
-    // 2. CARD LIST
-    container.innerHTML = items.map(item => {
-        // Smart Title detection based on schema variations
-        const mainText = item.title || item.name || item.hypothesis || item.risk_vector || item.event || 'Untitled';
-        const subText = item.role || item.risk || item.status || item.impact || item.url || '';
-        
-        // "Proposed" (AI) vs "Active" (User) detection
-        const isProposed = item.tags && (item.tags.includes("AI") || item.tags.includes("Proposed"));
-        
-        // Styling logic
-        const cardClass = isProposed 
-            ? 'card mb-2 proposed-item' 
-            : 'card mb-2 border shadow-sm collection-card';
-        
-        const badge = isProposed 
-            ? `<span class="badge badge-proposed border ms-2">AI PROPOSED</span>` 
-            : '';
+    const schemaKey = type.slice(0, -1) + '_schema';
+    const fields = state.nodeSchema[schemaKey] || [];
+    const titleKey = fields[0]?.key || 'title';
+    const subKey = fields[1]?.key || 'status';
 
-        // Button Logic
-        let actionsHtml = '';
-        if (isProposed) {
-            actionsHtml = `
-                <button class="btn btn-sm btn-outline-success btn-accept-item me-1" title="Accept" data-collection="${type}" data-id="${item.id}"><i class="fas fa-check"></i></button>
-                <button class="btn btn-sm btn-light text-danger btn-delete-item" title="Reject" data-collection="${type}" data-id="${item.id}"><i class="fas fa-times"></i></button>
-            `;
-        } else {
-            actionsHtml = `
-                <button class="btn btn-sm btn-light text-muted btn-edit-item" data-collection="${type}" data-id="${item.id}"><i class="fas fa-pencil-alt"></i></button>
-                <button class="btn btn-sm btn-light text-danger btn-delete-item" data-collection="${type}" data-id="${item.id}"><i class="fas fa-trash"></i></button>
-            `;
-        }
+    container.innerHTML = items.map(item => {
+        const title = item[titleKey] || 'Untitled';
+        const subtitle = item[subKey] || 'Pending';
+        const isProposed = item.tags && item.tags.includes("AI");
+
+        const extraClass = isProposed ? "border-dashed" : "";
+        let stripColor = "var(--phase-color)";
+        
+        if (isProposed) stripColor = "#6366f1"; 
+        else if (['Verified','Signed','Met'].includes(item.status)) stripColor = "#10b981"; 
 
         return `
-        <div class="${cardClass}">
-            <div class="card-body p-3 d-flex justify-content-between align-items-start">
-                <div class="flex-grow-1 me-3">
-                    <div class="d-flex align-items-center mb-1">
-                        <h6 class="fw-bold mb-0 text-dark">${mainText}</h6>
-                        ${badge}
-                    </div>
-                    <div class="small text-muted text-truncate" style="max-width: 450px;">${subText}</div>
+        <div class="collection-card-modern ${extraClass}" style="position:relative;">
+            <div style="position:absolute; left:0; top:0; bottom:0; width:5px; background-color:${stripColor};"></div>
+            <div class="flex-grow-1 ps-2">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="card-title-modern">${title}</div>
+                    ${isProposed ? '<span class="badge bg-primary-soft text-primary font-data" style="font-size:0.6em">PROPOSED</span>' : ''}
                 </div>
-                <div class="btn-group">
-                    ${actionsHtml}
-                </div>
+                <div class="card-subtitle-modern text-truncate">${subtitle}</div>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+                ${isProposed 
+                    ? `<button class="btn btn-sm btn-outline-success btn-accept p-1 px-2 shadow-sm" data-col="${type}" data-id="${item.id}" title="Accept"><i class="fas fa-check"></i></button>`
+                    : `<button class="btn btn-sm btn-link text-muted p-1 btn-edit-item" data-collection="${type}" data-id="${item.id}"><i class="fas fa-pencil-alt"></i></button>`
+                }
+                <button class="btn btn-sm btn-link text-danger p-1 btn-delete-item" data-collection="${type}" data-id="${item.id}"><i class="fas fa-times"></i></button>
             </div>
         </div>`;
     }).join('');
 }
 
-// --- DASHBOARD NERVOUS SYSTEM ---
+// --- 6. DASHBOARD & METRICS ---
 
 function updateDashboard() {
-    // 1. Update Tab Badges (e.g., "Prerequisites (3)")
-    ['prerequisites', 'stakeholders', 'assumptions', 'resources', 'connections'].forEach(key => {
-        const count = (state.collections[key] || []).length;
-        const badge = state.modalElement.querySelector(`.count-badge[data-collection="${key}"]`);
+    ['prerequisites', 'stakeholders', 'assumptions', 'resources'].forEach(k => {
+        const count = (state.collections[k] || []).length;
+        const badge = state.modalElement.querySelector(`.count-badge[data-collection="${k}"]`);
         if (badge) {
             badge.textContent = count;
             if(count > 0) {
@@ -216,327 +221,149 @@ function updateDashboard() {
         }
     });
 
-    // 2. Calculate "Readiness" (Analog Progress)
-    // This logic mimics "checking off" items for the project phase.
-    let points = 0;
-    let maxPoints = 60; // Hypothetical goal
-    
-    // Points for items existing
-    Object.values(state.collections).flat().forEach(item => {
-        points += 5;
-        // Bonus points for verified status
-        if (item.status === 'Verified' || item.status === 'Met' || item.status === 'Signed') {
-            points += 5; 
-        }
+    let score = 0;
+    const totalGoal = 60; 
+
+    Object.values(state.collections).flat().forEach(i => {
+        score += 5; 
+        if (['Verified', 'Met', 'Signed', 'Active'].includes(i.status)) score += 5;
     });
+    if (state.details_data.summary && state.details_data.summary.length > 20) score += 10;
 
-    // Points for Narrative fields
-    if (state.details_data.summary && state.details_data.summary.length > 10) points += 10;
+    const percent = Math.min(100, Math.floor((score / totalGoal) * 100));
     
-    const percentage = Math.min(100, Math.floor((points / maxPoints) * 100));
-
-    // Update UI Bars
     const bar = state.modalElement.querySelector('#ce-progress-bar');
-    const label = state.modalElement.querySelector('#ce-progress-label');
-    if (bar) bar.style.width = `${percentage}%`;
-    if (label) label.textContent = `${percentage}%`;
+    const lbl = state.modalElement.querySelector('#ce-progress-label');
+    if(bar) bar.style.width = `${percent}%`;
+    if(lbl) lbl.innerText = `${percent}%`;
 
-    // 3. Update Main Status Text based on Readiness
-    const statusText = state.modalElement.querySelector('.status-card-value');
+    const statusCard = state.modalElement.querySelector('.system-status-card');
+    const statusVal = state.modalElement.querySelector('.status-card-value');
     
-    // Don't overwrite the "INITIATING" spinner if it's active
-    if (statusText && !statusText.innerHTML.includes('fa-spin')) { 
-        if (percentage === 0) statusText.textContent = "INITIALIZED";
-        else if (percentage < 30) statusText.textContent = "CALIBRATING";
-        else if (percentage < 80) statusText.textContent = "ACTIVE";
-        else statusText.innerHTML = "<span class='text-success'>OPTIMIZED</span>";
+    if (statusVal && !statusCard.classList.contains('scanning')) {
+        statusVal.classList.remove('text-primary');
+        if (percent === 0) statusVal.innerText = "INITIALIZED";
+        else if (percent < 30) statusVal.innerText = "ANALYZING";
+        else if (percent < 80) statusVal.innerText = "CALIBRATING";
+        else statusVal.innerHTML = "<span class='text-success'>OPTIMIZED</span>";
     }
 }
 
-function renderAiSidebar() {
-    const content = state.modalElement.querySelector('#ai-sidebar-content');
-    if (!content) return;
-
-    let actionsHtml = '';
-    const ctx = state.activeTab; // e.g., 'prerequisites'
-
-    // Context-Aware Sidebar Actions
-    if (ctx === 'overview') {
-        actionsHtml = `
-            <button class="btn btn-sm btn-light w-100 text-start mb-2 border shadow-sm"><i class="fas fa-search-dollar me-2 text-success"></i> Analyze Cost Impact</button>
-            <button class="btn btn-sm btn-light w-100 text-start mb-2 border shadow-sm"><i class="fas fa-exclamation-triangle me-2 text-warning"></i> Identify Critical Risks</button>
-        `;
-    } else if (ctx === 'stakeholders') {
-        actionsHtml = `
-            <button class="btn btn-sm btn-light w-100 text-start mb-2 border shadow-sm"><i class="fas fa-user-plus me-2 text-primary"></i> Suggest Key Players</button>
-            <button class="btn btn-sm btn-light w-100 text-start mb-2 border shadow-sm"><i class="fas fa-handshake me-2 text-info"></i> Draft Outreach Email</button>
-        `;
-    } else if (ctx === 'narrative' || ctx === 'details') {
-        actionsHtml = `
-            <button class="btn btn-sm btn-light w-100 text-start mb-2 border shadow-sm"><i class="fas fa-magic me-2 text-purple"></i> Polish Narrative Tone</button>
-        `;
-    } else {
-        actionsHtml = `
-            <button class="btn btn-sm btn-light w-100 text-start mb-2 border shadow-sm"><i class="fas fa-lightbulb me-2 text-warning"></i> Generate Ideas</button>
-        `;
-    }
-
-    content.innerHTML = `
-        <div class="mb-4">
-            <h6 class="small fw-bold text-muted text-uppercase mb-3">Active Context: ${ctx.toUpperCase()}</h6>
-            ${actionsHtml}
-        </div>
-        <div class="mt-auto border-top pt-3">
-            <label class="small fw-bold text-muted mb-1">Ask SPECULATE</label>
-            <div class="input-group">
-                <input type="text" class="form-control form-control-sm" placeholder="Query this node...">
-                <button class="btn btn-primary btn-sm"><i class="fas fa-paper-plane"></i></button>
+function renderSidebarPersona() {
+    const header = state.modalElement.querySelector('#ai-sidebar-header');
+    if(!header) return;
+    
+    const persona = PERSONAS[state.ceType] || PERSONAS['Default'];
+    header.className = 'sidebar-persona-header ' + (persona.class || 'persona-default');
+    header.innerHTML = `
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas ${persona.icon} fa-lg"></i>
+                <span class="font-brand" style="letter-spacing:1px;">${persona.title}</span>
             </div>
+            <i class="fas fa-circle text-white fa-xs opacity-75 animate-pulse"></i>
         </div>
+        <div class="small opacity-75 mt-1 font-data" style="letter-spacing:0.5px;">MODE: ${persona.tone.toUpperCase()}</div>
     `;
 }
 
-// --- SPECULATE ENGINE ACTIONS ---
+function renderAiSidebarContent() {
+    const content = state.modalElement.querySelector('#ai-sidebar-content');
+    if(!content) return;
+    const tab = state.activeTab;
+    const mkBtn = (txt, icon, color, action) => 
+        `<button class="btn btn-light border w-100 text-start mb-2 shadow-sm ${action}"><i class="fas ${icon} me-2 text-${color}"></i> ${txt}</button>`;
 
-/**
- * Triggers generation for a collection list (e.g., generating 3 prerequisites).
- */
-function triggerSpeculation(collectionType, buttonElement = null) {
-    let originalHtml = '';
-    if(buttonElement) {
-        originalHtml = buttonElement.innerHTML;
-        buttonElement.disabled = true;
-        buttonElement.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Thinking...`;
+    let html = `<h6 class="font-data text-muted small mb-3">AVAILABLE PROTOCOLS</h6>`;
+
+    if (tab === 'overview') {
+        html += mkBtn("Strategic Analysis", "chess-board", "primary", "btn-trigger-ai' data-context='narrative' data-sub='context");
+        html += mkBtn("Critical Risk Scan", "shield-alt", "danger", "btn-trigger-ai' data-context='assumptions");
+    } else if (['prerequisites','stakeholders','assumptions','resources'].includes(tab)) {
+        const label = tab.charAt(0).toUpperCase() + tab.slice(1, -1);
+        html += `<button class="btn btn-gradient-purple w-100 text-start mb-2 shadow-sm text-white btn-speculate-collection" data-collection="${tab}"><i class="fas fa-bolt me-2"></i> Speculate ${label}s</button>`;
+        html += `<div class="small text-muted mb-2 mt-2 font-data">Refinement</div>`;
+        html += mkBtn("Validate Entries", "check-double", "success", "");
+    } else {
+        html += mkBtn("Auto-Draft Content", "magic", "purple", "btn-enhance-field' data-field='summary");
     }
+    
+    content.innerHTML = html + `<div class="mt-auto pt-4 border-top"><label class="font-data small text-muted mb-2">DIRECT UPLINK</label><input type="text" class="form-control form-control-sm font-body" placeholder="Query the Engine..."></div>`;
+}
 
-    // Scrape context (Source COS) from the DOM
-    const cosText = state.modalElement.querySelector('.source-cos-card p')?.textContent.trim() || "Goal";
+// --- 7. SERVER ACTIONS ---
+
+function triggerSpeculation(type, btn = null) {
+    let origHtml = '';
+    if(btn) { origHtml = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>'; }
+    else { updateDashboard(); }
+
+    const contextGoal = state.modalElement.querySelector('.source-cos-card p')?.textContent.trim();
 
     fetch('/speculate_context', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            ce_type: state.ceType,
-            context: collectionType, // 'prerequisites', etc.
-            cos_text: cosText,
-            current_items: state.collections[collectionType]
+        body: JSON.stringify({ 
+            ce_type: state.ceType, 
+            context: type, 
+            cos_text: contextGoal 
         })
     })
-    .then(res => res.json())
+    .then(r => r.json())
     .then(data => {
-        if(data.success && data.suggestions) {
-            data.suggestions.forEach(item => {
-                item.id = self.crypto.randomUUID();
-                item.tags = "AI"; // Mark as Proposed
-                item.status = "Pending Review";
-                state.collections[collectionType].push(item);
+        if (data.suggestions) {
+            data.suggestions.forEach(i => {
+                i.id = self.crypto.randomUUID();
+                i.tags = "AI"; 
+                i.status = "Proposed";
+                state.collections[type].push(i);
             });
-            render(); // Re-render to show new items
-        } else {
-            console.error("Speculation failed:", data.error);
+            render(); 
         }
     })
-    .catch(err => console.error("Network error:", err))
     .finally(() => {
-        if(buttonElement) {
-            buttonElement.disabled = false;
-            buttonElement.innerHTML = originalHtml;
-        }
-        // If we triggered the "SCANNING" state, clear it now
-        const statusText = state.modalElement.querySelector('.status-card-value');
-        if (statusText && statusText.textContent.includes('INITIATING')) {
-            updateDashboard(); // Re-run logic to set correct text
-        }
+        if(btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+        const statusCard = state.modalElement.querySelector('.system-status-card');
+        if(statusCard) statusCard.classList.remove('scanning');
+        updateDashboard();
     });
 }
 
-/**
- * Triggers text enhancement for specific fields (e.g., rewriting the summary).
- */
-function triggerEnhancement(fieldKey, buttonElement = null, isAuto = false) {
-    if (buttonElement) {
-        buttonElement.disabled = true;
-        buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-    }
-
-    const cosText = state.modalElement.querySelector('.source-cos-card p')?.textContent.trim() || "Goal";
+function triggerEnhancement(fieldKey, btn = null) {
+    if(btn) { btn.innerHTML = '<i class="fas fa-spin fa-spinner"></i>'; }
+    const contextGoal = state.modalElement.querySelector('.source-cos-card p')?.textContent.trim();
 
     fetch('/speculate_context', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            ce_type: state.ceType,
-            context: 'narrative', // Special context routed in Python
-            sub_context: fieldKey, // e.g., 'summary'
-            cos_text: cosText
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ 
+            ce_type: state.ceType, context: 'narrative', sub_context: fieldKey, cos_text: contextGoal 
         })
     })
-    .then(res => res.json())
+    .then(r => r.json())
     .then(data => {
-        if (data.text) {
+        if(data.text) {
             state.details_data[fieldKey] = data.text;
-            // Update the textarea immediately if visible
             const input = state.modalElement.querySelector(`[name="${fieldKey}"]`);
-            if (input) input.value = data.text;
+            if(input) input.value = data.text;
             updateDashboard();
         }
     })
-    .finally(() => {
-        if (buttonElement) {
-            buttonElement.disabled = false;
-            buttonElement.innerHTML = '<i class="fas fa-magic"></i>';
-        }
-    });
-}
-
-// --- EVENT HANDLING & EDITORS ---
-
-function setupEventListeners() {
-    const modal = state.modalElement;
-
-    // 1. Context Switching (Tabs)
-    const navTabs = modal.querySelector('.ce-nav-tabs');
-    if(navTabs) {
-        navTabs.addEventListener('shown.bs.tab', event => {
-            const targetId = event.target.getAttribute('data-bs-target'); // #view-prerequisites-ID
-            // Extract middle part (e.g. 'prerequisites')
-            // Handle potential ID format variations safely
-            if (targetId.includes('overview')) state.activeTab = 'overview';
-            else if (targetId.includes('details')) state.activeTab = 'narrative'; // Mapped to 'Narrative'
-            else {
-                const parts = targetId.split('-');
-                if(parts.length >= 2) state.activeTab = parts[1]; 
-            }
-            renderAiSidebar();
-        });
-    }
-
-    // 2. Unified Click Delegation
-    modal.addEventListener('click', event => {
-        const t = event.target;
-
-        // --- BUTTONS: Speculate / Enhance ---
-        const specBtn = t.closest('.btn-speculate-collection');
-        if (specBtn) triggerSpeculation(specBtn.dataset.collection, specBtn);
-
-        const enhanceBtn = t.closest('.btn-enhance-field');
-        if (enhanceBtn) triggerEnhancement(enhanceBtn.dataset.field, enhanceBtn);
-
-        // --- BUTTONS: Add / Edit / Cancel ---
-        const addBtn = t.closest('.btn-add-item');
-        if (addBtn) toggleEditor(addBtn.dataset.collection, true);
-
-        const cancelBtn = t.closest('.btn-cancel-edit');
-        if (cancelBtn) {
-            // Find which editor we are in
-            const form = cancelBtn.closest('form');
-            toggleEditor(form.dataset.collection, false);
-        }
-
-        const editBtn = t.closest('.btn-edit-item');
-        if (editBtn) {
-            const type = editBtn.dataset.collection;
-            const id = editBtn.dataset.id;
-            const item = state.collections[type].find(i => i.id === id);
-            if(item) toggleEditor(type, true, item);
-        }
-
-        // --- BUTTONS: Item Actions (Accept / Delete) ---
-        const acceptBtn = t.closest('.btn-accept-item');
-        if (acceptBtn) {
-            const type = acceptBtn.dataset.collection;
-            const item = state.collections[type].find(i => i.id === acceptBtn.dataset.id);
-            if (item) {
-                item.tags = ""; // Remove AI tag
-                item.status = "Active"; // Promote to Active
-                render(); // Re-render to change style from dashed to solid
-            }
-        }
-
-        const deleteBtn = t.closest('.btn-delete-item');
-        if (deleteBtn) {
-            if(confirm("Remove this item?")) {
-                const type = deleteBtn.dataset.collection;
-                state.collections[type] = state.collections[type].filter(i => i.id !== deleteBtn.dataset.id);
-                render();
-            }
-        }
-
-        // --- BUTTONS: Main Save ---
-        if (t.closest('.btn-save-changes')) saveDataPacket();
-    });
-
-    // 3. Form Submission (Generic Editor)
-    modal.addEventListener('submit', event => {
-        if (event.target.classList.contains('editor-form')) {
-            event.preventDefault();
-            const form = event.target;
-            const type = form.dataset.collection;
-            const fd = new FormData(form);
-            const newData = Object.fromEntries(fd.entries());
-
-            if (form.dataset.editingId) {
-                // Update Existing
-                const idx = state.collections[type].findIndex(i => i.id === form.dataset.editingId);
-                if (idx > -1) state.collections[type][idx] = { ...state.collections[type][idx], ...newData };
-            } else {
-                // Create New
-                newData.id = self.crypto.randomUUID();
-                state.collections[type].push(newData);
-            }
-            
-            toggleEditor(type, false);
-            render();
-        }
-    });
-
-    // 4. Narrative Inputs (Auto-save to state on typing)
-    const detailForm = modal.querySelector(`#narrative-form-${state.ceId}`);
-    if (detailForm) {
-        detailForm.addEventListener('input', (e) => {
-            state.details_data[e.target.name] = e.target.value;
-            // No full render() here to avoid losing focus, just quiet state update
-            updateDashboard(); // Update progress bar silently
-        });
-    }
-}
-
-function toggleEditor(type, show, itemData = null) {
-    const container = state.modalElement.querySelector(`#container-${type}-${state.ceId}`);
-    const editor = state.modalElement.querySelector(`#editor-${type}-${state.ceId}`);
-    const form = editor.querySelector('form');
-
-    if (show) {
-        container.style.display = 'none';
-        editor.style.display = 'block';
-        form.reset();
-        if (itemData) {
-            form.dataset.editingId = itemData.id;
-            // Populate fields
-            Object.keys(itemData).forEach(key => {
-                const input = form.querySelector(`[name="${key}"]`);
-                if(input) {
-                    if(input.type === 'checkbox') input.checked = true; 
-                    else input.value = itemData[key];
-                }
-            });
-        } else {
-            delete form.dataset.editingId;
-        }
-    } else {
-        container.style.display = 'block';
-        editor.style.display = 'none';
-    }
+    .finally(() => { if(btn) btn.innerHTML = '<i class="fas fa-magic"></i> ENHANCE'; });
 }
 
 function saveDataPacket() {
-    if (state.isSaving) return;
-    state.isSaving = true;
     const btn = state.modalElement.querySelector('.btn-save-changes');
-    const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Saving...';
+    const orig = btn.innerHTML; // Capture the dynamic "SAVE RISK" text
+    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> COMMITTING...';
 
-    // Construct Packet
+    // Scrape Narrative Form if it exists
+    const narrForm = state.modalElement.querySelector(`#narrative-form-${state.ceId}`);
+    if (narrForm) {
+        const fd = new FormData(narrForm);
+        state.details_data = Object.fromEntries(fd.entries());
+    }
+
+    // Build Packet
     const packet = {
         details_data: state.details_data,
         prerequisites: state.collections.prerequisites,
@@ -551,25 +378,143 @@ function saveDataPacket() {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(packet)
     })
-    .then(res => res.json())
+    .then(r => r.json())
     .then(data => {
         if(data.success) {
             const status = state.modalElement.querySelector('#save-status');
-            if(status) status.innerHTML = `<i class="fas fa-check-circle text-success"></i> Saved at ${new Date().toLocaleTimeString()}`;
+            // Contextual success message
+            if(status) status.innerHTML = `<span class="text-success font-data">${state.ceType.toUpperCase()} COMMITTED</span>`;
             
-            btn.classList.replace('btn-primary', 'btn-success');
-            btn.innerHTML = '<i class="fas fa-check"></i> Saved';
-            setTimeout(() => {
-                btn.classList.replace('btn-success', 'btn-primary');
-                btn.innerHTML = originalHtml;
-            }, 2000);
+            btn.classList.remove('btn-primary'); btn.classList.add('btn-success');
+            btn.innerHTML = `<i class="fas fa-check"></i> SAVED`;
+            
+            setTimeout(() => { 
+                btn.classList.remove('btn-success'); btn.classList.add('btn-primary');
+                btn.innerHTML = orig; // Restore "SAVE RISK"
+            }, 1500);
         }
-    })
-    .catch(err => {
-        console.error("Save failed", err);
-        alert("Failed to save data packet.");
-    })
-    .finally(() => {
-        state.isSaving = false;
     });
+}
+
+// --- 8. EVENT LISTENERS ---
+
+function setupEventListeners() {
+    const m = state.modalElement;
+
+    // Tabs -> Context Switching
+    const nav = m.querySelector('.ce-nav-tabs');
+    if(nav) {
+        nav.addEventListener('shown.bs.tab', e => {
+            const tid = e.target.getAttribute('data-bs-target');
+            if(tid.includes('overview')) state.activeTab = 'overview';
+            else if(tid.includes('narrative')) state.activeTab = 'narrative';
+            else {
+                const p = tid.split('-'); if(p.length > 1) state.activeTab = p[1];
+            }
+            renderAiSidebarContent();
+        });
+    }
+
+    // Central Click Handler
+    m.addEventListener('click', e => {
+        const t = e.target;
+
+        // 1. Suggest / Enhance / AI Triggers
+        const specBtn = t.closest('.btn-speculate-collection');
+        if(specBtn) triggerSpeculation(specBtn.dataset.collection, specBtn);
+        
+        const enhBtn = t.closest('.btn-enhance-field');
+        if(enhBtn) triggerEnhancement(enhBtn.dataset.field, enhBtn);
+        
+        const aiBtn = t.closest('.btn-trigger-ai');
+        if(aiBtn) triggerSpeculation(aiBtn.dataset.context, aiBtn);
+
+        // 2. Editor Controls
+        const addBtn = t.closest('.btn-add-item');
+        if(addBtn) toggleEditor(addBtn.dataset.collection, true);
+        
+        const editBtn = t.closest('.btn-edit-item');
+        if(editBtn) {
+            const col = editBtn.dataset.collection;
+            const item = state.collections[col].find(i => i.id === editBtn.dataset.id);
+            if(item) toggleEditor(col, true, item);
+        }
+
+        const cancelBtn = t.closest('.btn-cancel-edit');
+        if(cancelBtn) {
+            const type = cancelBtn.closest('form').dataset.collection;
+            toggleEditor(type, false);
+        }
+
+        // 3. Item Actions
+        const accBtn = t.closest('.btn-accept');
+        if(accBtn) {
+            const col = accBtn.dataset.col;
+            const item = state.collections[col].find(i => i.id === accBtn.dataset.id);
+            if(item) { item.tags = ""; item.status = "Active"; render(); }
+        }
+        
+        const delBtn = t.closest('.btn-delete-item');
+        if(delBtn && confirm("Purge item?")) {
+            const col = delBtn.dataset.col;
+            state.collections[col] = state.collections[col].filter(i => i.id !== delBtn.dataset.id);
+            render();
+        }
+
+        // 4. Save
+        if(t.closest('.btn-save-changes')) saveDataPacket();
+    });
+
+    // Forms
+    m.querySelectorAll('.editor-form').forEach(form => {
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            const col = form.dataset.collection;
+            const fd = new FormData(form);
+            const data = Object.fromEntries(fd.entries());
+
+            // Handle Smart Widget (Checkboxes) manually
+            form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                data[cb.name] = cb.checked;
+            });
+
+            if(form.dataset.editingId) {
+                const idx = state.collections[col].findIndex(i => i.id === form.dataset.editingId);
+                if(idx > -1) state.collections[col][idx] = {...state.collections[col][idx], ...data};
+            } else {
+                data.id = self.crypto.randomUUID();
+                data.status = "Active";
+                state.collections[col].push(data);
+            }
+            toggleEditor(col, false);
+            render();
+        });
+    });
+}
+
+function toggleEditor(type, show, itemData=null) {
+    const cont = state.modalElement.querySelector(`#container-${type}-${state.ceId}`);
+    const edit = state.modalElement.querySelector(`#editor-${type}-${state.ceId}`);
+    const form = edit.querySelector('form');
+
+    if(show) {
+        cont.style.display = 'none';
+        edit.style.display = 'block';
+        form.reset();
+        if(itemData) {
+            form.dataset.editingId = itemData.id;
+            Object.keys(itemData).forEach(k => {
+                const input = form.querySelector(`[name="${k}"]`);
+                if(input) {
+                    if(input.type === 'checkbox') input.checked = itemData[k] === true;
+                    else input.value = itemData[k];
+                    // Smart Slider Update
+                    if(input.type === 'range' && input.nextElementSibling) input.nextElementSibling.innerText = input.value + '%';
+                }
+            });
+        } else delete form.dataset.editingId;
+    } else {
+        cont.style.display = 'block';
+        edit.style.display = 'none';
+    }
 }

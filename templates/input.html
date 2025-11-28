@@ -1,42 +1,124 @@
 {% extends 'base.html' %}
 
 {% block content %}
-  <div class="container mt-4 text-center">
-    <img src="{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}" alt="SSPEC Logo" class="rounded mb-3 img-fluid" style="max-width: 300px; height: auto;">
-    <h1 class="display-4">What do you see as Possible?</h1>
-    <p class="lead">
-      Explore the realm of possibilities. Define your desired outcome, no matter how ambitious, and let SSPEC PossPath help you chart a course to get there.
-    </p>
+<!-- 
+  Uses 'input-stage-wrapper' to center the Bezel 
+  floating over the Aurora Background 
+-->
+<div class="input-stage-wrapper">
     
-    <form action="/goal_selection" method="post" id="goal-form" class="mt-3">
-      <div class="mb-3 text-start">
-        <label for="user_text" class="form-label fw-bold">What Possibility do you want to explore?</label>
-        <input class="form-control form-control-lg" type="text" name="user_text" maxlength="255" placeholder="Enter your possibility or desired outcome here...">
-      </div>
-      <input class="btn btn-lg btn-primary" type="submit" value="Speculate Pathway">
-    </form>
-    <div class="mx-auto" style="max-width: 700px;">
-        <p class="mb-1 text-start">
-          <strong>Structured Speculation (SSPEC):</strong> is a methodology for proposing a desired future as if it has already been achieved, and then reverse-engineering the pathways to realize it. It's a playground for modeling, engineering, and fulfilling any future that can be imagined, within ethical boundaries.
-        </p>
-        <p class="mb-3 text-start">
-          <strong>Conditions of Satisfaction (COS):</strong> are measurable criteria that define when a phase or a goal within a Structured Solution is considered complete. They are the building blocks of your pathway.
-        </p>
+    <!-- GLASS BEZEL CONTAINER (Animated floatUp) -->
+    <div class="input-bezel position-relative overflow-hidden">
+        
+        <!-- 1. BRANDING & HEADER -->
+        <div class="text-center mb-5">
+            <!-- Logo Container -->
+            <div class="d-inline-flex align-items-center justify-content-center bg-white shadow-sm mb-4 border border-4 border-info rounded-circle overflow-hidden" style="width: 120px; height: 120px;">
+                <img src="{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}" alt="SSPEC Logo" style="width: 80%; height: auto; object-fit: contain;">
+            </div>
+            
+            <h1 class="font-brand text-dark mb-3 display-5" style="text-shadow: none;">What do you see as Possible?</h1>
+            
+            <p class="font-body text-muted lead mb-4 mx-auto" style="max-width: 600px; font-size: 1.1rem;">
+                Explore the realm of possibilities. Define your desired outcome, no matter how ambitious, and let SSPEC PossPath help you chart a course to get there.
+            </p>
+            
+            <div class="d-flex align-items-center justify-content-center gap-2">
+                <div class="rounded-circle bg-success" style="width: 10px; height: 10px; animation: pulse 2s infinite;"></div>
+                <p class="font-data text-info m-0 small" style="letter-spacing: 0.2em;">SYSTEM READY</p>
+            </div>
+        </div>
+
+        <!-- 2. INPUT FORM -->
+        <form action="{{ url_for('routes_bp.goal_selection') }}" method="POST" id="goal-form" class="mb-5">
+            
+            <label for="user_text" class="font-data text-muted small text-uppercase d-block mb-4 opacity-75" style="letter-spacing: 0.15em;">
+                Mission Parameter Input
+            </label>
+            
+            <input 
+                type="text" 
+                class="huge-input mb-4" 
+                name="user_text" 
+                id="user_text" 
+                placeholder="e.g. Build a moon base..." 
+                value="{{ user_text if user_text else '' }}"
+                required 
+                autofocus
+                autocomplete="off"
+            >
+            
+            <button type="submit" class="btn-launch text-decoration-none">
+                SPECULATE PATHWAY <i class="fa-solid fa-arrow-right ms-2"></i>
+            </button>
+
+        </form>
+        
+        <!-- Decorative Data Strip -->
+        <div class="d-flex gap-3 opacity-50 mb-5 justify-content-center">
+            <div class="rounded-pill bg-secondary" style="width: 60px; height: 4px;"></div>
+            <div class="rounded-pill bg-secondary" style="width: 30px; height: 4px;"></div>
+            <div class="rounded-pill bg-secondary" style="width: 15px; height: 4px;"></div>
+        </div>
+
+        <!-- 3. METHODOLOGY CONTEXT -->
+        <div class="row justify-content-center text-start">
+            <div class="col-lg-10">
+                <div class="bg-light p-4 rounded-4 border shadow-sm">
+                    <div class="row g-4">
+                        <div class="col-md-6 border-end-md">
+                            <h6 class="font-data text-primary mb-2 letter-spacing-1"><i class="fas fa-sitemap me-2"></i>Structured Speculation</h6>
+                            <p class="font-body text-secondary small mb-0 lh-sm">
+                                A methodology for proposing a desired future as if it has already been achieved, and then reverse-engineering the pathways to realize it.
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="font-data text-warning mb-2 letter-spacing-1"><i class="fas fa-tasks me-2"></i>Conditions of Satisfaction</h6>
+                            <p class="font-body text-secondary small mb-0 lh-sm">
+                                Measurable criteria that define when a phase or a goal is considered complete. These are the atomic building blocks of your pathway.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. FOOTER STATUS (Inside Bezel) -->
+        <div class="mt-4 pt-3 border-top text-center">
+            <span class="font-data text-muted small" style="letter-spacing: 0.2em; opacity: 0.6;">SSPEC HORIZON v2025.23</span>
+        </div>
+
     </div>
-    
-  </div>
+</div>
+
+<!-- Page Specific Styles -->
+<style>
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(25, 135, 84, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0); }
+}
+
+/* Responsive Border Logic */
+.border-end-md { border-right: 1px solid #e2e8f0; }
+@media (max-width: 768px) {
+    .border-end-md { border-right: none; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem; }
+    .input-bezel { padding: 2rem; }
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
-<script type="module" src="{{ url_for('static', filename='js/input.js') }}"></script>
 <script type="module">
     import { showLoadingSpinner } from '{{ url_for("static", filename="js/base_functions.js") }}';
 
-    // Show the loading spinner when the form is submitted
     const form = document.getElementById('goal-form');
-
-    form.addEventListener('submit', (e) => {
-      showLoadingSpinner("Generating Possibile Outcomes"); // Pass a message to the spinner
-    });
-  </script>
+    if (form) {
+        form.addEventListener('submit', (e) => {
+             const inputVal = document.getElementById('user_text').value;
+             // Uses the new Horizon Loader with context from the input
+             showLoadingSpinner("INITIATING PATHWAY", "fa-rocket");
+        });
+    }
+</script>
 {% endblock %}

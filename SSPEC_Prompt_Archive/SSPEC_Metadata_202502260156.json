@@ -1,0 +1,86 @@
+{
+  "🟧 ai_service.py": {
+    "LastModified": "2025-11-14 21:54:47",
+    "Exists": true,
+    "Path": "ai_service.py",
+    "SizeBytes": 14058
+  },
+  "🟪 cos_table.js": {
+    "LastModified": "2025-11-22 01:39:30",
+    "Exists": true,
+    "Path": "static/js/cos_table.js",
+    "SizeBytes": 15547
+  },
+  "🟨 utilities.py": {
+    "LastModified": "2025-11-22 19:57:27",
+    "Exists": true,
+    "Path": "utilities.py",
+    "SizeBytes": 13254
+  },
+  "🟥 routes.py": {
+    "LastModified": "2025-11-20 20:32:05",
+    "Exists": true,
+    "Path": "routes.py",
+    "SizeBytes": 19510
+  },
+  "📱 app.py": {
+    "LastModified": "2025-11-06 21:56:27",
+    "Exists": true,
+    "Path": "app.py",
+    "SizeBytes": 2661
+  },
+  "🔵 ce_cards.js": {
+    "LastModified": "2025-11-22 19:17:48",
+    "Exists": true,
+    "Path": "static/js/ce_cards.js",
+    "SizeBytes": 23115
+  },
+  "🟩 goal_selection.html": {
+    "LastModified": "2025-11-22 18:37:39",
+    "Exists": true,
+    "Path": "templates/goal_selection.html",
+    "SizeBytes": 7867
+  },
+  "🧩 ce_templates.py": {
+    "LastModified": "2025-11-22 19:11:01",
+    "Exists": true,
+    "Path": "ce_templates.py",
+    "SizeBytes": 20271
+  },
+  "🏪 store.py": {
+    "LastModified": "2024-08-28 16:42:16",
+    "Exists": true,
+    "Path": "store.py",
+    "SizeBytes": 66
+  },
+  "⬜ speculate.py": {
+    "LastModified": "2025-11-22 19:26:07",
+    "Exists": true,
+    "Path": "speculate.py",
+    "SizeBytes": 13985
+  },
+  "🏳️‍🌈 ce_nodes.py": {
+    "LastModified": "2025-11-20 20:01:54",
+    "Exists": true,
+    "Path": "ce_nodes.py",
+    "SizeBytes": 25624
+  },
+  "📆 models.py": {
+    "LastModified": "2025-11-20 20:10:43",
+    "Exists": true,
+    "Path": "models.py",
+    "SizeBytes": 5261
+  },
+  "🟦 outcome.html": {
+    "LastModified": "2025-11-22 00:49:25",
+    "Exists": true,
+    "Path": "templates/outcome.html",
+    "SizeBytes": 15192
+  },
+  "🎨 styles.css": {
+    "LastModified": "2025-11-22 19:53:57",
+    "Exists": true,
+    "Path": "static\\styles.css",
+    "SizeBytes": 19920
+  }
+}

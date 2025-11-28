@@ -1,0 +1,86 @@
+{
+  "🟧 ai_service.py": {
+    "Exists": true,
+    "SizeBytes": 14058,
+    "LastModified": "2025-11-14 21:54:47",
+    "Path": "ai_service.py"
+  },
+  "🟩 goal_selection.html": {
+    "Exists": true,
+    "SizeBytes": 7867,
+    "LastModified": "2025-11-22 18:37:39",
+    "Path": "templates/goal_selection.html"
+  },
+  "🧩 ce_templates.py": {
+    "Exists": true,
+    "SizeBytes": 23023,
+    "LastModified": "2025-11-25 20:49:17",
+    "Path": "ce_templates.py"
+  },
+  "📱 app.py": {
+    "Exists": true,
+    "SizeBytes": 2661,
+    "LastModified": "2025-11-06 21:56:27",
+    "Path": "app.py"
+  },
+  "🔵 ce_cards.js": {
+    "Exists": true,
+    "SizeBytes": 21327,
+    "LastModified": "2025-11-25 20:58:10",
+    "Path": "static/js/ce_cards.js"
+  },
+  "🟦 outcome.html": {
+    "Exists": true,
+    "SizeBytes": 15443,
+    "LastModified": "2025-11-25 21:40:17",
+    "Path": "templates/outcome.html"
+  },
+  "🟨 utilities.py": {
+    "Exists": true,
+    "SizeBytes": 10635,
+    "LastModified": "2025-11-25 18:53:42",
+    "Path": "utilities.py"
+  },
+  "📆 models.py": {
+    "Exists": true,
+    "SizeBytes": 5261,
+    "LastModified": "2025-11-20 20:10:43",
+    "Path": "models.py"
+  },
+  "🟥 routes.py": {
+    "Exists": true,
+    "SizeBytes": 20469,
+    "LastModified": "2025-11-25 19:23:06",
+    "Path": "routes.py"
+  },
+  "🏪 store.py": {
+    "Exists": true,
+    "SizeBytes": 66,
+    "LastModified": "2024-08-28 16:42:16",
+    "Path": "store.py"
+  },
+  "🟪 cos_table.js": {
+    "Exists": true,
+    "SizeBytes": 15547,
+    "LastModified": "2025-11-25 17:57:28",
+    "Path": "static/js/cos_table.js"
+  },
+  "⬜ speculate.py": {
+    "Exists": true,
+    "SizeBytes": 13897,
+    "LastModified": "2025-11-25 19:29:30",
+    "Path": "speculate.py"
+  },
+  "🎨 styles.css": {
+    "Exists": true,
+    "SizeBytes": 28001,
+    "LastModified": "2025-11-25 22:57:13",
+    "Path": "static\\styles.css"
+  },
+  "🏳️‍🌈 ce_nodes.py": {
+    "Exists": true,
+    "SizeBytes": 25624,
+    "LastModified": "2025-11-20 20:01:54",
+    "Path": "ce_nodes.py"
+  }
+}

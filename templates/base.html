@@ -6,87 +6,101 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SSPEC Possibility Pathfinder</title>
 
-    <!-- Favicon: Uses url_for to ensure correct path resolution -->
+    <!-- Favicon -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
     <!-- Core CSS Frameworks -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     
-    <!-- Icons: FontAwesome 6.5.2 (Matches AI Speculation) -->
+    <!-- Icons: FontAwesome 6.5.2 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     
-    <!-- Typography -->
-    <link href="https://fonts.googleapis.com/css?family=Mr+Dafoe|Jost:wght@500|Unica+One&display=swap" rel="stylesheet">
+    <!-- Typography (Full Horizon Stack) -->
+    <link href="https://fonts.googleapis.com/css2?family=Righteous&family=Manrope:wght@400;500;600;700;800&family=Antonio:wght@700&family=Mr+Dafoe&family=Unica+One&display=swap" rel="stylesheet">
     
     <!-- Application Styles -->
     <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='ball-atom.css') }}" rel="stylesheet">
 
-    <!-- Critical Data Injection (Fixes Race Condition) -->
+    <!-- Critical Data Injection -->
     <script type="text/javascript">
         window.NODES = {{ nodes | tojson | default('{}') | safe }};
     </script>
+    
+    {% block head %}{% endblock %} 
 </head>
-<body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg">
-        <div class="container d-flex justify-content-center">
-            <a class="navbar-brand" href="/">
-                <span class="structured-speculation text-fade-in" style="opacity: 0;">Structured Speculation</span>
-                <h1 class="mb-0 text-fade-in" style="opacity: 0;">Possibility Pathfinder</h1>
-            </a>
+
+<!-- Dynamic Body Class for Outcome Dimming -->
+<body class="{% if request.endpoint == 'routes_bp.outcome' %}state-outcome{% endif %}">
+
+    <!-- 1. AURORA BACKGROUND (The Swirl) -->
+    <div class="aurora-background">
+        <div class="aurora-noise"></div>
+        <div class="aurora-blob blob-1"></div>
+        <div class="aurora-blob blob-2"></div>
+        <div class="aurora-blob blob-3"></div>
+        <div class="aurora-blob blob-4"></div>
+        <div class="aurora-blob blob-5"></div>
+    </div>
+
+    <!-- 2. HORIZON SYSTEM MASTHEAD (New Structure) -->
+    <nav class="horizon-system-bar">
+        
+        <!-- A. Left Spacer (Keeps Title Centered) -->
+        <div class="masthead-spacer d-none d-md-block"></div>
+
+        <!-- B. Center Title Lockup -->
+        <div class="masthead-title-lockup">
+            <span class="masthead-pill">STRUCTURED SPECULATION</span>
+            <div class="masthead-brand">
+                 <span class="brand-script">Possibility</span>
+                 <span class="brand-display">PATHFINDER</span>
+            </div>
         </div>
+
+        <!-- C. Right Controls (Utilities) -->
+        <div class="masthead-controls">
+             <a href="#" class="btn-masthead" title="Notifications">
+                 <i class="fa-regular fa-bell"></i>
+             </a>
+             <a href="#" class="btn-masthead" title="System Settings">
+                 <i class="fa-solid fa-sliders"></i>
+             </a>
+             <div class="user-avatar">JS</div>
+        </div>
+
     </nav>
 
-    <!-- Main Content Container -->
-    <main class="container mt-4">
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    <!-- 3. MAIN CONTENT BLOCK -->
+    <main class="content-main">
+        
+        <!-- Flash Messages (Floating Toast Style) -->
+        <div class="container-fluid px-0" style="max-width: 1400px; position: relative; z-index: 100;">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="row justify-content-center">
+                        <div class="col-md-8 mt-3">
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show shadow-lg border-0 rounded-pill text-center" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i> {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        </div>
                     </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+                {% endif %}
+            {% endwith %}
+        </div>
 
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Loading Overlay -->
-    <div class="loading-spinner-overlay d-none" id="loading-spinner">
-        <div class="spinner-box">
-            <div class="spinner-container">
-                <div class="la-ball-atom la-2x">
-                    <div></div><div></div><div></div><div></div>
-                </div>
-                <!-- Using fa-solid class for V6 compatibility -->
-                <i id="spinner-icon" class="fa-solid fa-network-wired fa-icon" aria-hidden="true"></i>
-            </div>
-            <p class="spinner-text" id="spinner-text">Speculating Structured Solution</p>
-        </div>
-    </div>
+    <!-- 4. DYNAMIC CONTAINERS -->
+    <div id="dynamicModalContainer"></div>
+    <div class="loading-spinner-overlay d-none"></div>
 
-    <!-- Core Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <!-- 5. SCRIPTS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lettering.js/0.7.0/jquery.lettering.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/textillate/0.4.0/jquery.textillate.min.js"></script>
-
-    <!-- Init Header Animation -->
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-          const navbarBrandTextElements = document.querySelectorAll('.navbar-brand .text-fade-in');
-          navbarBrandTextElements.forEach(element => {
-            element.style.opacity = 1;
-          });
-        });
-    </script>
-
-    <!-- Page Specific Scripts -->
     {% block scripts %}{% endblock %}
 
 </body>

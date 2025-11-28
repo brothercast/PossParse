@@ -1,74 +1,168 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container mt-4">
-  <h1>What is your Commitment?</h1>
-  <table class="table table-bordered">
-    <thead>
-      <tr>
-        <th>Your Input</th>
-        <th class="text-end">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td class="user-input">
-          <span class="user-input-display">{{ user_input }}</span>
-          <input type="text" class="form-control form-control-sm user-input-edit d-none" value="{{ user_input }}">
-        </td>
-        <td class="text-end">
-          <button type="button" class="btn btn-primary btn-sm edit-user-input">Edit</button>
-          <button type="button" class="btn btn-success btn-sm save-user-input d-none">Update</button>
-          <button type="button" class="btn btn-danger btn-sm cancel-user-input d-none">Cancel</button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-  <p>
-    Based on your input, we have speculated three high-level outcomes.
-    Please choose the one that is closest to your desired result, or click the "Speculate New Outcomes" button to
-    generate a new set of possibilities.
-  </p>
-  <div class="row card-container">
-    {% for goal in goals %}
-      <div class="col-md-4 mb-4">
-        <div class="card retro-futuristic-card text-center diagonal-pivot-container {% if not goal.is_compliant %}non-compliant{% endif %}">
-            <div class="diagonal-pivot-frame"></div>
-            <div class="diagonal-pivot-frame"></div>
-            <div class="diagonal-pivot-frame"></div>
+<div class="horizon-wrapper">
+  <div class="console-housing">
+    <div class="screen-surface d-flex flex-column" style="min-height: 80vh;">
+      
+      <!-- 1. HEADER BAR -->
+      <div class="bg-white border-bottom px-5 py-4 d-flex justify-content-between align-items-center shadow-sm z-20 flex-shrink-0">
+        <div class="d-flex align-items-center gap-4">
+           
+           <!-- User Input Group -->
+           <div id="user-input-display-container">
+               <div class="font-data text-muted small text-uppercase letter-spacing-1 mb-1">Mission Parameter</div>
+               
+               <div class="d-flex align-items-center gap-3">
+                   <h2 class="font-brand text-dark m-0 user-input-display" style="font-size: 2rem;">"{{ user_input }}"</h2>
+                   <button class="btn btn-sm btn-link text-muted edit-user-input p-0" title="Edit"><i class="fas fa-pencil-alt"></i></button>
+               </div>
 
-            <div class="card-body card-content diagonal-pivot-content">
-                <div class="card-upper-content">
-                    <i class="{{ goal.icon }} fa-2x mt-3 mb-3 goal-content-item"></i>
-                    <p class="domain domain-text goal-content-item">{{ goal.domain | title }}</p>
-                    <div class="goal-description goal-text goal-content-item">
-                        {{ goal.goal | replace('\n', '<br>') | safe }}
-                    </div>
-                </div>
-                <form action="/outcome" method="post" class="goal-selection-form">
-                  <input type="hidden" name="selected_goal" value="{{ goal.goal }}">
-                  <input type="hidden" name="domain" value="{{ goal.domain }}">
-                  <input type="hidden" name="domain_icon" value="{{ goal.icon }}">
-                  <input type="hidden" name="selected_goal_title" value="{{ goal.title }}">
-                  {% if goal.is_compliant %}
-                    <button type="submit" class="btn btn-primary">Select</button>
-                  {% else %}
-                    <a href="{{ url_for('routes_bp.index') }}" class="btn btn-danger">Start Over</a>
-                  {% endif %}
-                </form>
-            </div>
+               <!-- Horizon Instruction -->
+               <div class="horizon-instruction">
+                   Analogs Detected. Select Optimal Protocol Trajectory.
+               </div>
+           </div>
+           
+           <!-- Hidden Edit Form -->
+           <div id="user-input-edit-container" class="d-none align-items-center gap-2">
+               <input type="text" class="form-control form-control-lg font-brand user-input-edit" value="{{ user_input }}">
+               <button class="btn btn-sm btn-success save-user-input"><i class="fas fa-check"></i></button>
+               <button class="btn btn-sm btn-secondary cancel-user-input"><i class="fas fa-times"></i></button>
+           </div>
+        </div>
+
+        <div class="d-flex gap-3">
+             <!-- "Speculate New" triggers JS in goal_selection.js -->
+             <button type="button" class="btn btn-sm btn-outline-primary font-data rounded-pill px-4" id="generate-new-goals">
+               <i class="fas fa-sync-alt me-2"></i> Re-Calculate
+             </button>
+             <a href="{{ url_for('routes_bp.index') }}" class="btn btn-sm btn-light border font-data rounded-pill px-4">
+               Abort
+             </a>
         </div>
       </div>
-    {% endfor %}
-  </div>
-  <div class="text-center">
-    <button type="button" class="btn btn-outline-primary" id="generate-new-goals">
-      <span class="refresh-icon"><i class="fas fa-sync-alt"></i></span> Speculate New Outcomes</button>
+
+      <!-- 2. THE GOAL GRID -->
+      <div class="goal-grid flex-grow-1 d-flex align-items-center justify-content-center bg-light" id="goalCardsContainer">
+        
+        {% for goal in goals %}
+           <div class="flip-card {{ 'rejected' if not goal.is_compliant else '' }}" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
+            <div class="flip-card-inner" data-delay="{{ 800 + (loop.index0 * 300) }}">
+              
+              <!-- BACK (Face Down) -->
+              <div class="flip-card-back" 
+                   style="background: {{ 'linear-gradient(135deg, #ffeb3b 0%, #ff9800 40%, #d32f2f 100%)' if not goal.is_compliant else 
+                           ('linear-gradient(135deg, #ff7043 0%, #f4511e 100%)' if loop.index0 % 3 == 0 else 
+                           'linear-gradient(135deg, #26c6da 0%, #00bcd4 100%)' if loop.index0 % 3 == 1 else 
+                           'linear-gradient(135deg, #ab47bc 0%, #7b1fa2 100%)') }};">
+                <div class="card-pattern-overlay"></div>
+                <div class="position-relative z-2 d-flex flex-column align-items-center">
+                  <div class="bg-white bg-opacity-25 p-4 rounded-circle border border-2 border-white border-opacity-50 shadow-lg mb-3 backdrop-blur">
+                    <i class="{{ goal.icon }} fa-3x text-white drop-shadow"></i>
+                  </div>
+                  {% if not goal.is_compliant %}
+                  <div class="font-data text-white small bg-black bg-opacity-25 px-3 py-1 rounded-pill border border-white border-opacity-25 mt-2">Protocol Violation</div>
+                  {% endif %}
+                </div>
+              </div>
+
+              <!-- FRONT (Face Up) -->
+              <div class="flip-card-front">
+                <div class="card-header-plate" style="background: {{ 'linear-gradient(135deg, #ffcdd2 0%, #ef5350 100%)' if not goal.is_compliant else ('linear-gradient(135deg, #ffcc80 0%, #ff7043 100%)' if loop.index0 % 3 == 0 else 'linear-gradient(135deg, #80deea 0%, #00bcd4 100%)' if loop.index0 % 3 == 1 else 'linear-gradient(135deg, #e1bee7 0%, #ab47bc 100%)') }};">
+                    <div class="card-domain-badge shadow-sm">{{ goal.domain | upper }}</div>
+                    <div class="card-icon-float">
+                        <i class="{{ goal.icon }} fa-2x" style="color: {{ '#ef5350' if not goal.is_compliant else ('#ff7043' if loop.index0 % 3 == 0 else '#00bcd4' if loop.index0 % 3 == 1 else '#ab47bc') }};"></i>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                  <h3 class="card-title">{{ goal.title }}</h3>
+                  <p class="card-desc">{{ goal.goal }}</p>
+                </div>
+
+                <div class="card-footer bg-transparent border-0 pb-4">
+                    {% if goal.is_compliant %}
+                      <!-- The Outcome Form -->
+                      <form action="{{ url_for('routes_bp.outcome') }}" method="post" class="outcome-form">
+                        <input type="hidden" name="selected_goal" value="{{ goal.goal }}">
+                        <input type="hidden" name="domain" value="{{ goal.domain }}">
+                        <input type="hidden" name="domain_icon" value="{{ goal.icon }}">
+                        <input type="hidden" name="selected_goal_title" value="{{ goal.title }}">
+                        
+                        <button type="submit" 
+                                class="btn-select-pill w-100 shadow-md" 
+                                style="background-color: {{ '#ff7043' if loop.index0 % 3 == 0 else '#00bcd4' if loop.index0 % 3 == 1 else '#ab47bc' }};">
+                          INITIALIZE
+                        </button>
+                      </form>
+                    {% else %}
+                      <button class="btn-select-pill w-100" style="background-color: #ef5350; cursor: not-allowed; opacity: 0.8;">VIOLATION</button>
+                    {% endif %}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        {% endfor %}
+          
+      </div>
+    
+    <!-- 3. FOOTER -->
+    <div class="d-flex justify-content-between align-items-center px-4 py-3 bg-white border-top mt-auto flex-shrink-0">
+       <div class="d-flex gap-2">
+          <div class="rounded-circle bg-success shadow-sm animate-pulse" style="width: 8px; height: 8px;"></div>
+          <div class="rounded-circle bg-warning shadow-sm" style="width: 8px; height: 8px;"></div>
+          <div class="rounded-circle bg-info shadow-sm" style="width: 8px; height: 8px;"></div>
+       </div>
+       <span class="font-data text-muted small letter-spacing-2">SSPEC HORIZON v2025.23</span>
+    </div>
+
+    </div>
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<!-- All JavaScript logic will now be driven by goal_selection.js and base_functions.js -->
+<!-- Core logic for regenerations/edit (if kept external) -->
 <script type="module" src="{{ url_for('static', filename='js/goal_selection.js') }}"></script>
+
+<script type="module">
+    import { showLoadingSpinner } from '{{ url_for("static", filename="js/base_functions.js") }}';
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // 1. Trigger Flip Animations on Load
+        const cards = document.querySelectorAll('.flip-card-inner');
+        cards.forEach(card => {
+            const delay = parseInt(card.dataset.delay) || 1000;
+            setTimeout(() => {
+                card.closest('.flip-card').classList.add('revealed');
+            }, delay);
+        });
+
+        // 2. Intercept Outcome Form Submission for HUD Spinner
+        const forms = document.querySelectorAll('.outcome-form');
+        forms.forEach(form => {
+            form.addEventListener('submit', function(e) {
+                // The form will submit naturally, we just fire the visual overlay immediately
+                const title = this.querySelector('input[name="selected_goal_title"]').value;
+                const domain = this.querySelector('input[name="domain"]').value;
+                
+                // Show the Horizon HUD Spinner
+                showLoadingSpinner(`INITIALIZING: ${title.toUpperCase()}`, "fa-solid fa-network-wired");
+            });
+        });
+        
+        // 3. Loading State for Regeneration Button
+        const regenBtn = document.getElementById('generate-new-goals');
+        if(regenBtn) {
+            regenBtn.addEventListener('click', () => {
+                 // Let goal_selection.js handle the fetch, but show spinner visually
+                 // Note: goal_selection.js should ideally call hideLoadingSpinner() when done.
+                 // If not, the page reload that often happens on regeneration will clear it.
+                 showLoadingSpinner("SPECULATING NEW TRAJECTORIES", "fa-sync fa-spin");
+            });
+        }
+    });
+</script>
 {% endblock %}

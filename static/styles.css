@@ -1,1306 +1,906 @@
-/* styles.css - The Complete SSPEC Stylesheet (v2025.4) */
+/* styles.css - SSPEC "Horizon Fusion" v2025.25 (DEFINITIVE MASTER) */
 
 /* ================================================== */
-/* ==============  1. Base Typography & Root Vars ==== */
+/* ==============  1. FONTS & VARIABLES  ============ */
 /* ================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Righteous&family=Manrope:wght@400;500;600;700&family=Antonio:wght@700&family=Mr+Dafoe&family=Unica+One&display=swap');
+
 :root {
-  --phase-0: #e91e63; /* Discovery */
-  --phase-1: #00bcd4; /* Engagement */
-  --phase-2: #9c27b0; /* Action */
-  --phase-3: #ffc107; /* Completion */
-  --phase-4: #66bd0e; /* Legacy */
+  /* --- Horizon Palette --- */
+  --bg-warm: #e3f2fd;
+  --surface-white: #ffffff;
+  --surface-screen: #f8fafc;
+  
+  /* Brand Colors */
+  --aviation-teal: #00bcd4;
+  --deep-space-blue: #2c3e50;
+  --retro-coral: #ff7043;
+  
+  /* Functional Colors */
+  --danger: #ef5350;
+  --success: #66bb6a;
+  --warning: #ffca28;
+  --text-dark: #1e293b;
+  --text-muted: #64748b;
+
+  /* Phase Colors (Horizon Standard) */
+  --phase-0: #ff7043; /* Discovery - Coral */
+  --phase-1: #26c6da; /* Engagement - Cyan */
+  --phase-2: #ab47bc; /* Action - Purple */
+  --phase-3: #ffa726; /* Completion - Amber */
+  --phase-4: #66bd0e; /* Legacy - Green */
+  
+  /* Typography Tokens */
+  --font-brand: 'Righteous', cursive; 
+  --font-retro: 'Unica One', cursive;
+  --font-script: 'Mr Dafoe', cursive;
+  --font-data: 'Antonio', sans-serif; 
+  --font-body: 'Manrope', sans-serif;
 }
 
 body {
-  font-family: 'Jost', sans-serif;
-  font-weight: 400;
-  background-color: #f5f5f5;
-  color: #333;
+  font-family: var(--font-body);
+  /* Background handled by Section 3 (Aurora) */
+  background-color: transparent;
+  color: var(--text-dark);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-h1 {
-  font-family: 'Mr Dafoe', cursive;
-  font-weight: 400;
-  color: #ffa726;
-  text-shadow: 1px 1px 0px #e91e63;
-  font-size: 3.0rem;
-  text-align: center;
-  margin-top: 1rem;
-  margin-bottom: 1rem;
+/* Typography Overrides */
+h1.display-script { font-family: var(--font-script); font-weight: 400; }
+h1, h2, h3, .navbar-brand { font-family: var(--font-brand); letter-spacing: 1px; }
+
+/* Data / UI Fonts */
+h4, h5, h6, .font-data, .ce-title, .card-domain-badge, .btn, .nav-link { 
+    font-family: var(--font-data); letter-spacing: 0.5px; text-transform: uppercase; 
+}
+.font-retro { font-family: var(--font-retro); letter-spacing: 1px; text-transform: uppercase; }
+.font-body, .card-desc { font-family: var(--font-body); }
+
+/* ================================================== */
+/* ==============  2. NAVIGATION  =================== */
+/* ================================================== */
+nav.navbar {
+    background: transparent;
+    padding-top: 1.5rem; padding-bottom: 1.5rem;
+    z-index: 10;
+}
+.navbar-brand { text-decoration: none; }
+
+/* ================================================== */
+/* ==============  3. BACKGROUND ATMOSPHERE  ======== */
+/* ================================================== */
+.aurora-background {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: -1; overflow: hidden;
+    background-color: #f8fafc; /* Lightest slate base */
+    transition: all 1s ease-in-out;
 }
 
-h2, h3, h4, h5, h6, .ce-title {
-    font-family: 'Unica One', cursive;
-    text-transform: uppercase;
+/* Texture */
+.aurora-noise {
+    position: absolute; inset: 0; z-index: 2; opacity: 0.06;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+}
+
+/* Living Blobs */
+.aurora-blob {
+    position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.5;
+    mix-blend-mode: multiply; animation-timing-function: ease-in-out; 
+    animation-iteration-count: infinite; animation-direction: alternate;
+}
+
+.blob-1 { background-color: var(--phase-0); top: -10%; left: -10%; width: 70vw; height: 70vw; animation: float1 25s infinite; }
+.blob-2 { background-color: var(--phase-1); top: -10%; right: -10%; width: 60vw; height: 60vw; animation: float2 28s infinite; }
+.blob-3 { background-color: var(--phase-2); bottom: -20%; left: 20%; width: 70vw; height: 70vw; animation: float3 32s infinite; }
+.blob-4 { background-color: var(--phase-3); bottom: -10%; right: -10%; width: 50vw; height: 50vw; animation: float1 22s infinite; opacity: 0.3; }
+.blob-5 { background-color: var(--phase-4); top: 40%; left: 40%; width: 40vw; height: 40vw; animation: float3 35s infinite; opacity: 0.3; }
+
+@keyframes float1 { from { transform: translate(0, 0) scale(1); } to { transform: translate(40px, 50px) scale(1.1); } }
+@keyframes float2 { from { transform: translate(0, 0) scale(1); } to { transform: translate(-50px, 30px) scale(1.2); } }
+@keyframes float3 { from { transform: translate(0, 0) rotate(0deg); } to { transform: translate(30px, -40px) rotate(10deg); } }
+
+/* Outcome Mode: Dimmed */
+body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
+
+/* ================================================== */
+/* ==============  4. THE CONSOLE HOUSING =========== */
+/* ================================================== */
+.horizon-wrapper {
+  padding: 2rem 1rem; 
+  min-height: 85vh;
+  display: flex; 
+  justify-content: center;
+}
+
+.console-housing {
+  background-color: rgba(255,255,255,0.9);
+  backdrop-filter: blur(24px);
+  border-radius: 32px;
+  box-shadow: 0 30px 60px -12px rgba(0,96,100,0.25);
+  padding: 16px;
+  border: 4px solid #ffffff;
+  width: 100%;
+  /* RESTORED WIDTH: Tightened from 1800px back to a focused console width */
+  max-width: 1320px; 
+  position: relative;
+}
+  
+/* The Inner Glowing Rim */
+.console-housing::after {
+  content: ''; position: absolute; inset: 0; border-radius: 24px;
+  border: 2px solid rgba(0,188,212,0.25); /* Aviation Teal Glow */
+  pointer-events: none; z-index: 100;
+  margin: -2px; /* Offset to hug the white border */
+}
+
+.screen-surface {
+  background: var(--surface-screen);
+  border-radius: 16px;
+  box-shadow: inset 0 2px 10px rgba(0,0,0,0.04);
+  border: 1px solid #e2e8f0;
+  overflow: hidden; 
+  position: relative;
+  /* min-height removed so it fits content snugly if needed */
+  display: flex; 
+  flex-direction: column;
+}
+
+/* The rainbow strip at the top */
+.brand-strip {
+  background: linear-gradient(90deg, var(--aviation-teal) 0%, #26c6da 50%, var(--retro-coral) 100%);
+  height: 8px; width: 100%; position: absolute; top: 0; left: 0; z-index: 5;
+}
+
+/* ================================================== */
+/* ===========  5. INPUT STAGE (The Bezel) ========== */
+/* ================================================== */
+.input-stage {
+  flex-grow: 1;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  /* GRID APPLIED HERE ONLY (Inside the machine) */
+  background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px);
+  background-size: 30px 30px;
+  /* Vignette */
+  background: radial-gradient(circle at center, rgba(255,255,255,0.8) 0%, rgba(248,250,252,0.8) 100%),
+              radial-gradient(#cbd5e1 1.5px, transparent 1.5px);
+  background-size: 100% 100%, 30px 30px;
+  border-radius: 16px; /* Match screen surface inner radius */
+}
+
+.input-stage-wrapper {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 80vh; width: 100%;
+}
+
+.input-bezel {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(25px);
+    padding: 5rem; 
+    border-radius: 40px;
+    /* RESTORED: The Glassy Double Bezel */
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 
+        0 30px 70px -15px rgba(0,0,0,0.15), /* Deep Drop */
+        0 0 0 8px rgba(255, 255, 255, 0.3), /* Outer Glass Ring */
+        inset 0 0 20px rgba(255,255,255,0.5); /* Inner Glow */
+    max-width: 1100px; width: 90%;
+    text-align: center;
+    animation: floatUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    position: relative;
+}
+@keyframes floatUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+
+.huge-input {
+    border: none; border-bottom: 3px solid #cbd5e1;
+    font-family: var(--font-body); font-size: 2rem; font-weight: 300;
+    color: var(--text-dark);
+    width: 100%; text-align: center; padding: 1.5rem;
+    background: transparent; outline: none; transition: all 0.3s;
+}
+.huge-input:focus { border-bottom-color: var(--aviation-teal); background: rgba(255,255,255,0.5); }
+.huge-input::placeholder { color: #94a3b8; font-style: italic; }
+
+.btn-launch {
+    background: linear-gradient(135deg, var(--retro-coral) 0%, #f4511e 100%);
+    color: white; font-family: var(--font-data); font-size: 1.2rem; letter-spacing: 2px;
+    padding: 1rem 3.5rem; border-radius: 50px; border: none;
+    box-shadow: 0 10px 20px rgba(244, 81, 30, 0.3); transition: all 0.2s;
+    margin-top: 2rem;
+}
+.btn-launch:hover { transform: translateY(-2px); box-shadow: 0 15px 30px rgba(244, 81, 30, 0.4); }
+
+
+/* ================================================== */
+/* ======  6. GOAL SELECTION (Monolith Flip) ======== */
+/* ================================================== */
+.goal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 3rem; 
+    padding: 4rem; 
+    perspective: 2500px;
+    justify-content: center;
+    /* RESTORED: The Dot Grid behind the cards */
+    background-color: #f8fafc;
+    background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+    /* Inner Shadow to create depth for the grid area */
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.03);
+}
+
+.flip-card {
+    height: 520px; width: 100%; cursor: pointer; position: relative;
+    opacity: 0; 
+    animation: slide-up-deal 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+@keyframes slide-up-deal { from { opacity: 0; transform: translateY(60px); } to { opacity: 1; transform: translateY(0); } }
+
+.flip-card-inner {
+    position: relative; width: 100%; height: 100%;
+    /* The Heavy Monolith Physics Easing */
+    transition: transform 2.2s cubic-bezier(0.19, 1, 0.22, 1);
+    transform-style: preserve-3d; 
+    transform-origin: center center;
+    /* START STATE: 0 degrees on the DIAGONAL Axis (X=1, Y=1, Z=0) */
+    transform: rotate3d(1, 1, 0, 0deg);
+}
+
+/* THE TRIGGER: Rotate 180 degrees on the Diagonal Axis */
+.flip-card.revealed .flip-card-inner { 
+    transform: rotate3d(1, 1, 0, 180deg); 
+}
+
+.flip-card-front, .flip-card-back {
+    position: absolute; width: 100%; height: 100%;
+    backface-visibility: hidden; border-radius: 24px;
+    box-shadow: 0 20px 40px -10px rgba(0,0,0,0.15);
+    overflow: hidden; background: white;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* --- BACK (Starts Visible, Face Down relative to flip axis) --- */
+.flip-card-back { 
+    z-index: 2; 
+    display: flex; flex-direction: column; align-items: center; justify-content: center; 
+    border: 4px solid white;
+    /* No rotation needed, it starts facing the user */
+    transform: rotate3d(0,0,0,0); 
+}
+
+/* --- FRONT (Starts Hidden, Pre-Rotated Diagonally) --- */
+.flip-card-front { 
+    z-index: 1; 
+    /* Pre-rotate 180deg on the SAME 1,1,0 axis so it matches up when flipped */
+    transform: rotate3d(1, 1, 0, 180deg); 
+    display: flex; flex-direction: column; justify-content: space-between; padding: 0;
+    border: 1px solid #e2e8f0;
+}
+
+/* Card Content Styling */
+.card-header-plate { height: 140px; width: 100%; position: relative; display: flex; align-items: center; justify-content: center; }
+
+.card-domain-badge {
+    position: absolute; top: 20px;
+    background: rgba(255,255,255,0.3); backdrop-filter: blur(4px);
+    padding: 6px 16px; border-radius: 20px; color: white;
+    font-family: var(--font-data); font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.5);
+}
+
+.card-icon-float {
+    position: absolute; bottom: -35px; left: 50%; transform: translateX(-50%);
+    width: 70px; height: 70px; background: white; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 4px solid white;
+}
+
+.card-body { padding: 50px 30px 20px; text-align: center; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
+.card-title { font-size: 1.5rem; color: #263238; margin-bottom: 0.75rem; line-height: 1.2; }
+.card-footer { padding: 0 30px 30px; }
+
+.btn-select-pill {
+    width: 100%; padding: 16px 0; border-radius: 50px; border: none;
+    font-family: var(--font-data); font-size: 0.9rem; letter-spacing: 2px;
+    color: white; cursor: pointer; transition: all 0.2s;
+}
+.btn-select-pill:hover { transform: translateY(-3px); box-shadow: 0 10px 20px -5px rgba(0,0,0,0.2); }
+
+/* Rejected State */
+.flip-card.rejected .card-body { background: #fff1f0; }
+.flip-card.rejected .flip-card-front { border-color: #ffcdd2; }
+.flip-card.rejected .btn-select-pill { background: var(--danger) !important; cursor: not-allowed; opacity: 0.8; }
+
+/* Pattern Overlay */
+.card-pattern-overlay {
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.2) 2px, transparent 2px);
+  background-size: 24px 24px; pointer-events: none;
+}
+
+/* ================================================== */
+/* ==============  7. OUTCOME DASHBOARD  ============ */
+/* ================================================== */
+.header-sidebar {
+    background-color: #f8fafc; border-right: 1px solid #e2e8f0;
+    padding: 2.5rem; display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+
+.image-portal {
+    width: 100%; aspect-ratio: 1/1; border-radius: 20px;
+    background: white; border: 4px solid white;
+    box-shadow: 0 10px 30px -5px rgba(0,0,0,0.1);
+    position: relative; overflow: hidden; margin-bottom: 1.5rem;
+}
+/* Stacking fix for Image Fade */
+.image-portal img {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover; transition: opacity 0.8s ease-in-out;
+}
+
+.domain-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: white; border: 1px solid #cbd5e1; border-radius: 50px;
+    padding: 8px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Accordion & Tables */
+.module-header {
+    padding: 1.2rem 2rem; display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; border-left: 6px solid transparent; background-color: #fff;
+    margin-bottom: 1px; border-radius: 6px; transition: all 0.2s;
+}
+.module-header:hover { transform: translateX(4px); }
+.phase-icon {
+    width: 32px; height: 32px; background: rgba(255,255,255,0.25); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-brand); color: white; backdrop-filter: blur(2px);
+}
+
+.retro-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+.retro-table thead th {
+    background-color: #f8fafc; font-family: var(--font-data); 
+    letter-spacing: 1px; padding: 12px 20px; border-bottom: 2px solid #e2e8f0;
+}
+.retro-table td { padding: 16px 20px; border-bottom: 1px dashed #e2e8f0; vertical-align: middle; }
+
+.phase-title {
+    /* NEW: Using Righteous font */
+    font-family: var(--font-brand); 
+    font-size: 1.2rem; 
     letter-spacing: 1px;
+    text-transform: uppercase;
 }
 
-.section-heading {
-    font-family: 'Unica One', sans-serif;
-    font-size: 1.5rem;
-    color: #104a3a;
-    border-bottom: 1px solid #e0e0e0;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
+/* Legend Items (Clickable) */
+.phase-legend-item {
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+.phase-legend-item:hover {
+    background-color: rgba(0,0,0,0.05);
+    transform: translateY(-1px);
+}
+
+/* CE Pills */
+.ce-pill, .ce-capsule {
+  display: inline-flex; align-items: center; padding: 3px 10px 3px 4px; margin: 0 3px;
+  border-radius: 50px; 
+  color: white; background-color: var(--node-color, #78909c);
+  border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  cursor: pointer; transition: transform 0.1s;
+  font-family: var(--font-body); font-size: 0.75rem; font-weight: 700;
+}
+.ce-pill:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+
+/* The Icon Circle: White BG, Colored Icon */
+.ce-pill-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%; margin-right: 6px;
+  background: white; color: var(--node-color, #78909c);
+}
+.status-block {
+  font-family: var(--font-data); font-size: 0.65rem; font-weight: 800; text-transform: uppercase;
+  padding: 6px 12px; border-radius: 8px; display: inline-block; min-width: 80px; text-align: center; color: white;
 }
 
 /* ================================================== */
-/* ==============  2. The Speculation Environment  === */
+/* ==============  8. SPECULATION MODAL  ============ */
 /* ================================================== */
 
-/* A. The Shell (Modal Layout) */
+/* --- A. The App Shell (Horizon Layout) --- */
 .ce-app-shell {
-    height: 90vh; 
+    height: 90vh; /* Fixed viewport height */
     display: flex;
     flex-direction: column;
     overflow: hidden;
     background-color: #ffffff;
-    border-radius: 0.5rem;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 16px; /* Modern Radius */
+    box-shadow: 
+        0 30px 80px -20px rgba(0,0,0,0.4),
+        0 0 0 1px rgba(0,0,0,0.05);
+    border: 4px solid #ffffff; /* White bezel */
 }
 
-/* --- B. THE NEW HEADER LAYOUT --- */
+/* --- B. The System Identity Header --- */
 .ce-modal-header {
-    background: linear-gradient(135deg, var(--phase-color), rgba(0,0,0,0.2) 100%), var(--phase-color);
+    /* Dynamic Phase Color + Texture */
+    background: linear-gradient(135deg, var(--phase-color), rgba(0,0,0,0.15) 100%);
     color: white;
     flex-shrink: 0;
-    padding: 1rem 1.5rem;
-    border: none;
+    padding: 1rem 2rem;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden; /* Clips the ghost icon */
+    z-index: 20;
 }
 
-.ce-modal-header .node-icon {
-    background-color: rgba(255,255,255,0.2);
-    width: 48px; height: 48px; /* Slightly larger for presence */
+/* Icon Box */
+.node-icon-box {
+    width: 56px; height: 56px;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
-    border-radius: 12px; /* Softer radius */
-    backdrop-filter: blur(4px);
-    box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);
-    margin-right: 1rem;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    font-size: 1.8rem; color: #fff;
+    flex-shrink: 0;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    margin-right: 1.2rem;
 }
-.ce-modal-header .node-icon i { font-size: 1.5rem; color: #fff; }
 
-/* Line 1: Title & Badge */
-.ce-header-title-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 4px;
+/* Text Stack */
+.header-text-block {
+    display: flex; flex-direction: column; justify-content: center;
+}
+.ce-modal-header .ce-title {
+    font-family: var(--font-brand);
+    font-weight: 500;
+    font-size: 2rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0;
     line-height: 1;
+    text-shadow: 0 2px 5px rgba(0,0,0,0.15);
 }
-
-.ce-modal-header .modal-title.ce-title {
-    font-family: 'Unica One', cursive;
-    font-weight: 500;
-    font-size: 2.0rem; /* Larger per screenshot */
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    margin: 0;
-}
-
-/* The Phase Badge (Discovery Phase) */
-.phase-badge {
-    background-color: rgba(255,255,255,0.25);
-    border: 1px solid rgba(255,255,255,0.4);
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-family: 'Unica One', cursive;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #fff;
-    text-shadow: none;
-    backdrop-filter: blur(2px);
-}
-
-/* Line 2: Metadata (// PROJECT TITAN...) */
 .ce-header-metadata {
-    font-family: 'Jost', monospace; /* Monospace vibe for technical feel */
-    font-weight: 500;
-    font-size: 0.7rem;
+    font-family: var(--font-data);
+    font-size: 0.8rem;
+    letter-spacing: 2px;
     text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: rgba(255, 255, 255, 0.75);
+    opacity: 0.9;
+    margin-top: 4px;
 }
 
-/* Header Actions */
-.btn-header-action {
-    color: white; 
-    background: transparent; 
-    border: none;
-    padding: 8px;
-    border-radius: 50%;
-    transition: background 0.2s;
+/* Giant Ghost Icon (Background) */
+.header-ghost-icon {
+    position: absolute;
+    right: 15%; 
+    top: 50%;
+    transform: translateY(-50%) rotate(-15deg);
+    font-size: 12rem;
+    color: white;
+    opacity: 0.08;
+    pointer-events: none;
+    z-index: 0;
 }
-.btn-header-action:hover { background: rgba(255,255,255,0.2); }
+
+/* Header Controls */
+.btn-glass {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    border-radius: 50px;
+    padding: 8px 18px;
+    font-family: var(--font-data);
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    backdrop-filter: blur(4px);
+}
+.btn-glass:hover {
+    background: rgba(255,255,255,0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(255,255,255,0.1);
+}
+.btn-close-custom {
+    background: none; border: none;
+    color: rgba(255,255,255,0.7);
+    font-size: 1.5rem; transition: color 0.2s;
+}
+.btn-close-custom:hover { color: white; }
 
 
-/* --- C. WORKSPACE LAYOUT (Sidebar Split) --- */
+/* --- C. Readiness Bar --- */
+.progress-bar-container {
+    background: white;
+    padding: 0;
+    height: 6px; 
+    flex-shrink: 0;
+    border-bottom: 1px solid #e2e8f0;
+    z-index: 19;
+}
+.progress-bar-container .progress-bar { 
+    background-color: var(--phase-color);
+    box-shadow: 0 2px 10px var(--phase-color);
+}
+
+
+/* --- D. Workspace Layout (Split View) --- */
 .ce-workspace-body {
     flex-grow: 1;
     display: flex;
-    flex-direction: row; 
+    flex-direction: row;
     overflow: hidden;
 }
 
 .ce-main-column {
     flex: 1;
-    display: flex;
-    flex-direction: column;
+    display: flex; flex-direction: column;
     min-width: 0;
-    background-color: #ffffff; /* Cleaner white background for content */
+    background-color: var(--surface-screen);
+    position: relative;
 }
 
-/* The Fixed AI Sidebar */
+/* Sidebar */
 .ai-sidebar {
-    width: 360px; /* Slightly wider per screenshot */
+    width: 340px;
     flex-shrink: 0;
-    border-left: 1px solid #e5e7eb;
+    border-left: 1px solid #e2e8f0;
     background-color: #ffffff;
-    display: flex;
-    flex-direction: column;
-    z-index: 5;
+    display: flex; flex-direction: column;
+    z-index: 15;
+    box-shadow: -5px 0 30px rgba(0,0,0,0.03);
 }
 
-/* --- D. NAVIGATION & TABS --- */
+
+/* --- E. Tab Navigation --- */
 .ce-nav-tabs {
     background: white;
     padding: 0 1.5rem;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid #e2e8f0;
     flex-shrink: 0;
+    display: flex; gap: 1rem;
 }
 .ce-nav-tabs .nav-link {
     border: none;
-    background: transparent;
-    color: #64748b;
-    font-family: 'Jost', sans-serif;
-    font-weight: 600;
-    font-size: 0.9rem;
-    padding: 1rem 0;
-    margin-right: 2rem;
-    position: relative;
     border-bottom: 3px solid transparent;
-    transition: color 0.2s;
+    color: var(--text-muted);
+    font-family: var(--font-data);
+    font-size: 1rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 1rem 0.4rem;
+    transition: all 0.2s;
 }
-.ce-nav-tabs .nav-link:hover { color: var(--phase-color); }
+.ce-nav-tabs .nav-link:hover { color: var(--text-dark); }
 .ce-nav-tabs .nav-link.active {
-    color: #0f172a;
+    color: var(--phase-color);
+    background: transparent;
     border-bottom-color: var(--phase-color);
 }
-/* Icons in tabs */
-.ce-nav-tabs .nav-link i { margin-right: 6px; opacity: 0.7; }
+/* Tab Counts */
+.count-badge { font-family: var(--font-body); font-weight: 800; vertical-align: top; font-size: 0.65em; }
 
 
-/* --- E. CONTENT TYPOGRAPHY --- */
-/* The "Blurb" describing the tab */
-.tab-context-description {
-    font-family: 'Jost', sans-serif;
-    color: #64748b;
-    font-size: 0.95rem;
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px dashed #e2e8f0;
-    line-height: 1.5;
+/* --- F. Content Area & Grids --- */
+.ce-app-content {
+    flex-grow: 1; overflow-y: auto; padding: 0; position: relative;
 }
 
-/* Section Headers inside tabs */
-.content-header {
-    font-family: 'Unica One', cursive;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #334155;
-    font-size: 1.2rem;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-}
-.content-header::before {
-    content: '// ';
-    color: #cbd5e1;
-    margin-right: 8px;
-    font-weight: 300;
+/* The Lithographic Grid Pattern (High Density Vibe) */
+.bg-technical-grid {
+    background-color: var(--surface-screen);
+    background-image: 
+        radial-gradient(#cbd5e1 1.5px, transparent 1.5px),
+        radial-gradient(#cbd5e1 1.5px, transparent 1.5px);
+    background-size: 20px 20px;
+    background-position: 0 0, 10px 10px;
+    box-shadow: inset 0 0 100px rgba(0,0,0,0.02);
 }
 
-/* --- F. OVERVIEW CARDS & DASHBOARD --- */
-/* Status Card (Calibrating/Active) */
+
+/* --- G. THE DASHBOARD (Hero & Metrics) --- */
+
+/* 1. System Hero Card (Strategic Context) */
+.system-hero-card {
+    background-color: var(--phase-color);
+    background-image: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.1) 100%);
+    border-radius: 16px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+    color: white;
+    box-shadow: 0 15px 40px -10px rgba(0,0,0,0.2);
+    min-height: 220px;
+    border: 1px solid rgba(255,255,255,0.2);
+    display: flex; flex-direction: column; justify-content: space-between;
+}
+
+/* The Massive Ghost Icon */
+.system-hero-card .hero-ghost-icon {
+    position: absolute;
+    right: -10px; bottom: -30px;
+    font-size: 14rem;
+    color: white; opacity: 0.1;
+    transform: rotate(-10deg);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Typography inside Hero */
+.hero-label {
+    font-family: var(--font-data); font-size: 0.8rem; letter-spacing: 2px;
+    text-transform: uppercase; opacity: 0.9; margin-bottom: 0.5rem;
+    position: relative; z-index: 2;
+}
+
+/* 2. Dashboard Status Panel (Compact) */
 .dashboard-status-card {
     background: white;
-    border-radius: 0;
-    border-left: 6px solid var(--phase-color);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-    padding: 2rem;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-.status-card-label {
-    font-size: 0.75rem; letter-spacing: 1.5px; text-transform: uppercase;
-    color: #94a3b8; margin-bottom: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-left: 5px solid var(--phase-color);
+    border-radius: 12px;
+    position: relative; overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
 }
 .status-card-value {
-    font-family: 'Unica One', sans-serif;
-    font-size: 3.5rem;
-    line-height: 1;
-    color: #1e293b;
-    text-transform: uppercase;
+    font-family: var(--font-brand); font-size: 2.5rem; 
+    color: var(--text-dark); line-height: 1.1; margin-bottom: 5px;
 }
+/* Scan Line (For "Active/Scanning" State) */
+.scan-line {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(to bottom, transparent 0%, rgba(var(--phase-color), 0.15) 50%, transparent 100%);
+    opacity: 0; pointer-events: none; z-index: 0;
+}
+.system-hero-card.scanning .scan-line, .dashboard-status-card.scanning .scan-line { 
+    opacity: 1; animation: scanDown 2.5s infinite ease-in-out; 
+}
+@keyframes scanDown { 0% { transform: translateY(-150%); } 100% { transform: translateY(150%); } }
 
-/* Metric Cards */
-.metric-card-modern {
-    background: #ffffff;
-    border: 1px solid #f1f5f9;
-    border-radius: 8px;
-    padding: 1.25rem;
+/* 3. Metric Tiles (Grid) */
+.metric-tile {
+    background: white; border: 1px solid #e2e8f0; border-radius: 10px;
+    text-align: center; height: 100%; display: flex; flex-direction: column;
+    justify-content: center; padding: 1.2rem;
     transition: all 0.2s ease;
 }
-.metric-card-modern:hover {
-    border-color: var(--phase-color);
-    transform: translateY(-2px);
-    box-shadow: 0 10px 30px -5px rgba(0,0,0,0.05);
+.metric-tile:hover {
+    transform: translateY(-2px); box-shadow: 0 8px 20px -5px rgba(0,0,0,0.08); border-color: #cbd5e1;
 }
-.metric-value { font-size: 2rem; font-weight: 700; color: #334155; line-height: 1; }
-.metric-label { font-size: 0.7rem; text-transform: uppercase; font-weight: 600; color: #94a3b8; margin-top: 0.5rem; }
-
-/* --- G. SCROLLBARS --- */
-.ce-app-content { flex-grow: 1; overflow-y: auto; padding: 2rem; }
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-
-/* ================================================== */
-/* =========  3. Retro-futuristic Background Pattern ======== */
-/* ================================================== */
-body:before {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: radial-gradient(circle at 10% 20%, #e91e63 10%, transparent 10%),
-                    radial-gradient(circle at 90% 20%, #00bcd4 10%, transparent 10%),
-                    radial-gradient(circle at 40% 60%, #9c27b0 10%, transparent 10%),
-                    radial-gradient(circle at 60% 80%, #ffc107 10%, transparent 10%);
-  background-size: 40px 40px;
-  background-attachment: fixed;
-  opacity: 0.3; /* Slightly more subtle */
-  z-index: -1;
+.metric-number {
+    font-family: var(--font-brand); font-size: 2rem; color: var(--text-dark); line-height: 1.1;
+}
+.metric-label {
+    font-family: var(--font-data); font-size: 0.7rem; letter-spacing: 1px;
+    color: var(--text-muted); text-transform: uppercase; margin-top: 4px;
 }
 
+/* --- H. Collection Cards (Vertical Strips) --- */
+.collection-container { padding: 1.5rem; }
 
-/* ================================================== */
-/* ===========  4. General Container & Card Styles ========== */
-/* ================================================== */
-.container { /* Main page container */
-  background-color: rgba(255, 255, 255, 0.95); /* Slightly transparent white for depth */
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  margin-top: 20px;
-  margin-bottom: 20px;
+.collection-card-modern {
+    background: white; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 1.2rem; margin-bottom: 0.8rem;
+    display: flex; align-items: center;
+    position: relative; overflow: hidden;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
+/* The Color Strip */
+.collection-card-modern::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+    background-color: var(--phase-color); transition: width 0.2s;
+}
+.collection-card-modern:hover { transform: translateX(4px); box-shadow: 0 6px 15px rgba(0,0,0,0.05); }
+.collection-card-modern:hover::before { width: 8px; }
 
-.card { /* General card styling, like for Goal Selection */
-  background-color: #ffffff;
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
-  transition: box-shadow 0.3s ease-in-out;
+/* AI Proposed Variant */
+.collection-card-modern.border-dashed {
+    border-style: dashed; border-color: #6366f1; background-color: #f8faff;
 }
+.collection-card-modern.border-dashed::before { background-color: #6366f1; }
 
-.card:hover {
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
-}
-
-.card-header,
-.card-footer { /* Bootstrap default card header/footer */
-  background-color: #673ab7;
-  color: #ffffff;
-  border-radius: 8px 8px 0 0; /* Match card radius if header is at top */
-}
-.card-footer {
-  border-radius: 0 0 8px 8px;
-}
+.card-title-modern { font-family: var(--font-data); font-size: 1.1rem; color: var(--text-dark); margin-bottom: 2px; }
+.card-subtitle-modern { font-family: var(--font-body); font-size: 0.85rem; color: var(--text-muted); }
 
 
-/* Retro-futuristic Card (Specific card style for goal selection cards) */
-retro-futuristic-card {
-  border: 3px solid #00bcd4;
-  height: 100%;
+/* --- I. The Intelligence Sidebar --- */
+/* Sidebar Header Gradient */
+.sidebar-persona-header {
+    color: white; padding: 1rem; 
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Default */
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: background 0.3s;
 }
-.retro-futuristic-card.non-compliant { border-color: red; }
-.retro-futuristic-card.non-compliant:hover { box-shadow: 0 8px 16px rgba(196, 93, 93, 0.2); }
+/* Context Gradients */
+.persona-research { background: linear-gradient(135deg, #00b09b, #96c93d); }
+.persona-risk { background: linear-gradient(135deg, #cb2d3e, #ef473a); }
+.persona-stakeholder { background: linear-gradient(135deg, #ffb347, #ffcc33); }
+.persona-advocacy { background: linear-gradient(135deg, #f12711, #f5af19); }
+.persona-default { background: linear-gradient(135deg, #667eea, #764ba2); }
 
+#ai-sidebar-content { padding: 1.5rem; overflow-y: auto; flex-grow: 1; }
 
-/* --- Diagonal Pivot Frame Animation --- */
-
-
-.diagonal-pivot-container.card {
-    position: relative;
-    perspective: 1200px;
-    transform-style: preserve-3d;
-    padding: 0;
-    /* --- NEW: Make card invisible by default for staggered fade-in --- */
-    opacity: 0;
-    transition: opacity 0.4s ease-in;
+.btn-gradient-purple {
+    background: linear-gradient(45deg, #6f42c1, #3b82f6); border: none; color: white;
+    font-family: var(--font-data); letter-spacing: 1px;
 }
+.btn-gradient-purple:hover { color: white; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(111, 66, 193, 0.3); }
 
-/* --- NEW: Add class to trigger the card's visibility --- */
-.diagonal-pivot-container.card.animate {
-    opacity: 1;
-}
-
-.diagonal-pivot-frame {
-    position: absolute;
-    inset: 0;
-    border: 4px solid;
-    border-radius: 10px; 
-    background: transparent; /* Make frame background transparent */
-    transform: rotate3d(1, -1, 0, 90deg);
-    pointer-events: none;
-    /* --- MODIFIED: Remove box-shadow from base state --- */
-    transition: box-shadow 0.3s ease-in-out; /* Add transition for smooth glow */
+/* --- J. Footer --- */
+.ce-modal-footer { 
+    background-color: #ffffff; border-top: 1px solid #e2e8f0; 
+    flex-shrink: 0; padding: 0.8rem 1.5rem;
+    box-shadow: 0 -4px 10px rgba(0,0,0,0.02);
 }
 
-/* --- NEW: Glow on Hover --- */
-.diagonal-pivot-container:hover .diagonal-pivot-frame:nth-child(1) {
-    box-shadow: 0 10px 40px rgba(255, 215, 0, 0.3);
+/* --- K. Smart Widgets --- */
+/* Range Slider */
+.ce-range-input { 
+    -webkit-appearance: none; appearance: none; width: 100%; height: 6px; 
+    background: #e2e8f0; border-radius: 10px; outline: none;
 }
-.diagonal-pivot-container:hover .diagonal-pivot-frame:nth-child(2) {
-    box-shadow: 0 10px 40px rgba(0, 255, 0, 0.3);
+.ce-range-input::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 18px; height: 18px; 
+    border-radius: 50%; background: var(--phase-color, #6366f1); border: 2px solid #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.2s ease;
 }
-.diagonal-pivot-container:hover .diagonal-pivot-frame:nth-child(3) {
-    box-shadow: 0 10px 40px rgba(0, 191, 255, 0.4);
-}
-.non-compliant:hover .diagonal-pivot-frame:nth-child(1) {
-    box-shadow: 0 10px 40px rgba(255, 215, 0, 0.3);
-}
-.non-compliant:hover .diagonal-pivot-frame:nth-child(2) {
-    box-shadow: 0 10px 40px rgba(255, 165, 0, 0.3);
-}
-.non-compliant:hover .diagonal-pivot-frame:nth-child(3) {
-    box-shadow: 0 10px 40px rgba(220, 53, 69, 0.4);
-}
+.ce-range-input::-webkit-slider-thumb:hover { transform: scale(1.2); }
 
-
-.diagonal-pivot-frame.animate {
-    animation: diagonalCardFlip 1.2s ease-out forwards;
+/* Toggle Switch */
+.ce-toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+.ce-toggle-slider {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #cbd5e1; border-radius: 34px; transition: .4s; cursor: pointer;
 }
-
-/* Default Compliant Card Colors */
-.diagonal-pivot-frame:nth-child(1) {
-    opacity: 0.6;
-    border-color: #FFD700;
-    animation-delay: 0s;
+.ce-toggle-slider:before {
+    content: ""; position: absolute; height: 18px; width: 18px;
+    left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .4s;
 }
-
-.diagonal-pivot-frame:nth-child(2) {
-    opacity: 0.7;
-    border-color: #00FF00;
-    animation-delay: 0.15s;
-}
-
-.diagonal-pivot-frame:nth-child(3) {
-    opacity: 1;
-    border-color: #00BFFF;
-    animation-delay: 0.3s;
-}
-
-/* Non-Compliant/Restricted Card Pivot Animation Colors */
-.non-compliant .diagonal-pivot-frame:nth-child(1) {
-    border-color: #FFD700; 
-}
-.non-compliant .diagonal-pivot-frame:nth-child(2) {
-    border-color: #FFA500; 
-}
-.non-compliant .diagonal-pivot-frame:nth-child(3) {
-    border-color: #DC3545; 
-}
-
-
-@keyframes diagonalCardFlip {
-    to {
-        transform: rotate3d(1, -1, 0, 0deg);
-    }
-}
-
-.diagonal-pivot-content.card-body {
-    position: relative;
-    z-index: 10; 
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    
-    /* FIX: Change solid background to a semi-transparent one using rgba */
-    background: rgba(255, 255, 255, 0.5); /* 85% opaque white */
-    backdrop-filter: blur(2px); /* Optional: Adds a subtle "frosted glass" effect */
-    
-    border-radius: 6px; 
-    padding: 20px;
-}
-
-/* --- NEW: Styles for staggered content fade-in --- */
-.goal-content-item {
-    opacity: 0;
-    transition: opacity 0.6s ease-out; /* Slower fade for a smoother effect */
-}
-
-.goal-content-item.animate {
-    opacity: 1;
-}
+input:checked + .ce-toggle-slider { background-color: var(--phase-color, #10b981); }
+input:checked + .ce-toggle-slider:before { transform: translateX(20px); }
 
 /* ================================================== */
-/* ===============  5. Button Styles  ================ */
-/* ================================================== */
-.btn { /* General button enhancements */
-    transition: all 0.2s ease-in-out;
-}
-.btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.btn-primary {
-  background-color: #ff5722;
-  border-color: #ff5722;
-}
-.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
-  background-color: #e64a19 !important; /* Ensure override */
-  border-color: #d84315 !important;
-}
-
-.btn-danger {
-  color: #fff;
-  background-color: #dc3545;
-  border-color: #dc3545;
-}
-.btn-danger:hover {
-  color: #fff;
-  background-color: #c82333 !important;
-  border-color: #bd2130 !important;
-}
-.btn-info { /* Used for PDF button */
-    background-color: #17a2b8;
-    border-color: #17a2b8;
-}
-.btn-info:hover {
-    background-color: #138496 !important;
-    border-color: #117a8b !important;
-}
-.btn-success { /* Used for Add COS, Update COS */
-    background-color: #28a745;
-    border-color: #28a745;
-}
-.btn-success:hover {
-    background-color: #218838 !important;
-    border-color: #1e7e34 !important;
-}
-
-
-/* ================================================== */
-/* ==============  6. Outcome Page Styles  ============ */
-/* ================================================== */
-.outcome-header { /* Row containing image/domain and summary */
-  margin-bottom: 2rem;
-}
-.outcome-header .col-md-4 h2 { /* Specific to H2s in the left column like DOMAIN, FULFILLED GOAL */
-    text-align: center;    /* Align these to center */
-    font-size: 1.5rem;     /* Keep or adjust existing font-size */
-    margin-bottom: 0.5rem; /* Keep or adjust existing margin */
-}
-.outcome-header .col-md-8 h1 { /* For the H1 in the right column (e.g., Preliminary Structured Solution) */
-    text-align: center;      /* Keep this left-aligned or adjust as desired */
-}
-
-
-/* ================================================== */
-/* ===========  7. Loading Spinner Styles  ============= */
+/* ==============  9. LOADING SPINNER  ============== */
 /* ================================================== */
 .loading-spinner-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(255, 255, 255, 0.3);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(15, 23, 42, 0.4);
+    display: flex; justify-content: center; align-items: center; z-index: 9999;
 }
 
 .spinner-box {
-  width: 50vw; /* Responsive width for the box */
-  max-width: 550px; /* Maximum width for the box */
-  height: 30vh; /* Responsive height for the box */
-  max-height: 175px; /* Maximum height for the box */
-  background-color: rgba(255, 255, 255, 0.9);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
-  padding: 20px;
+    min-width: 450px; padding: 1.5rem 2rem;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #cbd5e1; border-left: 6px solid var(--aviation-teal);
+    border-radius: 4px;
+    box-shadow: 0 20px 40px -5px rgba(0,0,0,0.2);
+    display: flex; align-items: center; gap: 1.5rem;
+    position: relative; overflow: hidden;
 }
 
-.spinner-container { /* This is implicitly the container for icon and text */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.spinner-icon { font-size: 2rem; color: var(--aviation-teal); animation: spin 2s linear infinite; }
+.spinner-title { font-family: var(--font-data); font-size: 1.2rem; letter-spacing: 1px; color: #1e293b; }
+.spinner-text { font-family: var(--font-body); font-size: 0.9rem; color: #64748b; }
+
+.spinner-box::after {
+    content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+    transform: translateX(-100%); animation: shimmer 2s infinite;
 }
 
-.spinner-text {
-  margin-top: 20px;
-  font-family: 'Unica One', sans-serif;
-  text-transform: uppercase;
-  color: rgba(0, 0, 0, 0.75);
-  letter-spacing: 0.4em;
-  text-align: center;
-  white-space: nowrap; /* Prevent text wrapping */
-}
-
-/* Animations in section 17 */
-
+/* Animations */
+@keyframes spin { 100% { transform: rotate(360deg); } }
+@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.fade-in { animation: fadeIn 0.5s forwards; }
 
 /* ================================================== */
-/* ===========  8. Refresh Icon Animation  =========== */
+/* =======  10. HORIZON SYSTEM MASTHEAD  ============ */
 /* ================================================== */
-#generate-new-goals .refresh-icon { display: inline-block; transition: transform 0.5s ease; }
-#generate-new-goals:hover .refresh-icon { transform: rotate(360deg); }
-
-
-/* ================================================== */
-/* ============  9. Domain Icon Styles  ============== */
-/* ================================================== */
-.domain-text {
-  font-family: 'Unica One', sans-serif;
-  text-transform: uppercase;
-  font-size: 1.3rem; /* Slightly adjusted */
-  color: #555;
-}
-.outcome-header .fa-3x { /* Domain icon on outcome page */
-    color: #00bcd4; /* Match a theme color */
-}
-
-
-/* ================================================== */
-/* ==========  10. Report Section Title (Unused) ======== */
-/* ================================================== */
-/* .report-section-title { ... } */
-
-
-/* ================================================== */
-/* == 11. Phase Accordion & COS Table Styles == */
-/* ================================================== */
-.accordion-header {
-  color: #ffffff;
-  border-radius: 5px 5px 0 0; /* Rounded top corners */
-  margin-bottom: 0; /* No margin if border is directly on accordion-item */
-}
-.accordion-item {
-    margin-bottom: 10px; /* Space between accordion items */
-    border-radius: 5px;
-    border: 1px solid #ddd; /* Overall border for accordion item */
-}
-.accordion-button {
-  text-transform: uppercase;
-  font-family: 'Unica One', sans-serif;
-  font-weight: 500;
-  font-size: 1rem;
-  text-shadow: 1px 1px 0px rgba(0,0,0,0.3);
-  color: #ffffff;
-  border-radius: 4px 4px 0 0 !important;
-}
-
-.accordion-button:focus { outline: none; box-shadow: none; }
-.accordion-button:not(.collapsed) { color: #ffffff; }
-
-.accordion-body.phase-table-container { /* Where the table resides */
-  background-color: #ffffff; /* White background for table area */
-  border-radius: 0 0 5px 5px; /* Rounded bottom corners */
-  padding: 15px;
-  /* border-top: none; */ /* Top border is handled by header */
-}
-
-
-/* COS Table Styling */
-.phase-table {
-    margin-bottom: 1rem; /* Space below table before "Add COS" button */
-    border-collapse: separate; /* Allows border-spacing */
-    border-spacing: 0; /* Remove default spacing if any */
-}
-.phase-table thead th {
-    background-color: #f8f9fa; /* Light grey for table header */
-    color: #343a40;
-    border-bottom-width: 2px; /* Bootstrap default */
-    font-family: 'Jost', sans-serif;
-    font-weight: 600;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    vertical-align: middle;
-}
-.phase-table tbody tr.cos-row { /* Each COS row */
-    background-color: #fff; /* Ensure white background for rows */
-}
-.phase-table tbody tr.cos-row:hover {
-    background-color: #f1f8ff; /* Light blue hover for rows */
-}
-.phase-table td {
-    vertical-align: middle; /* Default vertical alignment for all cells */
-    padding: 0.75rem; /* Standard Bootstrap padding */
-    font-size: 0.9rem;
-}
-
-/* Specific Cell Styling */
-.status-cell { text-align: center; } /* Center the status pill */
-.cos-content-cell .cos-content-display {
-    line-height: 1.6;
-    word-break: break-word; /* Ensure long content wraps */
-}
-.cos-content-cell {
-    margin-right: 4px;
-    margin-bottom: 4px; /* For wrapping */
-}
-
-.cos-content-display {
-    display: inline-block; /* Or 'inline-flex' if it has an icon inside */
-    width: auto;           /* Explicitly tell it not to take full width */
-    max-width: 100%;       /* Prevent it from overflowing on very small screens */
-    vertical-align: middle; /* Aligns it nicely with the surrounding text */
-}
-
-.ce-pill {
-    display: inline-flex; /* Use inline-flex for perfect alignment of icon and text */
-    align-items: center;  /* Vertically align content within the pill */
-    width: auto;          /* Only take up as much space as needed */
-    max-width: 100%;      /* Prevent overflow on small screens */
-    vertical-align: middle; /* Align nicely with surrounding text */
-    margin: 0 2px;        /* Give it a little breathing room */
-  }
-
-.cos-content-textarea { /* Textarea when editing COS content */
-  width: 100%;
-  border-radius: 4px;
-  border: 1px solid #ced4da;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.9rem;
-  min-height: 80px; /* Adjust as needed */
-}
-.actions-cell .btn-group.cos-actions { /* Ensure buttons in group are tight */
-    white-space: nowrap;
-}
-.actions-cell .btn-group.cos-actions .btn {
-    margin-right: 3px; /* Small space between buttons */
-}
-.actions-cell .btn-group.cos-actions .btn:last-child {
-    margin-right: 0;
-}
-
-.add-cos.btn { /* "Add Condition of Satisfaction" button */
-    margin-top: 0.5rem; /* Space above it */
-}
-
-
-/* ================================================== */
-/* =========  12. Status & CE Pill Styles  =========== */
-/* ================================================== */
-.status-pill {
-  color: #fff !important;
-  text-align: center;
-  text-transform: uppercase;
-  font-size: 0.65em;
-  font-weight: 600;
-  text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.2);
-  padding: .3em .7em;
-  border-radius: 10rem;
-  line-height: 1;
-  display: inline-block;
-}
-
-/* ================================================== */
-/* =========  12. Status & CE Pill Styles  =========== */
-/* ================================================== */
-
-/* --- THE DEFINITIVE CE PILL STYLE (v3 - Capsule Shape) --- */
-.ce-pill {
-  display: inline-flex; 
-  align-items: stretch; 
-  margin: 2px 4px; 
-  /* This creates the full pill shape regardless of width */
-  border-radius: 999px; 
-  overflow: hidden;
-  border: 1px solid var(--node-color, #6c757d);
-  background-color: #fff;
-  width: auto;
-  max-width: 100%;
-  vertical-align: middle;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-
-.ce-pill:hover {
-  box-shadow: 0 3px 8px rgba(0,0,0,0.15);
-  transform: translateY(-1px);
-}
-
-.ce-pill-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.35em 0.6em; 
-  background-color: var(--node-color, #6c757d);
-  color: white;
-  /* Ensure the icon side hugs the capsule curve */
-  border-top-left-radius: 999px;
-  border-bottom-left-radius: 999px;
-  /* Slight overlap to prevent white gap lines */
-  margin-right: -1px; 
-}
-
-.ce-pill-text {
-  padding: 0.25em 0.8em 0.25em 0.6em; /* More padding on right for balance */
-  font-size: 0.85rem;
-  font-weight: 600;
-  line-height: 1.4;
-  color: #495057;
-  white-space: nowrap; /* Encourages "Label" feel */
-  display: flex;
-  align-items: center;
-}
-.modal .content-block .card-text {
-    line-height: 1.8; /* Give a little extra line height to accommodate pills */
-}
-
-/* ================================================== */
-/* ==========  13. Badge Color Overrides  ============ */
-/* ================================================== */
-.bg-info { background-color: #007bff !important; } /* Bootstrap 4 blue */
-.bg-warning { color: #212529 !important; background-color: #ffc107 !important; }
-.bg-success { background-color: #28a745 !important; }
-.bg-danger { background-color: #dc3545 !important; }
-.bg-secondary { background-color: #6c757d !important; }
-
-
-/* ================================================== */
-/* ===========  14. Action Column Styles  ============ */
-/* ================================================== */
-.actions-header { /* th for Actions column */
-  white-space: nowrap;
-  min-width: 210px; /* Adjusted for 5 small buttons with icons */
-}
-.actions-cell { /* td for Actions column */
-    white-space: nowrap; /* Keep buttons on one line if possible */
-}
-.actions-cell .btn-group {
-    flex-wrap: nowrap; /* Prevent button group from wrapping */
-}
-
-
-/* ================================================== */
-/* == 15. Card Grid Layout (Goal Selection) == */
-/* ================================================== */
-.card-container { flex-wrap: nowrap !important; justify-content: center; }
-.card { display: flex; flex-direction: column; height: 100%; }
-.card-body { flex-grow: 1; display: flex; flex-direction: column; }
-.card-upper-content { flex-grow: 1; display: flex; flex-direction: column; }
-.card-content { display: flex; flex-direction: column; justify-content: space-between; height: 100%; }
-.goal-selection-form { margin-top: auto; padding-top: 1rem; }
-
-/* ================================================== */
-/* ======  16. Generated Image & Placeholder Styles  ==== */
-/* ================================================== */
-.ssol-title {
-    text-align: center; margin-bottom: 10px; display: block;
-    font-family: 'Unica One', sans-serif; font-weight: 500;
-    font-size: 3.5rem; /* Changed from 2.8rem */
-    color: #326eb6; text-transform: uppercase; text-shadow: 1px 1px 0px #000000;
-    letter-spacing: 0.2em; /* Changed from 0.15em */
-    line-height: 90%; /* Changed from 1 */
-}
-
-.image-wrapper {
-    position: relative; /* For potential future overlay elements if any */
-    display: inline-block; /* Or block, depending on desired centering within col-md-4 */
-    width: 100%; /* Make wrapper take full width of its column */
-    max-width: 300px; /* Max width of the image itself */
-    aspect-ratio: 1 / 1; /* Enforce a square aspect ratio for the space */
-    background-color: #f0f0f0; /* Light background for the reserved space */
-    border-radius: 25px; /* Match image border-radius */
-    margin-bottom: 20px; /* Consistent margin */
-    overflow: hidden; /* If image is not perfectly square, it will be contained */
-}
-
-.ssol-dynamic-image { /* Targets the single image tag by its new class */
-    display: block; /* Remove extra space below inline images */
-    width: 100%;    /* Image fills the wrapper width */
-    height: 100%;   /* Image fills the wrapper height */
-    object-fit: cover; /* Scales the image to maintain its aspect ratio while filling the element’s entire content box. If the image's aspect ratio does not match the aspect ratio of its box, then the object will be clipped to fit. */
-    border-radius: 25px; /* Rounded corners for the image itself */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Subtle shadow */
-    /* No opacity or transition here, it's a direct src change */
-}
-
-.placeholder-image, .generated-image {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    object-fit: cover; 
-    border-radius: 25px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-}
-.placeholder-image { opacity: 1; z-index: 1; transition: opacity 0.5s ease-out; }
-.placeholder-image.hidden { opacity: 0; z-index: -1; }
-.generated-image {
-    opacity: 0; z-index: 2; transition: opacity 0.5s ease-in;
-    background-color: #eee; 
-}
-.generated-image.loaded { opacity: 1; }
-
-/* ================================================== */
-/* ========  17. Consolidated Fade Animations  ========= */
-/* ================================================== */
-@keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
-.fade-in { opacity: 0; transition: opacity 1s ease-in; }
-.fade-in.loaded { opacity: 1; }
-
-@keyframes fadeInBlur { 0% { opacity: 0; filter: blur(5px); } 100% { opacity: 1; filter: blur(0); } }
-.loading-spinner-overlay.fade-in { animation: fadeInBlur 0.5s ease-in-out forwards; }
-
-@keyframes fadeOutBlur { 0% { opacity: 1; filter: blur(0px); } 100% { opacity: 0; filter: blur(5px); } }
-.loading-spinner-overlay.fade-out { animation: fadeOutBlur 0.5s ease-in-out forwards; }
-
-@keyframes fadeInScale { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } } /* Adjusted scale */
-@keyframes fadeOutScale { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.95); } } /* Adjusted scale */
-.modal.fade-in { animation: fadeInScale 0.3s forwards; } /* Faster modal fade */
-.modal.fade-out { animation: fadeOutScale 0.3s forwards; }
-
-@keyframes wipeOn { 0% { opacity: 0; transform: scaleX(0); } 100% { opacity: 1; transform: scaleX(1); } }
-.text-wipe-on span { display: inline-block; overflow: hidden; animation: wipeOn 0.1s forwards; opacity: 0; transform-origin: left; }
-
-.text-fade-in { opacity: 0; transition: opacity 0.5s ease-in-out; }
-.fonts-loaded .text-fade-in { opacity: 1; }
-
-
-/* ================================================== */
-/* == 18. Text Input Styles (Goal Input - Unchanged) == */
-/* ================================================== */
-.user-input { font-weight: bold; font-size: 1.2rem; }
-.user-input-display { font-weight: bold; font-size: 1.2rem; }
-.user-input-edit {
-  font-weight: bold; font-size: 1.2rem; border: none;
-  width: 100%; background-color: transparent; padding: 0.25rem;
-}
-.user-input-edit:focus {
-  background-color: #e9ecef; outline: none;
-  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
-}
-
-/* ================================================== */
-/* == 19. Table Row Styles (Goal Input - Unchanged) === */
-/* ================================================== */
-.table-bordered > thead > tr > th { border-bottom: 2px dotted #dee2e6; }
-
-
-/* ================================================== */
-/* ==========  20. Editing State Styles (COS Table)  ============= */
-/* ================================================== */
-/* These control visibility of display spans vs edit inputs within table cells */
-.cos-row td .cos-content-edit,
-.cos-row td .cos-accountable-party-edit,
-.cos-row td .cos-completion-date-edit,
-.cos-row td select.status-edit-select {
-    display: none; /* Hide edit fields by default */
-}
-
-.cos-row[data-editing="true"] td .cos-content-display,
-.cos-row[data-editing="true"] td .cos-accountable-party-display,
-.cos-row[data-editing="true"] td .cos-completion-date-display,
-.cos-row[data-editing="true"] td .status-pill { /* Hide display spans/pill in edit mode */
-    display: none !important;
-}
-
-.cos-row[data-editing="true"] td .cos-content-edit,
-.cos-row[data-editing="true"] td .cos-accountable-party-edit,
-.cos-row[data-editing="true"] td .cos-completion-date-edit,
-.cos-row[data-editing="true"] td select.status-edit-select {
-    display: block; /* Show edit fields in edit mode */
-    width: 100%; /* Make inputs take full cell width */
-}
-.cos-row[data-editing="true"] td select.status-edit-select {
-    font-size: 0.8rem; /* Smaller font for select in table */
-}
-
-
-/* Button visibility toggling (JS also helps with d-none, this is CSS backup/primary) */
-.cos-row .update-cos-button,
-.cos-row .cancel-cos-button {
-    display: none;
-}
-.cos-row[data-editing="true"] .edit-cos-button,
-.cos-row[data-editing="true"] .delete-cos-button, /* Hide delete/analyze during edit */
-.cos-row[data-editing="true"] .analyze-cos-button {
-    display: none !important;
-}
-.cos-row[data-editing="true"] .update-cos-button,
-.cos-row[data-editing="true"] .cancel-cos-button {
-    display: inline-block !important;
-}
-
-
-/* ================================================== */
-/* ===========  21. Modal Custom Styling  ============ */
-/* ================================================== */
-.modal-content {
-  border-radius: 10px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-  border: 2px solid transparent; max-height: 90vh;
-  display: flex; flex-direction: column;
-}
-
-/* REMOVED THE OLD GENERIC MODAL STYLING THAT WAS CAUSING CONFLICTS */
-/* The specialized .ce-modal-header rules above now handle everything */
-
-.modal-body.ce-modal-body {
-  flex-grow: 1; overflow-y: auto; padding: 2rem;
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
-}
-.ce-modal-body .section { margin-bottom: 2rem; }
-.ce-modal-body .section:last-child { margin-bottom: 0.5rem; }
-.ce-modal-body .sub-section { margin-bottom: 1.5rem; }
-
-.modal-body .context-label {
-  font-family: 'Unica One', sans-serif; font-size: 1rem; font-weight: 500;
-  color: #104a3a; margin-bottom: 0.5rem; text-transform: uppercase; display: block;
-}
-.modal-body .content-block {
-  background-color: #f8f9fa; border-left: 3px solid #dee2e6;
-  padding: 0.75rem 1rem; margin-bottom: 1rem; color: #212529; line-height: 1.5;
-}
-.modal-body .content-block.italic { font-style: italic; }
-
-.modal-footer { padding: 1rem 1.5rem; background-color: #f8f9fa; border-top: 1px solid #dee2e6; }
-
-/* ================================================== */
-/* =========  22. Goal Card Description Fix  ========= */
-/* ================================================== */
-.goal-description {
-  text-align: left; /* Use left-align for natural word spacing and readability */
-}
-
-/* ================================================== */
-/* ======  23. Speculation System UI Components  ===== */
-/* ================================================== */
-
-/* --- A. The Readiness Bar (Segmented) --- */
-.readiness-bar {
-    display: flex;
-    gap: 2px;
-    height: 6px;
-    width: 100%;
-    background: rgba(0,0,0,0.15);
-    margin-top: auto;
-}
-
-.readiness-segment {
-    flex: 1;
-    background-color: #fff;
-    opacity: 0.2;
-    transition: opacity 0.4s ease, background-color 0.3s ease;
-}
-
-.readiness-segment.filled {
-    opacity: 0.95;
-    box-shadow: 0 0 4px rgba(255,255,255,0.5);
-}
-
-/* --- B. System Status Card (The "Calibrating" Box) --- */
-.system-status-card {
-    background-color: #ffffff;
-    /* Subtle, static technical grid background */
-    background-image: radial-gradient(#e2e8f0 1.5px, transparent 1.5px);
-    background-size: 16px 16px;
-    
-    border-radius: 8px;
+.horizon-system-bar {
+    width: 100%; 
+    max-width: 1400px;
+    margin: 0 auto; /* Center the bar itself */
+    display: flex; 
+    justify-content: space-between; /* Space items across full width */
+    align-items: center;
+    padding: 1.5rem 2rem; 
+    z-index: 100; 
     position: relative;
-    overflow: hidden; /* Keeps the big icon clipped inside */
-    min-height: 180px; /* Ensure vertical space */
-    border: 1px solid #d1d5db;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
 }
 
-.status-indicator {
-    width: 6px;
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    background-color: var(--phase-color);
-    z-index: 5;
-}
+/* Left Spacer */
+.masthead-spacer { width: 140px; } 
 
-/* The Massive Background Icon Anchor */
-.system-status-card .display-4 {
-    position: absolute;
-    bottom: -20px;
-    right: -10px;
-    font-size: 12rem !important; /* Massive size */
-    opacity: 0.08;  /* Very subtle watermark */
-    transform: rotate(-15deg);
-    pointer-events: none;
-    color: #333;
-    line-height: 1;
-    z-index: 0;
-}
-
-/* The Scan Line Animation (Triggered via JS: .scan-line) */
-.scan-overlay {
-    position: absolute;
-    top: 0; left: 0; bottom: 0;
-    width: 40%; /* Width of the "light" beam */
-    background: linear-gradient(to right, 
-        transparent 0%, 
-        rgba(255, 255, 255, 0.4) 50%, 
-        transparent 100%);
-    border-right: 2px solid var(--phase-color); /* The leading edge laser */
-    opacity: 0;
-    z-index: 1;
-    pointer-events: none;
-    animation: systemScan 2.5s ease-in-out infinite;
-}
-
-@keyframes systemScan {
-    0% { transform: translateX(-150%) skewX(-15deg); opacity: 0; }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { transform: translateX(350%) skewX(-15deg); opacity: 0; }
-}
-
-/* --- C. Proposed Items (AI Suggestions) --- */
-.card.proposed-item {
-    border: 1.5px dashed var(--phase-color);
-    background-color: #fdfdfd;
-    position: relative;
-    transition: all 0.3s ease;
-}
-
-.card.proposed-item:hover {
-    background-color: #fff;
-    border-style: solid; /* Solidify on hover */
-    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-    transform: translateY(-2px);
-}
-
-/* The "AI PROPOSED" Badge */
-.badge-proposed {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6); /* "AI Purple" Gradient */
-    color: white;
-    font-family: 'Unica One', cursive;
-    font-size: 0.7rem;
-    letter-spacing: 0.05em;
-    padding: 0.35em 0.6em;
-    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.25);
-}
-
-/* Accept/Reject Action Buttons */
-.btn-accept-item {
-    color: #198754;
-    border-color: #198754;
-    transition: all 0.2s;
-}
-.btn-accept-item:hover {
-    background-color: #198754;
-    color: white;
-    box-shadow: 0 2px 5px rgba(25, 135, 84, 0.3);
-}
-
-/* --- D. Ghost State (The "One-Hit" Trigger) --- */
-.ghost-state {
+/* Center Lockup */
+.masthead-title-lockup {
     text-align: center;
-    padding: 4rem 2rem;
-    /* Subtle technical background for empty state */
-    background-image: linear-gradient(0deg, transparent 24%, rgba(226, 232, 240, .5) 25%, rgba(226, 232, 240, .5) 26%, transparent 27%, transparent 74%, rgba(226, 232, 240, .5) 75%, rgba(226, 232, 240, .5) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(226, 232, 240, .5) 25%, rgba(226, 232, 240, .5) 26%, transparent 27%, transparent 74%, rgba(226, 232, 240, .5) 75%, rgba(226, 232, 240, .5) 76%, transparent 77%, transparent);
-    background-size: 50px 50px;
-    background-color: #fafafa;
-    
-    border-radius: 8px;
-    border: 2px dashed #e2e8f0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100%;
-    min-height: 300px;
-    transition: all 0.3s ease;
 }
 
-.ghost-state:hover {
-    background-color: #fff;
-    border-color: var(--phase-color);
-    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1);
+.masthead-pill {
+    background: var(--aviation-teal);
+    color: white;
+    font-family: 'Antonio', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 50px;
+    margin-bottom: 6px;
+    box-shadow: 0 2px 8px rgba(0,188,212,0.3);
+    font-weight: 700;
 }
 
-.ghost-icon-container {
-    width: 72px; height: 72px;
-    background: #fff;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 0 0 8px rgba(226, 232, 240, 0.4), 0 4px 6px rgba(0,0,0,0.05);
-    color: #94a3b8;
+.masthead-brand {
+    line-height: 0.8;
+    color: var(--deep-space-blue); /* Dark Blue */
+    text-shadow: 0 2px 0px rgba(255,255,255,0.6);
 }
 
-.ghost-state .btn-lg {
-    font-family: 'Unica One', cursive;
+.brand-script {
+    font-family: 'Mr Dafoe', cursive;
+    font-size: 2.8rem;
+    color: var(--retro-coral); /* Pop Color */
+    margin-right: 10px;
+    display: inline-block;
+    transform: rotate(-4deg) translateY(-4px);
+    text-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+}
+
+.brand-display {
+    font-family: 'Righteous', cursive;
+    font-size: 2.4rem;
     text-transform: uppercase;
     letter-spacing: 1px;
+    color: #37474f; /* Slate */
+}
+
+/* Right Controls */
+.masthead-controls { 
+    display: flex; gap: 0.8rem; align-items: center; width: 140px; justify-content: flex-end;
+}
+
+.btn-masthead {
+    width: 42px; height: 42px; 
+    border-radius: 50%; 
+    background: rgba(255,255,255,0.5);
+    border: 1px solid rgba(255,255,255,0.8); 
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
+    cursor: pointer; transition: all 0.2s;
     font-size: 1.1rem;
+    text-decoration: none;
+}
+.btn-masthead:hover { 
+    background: white; color: var(--aviation-teal); transform: translateY(-2px); 
+    box-shadow: 0 8px 15px rgba(0,0,0,0.1);
 }
 
-/* --- E. Metric Card Modernization (Match Mockup) --- */
-.metric-card-modern {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 1.25rem;
-    position: relative;
-    overflow: hidden;
-    transition: all 0.2s ease-out;
-}
-
-.metric-card-modern:hover {
-    border-color: var(--phase-color);
-    transform: translateY(-3px);
-    box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.06);
-}
-
-.metric-card-modern .corner-accent {
-    position: absolute;
-    top: 0; right: 0;
-    width: 0; height: 0;
-    border-style: solid;
-    border-width: 0 30px 30px 0;
-    border-color: transparent var(--phase-color) transparent transparent;
-    opacity: 0.15;
-}
-
-/* ================================================== */
-/* =========  26. Dashboard HUD & Scan Effects  ====== */
-/* ================================================== */
-
-/* A. The "Monitor" Background for the Overview Tab */
-/* Adds a subtle technical grid to the overview area */
-#view-overview-container {
-    background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px);
-    background-size: 24px 24px;
-    background-position: 0 0;
-    height: 100%;
-    min-height: 400px; /* Ensure pattern shows even if empty */
-}
-
-/* B. The Status Card (The "Calibrating" Box) */
-.dashboard-status-card {
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: 4px; /* Slightly sharper for tech feel */
-    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1);
-    position: relative;
-    overflow: hidden; /* Keeps the scan line inside */
-    transition: all 0.3s ease;
-}
-
-/* The "Bar" on the left of the status card */
-.dashboard-status-card::before {
-    content: "";
-    position: absolute; top: 0; left: 0; width: 6px; height: 100%;
-    background: var(--phase-color); 
-    z-index: 5;
-}
-
-.status-card-value {
-    font-family: 'Unica One', cursive;
-    font-size: 3.5rem;
-    line-height: 0.9;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #1e293b;
-    margin-top: 0.5rem;
-}
-
-/* C. The Scan Line Animation */
-/* This creates the "searching" laser effect when AI is working */
-.scan-line {
-    position: absolute; 
-    top: 0; left: 0; width: 100%; height: 30%; /* Beam height */
-    background: linear-gradient(to bottom, transparent 0%, rgba(var(--phase-color), 0.2) 50%, transparent 100%);
-    animation: scanner 2.5s infinite ease-in-out;
-    pointer-events: none;
-    display: none; /* Toggled via JS class 'scanning' */
-    z-index: 1;
-}
-
-/* Apply this class to the card via JS to turn it on */
-.dashboard-status-card.scanning .scan-line { 
-    display: block; 
-    /* Fallback color if var variable fails */
-    background: linear-gradient(to bottom, transparent 0%, rgba(100, 149, 237, 0.2) 50%, transparent 100%);
-}
-
-@keyframes scanner {
-    0% { transform: translateY(-150%); opacity: 0; }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { transform: translateY(350%); opacity: 0; }
-}
-
-/* ================================================== */
-/* =========  24. Intelligence Sidebar Styling  ====== */
-/* ================================================== */
-
-/* The cards that appear in the right-hand sidebar */
-.ai-suggestion-card {
-    border: 1px solid #e2e8f0;
-    border-left: 3px solid #6366f1; /* "AI Purple" Accent */
-    background: #f8fafc;
-    margin-bottom: 0.75rem;
+.user-avatar {
+    width: 38px; height: 38px; 
+    border-radius: 50%; 
+    background: linear-gradient(135deg, #ff7043, #d84315);
+    color: white; 
+    display: flex; align-items: center; justify-content: center; 
+    font-weight: bold;
+    font-family: 'Antonio', sans-serif; 
+    border: 2px solid white; 
+    box-shadow: 0 4px 10px rgba(244, 81, 30, 0.3);
     cursor: pointer;
-    transition: all 0.2s ease-out;
-    border-radius: 6px;
-    padding: 10px;
-}
-
-.ai-suggestion-card:hover {
-    background: #ffffff;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
-    transform: translateX(-3px); /* Slide left slightly on hover */
-    border-left-width: 5px;
-}
-
-.ai-suggestion-card h6 {
-    font-family: 'Jost', sans-serif;
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: #333;
-    margin-bottom: 4px;
-}
-
-.ai-suggestion-card p {
-    font-size: 0.8rem;
-    color: #64748b;
-    margin-bottom: 0;
-    line-height: 1.4;
-}
-
-/* Sidebar Buttons (e.g. "Suggest Stakeholders") */
-.btn-gradient-purple {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    transition: opacity 0.2s;
-}
-.btn-gradient-purple:hover {
-    color: white;
-    opacity: 0.9;
-    box-shadow: 0 4px 10px rgba(118, 75, 162, 0.3);
 }

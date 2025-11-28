@@ -91,37 +91,54 @@ async def outcome():
             return redirect(url_for('routes_bp.index'))
             
         try:
-            # Create SSOL
+            # 1. Create SSOL Container (The Vehicle)
+            # We pass the domain so the AI knows the context immediately.
             ssol_id_str = speculate_create_ssol(
-            USE_DATABASE, 
-            selected_goal_title, 
-            selected_goal_text, 
-            domain=domain
-        )
+                USE_DATABASE, 
+                selected_goal_title, 
+                selected_goal_text, 
+                domain=domain
+            )
             ssol_id_uuid = UUID(ssol_id_str)
             current_app.logger.info(f"SSOL created with ID: {ssol_id_str}")
             
-            # Generate Structure
+            # 2. Generate Structure via AI (The Map)
             current_app.logger.info("Generating structured solution from AI...")
             structured_solution_json = await generate_outcome_data(
-                ssol_title=selected_goal_title, ssol_description=selected_goal_text, domain=domain
+                ssol_title=selected_goal_title, 
+                ssol_description=selected_goal_text, 
+                domain=domain
             )
             ssol_summary = structured_solution_json.get('ssolsummary', 'AI failed to generate a summary.')
 
-            # Save COS items
+            # 3. Save COS Items (The Route)
             current_app.logger.info("Saving generated COS and their CEs...")
             phases_for_template = {}
+            
             if 'phases' in structured_solution_json:
                 for phase_name, cos_items in structured_solution_json['phases'].items():
                     phases_for_template[phase_name] = []
                     for cos_content_with_tags in cos_items:
                         if cos_content_with_tags:
+                            # A. Create the COS record (Auto-generates CEs internally)
                             new_cos_id_str = await speculate_create_cos(
-                                USE_DATABASE, ssol_id=ssol_id_uuid, content=cos_content_with_tags, status='Proposed'
+                                USE_DATABASE, 
+                                ssol_id=ssol_id_uuid, 
+                                content=cos_content_with_tags, 
+                                status='Proposed'
                             )
-                            newly_created_cos = speculate_get_cos_by_id(USE_DATABASE, UUID(new_cos_id_str))
-                            if newly_created_cos:
-                                phases_for_template[phase_name].append(newly_created_cos.to_dict() if USE_DATABASE else newly_created_cos)
+                            
+                            # B. Retrieve the Full Data Object
+                            # NOTE: We updated get_cos_by_id to return a DICTIONARY to prevent
+                            # "DetachedInstanceError" when accessing relationships outside the session.
+                            newly_created_cos_dict = speculate_get_cos_by_id(
+                                USE_DATABASE, 
+                                UUID(new_cos_id_str)
+                            )
+                            
+                            # C. Add to Template Data
+                            if newly_created_cos_dict:
+                                phases_for_template[phase_name].append(newly_created_cos_dict)
 
             outcome_data_for_template = {
                 'ssol_id': ssol_id_str,
@@ -133,7 +150,8 @@ async def outcome():
                 'phases': phases_for_template,
             }
 
-            # Async Image Generation (Non-blocking/Graceful fail)
+            # 4. Async Image Generation (The "Vibe")
+            # Non-blocking; the frontend polls for this image separately.
             try:
                 current_app.logger.info("Dispatching image generation task...")
                 image_prompt = f"""A vibrant, isometric, mid-century retro illustration of '{selected_goal_title}: {selected_goal_text}' 
@@ -143,6 +161,7 @@ async def outcome():
                                     """
                 await generate_image(image_prompt, ssol_id_str)
             except Exception as img_exc:
+                # Don't crash the app if the image fails
                 current_app.logger.error(f"Image generation failed for SSOL {ssol_id_str}: {img_exc}")
 
             return render_template('outcome.html', ssol=outcome_data_for_template, nodes=NODES, ssol_id=ssol_id_str)
@@ -153,7 +172,6 @@ async def outcome():
             return redirect(url_for('routes_bp.index'))
 
     return redirect(url_for('routes_bp.index'))
-
 
 # --- Modal Generation (The Speculation Environment Shell) ---
 @routes_bp.route('/get_ce_modal/<string:ce_type>', methods=['POST'])
