@@ -1,212 +1,264 @@
+# system_templates.py
 from flask import render_template_string
 from system_nodes import SYSTEM_NODES
+import datetime
 
-# --- 1. THE HORIZON GAUGE (Visualizes the "HORIZON" node) ---
+# ==============================================================================
+# 1. HORIZON GAUGE (Strict Single-Line Layout)
+# ==============================================================================
 HORIZON_GAUGE_TEMPLATE = """
-<div class="bg-white border rounded-4 p-3 mb-4 shadow-sm d-flex align-items-center gap-4 position-relative overflow-hidden cursor-pointer hover-shadow transition-all" 
-     onclick="openSystemEditor('{{ id }}')" title="Edit Temporal Horizon">
+<div class="card border-0 shadow-sm mb-4 overflow-visible system-node-card cursor-pointer group"
+     onclick="openSystemEditor('{{ id }}', 'HORIZON', '{{ value }}')">
     
-    <!-- Ambient Background Glow -->
-    <div class="position-absolute top-0 start-0 h-100 w-100" 
-         style="background: linear-gradient(90deg, rgba(var(--aviation-teal-rgb), 0.05), transparent); pointer-events: none;"></div>
-
-    <!-- Icon Block -->
-    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center text-dark border shadow-sm position-relative z-1" 
-         style="width:48px; height:48px; min-width:48px;">
-        <i class="{{ icon }} fa-lg text-warning"></i>
-    </div>
-
-    <!-- The Bar Logic -->
-    <div class="flex-grow-1 position-relative z-1">
-        <div class="d-flex justify-content-between align-items-end mb-2">
-            <span class="font-data small text-muted tracking-widest opacity-75">INCEPTION</span>
-            <span class="font-data small text-primary tracking-widest fw-bold">TARGET: {{ value }}</span>
+    <!-- Added 'overflow-visible' to parent to prevent tooltip clipping, handled radius on inner -->
+    <div class="card-body p-0 d-flex align-items-stretch flex-nowrap rounded-4 overflow-hidden" style="height: 90px; border: 1px solid #e2e8f0;">
+        
+        <!-- COL 1: ICON (Fixed) -->
+        <div class="bg-warning bg-opacity-10 d-flex align-items-center justify-content-center border-end flex-shrink-0" 
+             style="width: 90px;">
+            <i class="{{ icon }} fa-2x text-warning group-hover:scale-110 transition-transform"></i>
         </div>
-        <div class="progress" style="height: 8px; background-color: #e9ecef;">
-            <!-- Visualizing "Time Elapsed" - Mocked at 35% for MVP -->
-            <div class="progress-bar bg-gradient-primary" role="progressbar" style="width: 35%; background-color: #00bcd4;" aria-valuenow="35" aria-valuemin="0" aria-valuemax="100"></div>
-        </div>
-    </div>
+        
+        <!-- COL 2: DATA (Fluid) -->
+        <div class="flex-grow-1 px-4 d-flex flex-column justify-content-center position-relative" style="min-width: 0;">
+            
+            <!-- Top Row: Labels -->
+            <div class="d-flex justify-content-between align-items-center w-100 mb-2">
+                <span class="font-data text-muted x-small tracking-widest opacity-75">START</span>
+                
+                <!-- CURRENT PHASE INDICATOR (New Feature) -->
+                <div class="badge bg-white text-dark border font-data x-small rounded-pill px-2 shadow-sm">
+                    <span class="text-warning me-1">●</span> DISCOVERY PHASE
+                </div>
+                
+                <span class="font-data text-muted x-small tracking-widest opacity-75">TARGET</span>
+            </div>
 
-    <!-- The T-Minus Readout -->
-    <div class="text-end ps-3 border-start position-relative z-1">
-        <div class="font-data text-muted" style="font-size: 0.65rem; letter-spacing: 1px;">STATUS</div>
-        <div class="font-brand text-dark fs-4" style="line-height: 1;">ON TRACK</div>
+            <!-- Bottom Row: Timeline Bar -->
+            <div class="d-flex align-items-center w-100 gap-3">
+                <div class="font-body fw-bold text-dark small text-nowrap">{{ start_date }}</div>
+                
+                <!-- The Bar -->
+                <div class="progress flex-grow-1" style="height: 8px; background-color: #f1f5f9; border-radius: 4px; overflow: visible;">
+                    <div class="progress-bar rounded-pill position-relative" role="progressbar" 
+                         style="width: {{ time_elapsed_percent }}%; background-color: {{ health_color }}; box-shadow: 0 2px 10px {{ health_color }}60;" 
+                         aria-valuenow="{{ time_elapsed_percent }}" aria-valuemin="0" aria-valuemax="100">
+                         <!-- The Head (Glowing Orb) -->
+                         <div class="position-absolute top-50 translate-middle rounded-circle bg-white border border-2" 
+                              style="right: -10px; width: 16px; height: 16px; border-color: {{ health_color }}; box-shadow: 0 0 10px {{ health_color }};"></div>
+                    </div>
+                </div>
+
+                <div class="font-body fw-bold text-dark small text-nowrap">{{ target_date_display }}</div>
+            </div>
+        </div>
+
+        <!-- COL 3: COUNTDOWN (Fixed) -->
+        <div class="border-start bg-light d-flex flex-column align-items-center justify-content-center flex-shrink-0" 
+             style="width: 110px;">
+            <div class="font-data text-muted x-small tracking-widest mb-0">WINDOW</div>
+            <div class="font-brand text-dark fs-2 lh-1">{{ days_remaining }}</div>
+            <div class="font-data text-muted x-small mt-0 opacity-75">DAYS</div>
+        </div>
+
     </div>
 </div>
 """
 
-# --- 2. THE SYSTEM PILLS (Strategic Anchors) ---
-SYSTEM_PILL_ROW_TEMPLATE = """
-<div class="d-flex flex-wrap gap-3 mt-4 pt-4 border-top border-light align-items-center" id="system-pill-container">
-    <div class="font-data text-muted small tracking-widest me-2 d-flex align-items-center gap-2">
-        <i class="fas fa-layer-group"></i> STRATEGIC ANCHORS:
+# ==============================================================================
+# 2. SIDEBAR STACK (The "System Anchors" / Left Column)
+# ==============================================================================
+SYSTEM_SIDEBAR_STACK_TEMPLATE = """
+<div class="d-flex flex-column mt-4" id="system-anchor-stack">
+    <!-- Header -->
+    <div class="d-flex align-items-center justify-content-between mb-3 px-1">
+        <span class="font-data text-muted small tracking-widest">STRATEGIC ANCHORS</span>
+        <i class="far fa-question-circle text-muted opacity-50 cursor-pointer" title="System Configuration" style="font-size:0.8rem;"></i>
     </div>
     
-    <!-- Render Existing Parameters -->
+    <!-- Cards -->
     {% for param in system_params %}
-    <div class="system-pill group position-relative" data-id="{{ param.id }}" data-type="{{ param.type }}">
-        <div class="d-flex align-items-center bg-white border pe-3 ps-1 py-1 shadow-sm hover-shadow transition-all cursor-pointer" 
-             style="border-radius: 50px;"
-             onclick="openSystemEditor('{{ param.id }}', '{{ param.type }}', '{{ param.value }}')">
-            <div class="rounded-circle d-flex align-items-center justify-content-center text-white me-2 shadow-sm" 
-                 style="width: 28px; height: 28px; background-color: {{ param.color }};">
-                <i class="{{ param.icon }} fa-xs"></i>
+    <div class="system-anchor-card" 
+         style="--sys-color: {{ param.color }};"
+         onclick="openSystemEditor('{{ param.id }}', '{{ param.type }}', '{{ param.value }}')">
+        
+        <!-- Icon -->
+        <div class="sys-icon-circle">
+            <i class="{{ param.icon }}"></i>
+        </div>
+        
+        <!-- Content -->
+        <div class="sys-meta-col">
+            <div class="sys-label">
+                {{ param.label }}
+                {% if param.status == 'SUGGESTED' or loop.index == 1 %}
+                <span class="badge-suggested ms-2"><i class="fas fa-sparkles"></i> SUGGESTED</span>
+                {% endif %}
             </div>
-            <div class="d-flex flex-column justify-content-center" style="line-height: 1.1;">
-                <span class="font-data text-uppercase fw-bold" style="font-size: 0.6rem; color: #94a3b8; letter-spacing: 0.5px;">{{ param.label }}</span>
-                <span class="font-body fw-bold text-dark small">{{ param.value }}</span>
-            </div>
+            <span class="sys-value">{{ param.value }}</span>
         </div>
     </div>
     {% endfor %}
 
     <!-- Add Button -->
-    <button class="btn btn-sm btn-white rounded-circle border shadow-sm d-flex align-items-center justify-content-center transition-all" 
-            style="width: 32px; height: 32px;" 
-            onclick="openSystemEditor('new')"
-            title="Define New Parameter">
-        <i class="fas fa-plus text-primary fa-sm"></i>
+    <button class="btn btn-outline-secondary border-dashed w-100 rounded-pill font-data small py-2 mt-2"
+            onclick="openSystemEditor('new', '', '')">
+        <i class="fas fa-plus me-2"></i> ADD PARAMETER
     </button>
 </div>
 """
 
-# --- 3. THE CONFIG MODAL (Horizon Style) ---
+# ==============================================================================
+# 3. CAROUSEL MODAL (The "Calibration Wizard")
+# ==============================================================================
 SYSTEM_EDITOR_MODAL_TEMPLATE = """
 <div class="modal fade" id="systemConfigModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content border-0 rounded-4 shadow-2xl overflow-visible">
             
-            <!-- Header -->
-            <div class="modal-header text-white border-0 p-4" style="background: linear-gradient(135deg, #2c3e50 0%, #37474f 100%);">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-circle bg-white bg-opacity-10 p-3 border border-white border-opacity-10 shadow-sm">
-                        <i class="fas fa-sliders fa-lg text-info"></i>
-                    </div>
-                    <div>
-                        <h5 class="modal-title font-brand mb-0 tracking-wide">SYSTEM CONFIGURATION</h5>
-                        <p class="small text-white-50 mb-0 font-data tracking-wider">DEFINE CONSTRAINTS & CONTEXT</p>
+            <!-- Nav Arrows -->
+            <div class="sys-nav-arrow sys-nav-prev" onclick="navigateSystemNode(-1)"><i class="fas fa-chevron-left fa-lg"></i></div>
+            <div class="sys-nav-arrow sys-nav-next" onclick="navigateSystemNode(1)"><i class="fas fa-chevron-right fa-lg"></i></div>
+
+            <div class="row g-0" style="min-height: 600px;">
+                
+                <!-- LEFT: Identity & State (Visualizer) -->
+                <div class="col-md-5 sys-modal-left p-5" id="sys-identity-panel" style="background-color: #333; transition: background-color 0.5s;">
+                    <div class="sys-modal-texture"></div>
+                    
+                    <div class="position-relative z-1 h-100 d-flex flex-column justify-content-between">
+                        <!-- Header -->
+                        <div>
+                            <div class="bg-white bg-opacity-25 rounded-3 d-flex align-items-center justify-content-center mb-4 shadow-sm backdrop-blur" 
+                                 style="width: 64px; height: 64px;">
+                                <i class="fas fa-cube fa-2x text-white" id="sys-display-icon"></i>
+                            </div>
+                            <h2 class="font-brand text-white display-6 mb-2" id="sys-display-label">LOADING...</h2>
+                            <div class="font-data text-white-50 small letter-spacing-2 mb-5">SYSTEM NODE CONFIGURATION</div>
+                        </div>
+
+                        <!-- THE STATE MONITOR (Bespoke Visualizer) -->
+                        <div class="flex-grow-1 d-flex flex-column justify-content-center">
+                             <div class="font-data text-white-50 x-small tracking-widest mb-2">CURRENT STATE VECTOR</div>
+                             <!-- JS populates this based on node type (Stack vs Gauge vs Pill) -->
+                             <div id="sys-visualizer-container" class="w-100"></div>
+                        </div>
+
+                        <!-- Pagination -->
+                        <div class="d-flex justify-content-between align-items-end mt-4">
+                            <div class="font-data text-white-50 small" id="sys-counter">CARD 1 / X</div>
+                            <div class="sys-pagination" id="sys-dots-container"></div>
+                        </div>
                     </div>
                 </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
 
-            <!-- Body -->
-            <div class="modal-body p-5 bg-surface-screen">
-                <form id="system-node-form">
-                    <input type="hidden" name="param_id" id="sys-param-id">
+                <!-- RIGHT: Ontology & Config (The Context) -->
+                <div class="col-md-7 bg-white p-5 d-flex flex-column">
                     
-                    <div class="row g-4">
-                        <!-- Left: Type Selection -->
-                        <div class="col-md-4 border-end">
-                            <label class="font-data small text-muted mb-3 d-block tracking-widest">PARAMETER TYPE</label>
-                            <div class="d-flex flex-column gap-2" id="sys-type-selector">
-                                {% for key, node in nodes.items() %}
-                                <input type="radio" class="btn-check" name="sys_type" id="type-{{ key }}" value="{{ key }}" autocomplete="off">
-                                <label class="btn btn-outline-light border text-start text-dark d-flex align-items-center gap-3 p-2 shadow-sm" for="type-{{ key }}"
-                                       onclick="updateSystemColor('{{ node.color }}', '{{ node.description }}')">
-                                    <div class="rounded-circle d-flex align-items-center justify-content-center text-white" style="width:32px; height:32px; background-color: {{ node.color }};">
-                                        <i class="{{ node.icon }} fa-sm"></i>
-                                    </div>
-                                    <div class="d-flex flex-column">
-                                        <span class="font-data small fw-bold">{{ node.label }}</span>
-                                        <span class="font-body text-muted" style="font-size: 0.65rem;">{{ node.examples[0] }}</span>
-                                    </div>
-                                </label>
-                                {% endfor %}
-                            </div>
+                    <!-- Header -->
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                        <div class="font-data text-muted small tracking-widest">
+                            <i class="fas fa-sliders-h me-2"></i> CALIBRATION CONSOLE
                         </div>
-
-                        <!-- Right: Input & Context -->
-                        <div class="col-md-8 ps-md-4">
-                            
-                            <!-- Context Helper -->
-                            <div class="alert alert-light border mb-4 d-flex gap-3 align-items-start shadow-sm">
-                                <i class="fas fa-info-circle text-primary mt-1"></i>
-                                <div>
-                                    <h6 class="font-data small text-dark mb-1">STRATEGIC PURPOSE</h6>
-                                    <p class="small text-muted mb-0 font-body" id="sys-description-text">Select a parameter type to see its definition.</p>
-                                </div>
-                            </div>
-
-                            <!-- Value Input -->
-                            <div class="form-group mb-4">
-                                <label class="font-data small text-muted mb-2 tracking-widest">DEFINED REALITY</label>
-                                <div class="input-group input-group-lg shadow-sm">
-                                    <span class="input-group-text bg-white border-end-0">
-                                        <i class="fas fa-pen text-muted" id="sys-icon-preview"></i>
-                                    </span>
-                                    <input type="text" class="form-control border-start-0 font-body fs-5" 
-                                           id="sys-param-value" name="value" placeholder="Enter strategic definition..." required>
-                                </div>
-                            </div>
-
-                            <!-- Action Footer -->
-                            <div class="d-flex justify-content-between align-items-center mt-5 pt-3 border-top">
-                                <button type="button" class="btn btn-link text-danger text-decoration-none font-data small p-0" id="btn-delete-param" style="display:none;">
-                                    <i class="fas fa-trash me-1"></i> REMOVE
-                                </button>
-                                <div class="d-flex gap-2 ms-auto">
-                                    <button type="button" class="btn btn-white border font-data rounded-pill px-4" data-bs-dismiss="modal">CANCEL</button>
-                                    <button type="submit" class="btn btn-dark font-data rounded-pill px-5 shadow-lg">
-                                        SAVE PARAMETER <i class="fas fa-arrow-right ms-2"></i>
-                                    </button>
-                                </div>
-                            </div>
-
+                        <div class="d-flex gap-2">
+                             <span class="badge bg-light text-muted border font-data rounded-pill px-3" id="sys-status-badge">PENDING</span>
                         </div>
                     </div>
-                </form>
+                    
+                    <!-- Scrollable Area -->
+                    <div class="flex-grow-1 overflow-y-auto pe-2 custom-scrollbar d-flex flex-column gap-4">
+                        
+                        <!-- 1. DEFINITION CARD (Context) -->
+                        <div class="bg-light rounded-3 p-4 border border-light-subtle">
+                             <div class="d-flex gap-3">
+                                <div class="mt-1"><i class="fas fa-info-circle text-primary"></i></div>
+                                <div>
+                                    <h6 class="font-data text-dark small mb-1">ONTOLOGICAL DEFINITION</h6>
+                                    <p class="font-body text-secondary small mb-2" id="sys-display-desc" style="line-height: 1.5;">Description...</p>
+                                    <div class="mt-2 pt-2 border-top border-light-subtle">
+                                        <span class="font-data x-small text-muted uppercase me-1">Tip:</span>
+                                        <span class="font-body x-small text-muted fst-italic" id="sys-display-guide">...</span>
+                                    </div>
+                                    <!-- Examples Container (New) -->
+                                    <div id="sys-examples-container" class="d-flex flex-wrap gap-2 mt-3 pt-2 border-top border-dashed"></div>
+                                </div>
+                             </div>
+                        </div>
+
+                        <!-- 2. PROTOCOL TOGGLE -->
+                        <div class="sys-protocol-toggle">
+                            <button type="button" class="sys-protocol-btn active" id="mode-specify" onclick="setProtocolMode('SPECIFY')">
+                                <i class="fas fa-pen-to-square me-2"></i> Specify
+                            </button>
+                            <button type="button" class="sys-protocol-btn" id="mode-speculate" onclick="setProtocolMode('SPECULATE')">
+                                <i class="fas fa-wand-magic-sparkles me-2"></i> Speculate
+                            </button>
+                        </div>
+
+                        <!-- 3. ACTIVE INPUT AREA (Bespoke) -->
+                        <form id="system-node-form">
+                            <input type="hidden" name="param_id" id="sys-param-id">
+                            <input type="hidden" name="sys_type" id="sys-param-type">
+                            <!-- JS Injects the correct inputs here -->
+                            <div id="sys-input-container" class="mb-4"></div>
+                            
+                            <!-- 4. CONFIGURATION (Hard/Soft) -->
+                            <div class="row g-3 mb-3">
+                                <div class="col-6">
+                                    <div class="border rounded-3 p-3 cursor-pointer hover-shadow transition-all selected-mode-card h-100" 
+                                         id="constraint-hard" onclick="setConstraintMode('HARD')">
+                                        <div class="font-data small text-dark mb-1"><i class="fas fa-lock me-2 text-primary"></i> HARD CONSTRAINT</div>
+                                        <div class="text-muted x-small">Strict adherence.</div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="border rounded-3 p-3 cursor-pointer hover-shadow transition-all opacity-50 h-100" 
+                                         id="constraint-soft" onclick="setConstraintMode('SOFT')">
+                                        <div class="font-data small text-dark mb-1"><i class="fas fa-unlock me-2"></i> SOFT GUIDELINE</div>
+                                        <div class="text-muted x-small">Trade-offs permitted.</div>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="constraint_mode" id="sys-constraint-input" value="HARD">
+                            </div>
+
+                            <!-- Rationale -->
+                            <div>
+                                <label class="font-data text-muted x-small mb-1">RATIONALE</label>
+                                <textarea name="rationale" id="sys-rationale" class="form-control bg-light border-0 small" rows="2" placeholder="Why is this constraint set?"></textarea>
+                            </div>
+                        </form>
+
+                    </div>
+                    
+                    <!-- Footer -->
+                    <div class="d-flex justify-content-end gap-3 mt-4 pt-3 border-top">
+                        <button type="button" class="btn btn-light rounded-pill font-data px-4" data-bs-dismiss="modal">CANCEL</button>
+                        <button type="button" class="btn btn-primary rounded-pill font-data px-5 shadow-lg" onclick="submitSystemForm()">
+                            <i class="fas fa-save me-2"></i> COMMIT ANCHOR
+                        </button>
+                    </div>
+
+                </div>
             </div>
         </div>
     </div>
 </div>
-
-<script>
-    function updateSystemColor(color, desc) {
-        const icon = document.querySelector('#sys-icon-preview');
-        const descText = document.querySelector('#sys-description-text');
-        if(icon) icon.style.color = color;
-        if(descText) descText.textContent = desc;
-    }
-
-    // Stub for opening modal logic - to be implemented in a JS controller
-    window.openSystemEditor = function(id, type, value) {
-        const modal = new bootstrap.Modal(document.getElementById('systemConfigModal'));
-        document.getElementById('sys-param-id').value = id === 'new' ? '' : id;
-        document.getElementById('sys-param-value').value = value || '';
-        
-        // Reset validation/checked state
-        document.querySelectorAll('input[name="sys_type"]').forEach(el => el.checked = false);
-        if(type) {
-            const rad = document.getElementById('type-' + type);
-            if(rad) { 
-                rad.checked = true; 
-                // Trigger onclick to update description visuals
-                rad.click();
-            }
-        }
-        
-        const delBtn = document.getElementById('btn-delete-param');
-        if(delBtn) delBtn.style.display = (id === 'new' ? 'none' : 'block');
-
-        modal.show();
-    };
-</script>
 """
 
-# --- RENDER HELPERS ---
+
+# ==============================================================================
+# 4. RENDER FUNCTIONS
+# ==============================================================================
 
 def render_command_deck(system_params):
     """
-    Orchestrates the rendering of the top Command Deck.
-    Separates TIME elements for the Gauge vs Generic elements for Pills.
+    Orchestrates the Command Deck.
+    Splits Horizon (Time) from the Anchors (Identity/Physics).
     """
-    # 1. Separate Horizon (Time) from others
     horizon_node = next((p for p in system_params if p['type'] == 'HORIZON'), None)
     other_params = [p for p in system_params if p['type'] != 'HORIZON']
 
-    # 2. Enrich with Config
+    # Enrich generic params with Icon/Color from SYSTEM_NODES
     enriched_params = []
     for p in other_params:
         config = SYSTEM_NODES.get(p['type'], SYSTEM_NODES['OPERATOR'])
@@ -217,21 +269,59 @@ def render_command_deck(system_params):
             "label": config['label']
         })
 
-    # 3. Build HTML
-    html = ""
+    html_payload = {
+        'horizon_html': "",
+        'sidebar_html': ""
+    }
     
-    # If we have a Horizon Node defined, render the Gauge
+    # 1. Render Horizon
     if horizon_node:
-        config = SYSTEM_NODES['HORIZON']
-        html += render_template_string(HORIZON_GAUGE_TEMPLATE, 
-                                       value=horizon_node.get('value', 'UNSET'), 
-                                       id=horizon_node.get('id'),
-                                       icon=config['icon'])
+        import datetime
+        # Logic: In real app, fetch creation_date from DB. For MVP, assume -7 days start.
+        start_date = (datetime.date.today() - datetime.timedelta(days=7))
+        val = horizon_node.get('value')
+        
+        # Display Logic
+        target_display = val or "Unset"
+        percent = 15 # Default MVP visual
+        
+        # Try parsing date for real math
+        try:
+            if val and '-' in val:
+                target_date = datetime.datetime.strptime(val, '%Y-%m-%d').date()
+                total_days = (target_date - start_date).days
+                days_left = (target_date - datetime.date.today()).days
+                if total_days > 0:
+                    percent = 100 - int((days_left / total_days) * 100)
+                # Cap percentage between 0 and 100 for visual sanity
+                percent = max(0, min(100, percent))
+                days_rem_str = str(days_left)
+                target_display = target_date.strftime('%b %d, %Y')
+            else:
+                days_rem_str = "--"
+        except:
+            days_rem_str = "--"
+
+        # Color Logic
+        if percent > 90: health = "#ef5350" # Red
+        elif percent > 75: health = "#ffa726" # Amber
+        else: health = "#26c6da" # Teal
+
+        html_payload['horizon_html'] = render_template_string(HORIZON_GAUGE_TEMPLATE, 
+            start_date=start_date.strftime('%b %d, %Y'), 
+            target_date_display=target_display,
+            time_elapsed_percent=percent, 
+            health_color=health,
+            days_remaining=days_rem_str,
+            value=val,
+            id=horizon_node.get('id'),
+            icon=SYSTEM_NODES['HORIZON']['icon']
+        )
     
-    # Render the Pill Row
-    html += render_template_string(SYSTEM_PILL_ROW_TEMPLATE, system_params=enriched_params)
+    # 2. Render Sidebar
+    html_payload['sidebar_html'] = render_template_string(SYSTEM_SIDEBAR_STACK_TEMPLATE, system_params=enriched_params)
     
-    return html
+    return html_payload
 
 def render_system_config_modal():
     return render_template_string(SYSTEM_EDITOR_MODAL_TEMPLATE, nodes=SYSTEM_NODES)

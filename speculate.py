@@ -16,18 +16,38 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # --- Helper function to render a CE pill ---
 def _render_ce_pill_html(ce_id: str, ce_type: str, ce_text: str) -> str:
-    """Helper function to generate the standard HTML for a CE pill."""
-    node_info = NODES.get(ce_type, NODES['Default'])
+    """
+    Generates the Horizon-Style CE Capsule HTML.
+    Handles case-insensitive lookup and fallbacks.
+    """
+    # 1. Case-insensitive lookup
+    # Create a mapping of lower_case -> RealKey
+    key_map = {k.lower(): k for k in NODES.keys()}
+    clean_type = ce_type.strip()
+    real_key = key_map.get(clean_type.lower(), 'Default')
+    
+    node_info = NODES.get(real_key)
     node_color = node_info.get('color', '#6c757d')
-    node_icon = node_info.get('icon', 'fa-solid fa-question-circle')
+    node_icon = node_info.get('icon', 'fa-solid fa-cube')
+    
+    # 2. Fallback Color Generator (for hallucinations like "Market Need")
+    # If it's truly unknown, give it a distinct color instead of gray
+    if real_key == 'Default' and clean_type.lower() != 'default':
+        # Hash the string to get a consistent color
+        hash_val = sum(ord(c) for c in clean_type)
+        colors = ['#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#009688', '#ff5722']
+        node_color = colors[hash_val % len(colors)]
+        node_icon = 'fa-solid fa-tag'
+    else:
+        node_color = node_info.get('color', '#6c757d')
+        node_icon = node_info.get('icon', 'fa-solid fa-cube')
     
     return (
-        f'<span class="ce-pill" data-ce-id="{ce_id}" data-ce-type="{ce_type}" style="--node-color: {node_color};">'
-        f'<span class="ce-pill-icon"><i class="{node_icon}"></i></span>'
-        f'<span class="ce-pill-text">{html.escape(ce_text)}</span>'
+        f'<span class="ce-capsule" data-ce-id="{ce_id}" data-ce-type="{ce_type}" '
+        f'style="background-color: {node_color};">'
+        f'<i class="{node_icon} me-1"></i>{html.escape(ce_text)}'
         f'</span>'
     )
-
 # --- AI Analysis ---
 
 async def analyze_cos(cos_content: str, cos_id: str = None) -> dict:
@@ -116,12 +136,15 @@ def get_ssol_by_id(USE_DATABASE: bool, ssol_id: UUID):
             ssol = session.query(SSOL).get(ssol_id)
             session.close()
             return ssol
-    else:
-        return ssol_store.get(str(ssol_id))
+    return ssol_store.get(str(ssol_id))
 
 # --- COS Operations ---
 
-async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: str, accountable_party: str = None, completion_date=None) -> str:
+async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: str, accountable_party: str = None, completion_date=None) -> dict:
+    """
+    Creates a COS and returns the FULL DATA DICTIONARY immediately.
+    This avoids Read-After-Write race conditions.
+    """
     from models import COS, CE, get_engine_and_session
     from store import ce_store, cos_store
     from app import app
@@ -129,24 +152,21 @@ async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: st
     new_cos_uuid = uuid.uuid4()
     cos_id_str = str(new_cos_uuid)
 
-    # Safety Check: Content must be string
     if isinstance(content, dict):
         content = content.get('text') or content.get('content') or json.dumps(content)
     elif not isinstance(content, str):
         content = str(content)
 
     try:
-        # 1. Parse Tags
+        # 1. Parse & Pill Logic
         soup = BeautifulSoup(content, 'html.parser')
         ce_tags = soup.find_all('ce')
-        
         new_ce_instances = []
         
-        # 2. Create CEs from tags
         for tag in ce_tags:
             ce_text = tag.string
-            ce_type = tag.get('type')
-            if not ce_text or not ce_type: continue
+            ce_type = tag.get('type', 'Default')
+            if not ce_text: continue
 
             new_ce_uuid = uuid.uuid4()
             ce_record = {
@@ -157,13 +177,15 @@ async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: st
             }
             new_ce_instances.append(ce_record)
             
-            # Replace tag with Pill HTML
+            # Replace with Horizon HTML
+            # We use a simplified helper here or ensure _render_ce_pill_html is available
+            from speculate import _render_ce_pill_html 
             pill_html = _render_ce_pill_html(str(new_ce_uuid), ce_type, ce_text)
             tag.replace_with(BeautifulSoup(pill_html, 'html.parser'))
 
         content_with_pills = str(soup)
 
-        # 3. Persist
+        # 2. Persist & Return Data
         if USE_DATABASE:
             with app.app_context():
                 engine, session = get_engine_and_session()
@@ -187,22 +209,32 @@ async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: st
                     session.add(ce_instance)
                 
                 session.commit()
+                
+                # CRITICAL FIX: Serialize inside the session
+                final_data = cos_instance.to_dict()
                 session.close()
+                return final_data
         else:
-            cos_store[cos_id_str] = {'id': cos_id_str, 'content': content_with_pills, 'status': status, 'ssol_id': str(ssol_id)}
+            # In-memory store fallback
+            result = {
+                'id': cos_id_str, 
+                'content': content_with_pills, 
+                'status': status, 
+                'ssol_id': str(ssol_id),
+                'accountable_party': accountable_party,
+                'completion_date': completion_date
+            }
+            cos_store[cos_id_str] = result
             for ce_rec in new_ce_instances:
                 ce_store[str(ce_rec['id'])] = ce_rec
-        
-        return cos_id_str
+            return result
 
     except Exception as e:
         current_app.logger.error(f"Error creating COS: {e}", exc_info=True)
         raise
-
-# --- THIS WAS THE MISSING FUNCTION ---
+    
 async def update_cos_by_id(USE_DATABASE: bool, cos_id: UUID, updated_data: dict) -> dict:
     from models import COS, CE, get_engine_and_session
-    from store import cos_store, ce_store
     from app import app
 
     new_content = updated_data.get('content')
@@ -210,13 +242,9 @@ async def update_cos_by_id(USE_DATABASE: bool, cos_id: UUID, updated_data: dict)
     try:
         new_ce_instances = []
         
-        # If content changed, re-analyze and generate pills/CEs
         if new_content is not None:
-            # Safety Check again
-            if isinstance(new_content, dict):
-                new_content = new_content.get('text') or json.dumps(new_content)
-            elif not isinstance(new_content, str):
-                new_content = str(new_content)
+            if isinstance(new_content, dict): new_content = json.dumps(new_content)
+            elif not isinstance(new_content, str): new_content = str(new_content)
                     
             analysis = await analyze_cos(new_content, str(cos_id))
             soup = BeautifulSoup(analysis['content_with_tags'], 'html.parser')
@@ -226,10 +254,10 @@ async def update_cos_by_id(USE_DATABASE: bool, cos_id: UUID, updated_data: dict)
                 c_txt, c_type = tag.string, tag.get('type')
                 new_id = uuid.uuid4()
                 new_ce_instances.append({
-                    'id': new_id, 
-                    'node_type': c_type, 
+                    'id': new_id, 'node_type': c_type, 
                     'data': {"details_data": {}, "resources": [], "prerequisites": [], "stakeholders": [], "assumptions": [], "connections": []}
                 })
+                # REPLACE WITH HORIZON CAPSULE HTML
                 pill = _render_ce_pill_html(str(new_id), c_type, c_txt)
                 tag.replace_with(BeautifulSoup(pill, 'html.parser'))
             
@@ -247,7 +275,6 @@ async def update_cos_by_id(USE_DATABASE: bool, cos_id: UUID, updated_data: dict)
                     if hasattr(cos, k) and k not in ['id', 'ssol_id']: 
                         setattr(cos, k, v)
                 
-                # If content changed, flush old CEs and add new ones
                 if new_content is not None:
                     session.query(CE).filter_by(cos_id=cos_id).delete()
                     for nc in new_ce_instances:
@@ -256,13 +283,14 @@ async def update_cos_by_id(USE_DATABASE: bool, cos_id: UUID, updated_data: dict)
                 session.commit()
                 cos_dict = cos.to_dict()
                 session.close()
-                return {'success': True, 'cos': cos_dict}
+                return {'success': True, 'cos': cos_dict, 'status_code': 200}
         
         return {'success': False, 'message': 'DB Required', 'status_code': 500}
 
     except Exception as e:
         current_app.logger.error(f"Error updating COS {cos_id}: {e}", exc_info=True)
         return {'success': False, 'message': str(e), 'status_code': 500}
+
 
 def get_cos_by_id(USE_DATABASE: bool, cos_id: UUID):
     from models import COS, get_engine_and_session
@@ -272,15 +300,9 @@ def get_cos_by_id(USE_DATABASE: bool, cos_id: UUID):
         with app.app_context():
             engine, session = get_engine_and_session()
             cos = session.query(COS).get(cos_id)
-            
-            # Convert to dict inside session to avoid DetachedInstanceError
-            if cos:
-                data = cos.to_dict()
-                session.close()
-                return data
-            
+            res = cos.to_dict() if cos else None
             session.close()
-            return None
+            return res
     return cos_store.get(str(cos_id))
 
 def delete_cos_by_id(USE_DATABASE: bool, cos_id: UUID) -> bool:

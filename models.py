@@ -47,6 +47,7 @@ class SSOL(db.Model):
     status = Column(String(50), default='Draft')    # Lifecycle (Draft, Active, Paused, Complete)
     owner = Column(String(255), nullable=True)      # The human champion
     target_date = Column(Date, nullable=True)       # The horizon/deadline
+    system_data = Column(JsonType, nullable=True, default={})
     
     # --- METRICS ---
     integrity_score = Column(Integer, default=100)  # 0-100 Health Metric

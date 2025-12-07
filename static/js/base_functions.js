@@ -1,193 +1,185 @@
 // static/js/base_functions.js
-// SSPEC Horizon Edition - Core Utilities
+// SSPEC Horizon Edition - Core Utilities & Animation Engine
 
-// --- LOADING SPINNER STATE ---
-// Tracks how many concurrent processes are requesting the spinner
+// --- STATE MANAGEMENT ---
 let spinnerRequestCount = 0;
 let spinnerInterval;
 
-const LOADING_MESSAGES = [
-    "Accessing SSPEC Neural Network...",
-    "Vectorizing inputs...",
-    "Consulting domain strategies...",
-    "Drafting executive narrative...",
-    "Identifying critical dependencies...",
-    "Optimizing resource paths...",
-    "Finalizing data packet..."
-];
+// --- CONTEXTUAL LOADING SCRIPTS ---
+// The "Thoughts" of the Engine based on what it is doing.
+const SCRIPTS = {
+    DEFAULT: [
+        "Accessing SSPEC Neural Network...",
+        "Vectorizing inputs...",
+        "Optimizing resource paths...",
+        "Finalizing data packet..."
+    ],
+    SSOL: [ // Creating the Solution (Outcome Page)
+        "Accessing Global Knowledge Graph...",
+        "Inferring System Anchors (Operator, Directive, Scale)...",
+        "Backcasting temporal milestones...",
+        "Structuring Phase 1: Discovery...",
+        "Calculating Phase 2: Engagement vectors...",
+        "Projecting Legacy outcomes...",
+        "Finalizing Strategic Charter..."
+    ],
+    LIST: [ // Generating Collections (CEs)
+        "Scanning phase context...",
+        "Identifying causal dependencies...",
+        "Filtering for high probability...",
+        "Formatting structural suggestions...",
+        "Vectorizing list items..."
+    ],
+    NARRATIVE: [ // Enhancing Text
+        "Reading System Anchors...",
+        "Synthesizing operational tone...",
+        "Drafting executive language...",
+        "Refining clarity and impact...",
+        "Appending domain citations..."
+    ],
+    SAVE: [ // Commit to DB
+        "Serializing data packet...",
+        "Updating Vector DB...",
+        "Re-calculating System Integrity...",
+        "Commit verified."
+    ]
+};
 
+// ==================================================
+// 1. LOADING SPINNER (HORIZON HUD)
+// ==================================================
 
 /**
  * Displays the Horizon Loading HUD.
- * Keeps track of requests so it doesn't vanish prematurely during auto-population.
- * @param {string} title - The main header (e.g. "INITIALIZING NODE")
- * @param {string} iconClass - FontAwesome class (e.g. "fa-circle-notch")
+ * @param {string} title - Main header (e.g. "INITIALIZING NODE")
+ * @param {string} iconClass - FontAwesome class (e.g. "fa-rocket")
+ * @param {string} contextKey - Key for SCRIPTS (DEFAULT, SSOL, LIST, NARRATIVE, SAVE)
  */
-export function showLoadingSpinner(title = "PROCESSING", iconClass = "fa-circle-notch") {
+export function showLoadingSpinner(title = "PROCESSING", iconClass = null, contextKey = 'DEFAULT') {
     spinnerRequestCount++;
-    console.log(`Spinner Requested: ${title} (Active Requests: ${spinnerRequestCount})`);
 
-    // 1. Find or Create Overlay
     let overlay = document.querySelector('.loading-spinner-overlay');
-    
     if (!overlay) {
         overlay = document.createElement('div');
-        overlay.className = 'loading-spinner-overlay fade-in';
+        overlay.className = 'loading-spinner-overlay';
         document.body.appendChild(overlay);
+    }
+    overlay.classList.remove('d-none'); // Force Bootstrap override
+
+    // 1. Handle Icon logic
+    let iconHtml = '';
+    if (iconClass) {
+        const cleanClass = iconClass.includes('fa-') ? iconClass : `fa-solid fa-${iconClass}`;
+        // Note: "spinner-overlay-icon" class handles absolute positioning in CSS
+        iconHtml = `<i class="${cleanClass} spinner-overlay-icon"></i>`;
     } else {
-        // Critical: Ensure bootstrap d-none is removed if present
-        overlay.classList.remove('d-none');
-        overlay.classList.remove('fade-out'); // Stop any hiding animation
-        overlay.classList.add('fade-in');
+        iconHtml = `<i class="fa-solid fa-microchip spinner-overlay-icon"></i>`;
     }
 
-    // 2. Render Structure (Horizon Style)
-    // If already visible, we update the text/icon but don't nuke DOM to prevent flickering
-    const existingTitle = overlay.querySelector('.spinner-title');
-    
-    if (existingTitle && overlay.style.display !== 'none') {
-        existingTitle.textContent = title;
-        // Update icon
-        const iconContainer = overlay.querySelector('.spinner-icon');
-        if (iconContainer) {
-             iconContainer.innerHTML = `<i class="fas ${iconClass} ${iconClass.includes('spin') ? '' : 'fa-spin'}"></i>`;
-        }
-    } else {
-        // Fresh Render
-        overlay.innerHTML = `
-            <div class="spinner-box">
-                <div class="spinner-icon">
-                    <i class="fas ${iconClass} ${iconClass.includes('spin') ? '' : 'fa-spin'}"></i>
+    // 2. Render Structure (Atom + Text Stage)
+    overlay.innerHTML = `
+        <div class="spinner-box">
+            <!-- The Visual Stack: Atom Background + Static Icon Foreground -->
+            <div class="spinner-visual-stack">
+                <div class="la-ball-atom la-2x">
+                    <div></div><div></div><div></div><div></div>
                 </div>
-                <div class="spinner-content" style="display:flex; flex-direction:column; align-items:flex-start;">
-                    <div class="spinner-title" style="line-height:1.1;">${title}</div>
-                    <div class="spinner-text font-body small text-muted" id="dynamic-spinner-text">Initializing protocols...</div>
+                ${iconHtml}
+            </div>
+            
+            <!-- The Text Content -->
+            <div class="spinner-content">
+                <div class="spinner-title">${title}</div>
+                <!-- Fixed height container for wipe effects -->
+                <div class="spinner-text-stage" id="spinner-text-stage">
+                    <div class="spinner-message wipe-in">SSPEC ENGINE ONLINE...</div>
                 </div>
             </div>
-        `;
-    }
+        </div>
+    `;
     
-    // 3. Make Visible
     overlay.style.display = 'flex';
-
-    // 4. Start Talking
-    startStatusUpdates();
+    
+    // 3. Start the "Thinking" Animation
+    const script = SCRIPTS[contextKey] || SCRIPTS.DEFAULT;
+    startPrinterUpdates(script);
 }
 
 export function hideLoadingSpinner() {
     spinnerRequestCount--;
-    console.log(`Spinner Release. Remaining: ${spinnerRequestCount}`);
 
-    // Only hide if NO other processes are waiting
     if (spinnerRequestCount <= 0) {
-        spinnerRequestCount = 0; // Safety reset
+        spinnerRequestCount = 0;
         const overlay = document.querySelector('.loading-spinner-overlay');
         
         if (overlay) {
-            stopStatusUpdates(); 
-            overlay.classList.remove('fade-in');
-            overlay.classList.add('fade-out'); // CSS Animation
+            stopPrinterUpdates();
+            overlay.classList.add('fade-out'); // CSS Opacity transition
             
-            // Wait for animation to finish before DOM hiding
             setTimeout(() => {
                 if (spinnerRequestCount === 0) {
                     overlay.style.display = 'none';
-                    overlay.classList.add('d-none'); // Re-apply d-none for Bootstrap safety
                     overlay.classList.remove('fade-out');
+                    overlay.classList.add('d-none');
                 }
-            }, 500); // Match CSS transition time
+            }, 500); // Matches CSS transition time
         }
     }
 }
 
-// --- Message Cycler ---
-function startStatusUpdates() {
-    const textEl = document.getElementById('dynamic-spinner-text');
+/**
+ * Manages the "Invisible Printer" wipe effect.
+ * Creates new DOM nodes for incoming text and animates old ones out.
+ */
+function startPrinterUpdates(scriptArray) {
     let index = 0;
-    
+    const stage = document.getElementById('spinner-text-stage');
+    if (!stage) return;
+
     if (spinnerInterval) clearInterval(spinnerInterval);
-    
+
+    // Initial message is static. Start cycle.
     spinnerInterval = setInterval(() => {
-        const currentEl = document.getElementById('dynamic-spinner-text');
-        if (currentEl) {
-            // Simple opacity pulse for transition
-            currentEl.style.opacity = 0.5;
-            setTimeout(() => {
-                currentEl.innerText = LOADING_MESSAGES[index];
-                currentEl.style.opacity = 1;
-                index = (index + 1) % LOADING_MESSAGES.length;
-            }, 300);
-        } else {
-            stopStatusUpdates();
+        // 1. Identify current visible message
+        const currentMsg = stage.querySelector('.spinner-message:not(.wipe-out)');
+        
+        // 2. Prepare next message
+        const nextText = scriptArray[index];
+        const newMsg = document.createElement('div');
+        newMsg.className = 'spinner-message';
+        newMsg.innerText = nextText;
+        stage.appendChild(newMsg);
+
+        // 3. Trigger Wipe Animations
+        // Old text wipes OUT (Left -> Right reveal of transparent)
+        if (currentMsg) {
+            currentMsg.classList.remove('wipe-in');
+            currentMsg.classList.add('wipe-out');
         }
-    }, 2000); 
+
+        // New text wipes IN (Left -> Right reveal of content)
+        newMsg.classList.add('wipe-in');
+
+        // 4. Garbage Collection
+        setTimeout(() => {
+            if (currentMsg) currentMsg.remove();
+        }, 1200); // Wait for animation + buffer
+
+        // Loop
+        index = (index + 1) % scriptArray.length;
+
+    }, 2200); // Rhythm of updates
 }
 
-function stopStatusUpdates() {
+function stopPrinterUpdates() {
     if (spinnerInterval) clearInterval(spinnerInterval);
     spinnerInterval = null;
 }
 
-// --- INPUT HANDLING ---
+// ==================================================
+// 2. GOAL SELECTION UTILITIES (Monolith Cards)
+// ==================================================
 
-/**
- * Handles the click event for the "Edit User Input" button.
- */
-export function handleEditButtonClick(userInputDisplay, userInputEdit, editButton, saveButton, cancelButton) {
-  if (userInputDisplay && userInputEdit && editButton && saveButton && cancelButton) {
-    userInputDisplay.classList.add('d-none');
-    userInputEdit.classList.remove('d-none');
-    userInputEdit.value = userInputDisplay.textContent.trim();
-    userInputEdit.focus();
-    editButton.classList.add('d-none');
-    saveButton.classList.remove('d-none');
-    cancelButton.classList.remove('d-none');
-  } else {
-    console.error("handleEditButtonClick: Required DOM elements not found.");
-  }
-}
-
-/**
- * Handles the click event for the "Save User Input" button.
- */
-export function handleSaveButtonClick(userInputDisplay, userInputEdit, editButton, saveButton, cancelButton, callback) {
-  if (userInputDisplay && userInputEdit && editButton && saveButton && cancelButton) {
-    const updatedUserInput = userInputEdit.value.trim();
-    userInputDisplay.textContent = updatedUserInput;
-    userInputDisplay.classList.remove('d-none');
-    userInputEdit.classList.add('d-none');
-    editButton.classList.remove('d-none');
-    saveButton.classList.add('d-none');
-    cancelButton.classList.add('d-none');
-    if (typeof callback === 'function') {
-      callback(updatedUserInput);
-    }
-  } else {
-    console.error("handleSaveButtonClick: Required DOM elements not found.");
-  }
-}
-
-/**
- * Handles the click event for the "Cancel User Input" button.
- */
-export function handleCancelButtonClick(userInputDisplay, userInputEdit, editButton, saveButton, cancelButton) {
-  if (userInputDisplay && userInputEdit && editButton && saveButton && cancelButton) {
-    userInputDisplay.classList.remove('d-none');
-    userInputEdit.classList.add('d-none');
-    userInputEdit.value = userInputDisplay.textContent.trim(); // Revert input field too
-    editButton.classList.remove('d-none');
-    saveButton.classList.add('d-none');
-    cancelButton.classList.add('d-none');
-  } else {
-    console.error("handleCancelButtonClick: Required DOM elements not found.");
-  }
-}
-
-// --- GOAL REGENERATION ---
-
-/**
- * Fetches new goal suggestions from the server.
- */
 export async function regenerateGoals(user_input_text) {
   try {
     const response = await fetch('/goal_selection', {
@@ -198,36 +190,19 @@ export async function regenerateGoals(user_input_text) {
       },
       body: new URLSearchParams({ user_text: user_input_text }),
     });
-    if (!response.ok) {
-      let errorMsg = `Failed to fetch new goals. Status: ${response.status}`;
-      try {
-        const errorData = await response.json();
-        errorMsg = errorData.error || errorData.message || `Server error: ${response.status}`;
-      } catch (e) {
-        console.warn("Could not parse error response as JSON.");
-      }
-      throw new Error(errorMsg);
-    }
-    const data = await response.json();
-    return data;
+    if (!response.ok) throw new Error("Goal generation failed.");
+    return await response.json();
   } catch (error) {
-    console.error('Error in regenerateGoals fetch:', error);
+    console.error('Error:', error);
     throw error;
   }
 }
 
-/**
- * Updates the goal cards displayed on the page.
- * UPDATED FOR HORIZON MONOLITH DESIGN (Clean Rectangular Cards with 3D Flip)
- */
 export function updateGoalCards(data, currentUserInputText, goalCardsContainer) {
-  if (!goalCardsContainer) {
-    console.error("updateGoalCards: goalCardsContainer element not found.");
-    return;
-  }
+  if (!goalCardsContainer) return;
+  
   if (!data || !data.goals || !Array.isArray(data.goals)) {
-    console.error("updateGoalCards: Invalid or missing goals data.", data);
-    goalCardsContainer.innerHTML = '<p class="text-center text-danger">Could not load goal suggestions at this time.</p>';
+    goalCardsContainer.innerHTML = '<p class="text-center text-danger">Could not load goal suggestions.</p>';
     return;
   }
 
@@ -238,57 +213,41 @@ export function updateGoalCards(data, currentUserInputText, goalCardsContainer) 
     const goalTitle = goal.title || "Untitled Goal";
     const goalDomain = goal.domain || "General";
     const goalIcon = goal.icon || "fas fa-question-circle";
-    // Check compliance, default to true if undefined
     const isCompliant = typeof goal.is_compliant === 'undefined' ? true : goal.is_compliant;
 
-    // Cycle Colors: Coral, Cyan, Purple (Horizon Palette)
-    const i = index;
+    // Cycle Horizon Colors
     const accentColors = ['#ff7043', '#00bcd4', '#ab47bc'];
-    const accent = isCompliant ? accentColors[i % 3] : '#ef5350';
+    const accent = isCompliant ? accentColors[index % 3] : '#ef5350';
     
-    // Card Back Gradient (Face Down)
+    // 3D Flip Gradients
     const backGrad = isCompliant 
-        ? [
-            'linear-gradient(135deg, #ff7043 0%, #f4511e 100%)', 
-            'linear-gradient(135deg, #26c6da 0%, #00bcd4 100%)', 
-            'linear-gradient(135deg, #ab47bc 0%, #7b1fa2 100%)'
-          ][i % 3]
-        : 'linear-gradient(135deg, #ffeb3b 0%, #ff9800 40%, #d32f2f 100%)';
+        ? `linear-gradient(135deg, ${accentColors[index % 3]} 0%, #f4511e 100%)`
+        : 'linear-gradient(135deg, #ffeb3b 0%, #d32f2f 100%)';
 
-    // Header Plate Gradient (Face Up)
     const headerGrad = isCompliant
-        ? [
-            'linear-gradient(135deg, #ffcc80 0%, #ff7043 100%)',
-            'linear-gradient(135deg, #80deea 0%, #00bcd4 100%)',
-            'linear-gradient(135deg, #e1bee7 0%, #ab47bc 100%)'
-          ][i % 3]
+        ? `linear-gradient(135deg, white 0%, ${accent} 100%)`
         : 'linear-gradient(135deg, #ffcdd2 0%, #ef5350 100%)';
 
-    // Animation Timing (Staggered)
-    const animDelay = i * 0.2;
-    // The "Hold" before flip: 1.2s base + 0.6s stagger per card
-    const revealDelay = 1200 + (i * 600);
+    // Staggered Animation Delays
+    const animDelay = index * 0.1;
+    const revealDelay = 800 + (index * 300);
 
     const cardHtml = `
-      <!-- CARD WRAPPER (Handles the "Deal" entrance) -->
       <div class="flip-card ${!isCompliant ? 'rejected' : ''}" style="animation-delay: ${animDelay}s;">
         <div class="flip-card-inner" data-delay="${revealDelay}">
           
-          <!-- BACK (Face Down - Visible First) -->
+          <!-- BACK (Face Down) -->
           <div class="flip-card-back" style="background: ${backGrad};">
             <div class="card-pattern-overlay"></div>
             <div class="position-relative z-2 d-flex flex-column align-items-center">
               <div class="bg-white bg-opacity-25 p-4 rounded-circle border border-2 border-white border-opacity-50 shadow-lg mb-3 backdrop-blur">
                 <i class="${goalIcon} fa-3x text-white drop-shadow"></i>
               </div>
-              ${!isCompliant ? `
-              <div class="font-data text-white small text-uppercase bg-black bg-opacity-25 px-3 py-1 rounded-pill border border-white border-opacity-25 mt-2">
-                Protocol Violation
-              </div>` : ''}
+              ${!isCompliant ? '<div class="font-data text-white small bg-black bg-opacity-25 px-3 py-1 rounded-pill border border-white border-opacity-25 mt-2">Protocol Violation</div>' : ''}
             </div>
           </div>
 
-          <!-- FRONT (Face Up - Hidden First) -->
+          <!-- FRONT (Face Up) -->
           <div class="flip-card-front">
             <div class="card-header-plate" style="background: ${headerGrad};">
                <div class="card-domain-badge shadow-sm">${goalDomain.toUpperCase()}</div>
@@ -304,17 +263,17 @@ export function updateGoalCards(data, currentUserInputText, goalCardsContainer) 
 
             <div class="card-footer bg-transparent border-0 p-0 pb-4">
               ${isCompliant ? `
-              <form action="/outcome" method="post">
+              <form class="outcome-form" action="/outcome" method="post">
                 <input type="hidden" name="selected_goal" value="${goal.goal}">
                 <input type="hidden" name="domain" value="${goalDomain}">
                 <input type="hidden" name="domain_icon" value="${goalIcon}">
                 <input type="hidden" name="selected_goal_title" value="${goalTitle}">
                 <button type="submit" class="btn-select-pill w-100 shadow-md" style="background-color: ${accent};">
-                  SELECT PROTOCOL
+                  INITIALIZE
                 </button>
               </form>` : `
               <button class="btn-select-pill w-100" style="background-color: #ef5350; cursor: not-allowed; opacity: 0.8;">
-                  PROTOCOL VIOLATION
+                  VIOLATION
               </button>`}
             </div>
           </div>
@@ -322,25 +281,44 @@ export function updateGoalCards(data, currentUserInputText, goalCardsContainer) 
         </div>
       </div>
     `;
-    
     goalCardsContainer.insertAdjacentHTML('beforeend', cardHtml);
   });
 
-  // Trigger Flip Animation for newly added cards after they render
+  // Bind event listeners to new forms for the spinner
+  // This ensures regenerated cards still trigger the spinner
+  const newForms = goalCardsContainer.querySelectorAll('.outcome-form');
+  newForms.forEach(form => {
+      form.addEventListener('submit', (e) => {
+           const title = form.querySelector('input[name="selected_goal_title"]').value;
+           showLoadingSpinner(`INITIALIZING: ${title.toUpperCase()}`, "fa-rocket", "SSOL");
+      });
+  });
+
+  // Trigger Flip Animation
   setTimeout(() => {
       const cards = goalCardsContainer.querySelectorAll('.flip-card-inner');
       cards.forEach(card => {
           const delay = parseInt(card.dataset.delay) || 1000;
-          setTimeout(() => {
-              card.closest('.flip-card').classList.add('revealed');
-          }, delay);
+          setTimeout(() => card.closest('.flip-card').classList.add('revealed'), delay);
       });
   }, 100);
 }
 
-/**
- * Initializes generic event listeners.
- */
-export function initializeEventListeners() {
-  console.log("Horizon Base Functions: Initialized.");
+// ==================================================
+// 3. INPUT EDITING UTILITIES
+// ==================================================
+
+export function handleEditButtonClick(d, e, b1, b2, b3) {
+    d.classList.add('d-none'); e.classList.remove('d-none'); e.value = d.textContent.trim(); e.focus();
+    b1.classList.add('d-none'); b2.classList.remove('d-none'); b3.classList.remove('d-none');
+}
+export function handleSaveButtonClick(d, e, b1, b2, b3, cb) {
+    const val = e.value.trim(); d.textContent = val;
+    d.classList.remove('d-none'); e.classList.add('d-none');
+    b1.classList.remove('d-none'); b2.classList.add('d-none'); b3.classList.add('d-none');
+    if (cb) cb(val);
+}
+export function handleCancelButtonClick(d, e, b1, b2, b3) {
+    d.classList.remove('d-none'); e.classList.add('d-none'); e.value = d.textContent.trim();
+    b1.classList.remove('d-none'); b2.classList.add('d-none'); b3.classList.add('d-none');
 }

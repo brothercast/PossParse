@@ -25,13 +25,14 @@
     <!-- Critical Data Injection -->
     <script type="text/javascript">
         window.NODES = {{ nodes | tojson | default('{}') | safe }};
+        window.SYSTEM_NODES_CONFIG = {{ system_nodes | tojson | default('{}') | safe }};
     </script>
     
     {% block head %}{% endblock %} 
 </head>
 
 <!-- Dynamic Body Class for Outcome Dimming -->
-<body class="{% if request.endpoint == 'routes_bp.outcome' %}state-outcome{% endif %}">
+<Body>
 
     <!-- 1. AURORA BACKGROUND (The Swirl) -->
     <div class="aurora-background">

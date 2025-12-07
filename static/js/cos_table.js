@@ -250,41 +250,85 @@ function handleDeleteCOS(cosRow, cosId) {
 
 function handleAddCOSButtonClick(event) {
     const button = event.currentTarget;
-    const container = button.closest('.phase-table-container');
-    const ssolId = container.dataset.ssolId;
     
-    if (!ssolId) return alert("Critical Error: SSOL ID missing.");
+    // 1. Locate Context
+    const container = button.closest('.phase-table-container');
+    if (!container) return console.error("Phase container not found.");
+    
+    const ssolId = container.dataset.ssolId;
+    if (!ssolId) return alert("System Error: SSOL Context Missing.");
 
+    // 2. Visual Feedback (Loading State)
+    const originalHtml = button.innerHTML;
     button.disabled = true;
-    button.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Initializing...`;
+    button.innerHTML = `<i class="fas fa-circle-notch fa-spin me-2"></i> INITIALIZING...`;
 
+    // 3. Construct Payload
+    const payload = {
+        // Default placeholder text inviting definition
+        content: "New Condition of Satisfaction - Click edit to define parameters.",
+        status: "Proposed",
+        ssol_id: ssolId
+    };
+
+    // 4. Network Request
     fetch(`/create_cos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            content: 'New Protocol Condition - Click edit to define parameters.',
-            status: 'Proposed',
-            ssol_id: ssolId
-        })
+        body: JSON.stringify(payload)
     })
-    .then(handleApiResponse)
+    .then(handleApiResponse) // Expects standard helper
     .then(data => {
-        // Find or create Tbody
-        let tbody = container.querySelector('table tbody');
-        // If table doesn't exist (empty phase), reload page or simple alert for MVP 
-        // (Assuming standard template renders table structure even if empty)
-        if (tbody && data.cos) {
-            tbody.insertAdjacentHTML('beforeend', createRowHTML(data.cos));
-        } else {
-            location.reload(); // Fallback for first item in phase
+        if (data.success && data.cos) {
+            // 5. Inject into DOM
+            const table = container.querySelector('table.retro-table');
+            const newRowHtml = createRowHTML(data.cos); // Generate Row HTML
+
+            if (table) {
+                // SCENARIO A: Table exists, append row
+                const tbody = table.querySelector('tbody');
+                tbody.insertAdjacentHTML('beforeend', newRowHtml);
+            } else {
+                // SCENARIO B: Empty State (No table yet)
+                // We must remove the "No protocols" placeholder and build the table skeleton
+                const emptyState = container.querySelector('.text-center.text-muted');
+                if(emptyState) emptyState.remove();
+
+                // The wrapper for the table needs to go BEFORE the button footer
+                // Note: outcome.html structure puts button in a div.p-3 at bottom of container
+                const tableSkeleton = `
+                    <table class="table table-hover mb-0 align-middle retro-table">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4" style="width: 110px;">Status</th>
+                                <th>Condition of Satisfaction</th>
+                                <th style="width: 18%;">Accountable</th>
+                                <th style="width: 12%;">Target</th>
+                                <th class="text-end pe-4" style="width: 100px;">Edit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${newRowHtml}
+                        </tbody>
+                    </table>
+                `;
+                
+                // Insert as first element in the body (pushing the footer down)
+                container.insertAdjacentHTML('afterbegin', tableSkeleton);
+            }
         }
     })
-    .catch(err => alert(err.message))
+    .catch(err => {
+        console.error("COS Creation Failed:", err);
+        alert("Failed to initialize new Condition. Check console.");
+    })
     .finally(() => {
+        // 6. Restore Button State
         button.disabled = false;
-        button.innerHTML = `<i class="fas fa-plus me-2"></i> ADD PROTOCOL UNIT`;
+        button.innerHTML = originalHtml;
     });
 }
+
 
 // --- HTML Generator for New Rows (Matches outcome.html structure) ---
 function createRowHTML(cos) {
@@ -322,7 +366,7 @@ function createRowHTML(cos) {
 
 // --- MAIN: Launch the CE Modal Application ---
 
-function handleCEPillClick(pill) {
+export function handleCEPillClick(pill) {
     const ceId = pill.dataset.ceId;
     const ceType = pill.dataset.ceType || "Default";
     

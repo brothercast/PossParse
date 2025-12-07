@@ -102,6 +102,103 @@ function checkAndTriggerAutoPopulation() {
     }
 }
 
+// Core View Updater
+function updateModalView() {
+    const typeKey = currentNodesArray[currentIndex];
+    const config = systemNodesConfig[typeKey] || {};
+    const modalEl = document.getElementById('systemConfigModal');
+    
+    // --- 1. Identity Panel (LEFT) ---
+    const panel = document.getElementById('sys-identity-panel');
+    panel.style.backgroundColor = config.color || '#333';
+    document.getElementById('sys-display-icon').className = `fas ${config.icon} fa-2x text-white`;
+    document.getElementById('sys-display-label').textContent = config.label;
+    
+    // --- 2. Calibration Console (RIGHT) ---
+    // Definition
+    document.getElementById('sys-display-desc').textContent = config.description;
+    
+    // Examples (NEW)
+    const exContainer = document.getElementById('sys-examples-container');
+    exContainer.innerHTML = "";
+    if(config.examples && Array.isArray(config.examples)) {
+        config.examples.forEach(ex => {
+            const badge = document.createElement('span');
+            badge.className = "badge bg-white border text-secondary fw-normal cursor-pointer hover-shadow";
+            badge.textContent = ex;
+            badge.onclick = () => {
+                document.getElementById('sys-param-value').value = ex;
+                updateInjectionPreview(typeKey);
+                updateActivePill(config.icon); // Update Visuals immediately
+            };
+            exContainer.appendChild(badge);
+        });
+    }
+
+    // Pre-Populate Input (Fixed Logic)
+    document.getElementById('sys-param-type').value = typeKey;
+    const input = document.getElementById('sys-param-value');
+    
+    // We use dataset.tempValue which was set in openSystemEditor
+    const savedVal = modalEl.dataset.tempValue;
+    
+    // Visual State Logic:
+    // If 'savedVal' exists, the anchor is set. If not, it's pending.
+    if(savedVal) {
+        input.value = savedVal;
+        document.getElementById('sys-status-badge').className = "badge bg-success-subtle text-success border border-success-subtle font-data rounded-pill px-3";
+        document.getElementById('sys-status-badge').innerHTML = '<i class="fas fa-check-circle me-1"></i> CALIBRATED';
+    } else {
+        input.value = '';
+        document.getElementById('sys-status-badge').className = "badge bg-secondary-subtle text-secondary border border-secondary-subtle font-data rounded-pill px-3";
+        document.getElementById('sys-status-badge').innerHTML = '<i class="fas fa-circle me-1" style="font-size:8px;"></i> UNSET';
+    }
+
+    // --- 3. Visual Pill Renderer (LEFT Panel) ---
+    updateActivePill(config.icon);
+
+    // Live Listeners
+    input.oninput = () => {
+        updateInjectionPreview(typeKey);
+        updateActivePill(config.icon);
+    };
+    
+    updateInjectionPreview(typeKey);
+
+    // Pagination Rendering... (Same as before)
+}
+
+// Helper to render the Giant Pill on the Left
+function updateActivePill(iconClass) {
+    const val = document.getElementById('sys-param-value').value;
+    const container = document.getElementById('sys-active-pill-container');
+    
+    if (val && val.trim() !== "") {
+        // Render Active State
+        container.innerHTML = `
+            <div class="bg-white bg-opacity-10 border border-white border-opacity-25 rounded-pill p-3 pe-5 d-flex align-items-center backdrop-blur transition-all">
+                <div class="rounded-circle bg-white text-dark d-flex align-items-center justify-content-center shadow-sm me-3" 
+                     style="width: 42px; height: 42px; flex-shrink: 0;">
+                    <i class="fas ${iconClass} fa-lg"></i>
+                </div>
+                <div>
+                    <div class="font-data text-white-50 x-small uppercase tracking-wide mb-0">ANCHOR VALUE</div>
+                    <div class="font-body text-white fw-bold fs-5 leading-tight text-truncate" style="max-width: 220px;">
+                        ${val}
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        // Render "Empty Slot" State
+        container.innerHTML = `
+             <div class="border border-dashed border-white border-opacity-25 rounded-pill p-4 text-center text-white-50 font-data small">
+                <i class="fas fa-terminal me-2"></i> AWAITING INPUT
+             </div>
+        `;
+    }
+}
+
 // --- 5. RENDER PIPELINE ---
 
 function render() {
@@ -209,6 +306,7 @@ function renderCollectionList(type) {
 // --- 6. DASHBOARD & METRICS ---
 
 function updateDashboard() {
+    // 1. Update Badges
     ['prerequisites', 'stakeholders', 'assumptions', 'resources'].forEach(k => {
         const count = (state.collections[k] || []).length;
         const badge = state.modalElement.querySelector(`.count-badge[data-collection="${k}"]`);
@@ -221,9 +319,9 @@ function updateDashboard() {
         }
     });
 
+    // 2. Calculate Score
     let score = 0;
     const totalGoal = 60; 
-
     Object.values(state.collections).flat().forEach(i => {
         score += 5; 
         if (['Verified', 'Met', 'Signed', 'Active'].includes(i.status)) score += 5;
@@ -232,20 +330,25 @@ function updateDashboard() {
 
     const percent = Math.min(100, Math.floor((score / totalGoal) * 100));
     
+    // 3. Update Bars (With Safety Checks)
     const bar = state.modalElement.querySelector('#ce-progress-bar');
     const lbl = state.modalElement.querySelector('#ce-progress-label');
     if(bar) bar.style.width = `${percent}%`;
     if(lbl) lbl.innerText = `${percent}%`;
 
+    // 4. Update Status Card (CRITICAL FIX: Null Checks)
     const statusCard = state.modalElement.querySelector('.system-status-card');
     const statusVal = state.modalElement.querySelector('.status-card-value');
     
-    if (statusVal && !statusCard.classList.contains('scanning')) {
-        statusVal.classList.remove('text-primary');
-        if (percent === 0) statusVal.innerText = "INITIALIZED";
-        else if (percent < 30) statusVal.innerText = "ANALYZING";
-        else if (percent < 80) statusVal.innerText = "CALIBRATING";
-        else statusVal.innerHTML = "<span class='text-success'>OPTIMIZED</span>";
+    if (statusCard && statusVal) {
+        // Only update if we aren't in the middle of a scan
+        if (!statusCard.classList.contains('scanning')) {
+            statusVal.classList.remove('text-primary');
+            if (percent === 0) statusVal.innerText = "INITIALIZED";
+            else if (percent < 30) statusVal.innerText = "ANALYZING";
+            else if (percent < 80) statusVal.innerText = "CALIBRATING";
+            else statusVal.innerHTML = "<span class='text-success'>OPTIMIZED</span>";
+        }
     }
 }
 
@@ -329,26 +432,62 @@ function triggerSpeculation(type, btn = null) {
     });
 }
 
-function triggerEnhancement(fieldKey, btn = null) {
-    if(btn) { btn.innerHTML = '<i class="fas fa-spin fa-spinner"></i>'; }
-    const contextGoal = state.modalElement.querySelector('.source-cos-card p')?.textContent.trim();
+// ce_cards.js - Narrative Enhancement Logic
 
+function triggerEnhancement(fieldKey, btn = null, isAuto = false) {
+    // 1. Set Visual Loading State (if triggered by a button)
+    if (btn) { 
+        btn.disabled = true; 
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> THINKING...'; 
+    }
+
+    // 2. Scrape Context for AI
+    // We need the Parent Goal (COS) to ground the generated text.
+    const cosTextEl = state.modalElement.querySelector('.source-cos-card p');
+    const cosText = cosTextEl ? cosTextEl.textContent.trim() : "Project Goal";
+
+    // 3. Send Request to 'Narrative Mode' endpoint
     fetch('/speculate_context', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ 
-            ce_type: state.ceType, context: 'narrative', sub_context: fieldKey, cos_text: contextGoal 
+            ce_type: state.ceType, 
+            context: 'narrative', // Special context for text generation
+            sub_context: fieldKey, // e.g., 'summary', 'research_question'
+            cos_text: cosText 
         })
     })
     .then(r => r.json())
     .then(data => {
-        if(data.text) {
+        // 4. Handle Successful Response
+        if(data.success && data.text) {
+            // Update Local State
             state.details_data[fieldKey] = data.text;
+            
+            // Update DOM Input/Textarea directly
             const input = state.modalElement.querySelector(`[name="${fieldKey}"]`);
-            if(input) input.value = data.text;
+            if(input) {
+                input.value = data.text;
+                // Trigger input event to notify other listeners (like autosave)
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            
+            // Update Dashboard (e.g. Readiness score jumps up because field is filled)
             updateDashboard();
         }
     })
-    .finally(() => { if(btn) btn.innerHTML = '<i class="fas fa-magic"></i> ENHANCE'; });
+    .catch(err => {
+        console.error("Narrative Speculation Error:", err);
+        if(btn && !isAuto) alert("Could not generate narrative. Please try again.");
+    })
+    .finally(() => { 
+        // 5. Reset Button State
+        if (btn) { 
+            btn.disabled = false; 
+            // BRANDING UPDATE: Restore 'SPECULATE' label instead of 'ENHANCE'
+            btn.innerHTML = '<i class="fas fa-brain me-2"></i> SPECULATE'; 
+        } 
+    });
 }
 
 function saveDataPacket() {
