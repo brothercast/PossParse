@@ -3,23 +3,26 @@
 {% block content %}
 <div class="horizon-wrapper">
   <div class="console-housing">
-    <div class="screen-surface d-flex flex-column" style="min-height: 80vh;">
+    
+    <!-- 
+      THE SCREEN SURFACE 
+      Relative container that bounds the entire application view.
+      The Configuration Stage (Sidebar + Wizard) gets injected here by JS.
+    -->
+    <div class="screen-surface d-flex flex-column position-relative overflow-hidden" style="min-height: 85vh;">
       
       <!-- 1. HEADER BAR -->
-      <div class="bg-white border-bottom px-5 py-4 d-flex justify-content-between align-items-center shadow-sm z-20 flex-shrink-0">
+      <div id="gs-header" class="bg-white border-bottom px-5 py-4 d-flex justify-content-between align-items-center shadow-sm z-30 position-relative transition-all">
         <div class="d-flex align-items-center gap-4">
            
-           <!-- User Input Group -->
+           <!-- User Input Display -->
            <div id="user-input-display-container">
                <div class="font-data text-muted small text-uppercase letter-spacing-1 mb-1">Mission Parameter</div>
-               
                <div class="d-flex align-items-center gap-3">
                    <h2 class="font-brand text-dark m-0 user-input-display" style="font-size: 2rem;">"{{ user_input }}"</h2>
-                   <button class="btn btn-sm btn-link text-muted edit-user-input p-0" title="Edit"><i class="fas fa-pencil-alt"></i></button>
+                   <button class="btn btn-sm btn-link text-muted edit-user-input p-0" title="Edit Parameter"><i class="fas fa-pencil-alt"></i></button>
                </div>
-
-               <!-- Horizon Instruction -->
-               <div class="horizon-instruction">
+               <div class="horizon-instruction font-body text-muted small mt-1">
                    Analogs Detected. Select Optimal Protocol Trajectory.
                </div>
            </div>
@@ -33,7 +36,6 @@
         </div>
 
         <div class="d-flex gap-3">
-             <!-- "Speculate New" triggers JS in goal_selection.js -->
              <button type="button" class="btn btn-sm btn-outline-primary font-data rounded-pill px-4" id="generate-new-goals">
                <i class="fas fa-sync-alt me-2"></i> Re-Calculate
              </button>
@@ -43,79 +45,128 @@
         </div>
       </div>
 
-      <!-- 2. THE GOAL GRID -->
-      <div class="goal-grid flex-grow-1 d-flex align-items-center justify-content-center bg-light" id="goalCardsContainer">
+      <!-- 2. THE STAGE VIEWPORT (Centers the Grid) -->
+      <!-- This container enforces the bounds for the Morphing Card -->
+      <div id="stage-viewport">
         
-        {% for goal in goals %}
-           <div class="flip-card {{ 'rejected' if not goal.is_compliant else '' }}" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
-            <div class="flip-card-inner" data-delay="{{ 800 + (loop.index0 * 300) }}">
-              
-              <!-- BACK (Face Down) -->
-              <div class="flip-card-back" 
-                   style="background: {{ 'linear-gradient(135deg, #ffeb3b 0%, #ff9800 40%, #d32f2f 100%)' if not goal.is_compliant else 
-                           ('linear-gradient(135deg, #ff7043 0%, #f4511e 100%)' if loop.index0 % 3 == 0 else 
-                           'linear-gradient(135deg, #26c6da 0%, #00bcd4 100%)' if loop.index0 % 3 == 1 else 
-                           'linear-gradient(135deg, #ab47bc 0%, #7b1fa2 100%)') }};">
-                <div class="card-pattern-overlay"></div>
-                <div class="position-relative z-2 d-flex flex-column align-items-center">
-                  <div class="bg-white bg-opacity-25 p-4 rounded-circle border border-2 border-white border-opacity-50 shadow-lg mb-3 backdrop-blur">
-                    <i class="{{ goal.icon }} fa-3x text-white drop-shadow"></i>
-                  </div>
-                  {% if not goal.is_compliant %}
-                  <div class="font-data text-white small bg-black bg-opacity-25 px-3 py-1 rounded-pill border border-white border-opacity-25 mt-2">Protocol Violation</div>
-                  {% endif %}
-                </div>
-              </div>
+        <div class="goal-grid" id="goalCardsContainer">
+            {% for goal in goals %}
+               <!-- Cycle through 5 Horizon Phase Colors -->
+               <!-- 0:Coral, 1:Cyan, 2:Purple, 3:Amber, 4:Green -->
+               {% set theme_idx = loop.index0 % 5 %}
 
-              <!-- FRONT (Face Up) -->
-              <div class="flip-card-front">
-                <div class="card-header-plate" style="background: {{ 'linear-gradient(135deg, #ffcdd2 0%, #ef5350 100%)' if not goal.is_compliant else ('linear-gradient(135deg, #ffcc80 0%, #ff7043 100%)' if loop.index0 % 3 == 0 else 'linear-gradient(135deg, #80deea 0%, #00bcd4 100%)' if loop.index0 % 3 == 1 else 'linear-gradient(135deg, #e1bee7 0%, #ab47bc 100%)') }};">
-                    <div class="card-domain-badge shadow-sm">{{ goal.domain | upper }}</div>
-                    <div class="card-icon-float">
-                        <i class="{{ goal.icon }} fa-2x" style="color: {{ '#ef5350' if not goal.is_compliant else ('#ff7043' if loop.index0 % 3 == 0 else '#00bcd4' if loop.index0 % 3 == 1 else '#ab47bc') }};"></i>
-                    </div>
-                </div>
-
-                <div class="card-body">
-                  <h3 class="card-title">{{ goal.title }}</h3>
-                  <p class="card-desc">{{ goal.goal }}</p>
-                </div>
-
-                <div class="card-footer bg-transparent border-0 pb-4">
-                    {% if goal.is_compliant %}
-                      <!-- The Outcome Form -->
-                      <form action="{{ url_for('routes_bp.outcome') }}" method="post" class="outcome-form">
-                        <input type="hidden" name="selected_goal" value="{{ goal.goal }}">
-                        <input type="hidden" name="domain" value="{{ goal.domain }}">
-                        <input type="hidden" name="domain_icon" value="{{ goal.icon }}">
-                        <input type="hidden" name="selected_goal_title" value="{{ goal.title }}">
+               <!-- Calculate Gradient Logic -->
+               {% set gradient = '' %}
+               {% set btn_gradient = '' %}
+               
+               {% if not goal.is_compliant %}
+                    {% set gradient = 'linear-gradient(135deg, #ef5350 0%, #b71c1c 100%)' %}
+                    {% set btn_gradient = '#ef5350' %}
+               {% elif theme_idx == 0 %}
+                    {% set gradient = 'linear-gradient(135deg, #ff7043 0%, #d84315 100%)' %}
+                    {% set btn_gradient = 'linear-gradient(to right, #ff7043, #d84315)' %}
+               {% elif theme_idx == 1 %}
+                    {% set gradient = 'linear-gradient(135deg, #26c6da 0%, #00838f 100%)' %}
+                    {% set btn_gradient = 'linear-gradient(to right, #00bcd4, #00838f)' %}
+               {% elif theme_idx == 2 %}
+                    {% set gradient = 'linear-gradient(135deg, #ab47bc 0%, #7b1fa2 100%)' %}
+                    {% set btn_gradient = 'linear-gradient(to right, #ab47bc, #7b1fa2)' %}
+               {% elif theme_idx == 3 %}
+                    {% set gradient = 'linear-gradient(135deg, #ffa726 0%, #ef6c00 100%)' %}
+                    {% set btn_gradient = 'linear-gradient(to right, #ffa726, #ef6c00)' %}
+               {% else %}
+                    {% set gradient = 'linear-gradient(135deg, #66bb6a 0%, #2e7d32 100%)' %}
+                    {% set btn_gradient = 'linear-gradient(to right, #66bb6a, #2e7d32)' %}
+               {% endif %}
+               
+               <!-- 
+                   CARD WRAPPER 
+                   Default State: Opacity 0 (Handled by CSS).
+                   JS adds .deal-in to slide up, then .revealed to flip to front.
+               -->
+               <div class="flip-card-wrapper theme-{{ theme_idx }} {{ 'violation' if not goal.is_compliant else '' }}" 
+                    onclick="window.selectGoal(this)">
+                    
+                    <div class="flip-card-inner">
                         
-                        <button type="submit" 
-                                class="btn-select-pill w-100 shadow-md" 
-                                style="background-color: {{ '#ff7043' if loop.index0 % 3 == 0 else '#00bcd4' if loop.index0 % 3 == 1 else '#ab47bc' }};">
-                          INITIALIZE
-                        </button>
-                      </form>
-                    {% else %}
-                      <button class="btn-select-pill w-100" style="background-color: #ef5350; cursor: not-allowed; opacity: 0.8;">VIOLATION</button>
-                    {% endif %}
-                </div>
-              </div>
+                        <!-- 
+                             BACK FACE: THE MONOLITH (Default Visible Layer z-index: 2)
+                             This acts as the "Cover". It displays the Icon and "Potential Future".
+                             When selected, the card flips back to this face and morphs into the sidebar.
+                        -->
+                        <div class="flip-card-back" style="background: {{ gradient }};">
+                            
+                            <!-- Texture Layer -->
+                            <div class="card-texture-overlay"></div>
+                            
+                            <!-- Center Icon (The Monolith Symbol) -->
+                            <!-- Wrapped in .monolith-content so we can fade it out during Morph -->
+                            <div class="monolith-content">
+                                <i class="{{ goal.icon }} monolith-icon"></i>
+                                
+                                {% if not goal.is_compliant %}
+                                    <div class="position-absolute bottom-0 mb-5">
+                                        <span class="badge bg-black bg-opacity-50 border border-danger text-white font-data tracking-widest px-3 py-2">
+                                            <i class="fas fa-shield-virus me-2"></i> SAFETY LOCKOUT
+                                        </span>
+                                    </div>
+                                {% else %}
+                                    <div class="position-absolute bottom-0 mb-5 font-data text-white-50 x-small tracking-widest uppercase opacity-50 border border-white border-opacity-25 rounded-pill px-3 py-1">
+                                        POTENTIAL FUTURE
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
 
-            </div>
-          </div>
-        {% endfor %}
-          
+                        <!-- 
+                             FRONT FACE: THE DETAILS (Hidden Behind Back Initially z-index: 1)
+                             Revealed via diagonal flip animation when .revealed is added.
+                        -->
+                        <div class="flip-card-front">
+                            
+                            <!-- Header Plate (Matches Back Color) -->
+                            <div class="card-header-plate" style="background: {{ gradient }};">
+                                <div class="card-domain-badge">{{ goal.domain | upper }}</div>
+                                <div class="card-icon-float">
+                                    <i class="{{ goal.icon }} fa-2x" 
+                                       style="color: {{ '#ef5350' if not goal.is_compliant else 
+                                               ('#d84315' if theme_idx == 0 else 
+                                               '#00838f' if theme_idx == 1 else 
+                                               '#7b1fa2' if theme_idx == 2 else
+                                               '#ef6c00' if theme_idx == 3 else 
+                                               '#2e7d32') }};"></i>
+                                </div>
+                            </div>
+
+                            <!-- Body Content -->
+                            <div class="card-body">
+                                <h3 class="card-title">{{ goal.title }}</h3>
+                                <p class="card-desc">{{ goal.goal }}</p>
+                            </div>
+
+                            <!-- Footer Action -->
+                            <div class="card-footer">
+                                <button type="button" class="btn-select-pill shadow-sm"
+                                        style="background: {{ btn_gradient }};">
+                                    {{ 'PROTOCOL VIOLATION' if not goal.is_compliant else 'INITIALIZE PROTOCOL' }}
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+               </div>
+            {% endfor %}
+        </div>
       </div>
-    
-    <!-- 3. FOOTER -->
-    <div class="d-flex justify-content-between align-items-center px-4 py-3 bg-white border-top mt-auto flex-shrink-0">
+
+    <!-- 4. FOOTER -->
+    <div class="d-flex justify-content-between align-items-center px-4 py-3 bg-white border-top mt-auto flex-shrink-0 z-20 position-relative">
        <div class="d-flex gap-2">
           <div class="rounded-circle bg-success shadow-sm animate-pulse" style="width: 8px; height: 8px;"></div>
           <div class="rounded-circle bg-warning shadow-sm" style="width: 8px; height: 8px;"></div>
           <div class="rounded-circle bg-info shadow-sm" style="width: 8px; height: 8px;"></div>
        </div>
-       <span class="font-data text-muted small letter-spacing-2">SSPEC HORIZON v2025.23</span>
+       <span class="font-data text-muted small letter-spacing-2">SSPEC HORIZON v2025.33</span>
     </div>
 
     </div>
@@ -124,45 +175,12 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Core logic for regenerations/edit (if kept external) -->
 <script type="module" src="{{ url_for('static', filename='js/goal_selection.js') }}"></script>
-
 <script type="module">
-    import { showLoadingSpinner } from '{{ url_for("static", filename="js/base_functions.js") }}';
-
-    document.addEventListener('DOMContentLoaded', () => {
-        // 1. Trigger Flip Animations on Load
-        const cards = document.querySelectorAll('.flip-card-inner');
-        cards.forEach(card => {
-            const delay = parseInt(card.dataset.delay) || 1000;
-            setTimeout(() => {
-                card.closest('.flip-card').classList.add('revealed');
-            }, delay);
-        });
-
-        // 2. Intercept Outcome Form Submission for HUD Spinner
-        const forms = document.querySelectorAll('.outcome-form');
-        forms.forEach(form => {
-            form.addEventListener('submit', function(e) {
-                // The form will submit naturally, we just fire the visual overlay immediately
-                const title = this.querySelector('input[name="selected_goal_title"]').value;
-                const domain = this.querySelector('input[name="domain"]').value;
-                
-                // Show the Horizon HUD Spinner
-                showLoadingSpinner(`INITIALIZING: ${title.toUpperCase()}`, "fa-solid fa-network-wired");
-            });
-        });
-        
-        // 3. Loading State for Regeneration Button
-        const regenBtn = document.getElementById('generate-new-goals');
-        if(regenBtn) {
-            regenBtn.addEventListener('click', () => {
-                 // Let goal_selection.js handle the fetch, but show spinner visually
-                 // Note: goal_selection.js should ideally call hideLoadingSpinner() when done.
-                 // If not, the page reload that often happens on regeneration will clear it.
-                 showLoadingSpinner("SPECULATING NEW TRAJECTORIES", "fa-sync fa-spin");
-            });
-        }
-    });
+    // Load Animate.css for the Configuration Wizard slide effects
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css';
+    document.head.appendChild(link);
 </script>
 {% endblock %}

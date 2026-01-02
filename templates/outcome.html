@@ -13,7 +13,7 @@
                 {% if cos.conditional_elements %}
                     {% set total_ces = total_ces + cos.conditional_elements|length %}
                     {% for ce in cos.conditional_elements %}
-                        {# Check internal data status if available, or fallback to generic logic #}
+                        {# Check internal data status if available #}
                         {% if ce.data and ce.data.get('status') == 'Active' %}{% set active_ces = active_ces + 1 %}{% endif %}
                         {% if ce.data and ce.data.get('status') == 'Verified' %}{% set verified_ces = verified_ces + 1 %}{% endif %}
                     {% endfor %}
@@ -35,67 +35,48 @@
         <!-- ============================================= -->
         <div class="col-lg-3 border-end bg-surface-screen d-flex flex-column position-relative z-10">
             
-            <!-- Context Header (MATCHES BRAND STRIP EXACTLY) -->
-            <div class="py-3 px-4 d-flex align-items-center justify-content-between text-white" 
+            <!-- Context Header -->
+            <!-- Added 'mission-context-header' class for that top-left rounded corner -->
+            <div class="mission-context-header py-3 px-4 d-flex align-items-center justify-content-between text-white" 
                  style="background: linear-gradient(90deg, #00bcd4 0%, #26c6da 100%); border-bottom: 1px solid rgba(255,255,255,0.1); height: 60px;">
                 <span class="font-data tracking-widest small">
                     <i class="fas fa-satellite-dish me-2 opacity-50"></i>MISSION CONTEXT
                 </span>
-                <i class="fas fa-ellipsis-v opacity-50 small"></i>
+                <i class="fas fa-ellipsis-v opacity-50 small cursor-pointer"></i>
             </div>
 
-            <div class="p-4 flex-grow-1 d-flex flex-column gap-4">
-                <!-- 1. Visualization Portal -->
-                <div class="image-portal border shadow-sm">
+            <!-- SCROLLABLE SIDEBAR CONTENT -->
+            <div class="p-4 flex-grow-1 d-flex flex-column gap-3 overflow-y-auto">
+                
+                <!-- 1. Visualization Portal (Square 1:1 via CSS) -->
+                <div class="image-portal border shadow-sm mx-auto">
                     <img src="{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}" id="placeholderImage" class="fade-in" alt="System Processing">
                     <img src="" id="ssolImage" class="fade-in" style="opacity: 0;" alt="Generated Outcome Visualization">
                 </div>
 
-                <!-- 2. Domain Context (Centered below image) -->
-                <div class="text-center">
-                    <div class="d-inline-flex align-items-center px-3 py-1 bg-white border rounded-pill shadow-sm">
-                        <i class="{{ ssol.domain_icon }} text-info me-2"></i>
-                        <span class="font-body fw-bold small text-dark">{{ ssol.domain | upper }}</span>
+                <!-- 2. Domain Badge (Solid Pill Below Image) -->
+                <div class="domain-badge-container">
+                    <div class="domain-pill-solid" title="System Domain: {{ ssol.domain }}">
+                        <div class="domain-icon-circle">
+                            <i class="{{ ssol.domain_icon }}"></i>
+                        </div>
+                        <span class="fw-bold">{{ ssol.domain | upper }}</span>
                     </div>
                 </div>
 
-                <!-- 3. System Goal (The Interactive Prime Objective) -->
-                <div class="border-top pt-4">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="fas fa-bullseye text-danger"></i>
-                            <div class="font-data text-danger small tracking-widest fw-bold">PRIME OBJECTIVE</div>
-                        </div>
-                        <!-- Edit Trigger -->
-                        <button class="btn btn-link p-0 text-muted hover-text-dark transition-colors" 
-                                onclick="openSystemEditor('{{ ssol_id }}', 'GOAL', null)" 
-                                title="Refine System Goal">
-                            <i class="fas fa-sliders-h small"></i>
-                        </button>
+                <!-- 3. Prime Objective Card (Highlighted Box) -->
+                <div class="mission-goal-card">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <i class="fas fa-bullseye text-danger"></i>
+                        <div class="font-data text-danger small tracking-widest fw-bold">PRIME OBJECTIVE</div>
                     </div>
                     
-                    <!-- The Goal acts as a 'System Pill' now. Clickable container. -->
-                    <div class="cursor-pointer group" onclick="openSystemEditor('{{ ssol_id }}', 'GOAL', null)">
-                        <!-- Hidden hooks for JS to grab current state -->
-                        <div id="ssol-goal" class="d-none">{{ ssol.selected_goal }}</div>
-                        <div id="ssol-title-hook" class="d-none">{{ ssol.ssol_title }}</div>
-                        
-                        <p class="font-body text-dark fw-bold fst-italic lh-sm mb-1 group-hover:text-primary transition-colors">
-                            "{{ ssol.selected_goal }}"
-                        </p>
-                        
-                        <!-- Real-time Logic Stats -->
-                        <div class="d-flex align-items-center gap-2 mt-2">
-                            <span class="badge bg-light text-muted border font-data" style="font-size: 0.6rem;">
-                                {{ total_ces }} NODES LINKED
-                            </span>
-                            {% if verified_ces > 0 %}
-                            <span class="badge bg-success-subtle text-success border border-success-subtle font-data" style="font-size: 0.6rem;">
-                                {{ ((verified_ces / total_ces) * 100)|int }}% REALIZED
-                            </span>
-                            {% endif %}
-                        </div>
-                    </div>
+                    <!-- Hidden hook for AI Context -->
+                    <div id="ssol-goal" class="d-none">{{ ssol.selected_goal }}</div>
+                    
+                    <p class="font-body text-dark fw-bold fst-italic lh-sm mb-0" style="font-size: 1.05rem;">
+                        "{{ ssol.selected_goal }}"
+                    </p>
                 </div>
 
                 <!-- 4. System Variables (The Anchors Stack) -->
@@ -120,7 +101,7 @@
             <!-- Brand Strip (Top Accent) -->
             <div class="brand-strip"></div>
 
-            <!-- Adjusted Padding for cleaner spacing -->
+            <!-- Workspace Padding -->
             <div class="p-4 p-lg-5 flex-grow-1 overflow-y-auto">
                 
                 <!-- 1. Title Header & Actions -->
@@ -150,7 +131,8 @@
                                  style="width:36px; height:36px;">
                                 <i class="fas fa-layer-group"></i>
                             </div>
-                            <span class="font-data text-white small tracking-widest fw-bold" style="letter-spacing: 1px; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">EXECUTIVE CHARTER</span>
+                            <!-- FONT UPDATE: Changed to font-brand -->
+                            <span class="font-brand text-white small tracking-widest fw-bold" style="letter-spacing: 1px; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">EXECUTIVE CHARTER</span>
                         </div>
 
                         <!-- Ghost Watermark (Domain Icon) -->
@@ -159,14 +141,16 @@
                         </div>
 
                         <!-- Content with "Magic Parsing" Highlighting -->
-                        <div class="charter-content font-body text-dark lead position-relative p-5" style="line-height: 1.8; font-size: 1.1rem;">
+                        <div class="charter-content font-body text-dark lead position-relative p-5">
                             {{ ssol.ssol_summary | safe }}
                         </div>
                     </div>
 
-                    <!-- B. Horizon Gauge (Timeline) -->
-                    <!-- Injected via backend -->
-                    {{ horizon_gauge_html | default('<div class="alert alert-light border text-muted font-data small">TIMELINE NOT ESTABLISHED</div>') | safe }}
+                    <!-- B. Flight Path Timeline (Horizon Gauge) -->
+                    <!-- Injected from backend (system_templates.py) -->
+                    <div class="w-100">
+                        {{ horizon_gauge_html | default('<div class="alert alert-light border text-muted font-data small">TIMELINE CALIBRATING...</div>') | safe }}
+                    </div>
                     
                 </div>
 
@@ -218,12 +202,6 @@
                                             <div class="font-data small opacity-75 letter-spacing-2">SEQUENCE 0{{ loop.index }}</div>
                                         </div>
                                     </div>
-                                    
-                                    <!-- Phase Progress Bar -->
-                                    <div class="progress phase-progress flex-grow-1 mx-4 bg-white bg-opacity-25 border border-white border-opacity-25" style="height: 6px; max-width: 200px;">
-                                        <div class="progress-bar bg-white shadow-sm" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
-                                    </div>
-
                                     <i class="fas fa-chevron-down text-white opacity-75 transition-transform"></i>
                                 </div>
                             </div>
@@ -235,7 +213,7 @@
                                     <table class="table table-hover mb-0 align-middle retro-table">
                                         <thead class="bg-surface-screen border-bottom">
                                             <tr>
-                                                <th class="ps-5 text-muted small font-data py-3" style="width: 130px;">STATUS</th>
+                                                <th class="ps-5 text-muted small font-data py-3" style="width: 110px;">STATUS</th>
                                                 <th class="text-muted small font-data py-3">CONDITION OF SATISFACTION</th> 
                                                 <th class="text-muted small font-data py-3" style="width: 18%;">ACCOUNTABLE</th>
                                                 <th class="text-muted small font-data py-3" style="width: 12%;">TARGET</th>
@@ -244,12 +222,10 @@
                                         </thead>
                                         <tbody>
                                             {% for cos in cos_list %}
-                                            <tr class="cos-row" data-cos-id="{{ cos.id }}" data-cos-status="{{ cos.status }}" data-editing="false">
+                                            <tr class="cos-row" data-cos-id="{{ cos.id }}" data-editing="false">
                                                 <td class="status-cell ps-5">
-                                                    <!-- Interactive Status Badge -->
-                                                    <span class="status-block cursor-pointer font-data shadow-sm {{ cos.status | get_badge_class_from_status }}" 
-                                                          title="Click to Change Status"
-                                                          style="padding: 5px 10px; font-size: 0.6rem;">
+                                                    <span class="status-block font-data shadow-sm" 
+                                                          style="background-color: {{ 'var(--success)' if cos.status == 'Completed' else 'var(--warning)' if cos.status == 'Active' else '#94a3b8' }}; font-size: 0.6rem; padding: 5px 10px;">
                                                         {{ cos.status | upper }}
                                                     </span>
                                                 </td>
@@ -269,10 +245,6 @@
                                                 </td>
                                                 <td class="text-end actions-cell pe-5">
                                                     <div class="btn-group cos-actions opacity-50 hover-opacity-100 transition">
-                                                        <!-- "Mark Complete" Short-cut Action -->
-                                                        <button class="btn btn-sm btn-link text-success p-2 complete-cos-button" title="Mark Verified">
-                                                            <i class="fas fa-check-circle"></i>
-                                                        </button>
                                                         <button class="btn btn-sm btn-link text-muted edit-cos-button p-2"><i class="fas fa-cog"></i></button>
                                                         <button class="btn btn-sm btn-link text-danger delete-cos-button p-2"><i class="fas fa-trash"></i></button>
                                                     </div>
@@ -309,7 +281,7 @@
                     <div class="rounded-circle bg-success me-2 animate-pulse" style="width:8px; height:8px;"></div>
                     SYSTEM ONLINE
                 </div>
-                <div class="font-data small text-muted">SSPEC HORIZON v2025.26</div>
+                <div class="font-data small text-muted">SSPEC HORIZON v2025.32</div>
             </div>
 
         </div>
@@ -338,9 +310,12 @@
 
 {% block scripts %}
 <script>
-    // --- CRITICAL: Inject Python System Node Configuration into JS Scope ---
+    // Inject Python System Node Configuration into JS Scope
     window.SYSTEM_NODES_CONFIG = {{ system_nodes | tojson }};
     
+    // Inject the SSOL ID so the CE Modal knows which "Physics" to apply
+    window.SSOL_ID = "{{ ssol_id }}"; 
+
     // Inject Pre-Calculated Stats for the 'GOAL' Visualizer
     window.SSOL_STATS = {
         total: {{ total_ces }},

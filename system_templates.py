@@ -6,59 +6,76 @@ import datetime
 # ==============================================================================
 # 1. HORIZON GAUGE (Strict Single-Line Layout)
 # ==============================================================================
+# ==============================================================================
+# 1. HORIZON GAUGE (Strict Single-Line Layout)
+# ==============================================================================
 HORIZON_GAUGE_TEMPLATE = """
 <div class="card border-0 shadow-sm mb-4 overflow-visible system-node-card cursor-pointer group"
-     onclick="openSystemEditor('{{ id }}', 'HORIZON', '{{ value }}')">
+     onclick="openSystemEditor('{{ id }}', 'HORIZON', '{{ value }}')"
+     title="Click to Calibrate Horizon">
     
-    <!-- Added 'overflow-visible' to parent to prevent tooltip clipping, handled radius on inner -->
-    <div class="card-body p-0 d-flex align-items-stretch flex-nowrap rounded-4 overflow-hidden" style="height: 90px; border: 1px solid #e2e8f0;">
+    <!-- Main Container: Forced Flex Row with Inline Overrides -->
+    <div class="d-flex align-items-stretch flex-nowrap w-100" 
+         style="height: 80px; display: flex !important; flex-direction: row !important; overflow: visible;">
         
-        <!-- COL 1: ICON (Fixed) -->
-        <div class="bg-warning bg-opacity-10 d-flex align-items-center justify-content-center border-end flex-shrink-0" 
-             style="width: 90px;">
-            <i class="{{ icon }} fa-2x text-warning group-hover:scale-110 transition-transform"></i>
+        <!-- COL 1: ICON STRIP (Strict Fixed Width) -->
+        <div class="bg-warning bg-opacity-10 d-flex align-items-center justify-content-center border-end" 
+             style="width: 72px; min-width: 72px; flex: 0 0 72px;">
+            <i class="{{ icon }} fa-lg text-warning group-hover:scale-110 transition-transform"></i>
         </div>
         
-        <!-- COL 2: DATA (Fluid) -->
-        <div class="flex-grow-1 px-4 d-flex flex-column justify-content-center position-relative" style="min-width: 0;">
+        <!-- COL 2: TIMELINE DATA (Fluid Middle) -->
+        <div class="position-relative d-flex align-items-center justify-content-between gap-3 px-4" 
+             style="flex: 1 1 auto; min-width: 0; overflow: visible;">
             
-            <!-- Top Row: Labels -->
-            <div class="d-flex justify-content-between align-items-center w-100 mb-2">
-                <span class="font-data text-muted x-small tracking-widest opacity-75">START</span>
-                
-                <!-- CURRENT PHASE INDICATOR (New Feature) -->
-                <div class="badge bg-white text-dark border font-data x-small rounded-pill px-2 shadow-sm">
-                    <span class="text-warning me-1">●</span> DISCOVERY PHASE
-                </div>
-                
-                <span class="font-data text-muted x-small tracking-widest opacity-75">TARGET</span>
+            <!-- Origin Date -->
+            <div class="text-nowrap">
+                <div class="font-data text-muted x-small tracking-widest opacity-75 mb-1">ORIGIN</div>
+                <div class="font-body fw-bold text-dark small">{{ start_date }}</div>
             </div>
 
-            <!-- Bottom Row: Timeline Bar -->
-            <div class="d-flex align-items-center w-100 gap-3">
-                <div class="font-body fw-bold text-dark small text-nowrap">{{ start_date }}</div>
+            <!-- The Bar (Takes all remaining space) -->
+            <div class="progress rounded-pill flex-grow-1 position-relative mx-3" style="height: 6px; background-color: #f1f5f9; overflow: visible;">
                 
-                <!-- The Bar -->
-                <div class="progress flex-grow-1" style="height: 8px; background-color: #f1f5f9; border-radius: 4px; overflow: visible;">
-                    <div class="progress-bar rounded-pill position-relative" role="progressbar" 
-                         style="width: {{ time_elapsed_percent }}%; background-color: {{ health_color }}; box-shadow: 0 2px 10px {{ health_color }}60;" 
-                         aria-valuenow="{{ time_elapsed_percent }}" aria-valuemin="0" aria-valuemax="100">
-                         <!-- The Head (Glowing Orb) -->
-                         <div class="position-absolute top-50 translate-middle rounded-circle bg-white border border-2" 
-                              style="right: -10px; width: 16px; height: 16px; border-color: {{ health_color }}; box-shadow: 0 0 10px {{ health_color }};"></div>
-                    </div>
+                <!-- Fill -->
+                <div class="progress-bar rounded-pill position-relative" role="progressbar" 
+                     style="width: {{ time_elapsed_percent }}%; background-color: {{ health_color }}; box-shadow: 0 2px 10px {{ health_color }}60;" 
+                     aria-valuenow="{{ time_elapsed_percent }}" aria-valuemin="0" aria-valuemax="100">
+                     
+                     <!-- Current Head Marker -->
+                     <div class="position-absolute top-50 translate-middle" style="right: -12px;">
+                        <div class="bg-white border border-2 rounded-circle shadow-sm" 
+                             style="width: 14px; height: 14px; border-color: {{ health_color }};"></div>
+                        
+                        <!-- THE PHASE INDICATOR (Floating Badge) -->
+                        <div class="position-absolute bottom-100 start-50 translate-middle-x mb-2 text-nowrap" style="z-index: 10;">
+                            <span class="badge bg-dark text-white border font-data x-small rounded-pill px-2 shadow-sm py-1">
+                                <i class="fas fa-map-marker-alt text-warning me-1"></i> DISCOVERY
+                            </span>
+                        </div>
+                     </div>
                 </div>
 
-                <div class="font-body fw-bold text-dark small text-nowrap">{{ target_date_display }}</div>
+                <!-- Milestones -->
+                <div class="position-absolute top-50 start-20 translate-middle rounded-circle bg-white border border-secondary-subtle" style="width: 6px; height: 6px; left: 20%;"></div>
+                <div class="position-absolute top-50 start-40 translate-middle rounded-circle bg-white border border-secondary-subtle" style="width: 6px; height: 6px; left: 40%;"></div>
+                <div class="position-absolute top-50 start-60 translate-middle rounded-circle bg-white border border-secondary-subtle" style="width: 6px; height: 6px; left: 60%;"></div>
+                <div class="position-absolute top-50 start-80 translate-middle rounded-circle bg-white border border-secondary-subtle" style="width: 6px; height: 6px; left: 80%;"></div>
+            </div>
+
+            <!-- Target Date -->
+            <div class="text-end text-nowrap">
+                <div class="font-data text-muted x-small tracking-widest opacity-75 mb-1">REALIZATION</div>
+                <div class="font-body fw-bold text-dark small">{{ target_date_display }}</div>
             </div>
         </div>
 
-        <!-- COL 3: COUNTDOWN (Fixed) -->
-        <div class="border-start bg-light d-flex flex-column align-items-center justify-content-center flex-shrink-0" 
-             style="width: 110px;">
-            <div class="font-data text-muted x-small tracking-widest mb-0">WINDOW</div>
-            <div class="font-brand text-dark fs-2 lh-1">{{ days_remaining }}</div>
-            <div class="font-data text-muted x-small mt-0 opacity-75">DAYS</div>
+        <!-- COL 3: COUNTDOWN (Strict Fixed Width) -->
+        <div class="border-start bg-light d-flex flex-column align-items-center justify-content-center" 
+             style="width: 100px; min-width: 100px; flex: 0 0 100px;">
+            <div class="font-data text-muted x-small tracking-widest mb-1">WINDOW</div>
+            <div class="font-brand text-dark fs-3 lh-1">{{ days_remaining }}</div>
+            <div class="font-data text-muted x-small mt-1 opacity-75">DAYS</div>
         </div>
 
     </div>
@@ -284,6 +301,7 @@ def render_command_deck(system_params):
         # Display Logic
         target_display = val or "Unset"
         percent = 15 # Default MVP visual
+        days_rem_str = "--" # Default
         
         # Try parsing date for real math
         try:
@@ -297,12 +315,10 @@ def render_command_deck(system_params):
                 percent = max(0, min(100, percent))
                 days_rem_str = str(days_left)
                 target_display = target_date.strftime('%b %d, %Y')
-            else:
-                days_rem_str = "--"
         except:
-            days_rem_str = "--"
+            pass
 
-        # Color Logic
+        # Color Logic based on health/time
         if percent > 90: health = "#ef5350" # Red
         elif percent > 75: health = "#ffa726" # Amber
         else: health = "#26c6da" # Teal

@@ -1,0 +1,116 @@
+{
+  "🧩 system_templates.py": {
+    "LastModified": "2025-12-06 20:06:24",
+    "Exists": true,
+    "Path": "system_templates.py",
+    "SizeBytes": 18971
+  },
+  "🟨 utilities.py": {
+    "LastModified": "2025-12-06 21:25:23",
+    "Exists": true,
+    "Path": "utilities.py",
+    "SizeBytes": 11689
+  },
+  "🟪 cos_table.js": {
+    "LastModified": "2025-12-02 22:07:02",
+    "Exists": true,
+    "Path": "static/js/cos_table.js",
+    "SizeBytes": 17527
+  },
+  "🃏 system_cards.py": {
+    "LastModified": null,
+    "Exists": false,
+    "Path": "system_cards.py",
+    "SizeBytes": 0
+  },
+  "🎨 styles.css": {
+    "LastModified": "2025-12-06 21:29:05",
+    "Exists": true,
+    "Path": "static\\styles.css",
+    "SizeBytes": 43067
+  },
+  "🟧 ai_service.py": {
+    "LastModified": "2025-11-14 21:54:47",
+    "Exists": true,
+    "Path": "ai_service.py",
+    "SizeBytes": 14058
+  },
+  "🏳️‍🌈 system_nodes.py": {
+    "LastModified": "2025-12-05 20:46:38",
+    "Exists": true,
+    "Path": "system_nodes.py",
+    "SizeBytes": 9044
+  },
+  "🔵 ce_cards.js": {
+    "LastModified": "2025-12-07 20:00:47",
+    "Exists": true,
+    "Path": "static/js/ce_cards.js",
+    "SizeBytes": 27345
+  },
+  "🟩 goal_selection.html": {
+    "LastModified": "2025-11-26 21:30:47",
+    "Exists": true,
+    "Path": "templates/goal_selection.html",
+    "SizeBytes": 9155
+  },
+  "🟦 outcome.html": {
+    "LastModified": "2025-12-06 21:33:30",
+    "Exists": true,
+    "Path": "templates/outcome.html",
+    "SizeBytes": 23186
+  },
+  "🔮 system_nodes.js": {
+    "LastModified": null,
+    "Exists": false,
+    "Path": "static/js/system_nodes.js",
+    "SizeBytes": 0
+  },
+  "⬜ speculate.py": {
+    "LastModified": "2025-12-07 20:13:24",
+    "Exists": true,
+    "Path": "speculate.py",
+    "SizeBytes": 15396
+  },
+  "📆 models.py": {
+    "LastModified": "2025-12-05 20:52:13",
+    "Exists": true,
+    "Path": "models.py",
+    "SizeBytes": 5324
+  },
+  "🏪 store.py": {
+    "LastModified": "2024-08-28 16:42:16",
+    "Exists": true,
+    "Path": "store.py",
+    "SizeBytes": 66
+  },
+  "🔵 system_cards.js": {
+    "LastModified": "2025-12-07 20:11:50",
+    "Exists": true,
+    "Path": "static/js/system_cards.js",
+    "SizeBytes": 20644
+  },
+  "🧩 ce_templates.py": {
+    "LastModified": "2025-12-05 21:46:39",
+    "Exists": true,
+    "Path": "ce_templates.py",
+    "SizeBytes": 17066
+  },
+  "🟥 routes.py": {
+    "LastModified": "2025-12-07 20:09:01",
+    "Exists": true,
+    "Path": "routes.py",
+    "SizeBytes": 27825
+  },
+  "🏳️‍🌈 ce_nodes.py": {
+    "LastModified": "2025-11-30 17:33:51",
+    "Exists": true,
+    "Path": "ce_nodes.py",
+    "SizeBytes": 25624
+  },
+  "📱 app.py": {
+    "LastModified": "2025-12-05 21:37:19",
+    "Exists": true,
+    "Path": "app.py",
+    "SizeBytes": 2688
+  }
+}

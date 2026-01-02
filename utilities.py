@@ -45,17 +45,17 @@ def replace_ce_tags_with_pills(content):
         icon_cls = node_config.get('icon', 'fa-solid fa-cube')
 
         # 2. Build Horizon Capsule HTML
-        # Structure: <span class="ce-capsule" style="bg-color:..."> <i class="icon"></i> Text </span>
+        # CRITICAL UPDATE: We set --node-color as a CSS variable here
         new_tag = soup.new_tag('span', attrs={
             'class': 'ce-capsule', 
             'data-ce-id': ce_id_str,
             'data-ce-type': ce_type,
             'title': f"{ce_type} | Click to Open Speculation Engine",
-            'style': f'background-color: {bg_color};' 
+            'style': f'--node-color: {bg_color};' 
         })
         
-        # Icon
-        icon_i = soup.new_tag('i', attrs={'class': f"{icon_cls} me-1"})
+        # Icon (We remove 'me-1' because flex gap/margin handles it better now)
+        icon_i = soup.new_tag('i', attrs={'class': f"{icon_cls}"})
         new_tag.append(icon_i)
         
         # Text
@@ -135,11 +135,22 @@ def format_ssol_text(content):
 async def generate_goal(user_input: str) -> List[Dict]:
     prompt = f"""
     Based on the user input '{user_input}', generate three distinct, high-level goal options. 
-    Each goal must be a JSON object with keys: "domain", "title", "goal", "icon", "is_compliant". 
     
-    ICON RULES: Use 'FontAwesome 6 Free' classes (e.g., 'fa-solid fa-rocket') The chosen icons must always contain 
-    "fa-solid fa-icon-name" to display properly.
-    Output Format: JSON Array of 3 objects.
+    OUTPUT REQUIREMENTS:
+    1. Respond with a valid JSON Array of 3 objects.
+    2. Each object must strictly follow this schema:
+       {{
+         "domain": "String",
+         "title": "String",
+         "goal": "String",
+         "icon": "FontAwesome Class String (e.g. 'fa-solid fa-rocket')",
+         "is_compliant": Boolean
+       }}
+    3. Ensure all keys are quoted.
+    4. Ensure all string values are properly escaped (no unescaped newlines or quotes).
+    5. Ensure commas separate all key-value pairs and all array items.
+    
+    ICON RULES: Use 'FontAwesome 6 Free' classes. 
     """
     
     try:
@@ -148,12 +159,46 @@ async def generate_goal(user_input: str) -> List[Dict]:
             messages, 
             role="user", 
             task="goal generation", 
-            system_instruction="You are a JSON-only API. Respond with a valid JSON array only.",
+            system_instruction="You are a strict JSON generator. Do not include markdown formatting. Do not include trailing commas.",
             generation_config={"response_mime_type": "application/json", "temperature": 0.7}
         )
         
-        cleaned = response_str.replace("```json", "").replace("```", "").strip()
-        ai_goals = json.loads(cleaned)
+        # --- ROBUST JSON EXTRACTION ---
+        cleaned = response_str.strip()
+        
+        # 1. Strip Markdown Code Fences if present (common LLM artifact)
+        if cleaned.startswith("```"):
+            cleaned = re.sub(r"^```(?:json)?", "", cleaned).strip()
+        if cleaned.endswith("```"):
+            cleaned = re.sub(r"```$", "", cleaned).strip()
+
+        # 2. Regex find the array brackets
+        match = re.search(r'\[.*\]', cleaned, re.DOTALL)
+        if match:
+            cleaned = match.group(0)
+        
+        # 3. Try parsing
+        try:
+            ai_goals = json.loads(cleaned)
+        except json.JSONDecodeError as e:
+            logging.warning(f"JSON Parse Error: {e}. Raw: {cleaned[:100]}... Attempting Repairs.")
+            
+            # --- REPAIR STRATEGIES ---
+            
+            # Repair 1: Missing comma between objects: } {  ->  }, {
+            repaired = re.sub(r'\}\s*\{', '}, {', cleaned)
+            
+            # Repair 2: Missing comma between fields: "val" "key" -> "val", "key"
+            # Look for: " (quote), optional space/newline, " (quote)
+            # This is risky but often necessary for LLMs that forget commas
+            repaired = re.sub(r'\"\s*\n\s*\"', '",\n"', repaired)
+            
+            try:
+                ai_goals = json.loads(repaired)
+                logging.info("JSON successfully repaired.")
+            except json.JSONDecodeError:
+                logging.error("Failed to repair JSON. Returning empty.", exc_info=True)
+                return []
 
         validated_goals = []
         for goal in ai_goals:
@@ -196,7 +241,7 @@ async def is_input_compliant(user_text: str) -> dict:
 # 3. OUTCOME GENERATION (The Architect)
 # ==============================================================================
 
-async def generate_outcome_data(ssol_title, ssol_description, domain):
+async def generate_outcome_data(ssol_title, ssol_description, domain, forced_constraints=None):
     """
     The primary bootstrap function. 
     Architects the solution structure and infers System Nodes.
@@ -206,6 +251,14 @@ async def generate_outcome_data(ssol_title, ssol_description, domain):
     node_types_str = ', '.join(get_valid_node_types())
     sys_types_str = ', '.join(get_valid_system_types())
     
+    # Inject User Constraints if present
+    constraint_text = ""
+    if forced_constraints:
+        constraint_text = "\n*** HARD USER CONSTRAINTS (NON-NEGOTIABLE) ***\n"
+        for k, v in forced_constraints.items():
+            constraint_text += f"- {k}: {v}\n"
+        constraint_text += "You MUST incorporate these specific constraints into your System Configuration.\n"
+
     prompt = f"""
     Act as a Visionary Systems Architect for the SSPEC Project Management Engine.
     
@@ -213,6 +266,7 @@ async def generate_outcome_data(ssol_title, ssol_description, domain):
     GOAL: '{ssol_title}'
     DOMAIN: '{domain}'
     CONTEXT: {ssol_description}
+    {constraint_text}
     
     *** INSTRUCTIONS ***
 

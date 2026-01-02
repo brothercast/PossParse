@@ -8,6 +8,9 @@ from uuid import UUID
 import logging
 from bs4 import BeautifulSoup
 from flask import current_app
+from difflib import get_close_matches  # <--- CRITICAL IMPORT ADDED HERE
+
+# Local Imports
 from ce_nodes import NODES, get_valid_node_types
 from ai_service import generate_chat_response_with_node_types
 from datetime import date, timedelta
@@ -15,39 +18,58 @@ from datetime import date, timedelta
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # --- Helper function to render a CE pill ---
+def normalize_ce_type(raw_type: str) -> str:
+    """
+    Uses fuzzy matching to correct common AI hallucinations.
+    Example: 'Risk Analysis' -> 'Risk', 'Stakeholder Map' -> 'Stakeholder'
+    """
+    if not raw_type: return 'Default'
+    
+    # 1. Exact Match (Case Insensitive)
+    valid_types = list(NODES.keys())
+    key_map = {k.lower(): k for k in valid_types}
+    if raw_type.lower() in key_map:
+        return key_map[raw_type.lower()]
+    
+    # 2. Fuzzy Match
+    matches = get_close_matches(raw_type, valid_types, n=1, cutoff=0.5)
+    if matches:
+        # Use a safe logger if outside app context, otherwise current_app
+        if current_app:
+            current_app.logger.info(f"Normalized Node Type: '{raw_type}' -> '{matches[0]}'")
+        return matches[0]
+        
+    # 3. Fallback
+    if current_app:
+        current_app.logger.warning(f"Unknown Node Type '{raw_type}' defaulted.")
+    return 'Default'
+
 def _render_ce_pill_html(ce_id: str, ce_type: str, ce_text: str) -> str:
     """
     Generates the Horizon-Style CE Capsule HTML.
-    Handles case-insensitive lookup and fallbacks.
+    Handles case-insensitive lookup and fallbacks via normalization.
     """
-    # 1. Case-insensitive lookup
-    # Create a mapping of lower_case -> RealKey
-    key_map = {k.lower(): k for k in NODES.keys()}
-    clean_type = ce_type.strip()
-    real_key = key_map.get(clean_type.lower(), 'Default')
+    # Normalize the type first
+    real_key = normalize_ce_type(ce_type)
     
-    node_info = NODES.get(real_key)
+    node_info = NODES.get(real_key, NODES['Default'])
     node_color = node_info.get('color', '#6c757d')
     node_icon = node_info.get('icon', 'fa-solid fa-cube')
     
-    # 2. Fallback Color Generator (for hallucinations like "Market Need")
-    # If it's truly unknown, give it a distinct color instead of gray
-    if real_key == 'Default' and clean_type.lower() != 'default':
-        # Hash the string to get a consistent color
-        hash_val = sum(ord(c) for c in clean_type)
+    # Fallback Color Generator (for hallucinations that couldn't be normalized but still exist)
+    if real_key == 'Default' and ce_type.lower() != 'default':
+        hash_val = sum(ord(c) for c in ce_type)
         colors = ['#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#009688', '#ff5722']
         node_color = colors[hash_val % len(colors)]
         node_icon = 'fa-solid fa-tag'
-    else:
-        node_color = node_info.get('color', '#6c757d')
-        node_icon = node_info.get('icon', 'fa-solid fa-cube')
     
     return (
-        f'<span class="ce-capsule" data-ce-id="{ce_id}" data-ce-type="{ce_type}" '
-        f'style="background-color: {node_color};">'
-        f'<i class="{node_icon} me-1"></i>{html.escape(ce_text)}'
+        f'<span class="ce-capsule" data-ce-id="{ce_id}" data-ce-type="{real_key}" '
+        f'title="{real_key} Node" style="--node-color: {node_color};">'
+        f'<i class="{node_icon}"></i>{html.escape(ce_text)}'
         f'</span>'
     )
+
 # --- AI Analysis ---
 
 async def analyze_cos(cos_content: str, cos_id: str = None) -> dict:
@@ -141,10 +163,6 @@ def get_ssol_by_id(USE_DATABASE: bool, ssol_id: UUID):
 # --- COS Operations ---
 
 async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: str, accountable_party: str = None, completion_date=None) -> dict:
-    """
-    Creates a COS and returns the FULL DATA DICTIONARY immediately.
-    This avoids Read-After-Write race conditions.
-    """
     from models import COS, CE, get_engine_and_session
     from store import ce_store, cos_store
     from app import app
@@ -165,22 +183,23 @@ async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: st
         
         for tag in ce_tags:
             ce_text = tag.string
-            ce_type = tag.get('type', 'Default')
+            raw_type = tag.get('type', 'Default')
             if not ce_text: continue
+
+            # NORMALIZE TYPE HERE
+            real_type = normalize_ce_type(raw_type)
 
             new_ce_uuid = uuid.uuid4()
             ce_record = {
                 'id': new_ce_uuid,
-                'node_type': ce_type,
+                'node_type': real_type, # Use Normalized Type
                 'cos_id': new_cos_uuid,
                 'data': {"details_data": {}, "prerequisites": [], "stakeholders": [], "assumptions": [], "resources": [], "connections": []}
             }
             new_ce_instances.append(ce_record)
             
             # Replace with Horizon HTML
-            # We use a simplified helper here or ensure _render_ce_pill_html is available
-            from speculate import _render_ce_pill_html 
-            pill_html = _render_ce_pill_html(str(new_ce_uuid), ce_type, ce_text)
+            pill_html = _render_ce_pill_html(str(new_ce_uuid), real_type, ce_text)
             tag.replace_with(BeautifulSoup(pill_html, 'html.parser'))
 
         content_with_pills = str(soup)
@@ -209,13 +228,10 @@ async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: st
                     session.add(ce_instance)
                 
                 session.commit()
-                
-                # CRITICAL FIX: Serialize inside the session
                 final_data = cos_instance.to_dict()
                 session.close()
                 return final_data
         else:
-            # In-memory store fallback
             result = {
                 'id': cos_id_str, 
                 'content': content_with_pills, 
@@ -251,14 +267,16 @@ async def update_cos_by_id(USE_DATABASE: bool, cos_id: UUID, updated_data: dict)
             ce_tags = soup.find_all('ce')
             
             for tag in ce_tags:
-                c_txt, c_type = tag.string, tag.get('type')
+                c_txt = tag.string
+                raw_type = tag.get('type', 'Default')
+                real_type = normalize_ce_type(raw_type) # Normalize
+
                 new_id = uuid.uuid4()
                 new_ce_instances.append({
-                    'id': new_id, 'node_type': c_type, 
+                    'id': new_id, 'node_type': real_type, 
                     'data': {"details_data": {}, "resources": [], "prerequisites": [], "stakeholders": [], "assumptions": [], "connections": []}
                 })
-                # REPLACE WITH HORIZON CAPSULE HTML
-                pill = _render_ce_pill_html(str(new_id), c_type, c_txt)
+                pill = _render_ce_pill_html(str(new_id), real_type, c_txt)
                 tag.replace_with(BeautifulSoup(pill, 'html.parser'))
             
             updated_data['content'] = str(soup)

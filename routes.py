@@ -245,8 +245,10 @@ async def outcome():
             try:
                 image_prompt = f"""
                 A vibrant, isometric, mid-century retro illustration of '{selected_goal_title}: {selected_goal_text}' 
-                fulfilled. Style: 1950s Popular Science magazine cover meets Syd Mead.
-                Characteristics: Saturated technicolor palette (teal, orange, cream), painterly lithograph texture,
+                fulfilled. Style: 1950s Popular Science magazine cover meets Nary Blair.
+                Characteristics: 
+                Saturated technicolor palette (#ff7043;- Coral, #26c6da- Cyan, #ab47bc- Purple, #ffa726;- Amber, #66bd0e - Green), 
+                painterly lithograph texture,
                 idealized realism, optimistic composition. No text.
                 """
                 await generate_image(image_prompt, ssol_id_str)
@@ -288,140 +290,204 @@ async def outcome():
 # ==============================================================================
 @routes_bp.route('/update_ssol_system_node', methods=['POST'])
 def update_ssol_system_node():
+    """
+    Updates a specific System Parameter (Anchor) for an SSOL.
+    Handles distinct logic for Core columns (Horizon/Owner) vs. JSON Metadata.
+    """
     data = request.get_json()
     ssol_id = data.get('ssol_id')
-    key = data.get('key')   # e.g., 'BUDGET'
-    value = data.get('value') # e.g., 'Bootstrapped'
+    key = data.get('key')   # e.g., 'BUDGET', 'HORIZON', 'OPERATOR'
+    value = data.get('value') # The new value
 
+    # 1. Input Validation
     if not ssol_id or not key:
-        return jsonify({'success': False}), 400
+        return jsonify({'success': False, 'error': 'Missing SSOL ID or Node Key'}), 400
 
     engine, session = get_engine_and_session()
+    
     try:
+        # 2. Fetch SSOL Container
         ssol = session.query(SSOL).get(UUID(ssol_id))
         if not ssol:
             return jsonify({'success': False, 'error': 'SSOL not found'}), 404
 
-        # Specialized handling for CORE fields that have their own columns
+        # 3. Node-Specific Logic
+        
+        # --- A. HORIZON (Time) ---
+        # Maps to the SQL 'target_date' column for sorting/filtering
         if key == 'HORIZON':
             try:
-                # Try to parse date, fallback to text if user typed "Next Summer"
+                # Attempt to parse standard HTML date format YYYY-MM-DD
                 from datetime import datetime
                 dt = datetime.strptime(value, '%Y-%m-%d').date()
                 ssol.target_date = dt
-            except:
-                # If fuzzy date, store in system_data instead
+                
+                # Also store in JSON for prompt injection consistency
                 current_data = dict(ssol.system_data or {})
-                current_data['HORIZON_TEXT'] = value
+                current_data['HORIZON'] = value
+                ssol.system_data = current_data
+                
+            except (ValueError, TypeError):
+                # If user entered fuzzy text (e.g., "Q4 2025"), store in JSON only
+                current_data = dict(ssol.system_data or {})
+                current_data['HORIZON'] = value # Store the raw text
                 ssol.system_data = current_data
         
+        # --- B. OPERATOR (Identity) ---
+        # Maps to the SQL 'owner' column
         elif key == 'OPERATOR':
             ssol.owner = value
-            # Also store in JSON for the prompt engine
+            # Dual-write to JSON for the Attenuation Layer (AI Context)
             current_data = dict(ssol.system_data or {})
             current_data['OPERATOR'] = value
             ssol.system_data = current_data
             
+        # --- C. GENERIC SYSTEM NODES (Budget, Scale, Directive, etc.) ---
+        # Stored purely in the JSONB 'system_data' column
         else:
-            # Generic System Node (Budget, Directive, etc.)
-            # Mutable dict approach for SQLAlchemy JSON tracking
+            # We must cast to dict and reassign to trigger SQLAlchemy change tracking
             current_data = dict(ssol.system_data or {})
             current_data[key] = value
             ssol.system_data = current_data
 
+        # 4. Commit Transaction
         session.commit()
+        current_app.logger.info(f"Updated System Node '{key}' for SSOL {ssol_id}")
         return jsonify({'success': True})
+
     except Exception as e:
+        # 5. Safety Rollback
         session.rollback()
-        current_app.logger.error(f"Error in update_ssol_system_node: {e}", exc_info=True)
+        current_app.logger.error(f"DB Transaction Failed in update_ssol_system_node: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
+        
     finally:
         session.close()
-
+        
 @routes_bp.route('/speculate_context', methods=['POST'])
 async def speculate_context_route():
     try:
         data = request.get_json()
         ce_type = data.get('ce_type', 'Default')
-        context = data.get('context') # e.g., 'prerequisites', 'narrative'
-        sub_context = data.get('sub_context', '') # e.g., 'summary'
+        context = data.get('context') # e.g., 'prerequisites', 'narrative', 'stakeholders'
+        sub_context = data.get('sub_context', '') # e.g., 'summary' for narrative fields
         cos_text = data.get('cos_text', '')
         ssol_id = data.get('ssol_id')
         
-        # 2. SYSTEM ATTENUATION (The "Telepathy" Layer)
+        # 1. ATTENUATION LAYER (The "Telepathy" / System Physics)
+        # This injects the global constraints (Budget, Timeline, Ethics) into the local prompt.
         system_instructions = []
         
         if ssol_id and USE_DATABASE:
+            engine, session = get_engine_and_session()
             try:
-                engine, session = get_engine_and_session()
-                ssol = session.query(SSOL).get(UUID(ssol_id))
+                # Handle UUID conversion safely
+                ssol_uuid = UUID(str(ssol_id))
+                ssol = session.query(SSOL).get(ssol_uuid)
                 
                 if ssol:
+                    current_app.logger.info(f"Applying Attenuation for SSOL {ssol_id}")
+                    
+                    # A. Core Constraints
                     if ssol.target_date:
-                        system_instructions.append(f"TEMPORAL CONSTRAINT: Hard deadline is {ssol.target_date}. All steps must fit this timeline.")
+                        system_instructions.append(f"TEMPORAL CONSTRAINT: Hard deadline is {ssol.target_date}. All generated roadmaps, lead times, and resource acquisitions must mathematically fit within this window.")
                     if ssol.owner:
-                        system_instructions.append(f"OPERATOR CONTEXT: The acting entity is '{ssol.owner}'. Suggest resources accessible to them.")
+                        system_instructions.append(f"OPERATOR CONTEXT: The acting entity is '{ssol.owner}'. Suggest resources accessible to this specific type of entity.")
+                    
+                    # B. System Nodes (The Physics)
                     if ssol.system_data:
+                        active_physics = []
                         for key, val in ssol.system_data.items():
                             config = SYSTEM_NODES.get(key)
-                            if config and 'prompt_injection' in config:
+                            # Check if this system node has a prompt injection rule
+                            if config and 'prompt_injection' in config and val:
                                 instruction = config['prompt_injection'].format(value=val)
                                 system_instructions.append(instruction)
-                session.close()
+                                active_physics.append(key)
+                        
+                        if active_physics:
+                            current_app.logger.info(f"Active Physics Nodes applied: {active_physics}")
+
             except Exception as db_e:
                 current_app.logger.warning(f"Attenuation Layer skipped (DB Error): {db_e}")
+            finally:
+                session.close()
 
         global_context_block = "\n".join(system_instructions)
         if not global_context_block:
             global_context_block = "CONTEXT: Standard operating procedure. No specific constraints defined."
+        else:
+            # Debug log to verify that physics are being injected
+            current_app.logger.debug(f"*** ATTENUATION BLOCK ***\n{global_context_block}\n*************************")
 
-        # 3. NODE-SPECIFIC PROMPT ASSEMBLY
+        # 2. NODE-SPECIFIC PROMPT ASSEMBLY
+        # Resolve the specific "Job to be Done" based on the Node Type
         node_config = NODES.get(ce_type, NODES['Default'])
         prompts_map = node_config.get('prompts', {})
         default_prompts = NODES['Default'].get('prompts', {})
         
+        system_inst_for_ai = "You are the SSPEC Speculation Engine. Act as an expert strategic logic processor."
+
         if context == 'narrative':
+            # Narrative Mode: Generating text for a specific field (e.g. Executive Summary)
             base_prompt = prompts_map.get('narrative', default_prompts.get('narrative'))
             prompt_content = base_prompt.format(cos_text=cos_text, field=sub_context, node_type=ce_type)
+            
+            # Combine Physics + Task
             final_prompt = f"*** SYSTEM PHYSICS (NON-NEGOTIABLE CONSTRAINTS) ***\n{global_context_block}\n\n*** SPECIFIC TASK ***\n{prompt_content}"
-            system_inst = "Return strictly JSON: { \"text\": \"...\" }"
+            system_inst_for_ai += " Return strictly JSON in this format: { \"text\": \"...\" }. Keep the tone professional, engineered, and action-oriented. Avoid fluff."
             
         else:
+            # Collection Mode: Generating arrays of items (Prereqs, Stakeholders, etc.)
             base_prompt = prompts_map.get(context, default_prompts.get(context))
+            
+            # Fallback if specific prompt missing
             if not base_prompt:
                 base_prompt = f"Analyze '{cos_text}'. List 3 items for {context}."
-            prompt_content = base_prompt.format(cos_text=cos_text)
-            final_prompt = f"*** SYSTEM PHYSICS (NON-NEGOTIABLE CONSTRAINTS) ***\n{global_context_block}\n\n*** SPECIFIC TASK ***\n{prompt_content}"
-            system_inst = "Return a valid JSON array of objects."
+            
+            # Handle empty context (Start of project)
+            if not cos_text or cos_text == "Project Goal":
+                 base_prompt += " (Infer context primarily from the System Physics provided)."
 
-        # 4. EXECUTE ENGINE
+            prompt_content = base_prompt.format(cos_text=cos_text)
+            
+            # Combine Physics + Task
+            final_prompt = f"*** SYSTEM PHYSICS (NON-NEGOTIABLE CONSTRAINTS) ***\n{global_context_block}\n\n*** SPECIFIC TASK ***\n{prompt_content}"
+            system_inst_for_ai += " Return a valid JSON array of objects. Do not wrap in markdown code blocks."
+
+        # 3. EXECUTE ENGINE
         ai_response = await generate_chat_response(
             messages=[{"role": "user", "content": final_prompt}], 
             role="SSPEC Engine", 
             task=f"{ce_type}-{context}",
-            system_instruction=system_inst,
+            system_instruction=system_inst_for_ai,
             temperature=0.75 
         )
         
+        # 4. PARSE & RETURN
         clean_json = ai_response.replace("```json", "").replace("```", "").strip()
         parsed = json.loads(clean_json)
 
         if context == 'narrative':
+            # Narrative returns a single text string
             txt = parsed.get('text', '') if isinstance(parsed, dict) else str(parsed)
             return jsonify({'success': True, 'text': txt, 'field': sub_context})
         else:
+            # Collections return a list of suggestions
             suggestions = []
             if isinstance(parsed, dict):
+                # Handle case where AI wraps array in a key like {"items": [...]}
                 for key, val in parsed.items():
                     if isinstance(val, list):
                         suggestions = val
                         break
             elif isinstance(parsed, list):
                 suggestions = parsed
+                
             return jsonify({'success': True, 'suggestions': suggestions, 'context': context})
 
     except Exception as e:
-        current_app.logger.error(f"Speculation Error: {e}", exc_info=True)
+        current_app.logger.error(f"Speculation Context Error: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # ==============================================================================

@@ -1,16 +1,23 @@
 // static/js/system_cards.js
 import { showLoadingSpinner, hideLoadingSpinner } from './base_functions.js';
 
-// --- State Management ---
-let systemNodesConfig = {}; 
-let currentNodesArray = []; 
-let currentIndex = 0;       
-let currentSSOLId = null;
+// --- Unified State Management ---
+let sysState = {
+    config: {},             // Loaded from window.SYSTEM_NODES_CONFIG
+    nodeKeys: [],           // Array of node types (['HORIZON', 'OPERATOR', ...])
+    currentIndex: 0,        // Current slide index
+    ssolId: null,           // Context SSOL ID
+    
+    // Entity Store for the OPERATOR stack (client-side cache)
+    entityStore: { 
+        'OPERATOR': [] 
+    },
 
-// Mock Entity Store for Prototype (In a full app, this would fetch from the DB relationship)
-// We use this to visually stack cards in the left panel for the OPERATOR node.
-let entityStore = {
-    'OPERATOR': [] 
+    // Transient Editing State (The "Buffer")
+    editingId: null,        // DB ID of the node being edited (or '' for new)
+    tempValue: null,        // Current value in the input field
+    isSpeculating: false,   // Loading state flag
+    constraintMode: 'HARD'  // HARD vs SOFT constraint
 };
 
 /**
@@ -18,49 +25,47 @@ let entityStore = {
  * Called from outcome.html once the DOM is ready.
  */
 export function initSystemCards(ssolId) {
-    currentSSOLId = ssolId;
+    sysState.ssolId = ssolId;
     
-    // 1. Load Configuration (Injected in base.html via Python context processor)
+    // 1. Load Configuration (Injected in base.html)
     if(window.SYSTEM_NODES_CONFIG) {
-        systemNodesConfig = window.SYSTEM_NODES_CONFIG;
-        currentNodesArray = Object.keys(systemNodesConfig);
+        sysState.config = window.SYSTEM_NODES_CONFIG;
+        sysState.nodeKeys = Object.keys(sysState.config);
     }
 
-    // 2. Bind Global Functions for OnClick Attributes in HTML
+    // 2. Bind Global Functions for HTML OnClick Attributes
     window.openSystemEditor = openSystemEditor;
     window.navigateSystemNode = navigateSystemNode;
     window.setProtocolMode = setProtocolMode;
     window.setConstraintMode = setConstraintMode;
     window.submitSystemForm = submitSystemForm;
-    window.addEntity = addEntity; // Specific to Operator Node
+    window.addEntity = addEntity;
 }
 
 /**
  * Opens the Modal and jumps to specific node type.
- * @param {string} existingId - The specific DB ID (optional)
+ * @param {string} existingId - The specific DB ID (or 'new')
  * @param {string} type - The System Node Type (e.g., 'BUDGET', 'OPERATOR')
  * @param {string} currentValue - The current value to pre-fill
  */
 function openSystemEditor(existingId, type, currentValue) {
-    if (type && currentNodesArray.includes(type)) {
-        currentIndex = currentNodesArray.indexOf(type);
+    // 1. Set Carousel Index
+    if (type && sysState.nodeKeys.includes(type)) {
+        sysState.currentIndex = sysState.nodeKeys.indexOf(type);
     } else {
-        currentIndex = 0; 
+        sysState.currentIndex = 0; 
     }
 
-    const modalEl = document.getElementById('systemConfigModal');
-    modalEl.dataset.editingId = existingId === 'new' ? '' : existingId;
-    
-    // Store initial value in dataset to survive re-renders
-    if(currentValue && currentValue !== 'None') {
-        modalEl.dataset.tempValue = currentValue;
-    } else {
-        delete modalEl.dataset.tempValue;
-    }
+    // 2. Hydrate State
+    sysState.editingId = existingId === 'new' ? '' : existingId;
+    // Handle 'None' string from Jinja template if field is empty
+    sysState.tempValue = (currentValue && currentValue !== 'None') ? currentValue : '';
+    sysState.constraintMode = 'HARD'; // Reset to default
 
     updateModalView();
     
-    // Launch Bootstrap Modal
+    // 3. Launch Bootstrap Modal
+    const modalEl = document.getElementById('systemConfigModal');
     const modal = new bootstrap.Modal(modalEl);
     modal.show();
 }
@@ -69,75 +74,109 @@ function openSystemEditor(existingId, type, currentValue) {
  * Handles Carousel Navigation (Prev/Next)
  */
 function navigateSystemNode(direction) {
-    currentIndex += direction;
-    if (currentIndex < 0) currentIndex = currentNodesArray.length - 1;
-    if (currentIndex >= currentNodesArray.length) currentIndex = 0;
+    // 1. Update Index
+    sysState.currentIndex += direction;
     
-    // Reset temporary state when sliding
-    const modalEl = document.getElementById('systemConfigModal');
-    delete modalEl.dataset.tempValue; 
-    modalEl.dataset.editingId = ""; 
+    // Loop navigation
+    if (sysState.currentIndex < 0) sysState.currentIndex = sysState.nodeKeys.length - 1;
+    if (sysState.currentIndex >= sysState.nodeKeys.length) sysState.currentIndex = 0;
+    
+    // 2. Reset Transient State for the new card
+    sysState.editingId = ""; 
+    sysState.tempValue = ""; 
+    // In a real app, you might want to fetch the existing value for this next node here
+    // For now, we start fresh or relying on what passed in via click (limit of this carousel implementation)
 
     updateModalView();
 }
 
 /**
  * CORE RENDER LOGIC
- * Updates the Left (Visual) and Right (Input) panels based on the current Node Type.
+ * Updates the Left (Visual) and Right (Input) panels based on the State.
  */
 function updateModalView() {
-    const typeKey = currentNodesArray[currentIndex];
-    const config = systemNodesConfig[typeKey] || {};
-    const modalEl = document.getElementById('systemConfigModal');
-    const savedVal = modalEl.dataset.tempValue || '';
-
+    const typeKey = sysState.nodeKeys[sysState.currentIndex];
+    const config = sysState.config[typeKey] || {};
+    
     // --- 1. Identity Panel (Left) ---
-    document.getElementById('sys-identity-panel').style.backgroundColor = config.color;
+    const identityPanel = document.getElementById('sys-identity-panel');
+    identityPanel.style.backgroundColor = config.color;
+    
     document.getElementById('sys-display-icon').className = `fas ${config.icon} fa-2x text-white`;
     document.getElementById('sys-display-label').textContent = config.label;
     
     // VISUALIZER: Render the correct state view (Gauge, Stack, or Text)
-    renderVisualizer(typeKey, savedVal, config.color);
+    renderVisualizer(typeKey, sysState.tempValue, config.color);
 
     // --- 2. Calibration Console (Right) ---
-    // Info Text
+    // Ontology & Guide
     document.getElementById('sys-display-desc').textContent = config.description;
     document.getElementById('sys-display-guide').textContent = config.guide;
 
+    // Examples Container (New Feature)
+    const exContainer = document.getElementById('sys-examples-container');
+    exContainer.innerHTML = "";
+    if(config.examples && Array.isArray(config.examples)) {
+        config.examples.forEach(ex => {
+            const badge = document.createElement('span');
+            badge.className = "badge bg-white border text-secondary fw-normal cursor-pointer hover-shadow";
+            badge.textContent = ex;
+            badge.onclick = () => {
+                // Click to fill
+                sysState.tempValue = ex;
+                renderBespokeInput(typeKey, sysState.tempValue, config.color, config);
+                renderVisualizer(typeKey, sysState.tempValue, config.color);
+            };
+            exContainer.appendChild(badge);
+        });
+    }
+
     // Hidden Form Inputs
     document.getElementById('sys-param-type').value = typeKey;
-    document.getElementById('sys-param-id').value = modalEl.dataset.editingId;
+    document.getElementById('sys-param-id').value = sysState.editingId;
 
-    // Render Input Fields based on Type
-    renderBespokeInput(typeKey, savedVal, config.color, config);
+    // Render Input Fields
+    renderBespokeInput(typeKey, sysState.tempValue, config.color, config);
     
+    // Update Badge Status
+    const statusBadge = document.getElementById('sys-status-badge');
+    if(sysState.tempValue) {
+        statusBadge.className = "badge bg-success-subtle text-success border border-success-subtle font-data rounded-pill px-3";
+        statusBadge.innerHTML = '<i class="fas fa-check-circle me-1"></i> CALIBRATED';
+    } else {
+        statusBadge.className = "badge bg-secondary-subtle text-secondary border border-secondary-subtle font-data rounded-pill px-3";
+        statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size:8px;"></i> UNSET';
+    }
+
     // Pagination Dots
-    document.getElementById('sys-counter').textContent = `CARD ${currentIndex + 1} / ${currentNodesArray.length}`;
+    document.getElementById('sys-counter').textContent = `CARD ${sysState.currentIndex + 1} / ${sysState.nodeKeys.length}`;
     const dotContainer = document.getElementById('sys-dots-container');
-    dotContainer.innerHTML = currentNodesArray.map((k, i) => 
-        `<div class="sys-dot ${i === currentIndex ? 'active' : ''}" style="opacity: ${i === currentIndex ? '1' : '0.3'}"></div>`
+    dotContainer.innerHTML = sysState.nodeKeys.map((k, i) => 
+        `<div class="sys-dot ${i === sysState.currentIndex ? 'active' : ''}" style="opacity: ${i === sysState.currentIndex ? '1' : '0.3'}"></div>`
     ).join('');
 }
 
 /**
- * Renders the Left Column State Monitor
+ * Renders the Left Column State Monitor (Visual Feedback)
  */
 function renderVisualizer(type, value, color) {
     const container = document.getElementById('sys-visualizer-container');
-    container.innerHTML = ''; // Clear
+    container.innerHTML = ''; 
 
     // CASE: OPERATOR (Stack of Identity Cards)
     if (type === 'OPERATOR') {
-        if (entityStore['OPERATOR'].length === 0 && !value) {
+        const entities = sysState.entityStore['OPERATOR'];
+        
+        if ((!entities || entities.length === 0) && !value) {
              container.innerHTML = `
                 <div class="bg-white bg-opacity-10 border-2 border-dashed border-white border-opacity-25 rounded-xl p-5 text-center text-white-50">
                     <i class="fas fa-users fa-2x mb-2"></i>
                     <div class="small font-bold">NO CHAMPIONS ASSIGNED</div>
                 </div>`;
         } else {
-            // Visualize either the stored entity stack OR the single value if simple text was used
-            const displayEntities = entityStore['OPERATOR'].length > 0 
-                ? entityStore['OPERATOR'] 
+            // Visualize entities OR the text value
+            const displayEntities = (entities && entities.length > 0) 
+                ? entities 
                 : [{name: value, role: 'Primary Contact', org: 'Entity'}];
             
             displayEntities.forEach(ent => {
@@ -169,18 +208,33 @@ function renderVisualizer(type, value, color) {
         return;
     }
 
-    // DEFAULT: Big Typographic Display
-    container.innerHTML = `
-        <div class="bg-white bg-opacity-10 border border-white border-opacity-25 rounded-xl p-4 backdrop-blur-sm shadow-inner">
-             <div class="d-flex align-items-center gap-3">
-                <div class="rounded-circle bg-white" style="width: 8px; height: 8px;"></div>
-                <div class="fs-3 fw-bold text-white text-break lh-sm">${value || 'Unset'}</div>
+    // DEFAULT: Big Typographic Display (The "Active Pill")
+    if (value && value.trim() !== "") {
+        container.innerHTML = `
+            <div class="bg-white bg-opacity-10 border border-white border-opacity-25 rounded-pill p-3 pe-5 d-flex align-items-center backdrop-blur transition-all">
+                <div class="rounded-circle bg-white text-dark d-flex align-items-center justify-content-center shadow-sm me-3" 
+                     style="width: 42px; height: 42px; flex-shrink: 0;">
+                    <!-- Use icon from current config in state -->
+                    <i class="fas ${sysState.config[type].icon} fa-lg" style="color: ${color}"></i>
+                </div>
+                <div>
+                    <div class="font-data text-white-50 x-small uppercase tracking-wide mb-0">ANCHOR VALUE</div>
+                    <div class="font-body text-white fw-bold fs-5 leading-tight text-truncate" style="max-width: 220px;">
+                        ${value}
+                    </div>
+                </div>
+            </div>`;
+    } else {
+        container.innerHTML = `
+             <div class="border border-dashed border-white border-opacity-25 rounded-pill p-4 text-center text-white-50 font-data small">
+                <i class="fas fa-terminal me-2"></i> AWAITING INPUT
              </div>
-        </div>`;
+        `;
+    }
 }
 
 /**
- * Renders the Right Column Input Area
+ * Renders the Right Column Input Area and attaches Live Listeners
  */
 function renderBespokeInput(type, value, color, config) {
     const container = document.getElementById('sys-input-container');
@@ -196,7 +250,7 @@ function renderBespokeInput(type, value, color, config) {
                 </div>
                 <div class="row g-2">
                     <div class="col-12">
-                        <input type="text" id="ent-name" class="form-control form-control-sm" placeholder="Entity Name (e.g. Acme Corp)" value="${value}">
+                        <input type="text" id="ent-name" class="form-control form-control-sm" placeholder="Entity Name" value="${value}">
                     </div>
                     <div class="col-6"><input type="text" id="ent-role" class="form-control form-control-sm" placeholder="Role / Title"></div>
                     <div class="col-6"><input type="text" id="ent-org" class="form-control form-control-sm" placeholder="Organization"></div>
@@ -204,14 +258,20 @@ function renderBespokeInput(type, value, color, config) {
                 <button type="button" class="btn btn-dark w-100 btn-sm mt-3 font-data" onclick="addEntity()">
                     <i class="fas fa-plus-circle me-1"></i> ADD TO STACK
                 </button>
-                <!-- Hidden real value field for submission -->
                 <input type="hidden" name="value" id="real-value-input" value="${value}">
             </div>
         `;
+        
+        // Attach listener for single-value simple entry
+        document.getElementById('ent-name').oninput = (e) => {
+            sysState.tempValue = e.target.value;
+            document.getElementById('real-value-input').value = e.target.value;
+            renderVisualizer(type, e.target.value, color);
+        };
         return;
     }
 
-    // 2. SELECT DROPDOWN (If 'options' exist in config)
+    // 2. SELECT DROPDOWN
     if (config.options && Array.isArray(config.options)) {
         const opts = config.options.map(opt => 
             `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`
@@ -220,35 +280,47 @@ function renderBespokeInput(type, value, color, config) {
         container.innerHTML = `
             <div class="mb-3">
                 <label class="font-data text-muted x-small mb-2" style="color:${color} !important">SELECT CONFIGURATION</label>
-                <select name="value" class="form-select form-select-lg font-body fw-bold border-0 border-bottom rounded-0 px-0 shadow-none bg-transparent">
+                <select name="value" id="sys-param-value" class="form-select form-select-lg font-body fw-bold border-0 border-bottom rounded-0 px-0 shadow-none bg-transparent">
                     <option value="" disabled ${!value ? 'selected' : ''}>Choose...</option>
                     ${opts}
                 </select>
             </div>
         `;
-        return;
-    }
-
-    // 3. HORIZON (Date Picker)
-    if (type === 'HORIZON') {
+    } 
+    // 3. HORIZON (Date)
+    else if (type === 'HORIZON') {
         container.innerHTML = `
             <div class="mb-3">
                 <label class="font-data text-muted x-small mb-2" style="color:${color} !important">TARGET DATE</label>
-                <input type="date" name="value" class="form-control form-control-lg fs-4 font-body fw-bold border-0 border-bottom rounded-0 px-0 shadow-none" 
+                <input type="date" name="value" id="sys-param-value" class="form-control form-control-lg fs-4 font-body fw-bold border-0 border-bottom rounded-0 px-0 shadow-none" 
                        value="${value}" style="background:transparent;">
             </div>
         `;
-        return;
+    } 
+    // 4. DEFAULT (Text)
+    else {
+        container.innerHTML = `
+            <div class="mb-3">
+                <label class="font-data text-muted x-small mb-2" style="color:${color} !important">ANCHOR VALUE</label>
+                <input type="text" name="value" id="sys-param-value" class="form-control form-control-lg fs-4 font-body fw-bold border-0 border-bottom rounded-0 px-0 shadow-none" 
+                       value="${value}" placeholder="Define value..." autocomplete="off" style="background:transparent;">
+            </div>
+        `;
     }
 
-    // 4. DEFAULT (Text Input)
-    container.innerHTML = `
-        <div class="mb-3">
-            <label class="font-data text-muted x-small mb-2" style="color:${color} !important">ANCHOR VALUE</label>
-            <input type="text" name="value" class="form-control form-control-lg fs-4 font-body fw-bold border-0 border-bottom rounded-0 px-0 shadow-none" 
-                   value="${value}" placeholder="Define value..." autocomplete="off" style="background:transparent;">
-        </div>
-    `;
+    // Bind Live Update Listener
+    const mainInput = document.getElementById('sys-param-value');
+    if(mainInput) {
+        mainInput.oninput = (e) => {
+            sysState.tempValue = e.target.value;
+            renderVisualizer(type, e.target.value, color);
+        };
+        // For Select, onchange is better
+        mainInput.onchange = (e) => {
+            sysState.tempValue = e.target.value;
+            renderVisualizer(type, e.target.value, color);
+        };
+    }
 }
 
 // --- Interaction Handlers ---
@@ -262,7 +334,7 @@ function setProtocolMode(mode) {
     const type = document.getElementById('sys-param-type').value;
 
     if (mode === 'SPECULATE') {
-        // AI LOADING STATE
+        sysState.isSpeculating = true;
         container.innerHTML = `
             <div class="bg-light border border-primary-subtle rounded-3 p-5 text-center animate-in fade-in">
                 <div class="spinner-grow text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
@@ -271,50 +343,53 @@ function setProtocolMode(mode) {
             </div>
         `;
         
-        // Mock Simulation for Prototype (In real app, fetch /speculate_system_node)
-        // This simulates the AI "Thinking" and returning a smart value
+        // Mock Simulation (In real app: fetch /speculate_system_node)
         setTimeout(() => {
-            let suggestion = "AI Optimization";
-            if(type === 'HORIZON') suggestion = "2026-11-15"; // AI picks a date
+            let suggestion = "AI Optimized Value";
+            if(type === 'HORIZON') suggestion = "2026-11-15"; 
             if(type === 'OPERATOR') suggestion = "Strategic Consortium";
             if(type === 'BUDGET') suggestion = "Grant Funded";
             
-            // Switch back to Specify mode to show the result
+            // Switch back to Specify
+            sysState.isSpeculating = false;
             setProtocolMode('SPECIFY');
             
-            // Slight delay to allow DOM to repaint before injecting value
+            // Update State
+            sysState.tempValue = suggestion;
+            
+            // Re-render inputs and visualizer
+            const typeKey = sysState.nodeKeys[sysState.currentIndex];
+            const config = sysState.config[typeKey];
+            
             setTimeout(() => {
-                const inp = document.querySelector('[name="value"]');
-                const sel = document.querySelector('select[name="value"]');
+                renderBespokeInput(typeKey, suggestion, config.color, config);
+                renderVisualizer(typeKey, suggestion, config.color);
                 
-                if(inp) inp.value = suggestion;
-                if(sel) sel.value = suggestion;
-                
-                // For Operator, fill the visible input too
+                // For Operator, sync specific fields
                 if(type === 'OPERATOR') {
-                    document.getElementById('ent-name').value = suggestion;
-                    document.getElementById('real-value-input').value = suggestion;
+                    const entInput = document.getElementById('ent-name');
+                    const realInput = document.getElementById('real-value-input');
+                    if(entInput) entInput.value = suggestion;
+                    if(realInput) realInput.value = suggestion;
                 }
-                
-                // Trigger Visualizer Update
-                renderVisualizer(type, suggestion, systemNodesConfig[type].color);
             }, 50);
         }, 1200);
     } else {
-        // Re-render standard inputs (Cancel Speculation)
-        updateModalView();
+        // Cancel Speculation / Return to form
+        if(!sysState.isSpeculating) {
+            updateModalView();
+        }
     }
 }
 
 function setConstraintMode(mode) {
-    // UI Toggle for Hard/Soft Constraints
+    sysState.constraintMode = mode;
+    
     document.querySelector('.selected-mode-card').classList.remove('selected-mode-card');
     
-    // Add opacity to unselected
     document.getElementById('constraint-hard').classList.add('opacity-50');
     document.getElementById('constraint-soft').classList.add('opacity-50');
     
-    // Activate selected
     const target = document.getElementById(`constraint-${mode.toLowerCase()}`);
     target.classList.remove('opacity-50');
     target.classList.add('selected-mode-card');
@@ -322,25 +397,26 @@ function setConstraintMode(mode) {
     document.getElementById('sys-constraint-input').value = mode;
 }
 
-/**
- * Adds an entity to the Operator Stack (Client-side visual only for now)
- */
 function addEntity() {
     const name = document.getElementById('ent-name').value;
     const role = document.getElementById('ent-role').value || 'Lead';
     const org = document.getElementById('ent-org').value || 'External';
     
     if(name) {
-        // Add to store
-        entityStore['OPERATOR'].push({name, role, org, id: Date.now()});
+        // Update Store
+        if(!sysState.entityStore['OPERATOR']) sysState.entityStore['OPERATOR'] = [];
+        sysState.entityStore['OPERATOR'].push({name, role, org, id: Date.now()});
+        
+        // Update State
+        sysState.tempValue = sysState.entityStore['OPERATOR'].map(e => e.name).join(', ');
         
         // Update Visualizer
-        renderVisualizer('OPERATOR', null, systemNodesConfig['OPERATOR'].color);
+        const config = sysState.config['OPERATOR'];
+        renderVisualizer('OPERATOR', sysState.tempValue, config.color);
         
-        // Update Hidden Input (Comma separated for simple storage)
+        // Update Hidden Input
         const realInput = document.getElementById('real-value-input');
-        const currentVals = entityStore['OPERATOR'].map(e => e.name).join(', ');
-        realInput.value = currentVals;
+        if(realInput) realInput.value = sysState.tempValue;
 
         // Clear Form
         document.getElementById('ent-name').value = '';
@@ -349,17 +425,13 @@ function addEntity() {
     }
 }
 
-/**
- * Submits the data to the backend
- */
 function submitSystemForm() {
     const form = document.getElementById('system-node-form');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
     
-    // Add SSOL ID context
-    data.ssol_id = currentSSOLId;
-    data.key = data.sys_type; // Match backend expectation
+    data.ssol_id = sysState.ssolId;
+    data.key = data.sys_type;
 
     // UI Feedback
     const btn = document.querySelector('button[onclick="submitSystemForm()"]');
@@ -375,12 +447,11 @@ function submitSystemForm() {
     .then(r => r.json())
     .then(response => {
         if (response.success) {
-            // Close Modal
             const modalEl = document.getElementById('systemConfigModal');
             const modal = bootstrap.Modal.getInstance(modalEl);
             modal.hide();
             
-            // Reload page to update the Sidebar (simplest way to refresh global context)
+            // Reload to reflect changes on main dashboard
             location.reload(); 
         } else {
             alert("Error saving: " + (response.error || "Unknown error"));
