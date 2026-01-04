@@ -1,14 +1,14 @@
 # system_nodes.py
 """
-THE SYSTEM PARAMETER MANIFEST (v4.0 - Networked Autonomy)
+THE SYSTEM PARAMETER MANIFEST (v4.2 - Future Fulfilled Edition)
 ------------------------------------
 This file defines the "Physics" of the SSOL Universe.
-These nodes act as the 'Environmental Variables' for the Speculation Engine.
+It translates User-Friendly Concepts (Frontend) into Rigorous AI Constraints (Backend).
 
-CONCEPTS:
-- MASTER NODE: The "GOAL" node acting as the primary container.
-- ATTENUATION: 'prompt_injection' fields are prepended to every AI call,
-  ensuring CEs (currency) automatically align with these constraints.
+CHANGELOG v4.2:
+- GOAL: Renamed to "The Future Fulfilled" to enforce the doctrine of completed possibility.
+- DIRECTIVE: Converted to 'textarea' to support multiple Standards/Core Values.
+- PROMPTS: Tuned to prioritize Ethical Constraints over Efficiency.
 """
 
 SYSTEM_NODES = {
@@ -16,111 +16,84 @@ SYSTEM_NODES = {
     # 0. THE MASTER NODE (The Root Container)
     # ==============================================================================
     "GOAL": {
-        "label": "Prime Objective",
+        "label": "The Future Fulfilled",  # Doctrine-aligned naming
         "icon": "fa-solid fa-bullseye",
-        "color": "#212121", # Black/Dark Grey (The Singularity)
-        "description": "The Singularity. The absolute definition of the future state. All other nodes orbit this gravity well.",
-        "guide": "State the outcome as a completed fact in the past tense (e.g., 'The Ocean was cleaned').",
+        "color": "#212121", 
+        "description": "The destination as a completed fact.",
+        "guide": "Speak from the future. Do not say 'We want to build a park.' Say 'The Community Park IS open and thriving.'",
         "ui_type": "textarea",
-        "examples": ["The Event was successfully hosted", "The Prototype is functional"],
-        "prompt_injection": """
-            PRIME DIRECTIVE: The ultimate purpose of every element generated must directly contribute to: '{value}'.
-            Discard any suggestion that does not have a causal link to this outcome.
-        """
+        "prompt_injection": "PRIME DIRECTIVE ATTENUATION: The user has defined the Future Fulfilled as: '{value}'. All generated content must act as history leading up to this established fact."
     },
 
     # ==============================================================================
-    # 1. CORE CONSTRAINTS (Time & Identity)
+    # 1. CORE CONSTRAINTS (Identity & Time)
     # ==============================================================================
+    "OPERATOR": {
+        "label": "The Driver",
+        "icon": "fa-solid fa-user-check",
+        "color": "#03a9f4", # Light Blue
+        "description": "Who is responsible for this outcome?",
+        "guide": "The identity of the driver determines available leverage. (e.g. 'A Mom' has different leverage than 'A Mayor').",
+        "ui_type": "entity_stack",
+        "prompt_injection": """
+            OPERATOR ATTENUATION: The executing agent is defined as: '{value}'. 
+            Filter all suggestions to match the capabilities of this entity type. 
+            (e.g., Individuals cannot pass laws; Governments cannot move fast; Non-Profits need grants).
+        """
+    },
+
     "HORIZON": {
-        "label": "Target Deadline",
+        "label": "Target Date",
         "icon": "fa-solid fa-calendar-day",
-        "color": "#ff9800", # Amber (Urgency)
-        "description": "The Temporal Boundary. When does this possibility collapse into reality?",
-        "guide": "Is this a hard stop (Election Day) or a soft target (Quarter 4)?",
+        "color": "#ff9800", # Amber
+        "description": "The date this reality is fully realized.",
+        "guide": "Is this a hard deadline (e.g., Election Day) or a flexible target?",
         "ui_type": "date_manager", 
         "prompt_injection": """
             TEMPORAL ATTENUATION: The system has a hard stop at '{value}'. 
             All generated roadmaps, lead times, and resource acquisitions must mathematically fit within this window. 
-            Flag any CEs that inherently require more time than available.
-        """
-    },
-    
-    "OPERATOR": {
-        "label": "Project Champion",
-        "icon": "fa-solid fa-user-check",
-        "color": "#03a9f4", # Light Blue (Identity)
-        "description": "The Driver. The specific entity types responsible for execution.",
-        "guide": "Who is driving? A DAO? A Non-Profit? A Corporation? This dictates available leverage.",
-        "ui_type": "entity_stack",
-        "examples": ["Community Land Trust", "Agile Software Team", "Solo Founder"],
-        "prompt_injection": """
-            OPERATOR ATTENUATION: The executing agent is defined as: '{value}'. 
-            Ensure all suggestions (budgeting style, legal frameworks, organizational hierarchy) are native to this specific type of entity.
-            Do not suggest corporate strategies for grassroots operators, and vice versa.
+            Flag any CEs that inherently require more time than available as 'High Risk'.
         """
     },
 
     # ==============================================================================
-    # 2. VALUES & ETHICS (The Filter)
-    # ==============================================================================
-
-    "DIRECTIVE": {
-        "label": "Core Value",
-        "icon": "fa-solid fa-heart",
-        "color": "#9c27b0", # Deep Purple (Spirit)
-        "description": "The Immutable Law. The ethical framework that filters all decisions.",
-        "guide": "What rule is unbreakable? (e.g. Radical Transparency, Zero Waste).",
-        "ui_type": "text",
-        "examples": ["Open Source Only", "Local Sourcing", "Consensus Governance"],
-        "prompt_injection": """
-            ETHICAL ATTENUATION: The value of '{value}' is non-negotiable. 
-            Filter out any 'efficient' solutions that violate this principle. 
-            Prioritize inefficient solutions if they better align with this value.
-        """
-    },
-
-    "AVOIDANCE": { 
-        "label": "Anti-Goal", 
-        "icon": "fa-solid fa-triangle-exclamation",
-        "color": "#ef5350", # Red (Danger)
-        "description": "The Third Rail. Outcomes that constitute failure, even if the goal is met.",
-        "guide": "What are we afraid of? (Gentrification, Debt, Burnout).",
-        "ui_type": "text",
-        "examples": ["Displacing Residents", "Vendor Lock-in", "Public Debt"],
-        "prompt_injection": """
-            RISK ATTENUATION: The project must specifically avoid: '{value}'. 
-            Scan all generated CEs for second-order effects that might trigger this negative outcome.
-        """
-    },
-
-    # ==============================================================================
-    # 3. PHYSICS & LOGISTICS (The Engine)
+    # 2. PHYSICS & LOGISTICS (The Engine)
     # ==============================================================================
 
     "BUDGET": {
-        "label": "Fuel Source",
+        "label": "Funding Model",
         "icon": "fa-solid fa-piggy-bank",
-        "color": "#4caf50", # Green (Money)
-        "description": "The Economic Physics. Defines the sustainability and acquisition logic.",
-        "guide": "How is this powered? Grants? Sales? Sweat Equity?",
+        "color": "#4caf50", # Green
+        "description": "The energy source for the project.",
+        "guide": "How is this sustained? (e.g. 'Grant Funded' changes the reporting requirements; 'Bootstrapped' changes the speed).",
         "ui_type": "select",
-        "options": ["Bootstrapped ($0)", "Crowdfunded", "Grant Funded", "Venture Capital", "Public Budget"],
+        "options": [
+            "Self-Funded (Sweat Equity)", 
+            "Crowdfunded (Public Backing)", 
+            "Grant Funded (Non-Profit)", 
+            "Venture Capital (High Growth)", 
+            "Public Budget (Taxpayer)"
+        ],
         "prompt_injection": """
             ECONOMIC ATTENUATION: The project operates on a '{value}' model. 
-            Adjust resource granularity accordingly. 
-            (e.g., if Bootstrapped, suggest 'sweat equity' and 'barter'. If VC, suggest 'hiring' and 'saas tools').
+            Filter resource suggestions to match this economic physics. 
+            (e.g., if Self-Funded, prioritize 'barter' and 'volunteerism'. If VC, prioritize 'speed' and 'hiring').
         """
     },
 
     "SCALE": {
-        "label": "Impact Reach",
+        "label": "Scale & Reach",
         "icon": "fa-solid fa-map-location-dot",
-        "color": "#3f51b5", # Indigo (Space)
-        "description": "The Spatial Footprint. Determines regulatory and logistical complexity.",
-        "guide": "Where does this exist? A single room? A city? The internet?",
+        "color": "#3f51b5", # Indigo
+        "description": "The physical or digital footprint.",
+        "guide": "Are we impacting a block, a city, or the planet?",
         "ui_type": "select",
-        "options": ["Hyper-Local (Neighborhood)", "Municipal (City)", "Regional", "Global / Digital"],
+        "options": [
+            "Neighborhood (Hyper-Local)", 
+            "City-Wide (Municipal)", 
+            "Regional (State/Provincial)", 
+            "Global (Planetary/Digital)"
+        ],
         "prompt_injection": """
             SPATIAL ATTENUATION: The solution is scoped to a '{value}' footprint. 
             Ensure Stakeholder suggestions match this jurisdiction (e.g., City Council vs. UN).
@@ -129,12 +102,18 @@ SYSTEM_NODES = {
     },
 
     "MODALITY": {
-        "label": "Execution Style", 
+        "label": "Work Style",
         "icon": "fa-solid fa-people-carry-box",
-        "color": "#607d8b", # Blue Grey (Method)
-        "description": "The Rhythm of Work. How does the team coordinate?",
+        "color": "#607d8b", # Blue Grey
+        "description": "The rhythm of coordination.",
+        "guide": "How do we move? Agile (Iterative), Waterfall (Planned), Swarm (Decentralized), or Crisis (Speed).",
         "ui_type": "select",
-        "options": ["Agile / Iterative", "Waterfall / Planned", "Swarm / Decentralized", "Crisis Response"],
+        "options": [
+            "Agile / Iterative", 
+            "Waterfall / Planned", 
+            "Swarm / Decentralized", 
+            "Crisis Response"
+        ],
         "prompt_injection": """
             METHODOLOGICAL ATTENUATION: Work is performed using a '{value}' style. 
             Structure Prerequisites as 'Sprints' or 'Milestones' accordingly.
@@ -143,15 +122,52 @@ SYSTEM_NODES = {
     },
 
     # ==============================================================================
+    # 3. VALUES & ETHICS (The Filter)
+    # ==============================================================================
+
+    "DIRECTIVE": {
+        "label": "Core Values & Standards",  # Updated Label
+        "icon": "fa-solid fa-heart",
+        "color": "#9c27b0", # Deep Purple
+        "description": "The immutable standards we uphold.",
+        "guide": "List the non-negotiables. (e.g., '1. Open Source Code, 2. Living Wage, 3. Zero Carbon').",
+        "ui_type": "textarea", # Changed to Textarea for multi-value input
+        "examples": [
+            "Open Source, Radical Transparency", 
+            "Local Sourcing Only, Zero Waste", 
+            "Consensus Governance, DEI Priority"
+        ],
+        "prompt_injection": """
+            ETHICAL ATTENUATION: The project is strictly bound by these Core Values: '{value}'. 
+            Any AI suggestion (resource, partner, or method) that conflicts with these standards must be rejected. 
+            Prioritize alignment with these values over speed or cost efficiency.
+        """
+    },
+
+    "AVOIDANCE": { 
+        "label": "Dealbreakers",
+        "icon": "fa-solid fa-triangle-exclamation",
+        "color": "#ef5350", # Red
+        "description": "Outcomes we must prevent at all costs.",
+        "guide": "What does failure look like? (e.g. 'Displacing residents', 'Taking on debt').",
+        "ui_type": "textarea", # Changed to Textarea
+        "examples": ["Displacing Residents", "Vendor Lock-in", "Public Debt"],
+        "prompt_injection": """
+            RISK ATTENUATION: The project must specifically avoid: '{value}'. 
+            Scan all generated CEs for second-order effects that might trigger this negative outcome.
+        """
+    },
+
+    # ==============================================================================
     # 4. THE ARTIFACT
     # ==============================================================================
 
     "FULFILLMENT": {
-        "label": "Final Deliverable",
+        "label": "Final Artifact",
         "icon": "fa-solid fa-box-open",
-        "color": "#009688", # Teal (Tangible)
-        "description": "The Artifact. What physical or digital object remains when the project ends?",
-        "guide": "Is it a PDF? A Building? A Law? A Community Garden?",
+        "color": "#009688", # Teal
+        "description": "The tangible evidence of completion.",
+        "guide": "When the dust settles, what physical/digital object proves we finished? (e.g. 'The Signed Treaty', 'The Occupied Building').",
         "ui_type": "text",
         "examples": ["Legislative Bill", "Physical Prototype", "Research Paper", "Community Center"],
         "prompt_injection": """
@@ -164,10 +180,10 @@ SYSTEM_NODES = {
     # 5. WILDCARD
     # ==============================================================================
     "CUSTOM": {
-        "label": "Custom Vector",
+        "label": "Custom Constraint",
         "icon": "fa-solid fa-fingerprint",
-        "color": "#e91e63", # Pink (Unique)
-        "description": "User-Defined Constraint. Any specific variable not covered above.",
+        "color": "#e91e63", # Pink
+        "description": "Any specific requirements unique to this vision.",
         "ui_type": "text",
         "prompt_injection": """
             CUSTOM ATTENUATION: adhere strictly to this user-defined constraint: '{value}'.

@@ -4,30 +4,20 @@
 <div class="horizon-wrapper">
   <div class="console-housing">
     
-    <!-- 
-      THE SCREEN SURFACE 
-      Relative container that bounds the entire application view.
-      The Configuration Stage (Sidebar + Wizard) gets injected here by JS.
-    -->
+    <!-- THE SCREEN SURFACE -->
     <div class="screen-surface d-flex flex-column position-relative overflow-hidden" style="min-height: 85vh;">
       
       <!-- 1. HEADER BAR -->
-      <div id="gs-header" class="bg-white border-bottom px-5 py-4 d-flex justify-content-between align-items-center shadow-sm z-30 position-relative transition-all">
+      <div id="gs-header" class="bg-white border-bottom px-5 py-4 d-flex justify-content-between align-items-center shadow-sm z-30 position-relative">
         <div class="d-flex align-items-center gap-4">
-           
-           <!-- User Input Display -->
            <div id="user-input-display-container">
                <div class="font-data text-muted small text-uppercase letter-spacing-1 mb-1">Mission Parameter</div>
                <div class="d-flex align-items-center gap-3">
                    <h2 class="font-brand text-dark m-0 user-input-display" style="font-size: 2rem;">"{{ user_input }}"</h2>
                    <button class="btn btn-sm btn-link text-muted edit-user-input p-0" title="Edit Parameter"><i class="fas fa-pencil-alt"></i></button>
                </div>
-               <div class="horizon-instruction font-body text-muted small mt-1">
-                   Analogs Detected. Select Optimal Protocol Trajectory.
-               </div>
            </div>
-           
-           <!-- Hidden Edit Form -->
+           <!-- (Edit Container Hidden) -->
            <div id="user-input-edit-container" class="d-none align-items-center gap-2">
                <input type="text" class="form-control form-control-lg font-brand user-input-edit" value="{{ user_input }}">
                <button class="btn btn-sm btn-success save-user-input"><i class="fas fa-check"></i></button>
@@ -37,150 +27,222 @@
 
         <div class="d-flex gap-3">
              <button type="button" class="btn btn-sm btn-outline-primary font-data rounded-pill px-4" id="generate-new-goals">
-               <i class="fas fa-sync-alt me-2"></i> Re-Calculate
+               <i class="fas fa-sync-alt me-2"></i> RE-CALCULATE
              </button>
-             <a href="{{ url_for('routes_bp.index') }}" class="btn btn-sm btn-light border font-data rounded-pill px-4">
-               Abort
-             </a>
+             <a href="{{ url_for('routes_bp.index') }}" class="btn btn-sm btn-light border font-data rounded-pill px-4">ABORT</a>
         </div>
       </div>
 
-      <!-- 2. THE STAGE VIEWPORT (Centers the Grid) -->
-      <!-- This container enforces the bounds for the Morphing Card -->
+      <!-- 2. THE STAGE VIEWPORT (3D Context) -->
       <div id="stage-viewport">
         
+        <!-- A. THE GALLERY GRID (Initial State) -->
         <div class="goal-grid" id="goalCardsContainer">
             {% for goal in goals %}
-               <!-- Cycle through 5 Horizon Phase Colors -->
-               <!-- 0:Coral, 1:Cyan, 2:Purple, 3:Amber, 4:Green -->
-               {% set theme_idx = loop.index0 % 5 %}
-
-               <!-- Calculate Gradient Logic -->
-               {% set gradient = '' %}
-               {% set btn_gradient = '' %}
-               
-               {% if not goal.is_compliant %}
-                    {% set gradient = 'linear-gradient(135deg, #ef5350 0%, #b71c1c 100%)' %}
-                    {% set btn_gradient = '#ef5350' %}
-               {% elif theme_idx == 0 %}
-                    {% set gradient = 'linear-gradient(135deg, #ff7043 0%, #d84315 100%)' %}
-                    {% set btn_gradient = 'linear-gradient(to right, #ff7043, #d84315)' %}
-               {% elif theme_idx == 1 %}
-                    {% set gradient = 'linear-gradient(135deg, #26c6da 0%, #00838f 100%)' %}
-                    {% set btn_gradient = 'linear-gradient(to right, #00bcd4, #00838f)' %}
-               {% elif theme_idx == 2 %}
-                    {% set gradient = 'linear-gradient(135deg, #ab47bc 0%, #7b1fa2 100%)' %}
-                    {% set btn_gradient = 'linear-gradient(to right, #ab47bc, #7b1fa2)' %}
-               {% elif theme_idx == 3 %}
-                    {% set gradient = 'linear-gradient(135deg, #ffa726 0%, #ef6c00 100%)' %}
-                    {% set btn_gradient = 'linear-gradient(to right, #ffa726, #ef6c00)' %}
-               {% else %}
-                    {% set gradient = 'linear-gradient(135deg, #66bb6a 0%, #2e7d32 100%)' %}
-                    {% set btn_gradient = 'linear-gradient(to right, #66bb6a, #2e7d32)' %}
-               {% endif %}
-               
-               <!-- 
-                   CARD WRAPPER 
-                   Default State: Opacity 0 (Handled by CSS).
-                   JS adds .deal-in to slide up, then .revealed to flip to front.
-               -->
-               <div class="flip-card-wrapper theme-{{ theme_idx }} {{ 'violation' if not goal.is_compliant else '' }}" 
+               <div class="flip-card-wrapper {{ 'violation' if not goal.is_compliant else '' }}" 
+                    data-card-id="goal-{{ loop.index0 }}"
+                    data-card-title="{{ goal.title | e }}"
+                    data-color-hue="{{ goal.color_hue | default(180) }}"
+                    data-goal-index="{{ loop.index0 }}"
                     onclick="window.selectGoal(this)">
-                    
                     <div class="flip-card-inner">
-                        
-                        <!-- 
-                             BACK FACE: THE MONOLITH (Default Visible Layer z-index: 2)
-                             This acts as the "Cover". It displays the Icon and "Potential Future".
-                             When selected, the card flips back to this face and morphs into the sidebar.
-                        -->
-                        <div class="flip-card-back" style="background: {{ gradient }};">
-                            
-                            <!-- Texture Layer -->
+                        <!-- BACK (Monolith) -->
+                        <div class="flip-card-back" style="background: {{ goal.card_gradient | default('linear-gradient(135deg, #00bcd4 0%, #2979ff 100%)') }};">
                             <div class="card-texture-overlay"></div>
-                            
-                            <!-- Center Icon (The Monolith Symbol) -->
-                            <!-- Wrapped in .monolith-content so we can fade it out during Morph -->
                             <div class="monolith-content">
-                                <i class="{{ goal.icon }} monolith-icon"></i>
-                                
+                                <div class="monolith-icon-circle"><i class="{{ goal.icon }} monolith-icon"></i></div>
                                 {% if not goal.is_compliant %}
-                                    <div class="position-absolute bottom-0 mb-5">
-                                        <span class="badge bg-black bg-opacity-50 border border-danger text-white font-data tracking-widest px-3 py-2">
-                                            <i class="fas fa-shield-virus me-2"></i> SAFETY LOCKOUT
-                                        </span>
-                                    </div>
+                                    <span class="badge bg-black bg-opacity-25 border border-danger text-white font-data px-3 py-2">PROTOCOL VIOLATION</span>
                                 {% else %}
-                                    <div class="position-absolute bottom-0 mb-5 font-data text-white-50 x-small tracking-widest uppercase opacity-50 border border-white border-opacity-25 rounded-pill px-3 py-1">
-                                        POTENTIAL FUTURE
-                                    </div>
+                                    <div class="font-data text-white-50 x-small tracking-widest opacity-75 border border-white border-opacity-25 rounded-pill px-3 py-1">STRUCTURED SPECULATION</div>
                                 {% endif %}
                             </div>
                         </div>
-
-                        <!-- 
-                             FRONT FACE: THE DETAILS (Hidden Behind Back Initially z-index: 1)
-                             Revealed via diagonal flip animation when .revealed is added.
-                        -->
+                        <!-- FRONT (Details) -->
                         <div class="flip-card-front">
-                            
-                            <!-- Header Plate (Matches Back Color) -->
-                            <div class="card-header-plate" style="background: {{ gradient }};">
-                                <div class="card-domain-badge">{{ goal.domain | upper }}</div>
-                                <div class="card-icon-float">
-                                    <i class="{{ goal.icon }} fa-2x" 
-                                       style="color: {{ '#ef5350' if not goal.is_compliant else 
-                                               ('#d84315' if theme_idx == 0 else 
-                                               '#00838f' if theme_idx == 1 else 
-                                               '#7b1fa2' if theme_idx == 2 else
-                                               '#ef6c00' if theme_idx == 3 else 
-                                               '#2e7d32') }};"></i>
-                                </div>
-                            </div>
-
-                            <!-- Body Content -->
-                            <div class="card-body">
-                                <h3 class="card-title">{{ goal.title }}</h3>
-                                <p class="card-desc">{{ goal.goal }}</p>
-                            </div>
-
-                            <!-- Footer Action -->
-                            <div class="card-footer">
-                                <button type="button" class="btn-select-pill shadow-sm"
-                                        style="background: {{ btn_gradient }};">
-                                    {{ 'PROTOCOL VIOLATION' if not goal.is_compliant else 'INITIALIZE PROTOCOL' }}
-                                </button>
-                            </div>
+                             <div class="card-header-plate" style="background: {{ goal.plate_gradient | default('linear-gradient(135deg, #4dd0e1 0%, #00bcd4 100%)') }};">
+                                 <div class="card-texture-overlay"></div>
+                                 <div class="card-domain-badge-large">{{ goal.domain | upper }}</div>
+                                 <div class="card-icon-float-large"><i class="{{ goal.icon }}" style="color: {{ goal.icon_color | default('#00838f') }};"></i></div>
+                             </div>
+                             <div class="card-body-large">
+                                 <h3 class="card-title-large">{{ goal.title }}</h3>
+                                 <p class="card-desc-large">{{ goal.goal }}</p>
+                             </div>
+                             <div class="card-footer-large">
+                                 <button type="button" class="btn-select-pill-large" style="background: {{ goal.btn_gradient | default('linear-gradient(to right, #00bcd4, #00838f)') }};">
+                                     {{ 'PROTOCOL VIOLATION' if not goal.is_compliant else 'CHOOSE GOAL' }}
+                                 </button>
+                             </div>
                         </div>
-
                     </div>
+                    <!-- Dynamic Dock for System Pills -->
+                    <div class="system-pill-dock position-absolute top-0 start-0 w-100 p-4 d-flex flex-column gap-2" style="z-index: 5; pointer-events: none;"></div>
                </div>
             {% endfor %}
         </div>
+
+        <!-- B. THE CONFIGURATION WIZARD (Slides in) -->
+        <div id="configuration-stage">
+            <div class="split-col-right">
+                <div class="wizard-container">
+                    
+                    <!-- HEADER -->
+                    <div class="wizard-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="font-data text-primary small fw-bold tracking-widest mb-2">CONFIGURATION</div>
+                            <div class="wizard-progress">
+                                <div class="progress-segment active" id="dot-1"></div>
+                                <div class="progress-segment" id="dot-2"></div>
+                                <div class="progress-segment" id="dot-3"></div>
+                            </div>
+                        </div>
+                        <button class="btn btn-link font-data text-muted small text-decoration-none" onclick="window.skipToSpeculate()">
+                            SKIP TO SOLUTION <i class="fas fa-arrow-right ms-1"></i>
+                        </button>
+                    </div>
+
+                    <!-- CONTENT -->
+                    <div class="wizard-content" id="wizard-content-area">
+                        
+                        <!-- STEP 1: IDENTITY -->
+                        <div class="wizard-step" id="step-1">
+                            <div class="text-center mb-4">
+                                <h2 class="font-brand text-dark">Who Is Driving?</h2>
+                                <p class="text-muted font-body small">Select the operational entity to calibrate resource leverage.</p>
+                            </div>
+                            <div class="wizard-identity-grid">
+                                <div class="wizard-identity-pill" onclick="window.selectIdentity('Individual', this)">
+                                    <div class="wizard-identity-icon"><i class="fas fa-user"></i></div>
+                                    <div class="wizard-identity-text"><h6>INDIVIDUAL AGENT</h6><p>Personal action. High autonomy.</p></div>
+                                </div>
+                                <div class="wizard-identity-pill" onclick="window.selectIdentity('Grassroots', this)">
+                                    <div class="wizard-identity-icon"><i class="fas fa-users"></i></div>
+                                    <div class="wizard-identity-text"><h6>COMMUNITY / GRASSROOTS</h6><p>Volunteer network. Driven by passion.</p></div>
+                                </div>
+                                <div class="wizard-identity-pill" onclick="window.selectIdentity('Team', this)">
+                                    <div class="wizard-identity-icon"><i class="fas fa-rocket"></i></div>
+                                    <div class="wizard-identity-text"><h6>SMALL TEAM / STARTUP</h6><p>Dedicated group. Speed & growth.</p></div>
+                                </div>
+                                <div class="wizard-identity-pill" onclick="window.selectIdentity('NonProfit', this)">
+                                    <div class="wizard-identity-icon"><i class="fas fa-hand-holding-heart"></i></div>
+                                    <div class="wizard-identity-text"><h6>NON-PROFIT / NGO</h6><p>Mission-driven. Public trust.</p></div>
+                                </div>
+                                <div class="wizard-identity-pill" onclick="window.selectIdentity('Enterprise', this)">
+                                    <div class="wizard-identity-icon"><i class="fas fa-building"></i></div>
+                                    <div class="wizard-identity-text"><h6>CORPORATE / ENTERPRISE</h6><p>Large-scale commercial resources.</p></div>
+                                </div>
+                                <div class="wizard-identity-pill" onclick="window.selectIdentity('Public', this)">
+                                    <div class="wizard-identity-icon"><i class="fas fa-landmark"></i></div>
+                                    <div class="wizard-identity-text"><h6>PUBLIC / CIVIC BODY</h6><p>Regulatory authority. High leverage.</p></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Context Helper (Injected via JS) -->
+                            <div id="context-helper-box" class="bg-dark text-white p-4 rounded-4 shadow-sm mt-4 d-none opacity-0 transition-all">
+                                <div id="context-helper-text"></div>
+                            </div>
+                        </div>
+
+                        <!-- STEP 2: HORIZON -->
+                        <div class="wizard-step d-none" id="step-2">
+                            <div class="text-center mb-5">
+                                <h2 class="font-brand text-dark">Target Horizon</h2>
+                                <p class="text-muted font-body small">When does this possibility collapse into reality?</p>
+                            </div>
+                            <div class="d-flex justify-content-center">
+                                <div class="p-4 border rounded-4 bg-light shadow-inner text-center" style="max-width: 400px; width: 100%;">
+                                    <label class="font-data text-muted x-small tracking-widest mb-2">COMPLETION DATE</label>
+                                    <input type="date" class="form-control form-control-lg font-brand p-3 text-center fs-3 border-2" 
+                                           id="input-horizon" onchange="window.setHorizon(this.value)">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- STEP 3: BUDGET -->
+                        <div class="wizard-step d-none" id="step-3">
+                            <div class="text-center mb-4">
+                                <h2 class="font-brand text-dark">Resource Model</h2>
+                                <p class="text-muted font-body small">Define the fuel source for this trajectory.</p>
+                            </div>
+                            <div class="wizard-identity-grid">
+                                <div class="wizard-identity-pill" onclick="window.selectBudget('Bootstrapped', this)">
+                                    <div class="wizard-identity-icon"><i class="fas fa-hammer"></i></div>
+                                    <div class="wizard-identity-text"><h6>BOOTSTRAPPED ($0)</h6><p>Sweat equity and bartering.</p></div>
+                                </div>
+                                <div class="wizard-identity-pill" onclick="window.selectBudget('Crowdfunded', this)">
+                                    <div class="wizard-identity-icon"><i class="fas fa-bullhorn"></i></div>
+                                    <div class="wizard-identity-text"><h6>CROWDFUNDED</h6><p>Public backing and engagement.</p></div>
+                                </div>
+                                <div class="wizard-identity-pill" onclick="window.selectBudget('Grant Funded', this)">
+                                    <div class="wizard-identity-icon"><i class="fas fa-file-signature"></i></div>
+                                    <div class="wizard-identity-text"><h6>GRANT FUNDED</h6><p>Compliance-heavy, slow release.</p></div>
+                                </div>
+                                <div class="wizard-identity-pill" onclick="window.selectBudget('Venture Capital', this)">
+                                    <div class="wizard-identity-icon"><i class="fas fa-chart-line"></i></div>
+                                    <div class="wizard-identity-text"><h6>VENTURE CAPITAL</h6><p>High growth, equity exchange.</p></div>
+                                </div>
+                                <div class="wizard-identity-pill" onclick="window.selectBudget('Public Budget', this)">
+                                    <div class="wizard-identity-icon"><i class="fas fa-landmark"></i></div>
+                                    <div class="wizard-identity-text"><h6>PUBLIC BUDGET</h6><p>Taxpayer funded. High oversight.</p></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FOOTER -->
+                    <div class="wizard-footer border-top p-3 d-flex justify-content-between align-items-center bg-white mt-auto">
+                        <button class="btn btn-link text-muted font-data small text-decoration-none" onclick="window.resetStage()">
+                            <i class="fas fa-chevron-left me-1"></i> BACK
+                        </button>
+                        
+                        <button class="btn btn-dark rounded-pill px-4 font-data small shadow-sm" id="btn-next" disabled onclick="window.nextStep()">
+                            NEXT <i class="fas fa-chevron-right ms-1"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
       </div>
 
-    <!-- 4. FOOTER -->
-    <div class="d-flex justify-content-between align-items-center px-4 py-3 bg-white border-top mt-auto flex-shrink-0 z-20 position-relative">
-       <div class="d-flex gap-2">
-          <div class="rounded-circle bg-success shadow-sm animate-pulse" style="width: 8px; height: 8px;"></div>
-          <div class="rounded-circle bg-warning shadow-sm" style="width: 8px; height: 8px;"></div>
-          <div class="rounded-circle bg-info shadow-sm" style="width: 8px; height: 8px;"></div>
-       </div>
-       <span class="font-data text-muted small letter-spacing-2">SSPEC HORIZON v2025.33</span>
-    </div>
+      <!-- 3. PAGE FOOTER (The System Bar) -->
+      <div class="px-5 py-3 bg-white border-top mt-auto d-flex justify-content-between align-items-center z-20 position-relative">
+         <!-- LEFT: FRIENDLY STATUS -->
+         <div class="d-flex align-items-center gap-3">
+            <div id="global-status-dot" class="rounded-circle bg-success shadow-sm animate-pulse" 
+                 style="width: 6px; height: 6px; transition: background-color 0.3s;"></div>
+            <span id="global-status-text" class="font-body small text-muted fw-bold">
+                {{ system_status }}
+            </span>
+         </div>
+
+         <!-- RIGHT: VERSION -->
+         <span class="font-data text-muted small letter-spacing-2 opacity-75">
+             SSPEC HORIZON {{ system_version }}
+         </span>
+      </div>
 
     </div>
   </div>
 </div>
+
+<!-- HIDDEN SUBMISSION FORM -->
+<form id="final-submit-form" method="POST" action="{{ url_for('routes_bp.outcome') }}" class="d-none">
+    <input type="hidden" name="selected_goal" id="form-goal">
+    <input type="hidden" name="selected_goal_title" id="form-title">
+    <input type="hidden" name="domain" id="form-domain">
+    <input type="hidden" name="domain_icon" id="form-domain-icon">
+    
+    <input type="hidden" name="system_operator" id="form-operator">
+    <input type="hidden" name="system_horizon" id="form-horizon">
+    <input type="hidden" name="system_budget" id="form-budget">
+</form>
 {% endblock %}
 
 {% block scripts %}
-<script type="module" src="{{ url_for('static', filename='js/goal_selection.js') }}"></script>
-<script type="module">
-    // Load Animate.css for the Configuration Wizard slide effects
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css';
-    document.head.appendChild(link);
+<script>
+    // Pass raw goal data to JS for initial state
+    window.GOAL_COLOR_DATA = {{ goals | tojson | safe }};
 </script>
+<script type="module" src="{{ url_for('static', filename='js/goal_selection.js') }}"></script>
 {% endblock %}

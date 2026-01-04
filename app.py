@@ -3,11 +3,12 @@ import os
 import sys
 import logging
 import asyncio
-from flask import Flask
-from flask_migrate import Migrate
-from dotenv import load_dotenv
 from models import db
+from flask import Flask
 from sqlalchemy import text
+from datetime import datetime
+from dotenv import load_dotenv
+from flask_migrate import Migrate
 
 # --- RICH UI LIBRARY ---
 from rich.console import Console
@@ -101,6 +102,17 @@ def get_badge_class_from_status(status):
 def inject_nodes():
     from system_nodes import SYSTEM_NODES
     return dict(nodes=NODES, system_nodes=SYSTEM_NODES)
+
+def inject_system_metadata():
+    now = datetime.now()
+    build_id = now.strftime("v%Y.%m%d.%H%M")
+    
+    return dict(
+        system_version=build_id,
+        # WAS: "KERNEL_READY"
+        # NOW: "Standing by"
+        system_status="Standing by" 
+    )
 
 # --- 5. ROUTES ---
 from routes import routes_bp

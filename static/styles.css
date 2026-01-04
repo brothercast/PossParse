@@ -1,4 +1,4 @@
-/* styles.css - SSPEC "Horizon Fusion" v2025.37 (TERNARY 360 FLIP EDITION) */
+/* styles.css - SSPEC "Horizon Fusion" v2025.38 (PROTOTYPE VISUALS + WIZARD) */
 
 /* ================================================== */
 /* ==============  1. FONTS & VARIABLES  ============ */
@@ -204,362 +204,476 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 }
 .btn-launch:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(244, 81, 30, 0.3); }
 
-/* ================================================== */
-/* ======  7. GOAL SELECTION (THEATER MODE)  ======== */
-/* ================================================== */
+/* =================================================== */
+/* ======  7. GOAL SELECTION PAGE (FULL SECTION) ===== */
+/* =================================================== */
 
-/* --- 1. THE STAGE (Restricted Viewport) --- */
+/*
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │  THE SACRED DIAGONAL FLIP - DESIGN PHILOSOPHY                          │
+ * ├─────────────────────────────────────────────────────────────────────────┤
+ * │                                                                         │
+ * │  Axis: rotate3d(1, 1, 0, Xdeg)                                         │
+ * │                                                                         │
+ * │  This rotates around a diagonal line from bottom-left to top-right:    │
+ * │                                                                         │
+ * │      ┌─────────────┐                                                   │
+ * │      │╲            │                                                   │
+ * │      │ ╲    ⟳     │  ← Rotation axis                                  │
+ * │      │  ╲         │                                                    │
+ * │      │   ╲        │                                                    │
+ * │      └────╲───────┘                                                    │
+ * │                                                                         │
+ * │  STATE ROTATION MAP:                                                   │
+ * │  ───────────────────                                                   │
+ * │  DEALING/REVEALING  →  0deg    →  Monolith (Back Face)                │
+ * │  SELECTION          →  180deg  →  Goal Details (Front Face)           │
+ * │  CONFIG             →  360deg  →  Hero Content (Back Face, full flip) │
+ * │  RETURNING          →  180deg  →  Goal Details (Front Face)           │
+ * │                                                                         │
+ * └─────────────────────────────────────────────────────────────────────────┘
+ */
+
+/* --- 7.1 STAGE VIEWPORT (The Theater) --- */
+
 #stage-viewport {
     position: relative;
     flex-grow: 1;
     width: 100%;
     overflow: hidden;
-    perspective: 2500px;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    padding: 2rem;
 }
 
 .goal-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 2rem;
-    padding: 2rem 3rem;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 2.5rem;
+    padding: 1rem;
     width: 100%;
     max-width: 1400px;
     margin: 0 auto;
     align-items: start;
-    overflow-y: auto;
+    justify-content: center;
+    transition: opacity 0.5s ease;
 }
 
-/* Grid placeholder for morph position preservation */
+@media (min-width: 1200px) {
+    .goal-grid {
+        grid-template-columns: repeat(3, minmax(320px, 420px));
+    }
+}
+
 .grid-placeholder {
     visibility: hidden;
+    pointer-events: none;
 }
 
-/* --- 2. CARD WRAPPER & PHYSICS (State Machine) --- */
+/* --- 7.2 FLIP CARD WRAPPER (The Stage for Each Card) --- */
 
-/* Card Wrapper: Handles Layout Position & Size */
 .flip-card-wrapper {
     position: relative;
     width: 100%;
     max-width: 420px;
     aspect-ratio: 2/3;
-    min-height: 480px;
+    min-height: 500px;
     cursor: pointer;
     z-index: 10;
     margin: 0 auto;
     
-    /* Smooth layout transitions when morphing */
+    /* 3D Context */
+    perspective: 1500px;
+    
+    /* Smooth transitions for position/size morphing */
     transition: 
         opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
         transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
         top 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
         left 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
         width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
-        height 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+        height 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
+        border-radius 0.5s ease;
 }
 
-/* STATE: DEALING (Initial - Opacity 0, Shifted Down, Back Face) */
-.flip-card-wrapper.state-dealing {
-    opacity: 0;
-    transform: translateY(100px);
-}
+/* --- 7.3 FLIP CARD INNER (The 3D Flip Engine) --- */
 
-.flip-card-wrapper.state-dealing .flip-card-inner {
-    /* STATE 1: 0deg (Face Down) */
-    transform: rotate3d(1, 1, 0, 0deg); 
-}
-
-/* STATE: SELECTION (Revealed - Opacity 1, Normal Position, Front Face) */
-.flip-card-wrapper.state-selection {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.flip-card-wrapper.state-selection .flip-card-inner {
-    /* STATE 2: 180deg (Face Up) */
-    transform: rotate3d(1, 1, 0, 180deg); 
-    box-shadow: 0 20px 40px -10px rgba(0,0,0,0.15);
-}
-
-.flip-card-wrapper.state-selection:hover .flip-card-inner {
-    transform: rotate3d(1, 1, 0, 180deg) translateY(-8px);
-    box-shadow: 0 30px 50px -10px rgba(0,0,0,0.2);
-}
-
-/* STATE: DIMMED (Siblings fade out) */
-.flip-card-wrapper.state-dimmed {
-    opacity: 0;
-    pointer-events: none;
-    transform: scale(0.9) translateY(50px);
-}
-
-/* STATE: HERO (Selected Card - Expanded Sidebar, Back Face) */
-.flip-card-wrapper.morph-active {
-    z-index: 1000;
-    margin: 0 !important;
-    cursor: default;
-}
-
-.flip-card-wrapper.morph-active .flip-card-inner {
-    /* STATE 3: 360deg (Face Down / Forward Spin) */
-    /* This ensures it tumbles forward instead of rewinding to 0 */
-    transform: rotate3d(1, 1, 0, 360deg); 
-    
-    box-shadow: -20px 20px 60px rgba(0,0,0,0.3);
-    border-radius: 24px 0 0 24px; /* Flatten right edge when docked */
-}
-
-/* Violation Cards (Safety Locked) */
-.flip-card-wrapper.violation {
-    cursor: not-allowed;
-}
-
-.flip-card-wrapper.violation .flip-card-inner {
-    opacity: 0.6;
-}
-
-.flip-card-wrapper.violation:hover .flip-card-inner {
-    transform: rotate3d(1, 1, 0, 180deg); /* Don't lift on hover */
-}
-
-/* --- 3. THE 3D FLIP ENGINE --- */
-
-/* The Rotator: Handles 3D Spin (Independent of Layout) */
 .flip-card-inner {
     position: relative;
     width: 100%;
     height: 100%;
+    border-radius: 32px;
+    
     transform-style: preserve-3d;
     transform-origin: center center;
-    /* High Friction Bezier for that "heavy card" feel */
-    transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.4s ease;
-    border-radius: 32px;
+    transform: rotate3d(1, 1, 0, 0deg); /* Default: Monolith visible */
+    
+    transition: 
+        transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+        border-radius 0.5s ease;
+    
+    /* NOTE: Shadow moved to faces to prevent rotation artifacts */
 }
 
-/* Preserve 3D Space Helper */
-.preserve-3d {
-    transform-style: preserve-3d;
-}
+/* --- 7.4 CARD FACES (Front & Back) --- */
 
-/* --- 4. CARD FACES --- */
-
-.flip-card-front, 
+.flip-card-front,
 .flip-card-back {
     position: absolute;
     inset: 0;
-    backface-visibility: hidden;
     border-radius: 32px;
     overflow: hidden;
+    
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+
+    /* Shadow applied to faces for correct light source orientation */
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
+    transition: box-shadow 0.5s ease, border-radius 0.5s ease;
+
+    /* Gradient Overlay for Contrast Safety on light backgrounds */
+    background: linear-gradient(to bottom, 
+        rgba(0,0,0,0) 0%, 
+        rgba(0,0,0,0.05) 50%, 
+        rgba(0,0,0,0.3) 100%
+    );
 }
 
-/* BACK FACE (0deg/360deg) - System/Monolith/Context */
+/* Back Face: Monolith / Hero */
 .flip-card-back {
     z-index: 2;
-    transform: rotate3d(1, 1, 0, 0deg);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: transparent; 
     color: white;
     padding: 2.5rem;
 }
 
-/* FRONT FACE (180deg) - Goal Details */
+/* Front Face: Goal Details */
 .flip-card-front {
     z-index: 1;
+    /* Pre-rotated 180deg */
     transform: rotate3d(1, 1, 0, 180deg);
+    
     display: flex;
     flex-direction: column;
     background: white;
     border: 1px solid #e2e8f0;
 }
 
-/* --- 5. MONOLITH STYLING (Back Face Default) --- */
+/* --- 7.5 CARD TEXTURE OVERLAY --- */
 
 .card-texture-overlay {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background-image: radial-gradient(rgba(255,255,255,0.4) 1.5px, transparent 1.5px);
-    background-size: 16px 16px;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.3) 1.5px, transparent 1.5px);
+    background-size: 20px 20px;
     z-index: 1;
+    opacity: 0.6;
 }
 
-.monolith-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    z-index: 2;
-}
+/* =================================================== */
+/* ======  7.6 STATE MACHINE CLASSES  ================ */
+/* =================================================== */
 
-.monolith-icon {
-    font-size: 6rem;
-    color: rgba(255,255,255,0.9);
-    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15));
-    transition: transform 0.4s ease;
-}
-
-.flip-card-wrapper:hover .monolith-icon {
-    transform: scale(1.1);
-}
-
-/* --- 6. FRONT FACE COMPONENTS --- */
-
-.card-header-plate {
-    height: 38%;
-    position: relative;
-    display: flex;
-    justify-content: center;
-}
-
-.card-header-plate::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: radial-gradient(rgba(255,255,255,0.4) 1.5px, transparent 1.5px);
-    background-size: 16px 16px;
+.flip-card-wrapper.state-dealing {
+    opacity: 0;
+    transform: translateY(120px) scale(0.9);
     pointer-events: none;
 }
+.flip-card-wrapper.state-dealing .flip-card-inner { transform: rotate3d(1, 1, 0, 0deg); }
 
-.card-domain-badge {
-    position: absolute;
-    top: 32px;
-    background: rgba(255,255,255,0.95);
-    backdrop-filter: blur(8px);
-    padding: 0.6rem 1.5rem;
-    border-radius: 50px;
-    font-weight: 800;
-    font-size: 0.75rem;
-    letter-spacing: 1.5px;
-    color: #1e293b;
-    z-index: 10;
+.flip-card-wrapper.state-revealing {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: none;
+}
+.flip-card-wrapper.state-revealing .flip-card-inner { transform: rotate3d(1, 1, 0, 0deg); }
+
+/* --- SELECTION STATE --- */
+.flip-card-wrapper.state-selection {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+    cursor: pointer;
+}
+.flip-card-wrapper.state-selection .flip-card-inner {
+    /* 0deg -> 180deg (Show Goal Details) */
+    transform: rotate3d(1, 1, 0, 180deg);
+}
+.flip-card-wrapper.state-selection:hover {
+    transform: translateY(-12px) scale(1.02);
+    z-index: 15;
+}
+.flip-card-wrapper.state-selection:hover .flip-card-front {
+    box-shadow: 
+        0 45px 80px -20px rgba(0, 0, 0, 0.35),
+        0 25px 35px -15px rgba(0, 0, 0, 0.20);
 }
 
-.card-icon-float {
+/* --- CONFIG STATE (Hero Mode) --- */
+.flip-card-wrapper.state-config {
     position: absolute;
-    bottom: -50px;
-    width: 100px;
-    height: 100px;
-    background: white;
-    border-radius: 50%;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 35%; 
+    max-width: 480px;
+    margin: 0;
+    z-index: 100;
+    pointer-events: auto;
+    /* Square off left corners for docking */
+    border-radius: 0 24px 24px 0;
+}
+.flip-card-wrapper.state-config .flip-card-inner,
+.flip-card-wrapper.state-config .flip-card-back {
+    border-radius: 0 24px 24px 0;
+}
+.flip-card-wrapper.state-config .flip-card-inner {
+    /* 180deg -> 360deg (Continuous Flip) */
+    transform: rotate3d(1, 1, 0, 360deg);
+}
+.flip-card-wrapper.state-config .flip-card-back {
+    box-shadow: 15px 0 50px -10px rgba(0, 0, 0, 0.30);
+}
+
+/* --- RETURNING STATE --- */
+.flip-card-wrapper.state-returning { z-index: 100; pointer-events: none; border-radius: 32px; }
+.flip-card-wrapper.state-returning .flip-card-inner,
+.flip-card-wrapper.state-returning .flip-card-back { border-radius: 32px; }
+.flip-card-wrapper.state-returning .flip-card-inner { transform: rotate3d(1, 1, 0, 180deg); }
+
+/* --- DIMMED & VIOLATION --- */
+.flip-card-wrapper.state-dimmed {
+    opacity: 0; pointer-events: none; transform: scale(0.85) translateZ(-200px); filter: blur(4px);
+}
+.flip-card-wrapper.violation { cursor: not-allowed; }
+.flip-card-wrapper.violation .flip-card-inner { opacity: 0.7; filter: saturate(0.5); }
+
+/* =================================================== */
+/* ======  7.7 MONOLITH CONTENT (Back Face) ========== */
+/* =================================================== */
+
+.monolith-content {
+    position: relative;
+    z-index: 2;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.12);
-    z-index: 20;
-    border: 6px solid white;
-}
-
-.card-body {
-    flex: 1 1 auto;
-    padding: 4rem 2rem 1rem;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.card-title {
-    font-family: var(--font-brand), 'Righteous', cursive;
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
-    line-height: 1.2;
-    color: #1e293b;
-}
-
-.card-desc {
-    font-size: 0.9rem;
-    color: #64748b;
-    line-height: 1.5;
-}
-
-.card-footer {
-    padding: 0 2rem 2rem;
-}
-
-.btn-select-pill {
-    width: 100%;
-    padding: 14px 0;
-    border-radius: 50px;
-    border: none;
-    font-family: var(--font-data), 'Antonio', sans-serif;
-    font-weight: 700;
-    color: white;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    cursor: pointer;
-    transition: transform 0.2s;
-    font-size: 0.75rem;
-}
-
-.btn-select-pill:hover {
-    transform: translateY(-2px);
-}
-
-/* --- 7. SIDEBAR HERO CONTENT --- */
-
-.sidebar-content {
     height: 100%;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    transition: opacity 0.3s ease;
     padding: 2rem;
 }
 
-.sidebar-content::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background-image: radial-gradient(rgba(255,255,255,0.3) 1.5px, transparent 1.5px);
-    background-size: 24px 24px;
-}
-
-/* System Pills Stack (Status Indicators) */
-.sys-pill-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    width: 100%;
-}
-
-.sys-context-pill {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: 50px;
-    padding: 0.6rem 1rem;
+.monolith-icon-circle {
+    /* FIXED DIMENSIONS: Prevents ellipse distortion */
+    width: 160px !important;
+    height: 160px !important;
+    min-width: 160px;
+    min-height: 160px;
+    
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    margin-bottom: 1.5rem;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), inset 0 0 30px rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    padding: 0 !important; /* Critical removal of padding */
+}
+
+.monolith-icon {
+    font-size: 4.5rem;
+    color: rgba(255, 255, 255, 0.95);
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+    line-height: 1;
+    display: block;
+}
+
+/* =================================================== */
+/* ======  7.8 GOAL CARD CONTENT (Front Face) ======== */
+/* =================================================== */
+
+.card-header-plate {
+    position: relative;
+    height: 30%; /* Compact Header */
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+}
+
+.card-domain-badge-large {
+    position: relative; z-index: 5;
+    font-family: var(--font-data);
+    font-size: 0.85rem; font-weight: 800; letter-spacing: 0.2em;
+    text-transform: uppercase; color: white;
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    padding: 0.75rem 1.75rem; border-radius: 50px;
+    margin-bottom: 1.5rem; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-icon-float-large {
+    position: absolute; bottom: -4rem; left: 50%; transform: translateX(-50%); z-index: 10;
+    width: 8rem; height: 8rem; /* Large Floating Badge */
+    background: white; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.15), 0 0 0 6px white;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.flip-card-wrapper.state-selection:hover .card-icon-float-large {
+    transform: translateX(-50%) translateY(-4px) scale(1.05);
+}
+.card-icon-float-large i { font-size: 3.5rem; transition: transform 0.3s ease; }
+
+.card-body-large {
+    flex-grow: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start; text-align: center;
+    padding: 5rem 2.5rem 1.5rem 2.5rem; /* Room for icon */
+}
+.card-title-large {
+    font-family: var(--font-brand); font-size: clamp(1.6rem, 3vw, 2.2rem);
+    color: #1e293b; margin-bottom: 1rem; line-height: 1.15;
+    display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card-desc-large {
+    font-family: var(--font-body); font-size: 1rem; font-weight: 500;
+    color: #64748b; line-height: 1.6; max-width: 340px;
+    display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.card-footer-large { padding: 1.5rem 2.5rem 2.5rem 2.5rem; margin-top: auto; }
+.btn-select-pill-large {
+    display: block; width: 100%; padding: 1.1rem 2rem; border: none; border-radius: 50px;
+    font-family: var(--font-data); font-size: 0.85rem; font-weight: 800; letter-spacing: 0.2em;
+    text-transform: uppercase; color: white; cursor: pointer;
+    box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.2); transition: transform 0.2s ease;
+}
+.btn-select-pill-large:hover { transform: translateY(-2px); }
+
+/* =================================================== */
+/* ======  7.9 HERO CARD CONTENT (Refined) =========== */
+/* =================================================== */
+
+.hero-card-content {
+    position: relative;
+    z-index: 10;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 0; 
     color: white;
-    animation: pillSlideIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    
 }
 
-@keyframes pillSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+/* Ghost Icon */
+.hero-ghost-icon {
+    position: absolute; bottom: -15%; right: -15%;
+    font-size: 20rem; color: rgba(255, 255, 255, 0.08);
+    transform: rotate(-12deg); pointer-events: none; z-index: 1;
 }
 
-.sys-pill-remove {
-    transition: all 0.2s ease;
+/* Return Button */
+.hero-return-button {
+    position: relative; z-index: 10; display: flex; align-items: center; gap: 0.75rem;
+    color: rgba(255, 255, 255, 0.7); font-family: var(--font-data); font-size: 0.75rem;
+    font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase;
+    background: none; border: none; padding: 0; margin-bottom: 2rem;
+    cursor: pointer; transition: all 0.2s ease;
+}
+.hero-return-button:hover { color: white; transform: translateX(-5px); }
+
+/* Domain Pill */
+.hero-domain-pill {
+    position: relative; z-index: 10; display: inline-flex; align-items: center; gap: 0.75rem;
+    background: white; border-radius: 50px; padding: 0.8rem 1.75rem;
+    margin-bottom: 2rem; width: fit-content; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+.hero-domain-pill i { font-size: 1.4rem; }
+.hero-domain-pill span { font-size: 0.8rem; font-weight: 800; letter-spacing: 0.15em; color: #334155; }
+
+/* Hero Title */
+.hero-title {
+    position: relative; z-index: 10; font-family: var(--font-brand);
+    font-size: clamp(1.8rem, 3.5vw, 2.5rem); line-height: 1.1; margin-bottom: 1rem;
 }
 
-.sys-pill-remove:hover {
-    transform: rotate(90deg);
+/* Hero Description */
+.hero-desc-box {
+    display: flex; gap: 1rem; margin-bottom: 2rem; position: relative; z-index: 20;
+}
+.hero-desc-accent {
+    width: 4px; background-color: rgba(255,255,255,0.6); border-radius: 4px; flex-shrink: 0;
+}
+.hero-desc-text {
+    font-family: var(--font-body); font-size: 1.05rem; line-height: 1.5;
+    font-weight: 500; color: rgba(255,255,255,0.95); text-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* System Config Stack (Left Aligned) */
+#sys-pill-stack {
+    position: relative; z-index: 10; display: flex; flex-direction: column;
+    gap: 0.75rem; align-items: flex-start; margin-top: auto;
+}
+
+/* (Note: .hero-status-pill removed as we moved status to footer) */
+
+/* =================================================== */
+/* ======  7.10 CONFIGURATION WIZARD PANEL =========== */
+/* =================================================== */
+
+#configuration-stage {
+    position: absolute;
+    /* Force height by anchoring top/bottom/right */
+    top: 0; bottom: 0; right: 0;
+    
+    left: calc(31% + 0.125rem); /* Docked to right of hero card */
+    width: auto; /* Width defined by left/right anchors */
+    
+    z-index: 50;
+    pointer-events: none;
+    
+    /* Enter Animation */
+    opacity: 0; visibility: hidden; transform: translateX(50px);
+    transition: 
+        opacity 0.5s ease, 
+        transform 0.6s cubic-bezier(0.23, 1, 0.32, 1),
+        visibility 0s linear 0.5s;
+}
+
+#configuration-stage.active {
+    opacity: 1 !important; visibility: visible !important; 
+    transform: translateX(0) !important; pointer-events: auto;
+    transition-delay: 0.2s;
+}
+
+.split-col-right {
+    height: 100%; width: 100%; background: white;
+    /* Soft docking visual on left edge only */
+    border-radius: 24px 0 0 24px;
+    box-shadow: -5px 0 30px rgba(0, 0, 0, 0.08);
+    display: flex; flex-direction: column; overflow: hidden;
+    border-left: none; /* Cleaner look without border */
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+    .flip-card-wrapper.state-config { width: 100% !important; height: 40vh; border-radius: 0; }
+    #configuration-stage { top: 40vh; left: 0; width: 100%; height: auto; bottom: 0; }
+    .split-col-right { border-radius: 24px 24px 0 0; border-top: 1px solid #e2e8f0; }
 }
 
 /* ================================================== */
@@ -1091,7 +1205,9 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: 1.5rem; padding: 1.5rem 2rem;
     }
-    .flip-card-wrapper.morph-active { width: 40% !important; }
+    .flip-card-wrapper.morph-active {
+    transform: perspective(1500px) rotateY(8deg);
+    box-shadow: -20px 20px 60px rgba(0,0,0,0.3);}
     .split-col-right { width: 60%; }
 }
 
@@ -1114,97 +1230,214 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 /* ================================================== */
 /* =======  17. CONFIGURATION WIZARD (RIGHT)  ======= */
 /* ================================================== */
-/* Configuration Stage Container */
-#configuration-stage {
-    position: absolute; top: 0; left: 0;
-    width: 100%; height: 100%;
-    z-index: 50; pointer-events: none;
-    background: transparent;
-}
-#configuration-stage > * { pointer-events: auto; }
 
-/* The Wizard Panel (Updated) */
+/* The Wizard Panel - No animation (parent handles it) */
 .split-col-right {
-    position: absolute; top: 0; right: 0;
-    width: 65%; height: 100%;
+    width: 100%;
+    height: 100%;
     background: white;
-    transform: translateX(100%);
-    transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
-    z-index: 40;
-    overflow-y: auto;
     border-radius: 24px;
     box-shadow: 0 25px 60px -15px rgba(0,0,0,0.1);
     border: 1px solid #e2e8f0;
-    padding: 3rem;
+    
+    /* Make sure no extra margin/padding pushing it away */
+    margin: 0 !important;
+    padding: 3rem;  /* Only internal padding, no left margin */
+    
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+/* --- WIZARD PANEL STYLING (MATCHES PROTOTYPE) --- */
+.wizard-container {
+    display: flex; flex-direction: column; height: 100%; background: white;
+}
+
+/* --- WIZARD HEADER --- */
+.wizard-header {
+    padding: 2rem 2.5rem 1.5rem; border-bottom: 1px solid #e2e8f0; background: #f8fafc;
+}
+.wizard-label {
+    font-family: var(--font-data), 'Antonio', sans-serif;
+    font-size: 0.65rem; font-weight: 800; letter-spacing: 0.2em;
+    text-transform: uppercase; color: #0ea5e9; margin-bottom: 0.5rem;
+}
+.wizard-title {
+    font-family: var(--font-brand), 'Righteous', cursive;
+    font-size: 1.75rem; color: #0f172a; margin-bottom: 1.5rem;
+}
+.wizard-progress {
+    width: 100%; height: 4px; background: #e2e8f0;
+    border-radius: 4px; overflow: hidden; margin-bottom: 1rem;
+}
+.wizard-progress-bar {
+    height: 100%; background: linear-gradient(90deg, #0ea5e9 0%, #06b6d4 100%);
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 4px;
+}
+.wizard-skip-btn {
+    font-family: var(--font-data), 'Antonio', sans-serif;
+    font-size: 0.65rem; font-weight: 800; letter-spacing: 0.15em;
+    text-transform: uppercase; color: #64748b; background: none; border: none;
+    padding: 0; cursor: pointer; transition: color 0.2s;
+    display: flex; align-items: center; gap: 0.5rem;
+}
+.wizard-skip-btn:hover { color: #0ea5e9; }
+
+/* --- WIZARD CONTENT --- */
+.wizard-content {
+    flex: 1; padding: 2.5rem; overflow-y: auto;
     display: flex; flex-direction: column;
 }
-.split-col-right.visible { transform: translateX(0); }
+.wizard-step {
+    display: flex; flex-direction: column; gap: 2rem;
+    animation: wizard-fade-in 0.3s ease;
+}
+@keyframes wizard-fade-in {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+.wizard-step-header { text-align: center; }
+.wizard-step-title {
+    font-family: var(--font-brand), 'Righteous', cursive;
+    font-size: 2rem; color: #0f172a; margin-bottom: 0.75rem;
+}
+.wizard-step-desc {
+    font-size: 1rem; color: #64748b; max-width: 500px; margin: 0 auto;
+}
 
-/* --- A. IDENTITY SELECTION GRID --- */
-.identity-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+/* --- IDENTITY SELECTION GRID --- */
+.wizard-identity-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
 }
-.identity-option-pill {
+.wizard-identity-pill {
     display: flex; align-items: center; gap: 1rem;
-    padding: 1rem 1.25rem;
-    background: white; border: 2px solid #f1f5f9;
+    padding: 1.25rem 1.5rem; background: white; border: 2px solid #f1f5f9;
     border-radius: 16px; cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); position: relative;
 }
-.identity-option-pill:hover {
+.wizard-identity-pill:hover {
     border-color: #cbd5e1; transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
-.identity-option-pill.selected {
+.wizard-identity-pill.selected {
     border-color: #0ea5e9; background: #f0f9ff;
-    box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.15);
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
 }
-.id-icon {
-    width: 40px; height: 40px;
+.wizard-identity-icon {
+    width: 48px; height: 48px;
     display: flex; align-items: center; justify-content: center;
-    background: #f1f5f9; border-radius: 50%;
-    color: #64748b; flex-shrink: 0;
+    background: #f1f5f9; border-radius: 50%; color: #64748b;
+    flex-shrink: 0; font-size: 1.25rem; transition: all 0.2s;
 }
-.identity-option-pill.selected .id-icon {
+.wizard-identity-pill.selected .wizard-identity-icon {
     background: #0ea5e9; color: white;
 }
-.id-text h6 {
-    margin: 0; font-family: var(--font-data), 'Antonio', sans-serif;
-    font-size: 0.75rem; color: #334155;
-    font-weight: 800; letter-spacing: 1px;
+.wizard-identity-text { flex: 1; min-width: 0; }
+.wizard-identity-text h6 {
+    font-family: var(--font-data), 'Antonio', sans-serif;
+    font-size: 0.75rem; font-weight: 800; letter-spacing: 0.1em;
+    text-transform: uppercase; color: #0f172a; margin: 0 0 0.25rem 0;
 }
-.id-text p {
-    margin: 0; font-size: 0.7rem;
-    color: #94a3b8; line-height: 1.3;
+.wizard-identity-text p {
+    font-size: 0.75rem; color: #64748b; margin: 0; line-height: 1.4;
 }
-.check-icon { transition: opacity 0.3s ease; }
+.wizard-identity-check {
+    color: #0ea5e9; font-size: 1.25rem; opacity: 0;
+    transform: scale(0.8); transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.wizard-identity-pill.selected .wizard-identity-check {
+    opacity: 1; transform: scale(1);
+}
 
-/* --- B. CONTEXT HELPER BOX --- */
+/* --- INPUT BOXES --- */
+.wizard-input-box {
+    background: #f8fafc; border: 2px solid #e2e8f0;
+    border-radius: 16px; padding: 2rem; max-width: 500px;
+    margin: 0 auto; width: 100%;
+}
+.wizard-input-label {
+    font-family: var(--font-data), 'Antonio', sans-serif;
+    font-size: 0.65rem; font-weight: 800; letter-spacing: 0.15em;
+    text-transform: uppercase; color: #64748b; display: block; margin-bottom: 1rem;
+}
+.wizard-date-input,
+.wizard-select-input {
+    width: 100%; font-family: var(--font-brand), 'Righteous', cursive;
+    font-size: 2rem; color: #0f172a; background: transparent;
+    border: none; border-bottom: 3px solid #cbd5e1;
+    padding: 0.75rem 0; outline: none; transition: border-color 0.3s;
+    text-align: center;
+}
+.wizard-date-input:focus,
+.wizard-select-input:focus { border-bottom-color: #0ea5e9; }
+.wizard-select-input {
+    cursor: pointer; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230f172a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right center; padding-right: 2rem;
+}
+
+/* Context Hint Box */
+.wizard-hint-box {
+    background: #fffbeb; border: 2px solid #fde047;
+    border-radius: 12px; padding: 1.25rem;
+    display: flex; gap: 1rem; align-items: flex-start;
+    max-width: 500px; margin: 0 auto;
+    animation: wizard-fade-in 0.3s ease;
+}
+.wizard-hint-icon {
+    width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+    background: #fef08a; border-radius: 50%; color: #a16207; flex-shrink: 0;
+}
+.wizard-hint-title {
+    font-family: var(--font-data), 'Antonio', sans-serif;
+    font-size: 0.65rem; font-weight: 800; letter-spacing: 0.15em;
+    text-transform: uppercase; color: #a16207; margin: 0 0 0.5rem 0;
+}
+.wizard-hint-text {
+    font-size: 0.85rem; color: #78350f; line-height: 1.6; margin: 0;
+}
+
+/* --- WIZARD FOOTER --- */
+.wizard-footer {
+    padding: 1.5rem 2.5rem; border-top: 1px solid #e2e8f0;
+    display: flex; align-items: center; justify-content: space-between;
+    background: white;
+}
+.wizard-nav-btn {
+    font-family: var(--font-data), 'Antonio', sans-serif;
+    font-size: 0.75rem; font-weight: 800; letter-spacing: 0.15em;
+    text-transform: uppercase; padding: 0.875rem 2rem;
+    border-radius: 50px; border: none; cursor: pointer;
+    transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem;
+}
+.wizard-back-btn {
+    background: transparent; color: #64748b; border: 2px solid #e2e8f0;
+}
+.wizard-back-btn:hover:not(:disabled) {
+    background: #f8fafc; border-color: #cbd5e1; color: #0f172a;
+}
+.wizard-back-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.wizard-next-btn {
+    background: #0f172a; color: white;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3);
+}
+.wizard-next-btn:hover:not(:disabled) {
+    background: #1e293b; transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.4);
+}
+.wizard-next-btn:disabled {
+    background: #e2e8f0; color: #cbd5e1; box-shadow: none; cursor: not-allowed;
+}
+.wizard-step-indicator {
+    font-family: var(--font-data), 'Antonio', sans-serif;
+    font-size: 0.9rem; font-weight: 800; color: #64748b;
+}
+.wizard-step-indicator span { color: #0f172a; font-size: 1.1rem; }
+
+/* --- CONTEXT & PARAMS --- */
 #context-helper-box { transition: opacity 0.3s ease; }
-
-/* --- C. PARAMETERS AREA --- */
 #parameters-area.d-none { display: none !important; }
-
-/* --- LEGACY UTILITIES (Restored for Safety) --- */
-.wizard-step { height: 100%; display: flex; flex-direction: column; }
-.identity-card { /* Deprecated but kept for safety */
-    background: white; border: 1px solid #e2e8f0; border-radius: 16px;
-    padding: 1.25rem; display: flex; flex-direction: column; 
-    align-items: center; justify-content: center; text-align: center;
-    cursor: pointer; transition: all 0.2s;
-}
-.identity-card:hover { transform: translateY(-3px); }
-.identity-card.selected {
-    border-color: #00bcd4; background-color: #e0f7fa; box-shadow: 0 0 0 2px #00bcd4;
-}
-.identity-card .icon-circle {
-    width: 42px; height: 42px; margin-bottom: 0.8rem;
-    background: #f1f5f9; color: #64748b; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center; font-size: 1rem;
-}
-.identity-card.selected .icon-circle { background: #00bcd4; color: white; }
 
 /* ================================================== */
 /* ========  18. FLIGHT PLAN INPUTS & PILLS  ======== */
@@ -1238,11 +1471,75 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 /* ================================================== */
 /* ========  20. WIZARD UI & SYSTEM PILLS   ========= */
 /* ================================================== */
-/* Animations */
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+
+/* --- Wizard Container --- */
+.wizard-container { display: flex; flex-direction: column; height: 100%; background: white; }
+
+/* --- Compact Header --- */
+.wizard-header { padding: 1.5rem 3rem; border-bottom: 1px solid #f1f5f9; }
+
+.wizard-progress { display: flex; gap: 6px; margin-top: 0.5rem; }
+.progress-segment {
+    width: 40px; height: 6px; border-radius: 4px; background-color: #e2e8f0; transition: background-color 0.3s;
 }
-.hover-scale { transition: transform 0.2s; }
-.hover-scale:hover { transform: scale(1.05); }
-.hover-white:hover { color: white !important; opacity: 1 !important; }
+.progress-segment.active { background-color: var(--aviation-teal); }
+
+/* --- Compact Content (No Scroll Priority) --- */
+.wizard-content { flex: 1; padding: 1rem 3rem; overflow-y: auto; }
+.wizard-content::-webkit-scrollbar { width: 6px; }
+.wizard-content::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+
+/* --- Identity Grid (2 Columns, Pill Shape) --- */
+.wizard-identity-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+}
+
+.wizard-identity-pill {
+    padding: 0.75rem 1.25rem; /* Tighter vertical */
+    border: 2px solid #f1f5f9;
+    border-radius: 50px; /* Stadium Shape */
+    display: flex; align-items: center; gap: 1rem;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background: white; cursor: pointer; position: relative; overflow: hidden;
+}
+.wizard-identity-pill:hover {
+    border-color: #cbd5e1; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.wizard-identity-pill.selected {
+    border-color: var(--aviation-teal); background-color: #f0fdff; box-shadow: 0 0 0 1px var(--aviation-teal);
+}
+
+.wizard-identity-icon {
+    width: 36px; height: 36px; background: #f8fafc; color: #64748b;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem; flex-shrink: 0; border: 1px solid #e2e8f0;
+}
+.wizard-identity-pill.selected .wizard-identity-icon {
+    background: var(--aviation-teal); color: white; border-color: var(--aviation-teal);
+}
+
+.wizard-identity-text { flex-grow: 1; min-width: 0; }
+.wizard-identity-text h6 {
+    font-family: var(--font-data); font-size: 0.7rem; font-weight: 800; 
+    letter-spacing: 0.05em; margin-bottom: 0; text-transform: uppercase; color: #0f172a;
+}
+.wizard-identity-text p {
+    font-size: 0.7rem; line-height: 1.2; margin-bottom: 0; color: #64748b;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* --- Context Helper Box --- */
+#context-helper-box { transition: opacity 0.3s ease; }
+.fade-in-up { animation: fadeInUp 0.4s ease forwards; }
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* --- Footer Status Styles --- */
+#global-status-text {
+    font-family: var(--font-body); font-size: 0.85rem; transition: color 0.3s;
+}
+.animate-pulse { animation: pulse 2s infinite; }
+@keyframes pulse { 
+    0% { opacity: 1; transform: scale(1); } 
+    50% { opacity: 0.6; transform: scale(0.95); } 
+    100% { opacity: 1; transform: scale(1); } 
+}

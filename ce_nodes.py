@@ -1,6 +1,6 @@
 # ce_nodes.py
 """
-THE SPECULATION ENVIRONMENT MANIFEST
+THE SPECULATION ENVIRONMENT MANIFEST (v2026 - Engine Compatible)
 ------------------------------------
 This file defines the DNA for every Node Application in the SSPEC system.
 It couples 'Smart Schemas' (for the UI) with 'Strategic Prompts' (for the AI).
@@ -44,15 +44,15 @@ NODES = {
         ],
         "prompts": {
             "narrative": """
-                Act as a Strategic Project Manager. Write a concise, professional '{field}' 
-                for a '{node_type}' element needed to achieve this goal: '{cos_text}'.
-                Focus on clarity, actionability, and value.
-                Return JSON: {{ "text": "Your text here." }}
+                IDENTITY: You are a sub-routine of the SPECULATE Engine.
+                TASK: Write a concise, professional '{field}' for a '{node_type}' element needed to achieve the specific Condition: '{cos_text}'.
+                CONSTRAINT: Strictly adhere to the System Physics (Budget, Operator, Horizon) provided in the context.
+                OUTPUT: JSON {{ "text": "Your text here." }}
             """,
-            "prerequisites": "Analyze '{cos_text}'. List 3 precursors needed. Return JSON array: [{{\"title\": \"Prereq\", \"status\": \"Pending\"}}]",
-            "stakeholders": "Who is involved in '{cos_text}'? Return JSON array: [{{\"name\": \"Name/Role\", \"role\": \"Description\"}}]",
+            "prerequisites": "Analyze '{cos_text}'. Considering the System Constraints, what 3 precursors are physically required? Return JSON array: [{{\"title\": \"Prereq\", \"status\": \"Pending\"}}]",
+            "stakeholders": "Who is involved in '{cos_text}'? Ensure they match the OPERATOR context (e.g. Grassroots vs Corp). Return JSON array: [{{\"name\": \"Name/Role\", \"role\": \"Description\"}}]",
             "assumptions": "What are we assuming about '{cos_text}'? Return JSON array: [{{\"hypothesis\": \"Assumption...\", \"risk\": \"Medium\"}}]",
-            "resources": "Suggest 3 general resources for '{cos_text}'. Return JSON array: [{{\"title\": \"Resource Name\", \"url\": \"#\"}}]"
+            "resources": "Suggest 3 resources for '{cos_text}' compatible with the BUDGET context. Return JSON array: [{{\"title\": \"Resource Name\", \"url\": \"#\"}}]"
         }
     },
 
@@ -86,24 +86,25 @@ NODES = {
         ],
         "prompts": {
             "narrative": """
-                Act as a Lead Researcher. Write a precise '{field}' to address knowledge gaps regarding: '{cos_text}'.
-                Ensure the language is objective, evidence-based, and methodologically sound.
-                Return JSON: {{ "text": "Your research text here." }}
+                IDENTITY: You are the Research Module of the SPECULATE Engine.
+                TASK: Define the epistemic requirements for: '{cos_text}'. Write the '{field}'.
+                ATTENUATION: Ensure the scope of research fits the HORIZON constraint.
+                OUTPUT: JSON {{ "text": "Your research text here." }}
             """,
             "prerequisites": """
-                To answer the research question implied by: '{cos_text}', what data or baseline access is needed first?
+                To answer the research question implied by: '{cos_text}', what data is required?
                 Return JSON array: [{{\"data_req\": \"Specific Dataset\", \"access_status\": \"Unknown\"}}]
             """,
             "stakeholders": """
-                Suggest 3 types of Subject Matter Experts (SMEs) needed for: '{cos_text}'.
+                Suggest 3 types of SMEs needed for: '{cos_text}'.
                 Return JSON array: [{{\"name\": \"Role Title\", \"expertise\": \"Academic Field\"}}]
             """,
             "assumptions": """
-                What theoretical assumptions are we making in '{cos_text}' that require validation?
+                What theoretical assumptions are we making in '{cos_text}'?
                 Return JSON array: [{{\"premise\": \"Theory...\", \"validation_method\": \"Lit Review\"}}]
             """,
             "resources": """
-                Find 3 relevant academic papers, datasets, or whitepapers for: '{cos_text}'.
+                Find 3 relevant papers/sources for: '{cos_text}'.
                 Return JSON array: [{{\"title\": \"Paper Title\", \"type\": \"Paper\", \"url\": \"https://scholar.google.com/\"}}]
             """
         }
@@ -139,16 +140,17 @@ NODES = {
         ],
         "prompts": {
             "narrative": """
-                Act as a Chief Risk Officer. Write a '{field}' analysis for the threat context of: '{cos_text}'.
-                Focus on severity, probability, and concrete mitigation steps. Avoid vague reassurances.
-                Return JSON: {{ "text": "Your risk analysis here." }}
+                IDENTITY: You are the Risk Assessment Module.
+                TASK: Write a '{field}' analysis for: '{cos_text}'.
+                ATTENUATION: Consider the AVOIDANCE constraint provided in the system physics.
+                OUTPUT: JSON {{ "text": "Your analysis here." }}
             """,
             "prerequisites": """
-                For the risk scenario in '{cos_text}', what monitoring or indicators must be established first?
+                For the risk scenario in '{cos_text}', what indicators must be monitored?
                 Return JSON array: [{{\"indicator\": \"Metric to watch\", \"threshold\": \"Value\"}}]
             """,
             "stakeholders": """
-                Who owns the risk associated with '{cos_text}' and who suffers if it fails?
+                Who owns the risk associated with '{cos_text}'?
                 Return JSON array: [{{\"owner\": \"Role\", \"impacted_group\": \"Population\"}}]
             """,
             "assumptions": """
@@ -156,7 +158,7 @@ NODES = {
                 Return JSON array: [{{\"mitigation_theory\": \"We assume...\", \"confidence\": 50}}]
             """,
             "resources": """
-                Suggest 3 standard frameworks or tools to mitigate risks in: '{cos_text}'.
+                Suggest 3 mitigation frameworks/tools for: '{cos_text}'.
                 Return JSON array: [{{\"tool_name\": \"Framework Name\", \"cost\": \"0\"}}]
             """
         }
@@ -192,16 +194,17 @@ NODES = {
         ],
         "prompts": {
             "narrative": """
-                Act as a Community Organizer or Diplomat. Write a '{field}' that defines how to engage partners for: '{cos_text}'.
-                Focus on shared value, incentives, and relationship building.
-                Return JSON: {{ "text": "Your engagement strategy here." }}
+                IDENTITY: You are the Diplomacy Module.
+                TASK: Write a '{field}' strategy for: '{cos_text}'.
+                ATTENUATION: Adjust tone and targets based on the SCALE and OPERATOR constraints (e.g. Grassroots vs. Global).
+                OUTPUT: JSON {{ "text": "Your strategy here." }}
             """,
             "prerequisites": """
-                To engage stakeholders for '{cos_text}', what introductions or materials are prerequisites?
+                To engage stakeholders for '{cos_text}', what materials are prerequisites?
                 Return JSON array: [{{\"intro_path\": \"Via Industry Group\", \"material_needs\": \"Pitch Deck\"}}]
             """,
             "stakeholders": """
-                Who are the key decision makers or influencers for: '{cos_text}'?
+                Who are the key decision makers for: '{cos_text}'?
                 Return JSON array: [{{\"name\": \"Role/Title\", \"influence\": 80, \"stance\": \"Neutral\"}}]
             """,
             "assumptions": """
@@ -209,7 +212,7 @@ NODES = {
                 Return JSON array: [{{\"incentive_theory\": \"They benefit by...\", \"validated\": false}}]
             """,
             "resources": """
-                What agreements or contracts are standard for: '{cos_text}'?
+                What agreements are standard for: '{cos_text}'?
                 Return JSON array: [{{\"title\": \"MOU/Contract\", \"status\": \"Draft\"}}]
             """
         }
@@ -244,24 +247,25 @@ NODES = {
         ],
         "prompts": {
             "narrative": """
-                Act as an Operations Director. Write a '{field}' plan to execute: '{cos_text}'.
-                Focus on logistics, friction points, and clear definitions of 'done'.
-                Return JSON: {{ "text": "Your operational plan here." }}
+                IDENTITY: You are the Operations Module.
+                TASK: Write a '{field}' plan for: '{cos_text}'.
+                ATTENUATION: Ensure the logistical complexity fits the BUDGET and OPERATOR constraints.
+                OUTPUT: JSON {{ "text": "Your plan here." }}
             """,
             "prerequisites": """
-                What must literally be completed before the task '{cos_text}' can physically start?
+                What must physically exist before '{cos_text}' can start?
                 Return JSON array: [{{\"dependency\": \"Task X Complete\", \"status\": \"Blocked\"}}]
             """,
             "stakeholders": """
-                Who executes and who approves the action: '{cos_text}'?
+                Who executes and who approves: '{cos_text}'?
                 Return JSON array: [{{\"executor\": \"Role\", \"approver\": \"Manager/Client\"}}]
             """,
             "assumptions": """
-                What are the logistical assumptions regarding time and availability for '{cos_text}'?
+                What are the time/resource assumptions for '{cos_text}'?
                 Return JSON array: [{{\"time_est\": \"2 Weeks\", \"resource_avail\": true}}]
             """,
             "resources": """
-                What software, hardware, or SOPs are needed to perform: '{cos_text}'?
+                What tools or SOPs are needed for: '{cos_text}'?
                 Return JSON array: [{{\"tool\": \"Tool Name\", \"instructions\": \"#\"}}]
             """
         }
@@ -296,24 +300,25 @@ NODES = {
         ],
         "prompts": {
             "narrative": """
-                Act as an Environmental Scientist or Systems Analyst. Write a '{field}' assessment regarding: '{cos_text}'.
-                Focus on systemic impacts, circularity, and regulatory landscapes.
-                Return JSON: {{ "text": "Your impact assessment here." }}
+                IDENTITY: You are the Systems Ecology Module.
+                TASK: Write a '{field}' assessment for: '{cos_text}'.
+                ATTENUATION: Align impact assessment with the SCALE and DIRECTIVE (Ethics) constraints.
+                OUTPUT: JSON {{ "text": "Your assessment here." }}
             """,
             "prerequisites": """
-                What regulatory permits or environmental baselines are required for: '{cos_text}'?
+                What regulatory permits or baselines are required for: '{cos_text}'?
                 Return JSON array: [{{\"permit\": \"Permit Type\", \"baseline_data\": \"Survey Needed\"}}]
             """,
             "stakeholders": """
-                Which communities or regulatory bodies act as gatekeepers for: '{cos_text}'?
+                Which communities or regulators gatekeep: '{cos_text}'?
                 Return JSON array: [{{\"community\": \"Local Group\", \"regulator\": \"Agency\"}}]
             """,
             "assumptions": """
-                What trends (market or climate) are we assuming will hold stable for '{cos_text}'?
+                What external trends are we assuming hold stable for '{cos_text}'?
                 Return JSON array: [{{\"trend\": \"Trend Description\", \"stability\": 60}}]
             """,
             "resources": """
-                Find Environmental Impact Statements or Market Studies relevant to: '{cos_text}'.
+                Find impact studies relevant to: '{cos_text}'.
                 Return JSON array: [{{\"title\": \"Report Title\", \"url\": \"#\"}}]
             """
         }
@@ -347,24 +352,25 @@ NODES = {
         ],
         "prompts": {
             "narrative": """
-                Act as a Project Scheduler. Write a '{field}' description for the milestone: '{cos_text}'.
-                Focus on critical path dependencies, slack times, and sequencing.
-                Return JSON: {{ "text": "Your timeline analysis here." }}
+                IDENTITY: You are the Temporal Logistics Module.
+                TASK: Write a '{field}' description for: '{cos_text}'.
+                ATTENUATION: Critical! Ensure all lead times fit strictly within the HORIZON date provided.
+                OUTPUT: JSON {{ "text": "Your analysis here." }}
             """,
             "prerequisites": """
-                What events must happen *before* the milestone '{cos_text}' can occur?
+                What events must happen *before* '{cos_text}'?
                 Return JSON array: [{{\"event\": \"Precursor Event\", \"lead_time\": \"2 Weeks\"}}]
             """,
             "stakeholders": """
-                Who is responsible for keeping the schedule for: '{cos_text}'?
+                Who is responsible for the schedule of: '{cos_text}'?
                 Return JSON array: [{{\"owner\": \"Project Manager / Role\"}}]
             """,
             "assumptions": """
-                What assumptions about speed or external delays affect '{cos_text}'?
+                What assumptions about speed/delays affect '{cos_text}'?
                 Return JSON array: [{{\"velocity\": \"Standard Pace\", \"external_factors\": \"Weather/Shipping\"}}]
             """,
             "resources": """
-                Suggest key calendar events or deadlines associated with: '{cos_text}'.
+                Suggest key calendar deadlines for: '{cos_text}'.
                 Return JSON array: [{{\"event\": \"Milestone Name\", \"date\": \"2025-01-01\"}}]
             """
         }
@@ -399,16 +405,17 @@ NODES = {
         ],
         "prompts": {
             "narrative": """
-                Act as a Campaign Strategist. Write a compelling '{field}' to support the goal: '{cos_text}'.
-                Focus on emotion, resonance, and a clear call to action.
-                Return JSON: {{ "text": "Your campaign narrative here." }}
+                IDENTITY: You are the Campaign Strategy Module.
+                TASK: Write a compelling '{field}' for: '{cos_text}'.
+                ATTENUATION: Adjust the narrative voice to match the OPERATOR and DIRECTIVE (Ethics) constraints.
+                OUTPUT: JSON {{ "text": "Your narrative here." }}
             """,
             "prerequisites": """
-                What creative assets or platform accounts must be ready before advocating for '{cos_text}'?
+                What assets must be ready before advocating for '{cos_text}'?
                 Return JSON array: [{{\"asset\": \"Video/Graphics\", \"platform\": false}}]
             """,
             "stakeholders": """
-                Who is the target audience for '{cos_text}' and who influences them?
+                Who is the target audience for '{cos_text}'?
                 Return JSON array: [{{\"audience\": \"Demographic\", \"influencer\": \"Personality/Org\"}}]
             """,
             "assumptions": """
@@ -416,7 +423,7 @@ NODES = {
                 Return JSON array: [{{\"sentiment\": \"Positive/Skeptical\", \"resonance\": 70}}]
             """,
             "resources": """
-                Suggest 3 types of content content media for: '{cos_text}'.
+                Suggest 3 content media types for: '{cos_text}'.
                 Return JSON array: [{{\"title\": \"Viral Video Concept\", \"type\": \"Video\"}}]
             """
         }
@@ -451,12 +458,13 @@ NODES = {
         ],
         "prompts": {
             "narrative": """
-                Act as a Partnership Lead. Write a '{field}' regarding the alliance for: '{cos_text}'.
-                Focus on shared values, resource exchange, and long-term synergy.
-                Return JSON: {{ "text": "Your partnership strategy here." }}
+                IDENTITY: You are the Partnership Module.
+                TASK: Write a '{field}' regarding the alliance for: '{cos_text}'.
+                ATTENUATION: Ensure governance models fit the OPERATOR type (e.g. DAO vs Corp).
+                OUTPUT: JSON {{ "text": "Your strategy here." }}
             """,
             "prerequisites": """
-                What introductions or legal safeguards (NDAs) are needed before collaborating on '{cos_text}'?
+                What legal safeguards are needed before collaborating on '{cos_text}'?
                 Return JSON array: [{{\"intro\": true, \"nda\": true}}]
             """,
             "stakeholders": """
@@ -468,7 +476,7 @@ NODES = {
                 Return JSON array: [{{\"alignment\": \"Strategic Fit...\", \"resource_sharing\": 80}}]
             """,
             "resources": """
-                What governance documents are required for this collaboration: '{cos_text}'?
+                What governance documents are required for: '{cos_text}'?
                 Return JSON array: [{{\"title\": \"MOU/Teaming Agreement\", \"status\": \"Drafting\"}}]
             """
         }
