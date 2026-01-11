@@ -1,11 +1,12 @@
 // static/js/base_functions.js
 // SSPEC Horizon Edition - Core Utilities & Animation Engine
 
-// --- STATE MANAGEMENT ---
+// ==================================================
+// 1. STATE MANAGEMENT & SCRIPTS
+// ==================================================
 let spinnerRequestCount = 0;
 let spinnerInterval;
 
-// --- CONTEXTUAL LOADING SCRIPTS ---
 // The "Thoughts" of the Engine based on what it is doing.
 const SCRIPTS = {
     DEFAULT: [
@@ -46,7 +47,7 @@ const SCRIPTS = {
 };
 
 // ==================================================
-// 1. LOADING SPINNER (HORIZON HUD)
+// 2. LOADING SPINNER (HORIZON HUD)
 // ==================================================
 
 /**
@@ -61,16 +62,19 @@ export function showLoadingSpinner(title = "PROCESSING", iconClass = null, conte
     let overlay = document.querySelector('.loading-spinner-overlay');
     if (!overlay) {
         overlay = document.createElement('div');
-        overlay.className = 'loading-spinner-overlay';
+        overlay.className = 'loading-spinner-overlay d-none';
         document.body.appendChild(overlay);
     }
-    overlay.classList.remove('d-none'); // Force Bootstrap override
+    
+    // Ensure we are visible (remove d-none if present from initialization)
+    overlay.classList.remove('d-none');
+    overlay.style.display = 'flex';
+    overlay.classList.remove('fade-out');
 
     // 1. Handle Icon logic
     let iconHtml = '';
     if (iconClass) {
         const cleanClass = iconClass.includes('fa-') ? iconClass : `fa-solid fa-${iconClass}`;
-        // Note: "spinner-overlay-icon" class handles absolute positioning in CSS
         iconHtml = `<i class="${cleanClass} spinner-overlay-icon"></i>`;
     } else {
         iconHtml = `<i class="fa-solid fa-microchip spinner-overlay-icon"></i>`;
@@ -97,8 +101,6 @@ export function showLoadingSpinner(title = "PROCESSING", iconClass = null, conte
             </div>
         </div>
     `;
-    
-    overlay.style.display = 'flex';
     
     // 3. Start the "Thinking" Animation
     const script = SCRIPTS[contextKey] || SCRIPTS.DEFAULT;
@@ -130,6 +132,12 @@ export function hideLoadingSpinner() {
 /**
  * Manages the "Invisible Printer" wipe effect.
  * Creates new DOM nodes for incoming text and animates old ones out.
+ * 
+ * LOGIC: 
+ * 1. Current text wipes L->R (Erasing)
+ * 2. New text waits 300ms
+ * 3. New text wipes L->R (Printing)
+ * Result: A moving gap between old and new.
  */
 function startPrinterUpdates(scriptArray) {
     let index = 0;
@@ -138,37 +146,42 @@ function startPrinterUpdates(scriptArray) {
 
     if (spinnerInterval) clearInterval(spinnerInterval);
 
-    // Initial message is static. Start cycle.
+    // Cycle through messages
     spinnerInterval = setInterval(() => {
         // 1. Identify current visible message
-        const currentMsg = stage.querySelector('.spinner-message:not(.wipe-out)');
+        // Note: We select only active ones to avoid grabbing items currently animating out
+        const currentMsg = stage.querySelector('.spinner-message.wipe-in:not(.wipe-out)');
         
         // 2. Prepare next message
         const nextText = scriptArray[index];
         const newMsg = document.createElement('div');
         newMsg.className = 'spinner-message';
         newMsg.innerText = nextText;
+        
+        // TIMING FIX: Set explicit delay (0.3s) to create the visual "gap"
+        // This lets the wipe-out start moving before the new text appears chasing it.
+        newMsg.style.animationDelay = '0.3s';
+        
         stage.appendChild(newMsg);
 
         // 3. Trigger Wipe Animations
-        // Old text wipes OUT (Left -> Right reveal of transparent)
         if (currentMsg) {
             currentMsg.classList.remove('wipe-in');
             currentMsg.classList.add('wipe-out');
         }
-
-        // New text wipes IN (Left -> Right reveal of content)
+        
+        // Trigger In animation (will wait 0.3s due to style above)
         newMsg.classList.add('wipe-in');
 
-        // 4. Garbage Collection
+        // 4. Garbage Collection (Cleanup old DOM nodes after animation completes)
         setTimeout(() => {
             if (currentMsg) currentMsg.remove();
-        }, 1200); // Wait for animation + buffer
+        }, 1200);
 
-        // Loop
+        // Loop index
         index = (index + 1) % scriptArray.length;
 
-    }, 2200); // Rhythm of updates
+    }, 2500); // Slower rhythm (2.5s) to accommodate the delay and let user read
 }
 
 function stopPrinterUpdates() {
@@ -177,7 +190,7 @@ function stopPrinterUpdates() {
 }
 
 // ==================================================
-// 2. GOAL SELECTION UTILITIES (Monolith Cards)
+// 3. DATA OPERATIONS
 // ==================================================
 
 export async function regenerateGoals(user_input_text) {
@@ -198,6 +211,10 @@ export async function regenerateGoals(user_input_text) {
   }
 }
 
+/**
+ * Legacy support for updating goal cards.
+ * @deprecated Modern logic uses goal_selection.js renderNewGoals()
+ */
 export function updateGoalCards(data, currentUserInputText, goalCardsContainer) {
   if (!goalCardsContainer) return;
   
@@ -209,116 +226,84 @@ export function updateGoalCards(data, currentUserInputText, goalCardsContainer) 
   goalCardsContainer.innerHTML = '';
 
   data.goals.forEach((goal, index) => {
-    const goalDescription = (goal.goal || "No description available.").replace(/\n/g, '<br>');
-    const goalTitle = goal.title || "Untitled Goal";
-    const goalDomain = goal.domain || "General";
-    const goalIcon = goal.icon || "fas fa-question-circle";
-    const isCompliant = typeof goal.is_compliant === 'undefined' ? true : goal.is_compliant;
-
-    // Cycle Horizon Colors
-    const accentColors = ['#ff7043', '#00bcd4', '#ab47bc'];
-    const accent = isCompliant ? accentColors[index % 3] : '#ef5350';
-    
-    // 3D Flip Gradients
-    const backGrad = isCompliant 
-        ? `linear-gradient(135deg, ${accentColors[index % 3]} 0%, #f4511e 100%)`
-        : 'linear-gradient(135deg, #ffeb3b 0%, #d32f2f 100%)';
-
-    const headerGrad = isCompliant
-        ? `linear-gradient(135deg, white 0%, ${accent} 100%)`
-        : 'linear-gradient(135deg, #ffcdd2 0%, #ef5350 100%)';
-
-    // Staggered Animation Delays
-    const animDelay = index * 0.1;
-    const revealDelay = 800 + (index * 300);
-
+    // Basic fallback rendering - strictly for legacy/debug usage
     const cardHtml = `
-      <div class="flip-card ${!isCompliant ? 'rejected' : ''}" style="animation-delay: ${animDelay}s;">
-        <div class="flip-card-inner" data-delay="${revealDelay}">
-          
-          <!-- BACK (Face Down) -->
-          <div class="flip-card-back" style="background: ${backGrad};">
-            <div class="card-pattern-overlay"></div>
-            <div class="position-relative z-2 d-flex flex-column align-items-center">
-              <div class="bg-white bg-opacity-25 p-4 rounded-circle border border-2 border-white border-opacity-50 shadow-lg mb-3 backdrop-blur">
-                <i class="${goalIcon} fa-3x text-white drop-shadow"></i>
-              </div>
-              ${!isCompliant ? '<div class="font-data text-white small bg-black bg-opacity-25 px-3 py-1 rounded-pill border border-white border-opacity-25 mt-2">Protocol Violation</div>' : ''}
+      <div class="flip-card-wrapper">
+        <div class="flip-card-inner">
+            <div class="flip-card-front" style="background: ${goal.card_gradient}">
+                <h3 class="card-title-large">${goal.title}</h3>
+                <p class="card-desc-large">${goal.goal}</p>
             </div>
-          </div>
-
-          <!-- FRONT (Face Up) -->
-          <div class="flip-card-front">
-            <div class="card-header-plate" style="background: ${headerGrad};">
-               <div class="card-domain-badge shadow-sm">${goalDomain.toUpperCase()}</div>
-               <div class="card-icon-float">
-                  <i class="${goalIcon} fa-2x" style="color: ${accent};"></i>
-               </div>
-            </div>
-
-            <div class="card-body">
-              <h3 class="card-title">${goalTitle}</h3>
-              <p class="card-desc small">${goalDescription}</p>
-            </div>
-
-            <div class="card-footer bg-transparent border-0 p-0 pb-4">
-              ${isCompliant ? `
-              <form class="outcome-form" action="/outcome" method="post">
-                <input type="hidden" name="selected_goal" value="${goal.goal}">
-                <input type="hidden" name="domain" value="${goalDomain}">
-                <input type="hidden" name="domain_icon" value="${goalIcon}">
-                <input type="hidden" name="selected_goal_title" value="${goalTitle}">
-                <button type="submit" class="btn-select-pill w-100 shadow-md" style="background-color: ${accent};">
-                  INITIALIZE
-                </button>
-              </form>` : `
-              <button class="btn-select-pill w-100" style="background-color: #ef5350; cursor: not-allowed; opacity: 0.8;">
-                  VIOLATION
-              </button>`}
-            </div>
-          </div>
-
         </div>
       </div>
     `;
     goalCardsContainer.insertAdjacentHTML('beforeend', cardHtml);
   });
-
-  // Bind event listeners to new forms for the spinner
-  // This ensures regenerated cards still trigger the spinner
-  const newForms = goalCardsContainer.querySelectorAll('.outcome-form');
-  newForms.forEach(form => {
-      form.addEventListener('submit', (e) => {
-           const title = form.querySelector('input[name="selected_goal_title"]').value;
-           showLoadingSpinner(`INITIALIZING: ${title.toUpperCase()}`, "fa-rocket", "SSOL");
-      });
-  });
-
-  // Trigger Flip Animation
-  setTimeout(() => {
-      const cards = goalCardsContainer.querySelectorAll('.flip-card-inner');
-      cards.forEach(card => {
-          const delay = parseInt(card.dataset.delay) || 1000;
-          setTimeout(() => card.closest('.flip-card').classList.add('revealed'), delay);
-      });
-  }, 100);
 }
 
 // ==================================================
-// 3. INPUT EDITING UTILITIES
+// 4. UI HANDLERS (Header Interactions)
 // ==================================================
 
-export function handleEditButtonClick(d, e, b1, b2, b3) {
-    d.classList.add('d-none'); e.classList.remove('d-none'); e.value = d.textContent.trim(); e.focus();
-    b1.classList.add('d-none'); b2.classList.remove('d-none'); b3.classList.remove('d-none');
+export function handleEditButtonClick() {
+    const displayContainer = document.getElementById('user-input-display-container');
+    const editContainer = document.getElementById('user-input-edit-container');
+    const input = document.querySelector('.user-input-edit');
+
+    if (displayContainer && editContainer) {
+        displayContainer.classList.add('d-none');
+        editContainer.classList.remove('d-none');
+        editContainer.classList.add('d-flex');
+        if (input) input.focus();
+    }
 }
-export function handleSaveButtonClick(d, e, b1, b2, b3, cb) {
-    const val = e.value.trim(); d.textContent = val;
-    d.classList.remove('d-none'); e.classList.add('d-none');
-    b1.classList.remove('d-none'); b2.classList.add('d-none'); b3.classList.add('d-none');
-    if (cb) cb(val);
+
+export function handleSaveButtonClick() {
+    const displayContainer = document.getElementById('user-input-display-container');
+    const editContainer = document.getElementById('user-input-edit-container');
+    const input = document.querySelector('.user-input-edit');
+    const displayTitle = document.querySelector('.user-input-display');
+
+    if (input && displayTitle) {
+        const newVal = input.value.trim();
+        if (newVal) {
+            displayTitle.textContent = `"${newVal}"`;
+            displayTitle.title = newVal;
+        }
+    }
+
+    if (displayContainer && editContainer) {
+        editContainer.classList.add('d-none');
+        editContainer.classList.remove('d-flex');
+        displayContainer.classList.remove('d-none');
+    }
 }
-export function handleCancelButtonClick(d, e, b1, b2, b3) {
-    d.classList.remove('d-none'); e.classList.add('d-none'); e.value = d.textContent.trim();
-    b1.classList.remove('d-none'); b2.classList.add('d-none'); b3.classList.add('d-none');
+
+export function handleCancelButtonClick() {
+    const displayContainer = document.getElementById('user-input-display-container');
+    const editContainer = document.getElementById('user-input-edit-container');
+    const input = document.querySelector('.user-input-edit');
+    const displayTitle = document.querySelector('.user-input-display');
+
+    if (input && displayTitle) {
+        const currentVal = displayTitle.textContent.replace(/^"|"$/g, '');
+        input.value = currentVal;
+    }
+
+    if (displayContainer && editContainer) {
+        editContainer.classList.add('d-none');
+        editContainer.classList.remove('d-flex');
+        displayContainer.classList.remove('d-none');
+    }
 }
+
+// Auto-bind header listeners
+document.addEventListener('DOMContentLoaded', () => {
+    const editBtn = document.querySelector('.edit-user-input');
+    const saveBtn = document.querySelector('.save-user-input');
+    const cancelBtn = document.querySelector('.cancel-user-input');
+
+    if (editBtn) editBtn.addEventListener('click', handleEditButtonClick);
+    if (saveBtn) saveBtn.addEventListener('click', handleSaveButtonClick);
+    if (cancelBtn) cancelBtn.addEventListener('click', handleCancelButtonClick);
+});

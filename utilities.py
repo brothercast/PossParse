@@ -1,13 +1,15 @@
 # utilities.py
 
-import logging
-import json
 import re
-import colorsys
+import json
+import logging
 import hashlib
-from typing import Dict, List, Tuple, Optional
+import colorsys
+from datetime import date
 from bs4 import BeautifulSoup
 from flask import current_app
+from typing import Dict, List, Tuple, Optional
+from dateutil.relativedelta import relativedelta
 
 # Import AI services
 from ai_service import generate_chat_response, get_grounded_data, generate_image
@@ -369,6 +371,31 @@ def assign_goal_colors(goals: List[Dict]) -> List[Dict]:
     
     return goals
 
+# =========================================================
+# DATE LOGIC (The Atomic Clock Mirror)
+# =========================================================
+def calculate_smart_horizon(offset_label: str) -> str:
+    """
+    The Atomic Clock: Converts fuzzy human timeframes into specific Gregorian dates.
+    Used by both the Wizard (via config injection) and the SPECULATE Engine.
+    """
+    today = date.today()
+    
+    # The Physics of Time
+    offsets = {
+        "3 Months": 3,
+        "6 Months": 6,
+        "1 Year": 12,
+        "2 Years": 24,
+        "5 Years": 60,
+        "ASAP": 1 # Aggressive 30-day sprint
+    }
+    
+    # Calculate target
+    months = offsets.get(offset_label, 0)
+    target_date = today + relativedelta(months=months)
+    
+    return target_date.isoformat() # Returns YYYY-MM-DD
 
 # ==============================================================================
 # PHASE COLORS FOR OUTCOME PAGE (COS Phases)
