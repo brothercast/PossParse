@@ -13,7 +13,7 @@ from difflib import get_close_matches  # <--- CRITICAL IMPORT ADDED HERE
 # Local Imports
 from ce_nodes import NODES, get_valid_node_types
 from ai_service import generate_chat_response_with_node_types
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -103,13 +103,34 @@ async def analyze_cos(cos_content: str, cos_id: str = None) -> dict:
 
 # --- SSOL Operations ---
 
-def create_ssol(USE_DATABASE: bool, title: str, description: str, domain: str = None) -> str:
+def create_ssol(USE_DATABASE: bool, title: str, description: str, domain: str = None, system_data: dict = None) -> str:
+    """
+    Creates the SSOL Container.
+    Now supports atomic injection of System Physics (system_data) at creation time.
+    """
     from models import SSOL, get_engine_and_session
     from store import ssol_store
     from app import app
 
-    # MVP Rule: Set a default "Horizon" of 1 year from creation
+    # MVP Rule: Set a default "Horizon" of 1 year from creation if not specified
     default_target_date = date.today() + timedelta(days=365)
+    
+    # Clean system_data default
+    if system_data is None:
+        system_data = {}
+
+    # Extract Horizon Date from system_data if present for the SQL column
+    target_date_obj = default_target_date
+    if 'HORIZON' in system_data:
+        try:
+            # Try to parse the physics string into a real date object
+            target_date_obj = datetime.strptime(system_data['HORIZON'], '%Y-%m-%d').date()
+        except:
+            # Keep default if parsing fails (e.g. "3 Months" string)
+            pass
+
+    # Extract Owner from system_data for the SQL column
+    owner_str = system_data.get('OPERATOR', None)
 
     if USE_DATABASE:
         with app.app_context():
@@ -122,9 +143,11 @@ def create_ssol(USE_DATABASE: bool, title: str, description: str, domain: str = 
                 description=description,
                 domain=domain,
                 status='Active', 
-                target_date=default_target_date,
+                target_date=target_date_obj,
+                owner=owner_str,
                 integrity_score=100,
-                completion_percentage=0
+                completion_percentage=0,
+                system_data=system_data # <--- SAVED AT BIRTH
             )
             
             session.add(ssol)
@@ -140,9 +163,11 @@ def create_ssol(USE_DATABASE: bool, title: str, description: str, domain: str = 
             'description': description, 
             'domain': domain,
             'status': 'Active',
-            'target_date': default_target_date.isoformat(),
+            'target_date': target_date_obj.isoformat(),
+            'owner': owner_str,
             'integrity_score': 100,
             'completion_percentage': 0,
+            'system_data': system_data, # <--- SAVED IN MEMORY
             'phases': {}
         }
         return ssol_id

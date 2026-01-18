@@ -1,11 +1,14 @@
 # system_nodes.py
 """
-THE SYSTEM PARAMETER MANIFEST (v2026.04 - Sphere of Influence Edition)
+THE SYSTEM PARAMETER MANIFEST (v2026.05 - Spiritual Successor Edition)
 ------------------------------------
+Configuration source for SSPEC System Nodes.
+Acts as the bridge between the Frontend Wizard (goal_selection.js) and the Backend Intelligence (utilities.py).
+
 CHANGELOG:
-- SCALE: Refactored to "Sphere of Influence". Maps to the Curriculum for Living levels
-  (Self -> Group -> Community -> World).
-- DIRECTIVE/AVOIDANCE: Configured for Tag Interface.
+- REBRAND: "Individual Agent" -> "Just Me (Individual)"
+- REBRAND: "Bootstrapped ($0)" -> "Sweat Equity (Time > Money)"
+- SCALE: "Sphere of Influence" (Ontological approach)
 """
 
 SYSTEM_NODES = {
@@ -17,7 +20,7 @@ SYSTEM_NODES = {
         "icon": "fa-solid fa-bullseye",
         "color": "#212121", 
         "description": "The destination as a completed fact.",
-        "guide": "Speak from the future. Do not say 'We want to build a park.' Say 'The Community Park IS open and thriving.'",
+        "guide": "Speak from the future. The park IS open. The app IS launched.",
         "ui_type": "textarea",
         "prompt_injection": "PRIME DIRECTIVE ATTENUATION: The user has defined the Future Fulfilled as: '{value}'. All generated content must act as history leading up to this established fact."
     },
@@ -29,11 +32,11 @@ SYSTEM_NODES = {
         "label": "The Driver",
         "icon": "fa-solid fa-user-astronaut",
         "color": "#03a9f4", 
-        "description": "Who is responsible for this outcome?",
+        "description": "Who is accountable for this outcome?",
         "guide": "The identity of the driver determines available leverage.",
         "ui_type": "select",
         "options": [
-            "Individual Agent", 
+            "Just Me (Individual)", 
             "Community / Grassroots", 
             "Small Team / Startup", 
             "Non-Profit / NGO", 
@@ -42,23 +45,23 @@ SYSTEM_NODES = {
             "Unsure / TBD"
         ],
         "wizard": {
-            "question": "Who is Driving?",
-            "helper": "Select the operational entity to calibrate resource leverage.",
+            "question": "Who is Accountable?",
+            "helper": "The Engine tailors the plan to your bandwidth. A solo mission needs automation; a team needs coordination.",
             "insight_map": {
-                "Individual Agent": "High autonomy. We will prioritize personal integrity and individual action.",
-                "Community / Grassroots": "Powered by enrollment. We will focus on shared possibility and volunteerism.",
-                "Small Team / Startup": "Optimized for agility. We will structure for rapid iteration and feedback.",
-                "Non-Profit / NGO": "Mission-driven. We will focus on alignment, grants, and public trust.",
-                "Corporate / Enterprise": "Resource-rich. We will account for compliance, scale, and integration.",
-                "Public / Civic Body": "High authority. We will map regulatory frameworks and public mandates.",
-                "Unsure / TBD": "The System will suggest the optimal operator based on the goal's complexity."
+                "Just Me (Individual)": "High autonomy, finite bandwidth. We will prioritize leverage, automation, and low-code solutions.",
+                "Community / Grassroots": "Powered by enrollment. We will focus on social capital, volunteerism, and shared ownership.",
+                "Small Team / Startup": "Optimized for speed. We will structure for agile sprints, rapid iteration, and growth metrics.",
+                "Non-Profit / NGO": "Mission-driven. We will focus on grant cycles, stakeholder alignment, and transparency.",
+                "Corporate / Enterprise": "Resource-rich but process-heavy. We will account for compliance, security, and integration.",
+                "Public / Civic Body": "High authority. We will map regulatory frameworks, procurement, and public mandates.",
+                "Unsure / TBD": "The System will analyze the goal's complexity and suggest the optimal vehicle."
             }
         },
         "prompt_injection": "OPERATOR ATTENUATION: The executing agent is defined as: '{value}'. Filter all suggestions to match the capabilities and limitations of this entity type."
     },
 
     "HORIZON": {
-        "label": "Target Date",
+        "label": "Time Horizon",
         "icon": "fa-solid fa-stopwatch",
         "color": "#ff9800", 
         "description": "The date this reality is fully realized.",
@@ -66,7 +69,7 @@ SYSTEM_NODES = {
         "ui_type": "date", 
         "wizard": {
             "question": "When do we Arrive?",
-            "helper": "The System will reverse-engineer milestones from this date.",
+            "helper": "Deadlines create leverage. The Engine works backwards from this date to tell you what to do today.",
             "quick_selects": ["3 Months", "6 Months", "1 Year", "2 Years", "5 Years", "ASAP"]
         },
         "prompt_injection": "TEMPORAL ATTENUATION: The system has a hard stop at '{value}'. All roadmaps, lead times, and resource acquisitions must mathematically fit within this window."
@@ -77,14 +80,14 @@ SYSTEM_NODES = {
     # ==============================================================================
 
     "BUDGET": {
-        "label": "Fuel Source",
+        "label": "Resource Model",
         "icon": "fa-solid fa-bolt", 
         "color": "#4caf50", 
         "description": "The energy source for the project.",
         "ui_type": "select",
         "options": [
-            "Bootstrapped ($0)", 
-            "Crowdfunded", 
+            "Sweat Equity (Time > Money)", 
+            "Crowdfunded / Backed", 
             "Grant Funded", 
             "Venture Capital", 
             "Public Budget",
@@ -92,20 +95,19 @@ SYSTEM_NODES = {
         ],
         "wizard": {
             "question": "How is this Fueled?",
-            "helper": "Money is energy. The source determines the speed and the strings attached.",
+            "helper": "Money is just one form of energy. The source determines the speed and the strings attached.",
             "insight_map": {
-                "Bootstrapped ($0)": "Sweat equity model. We will prioritize free tools, barter, and organic growth.",
-                "Crowdfunded": "Public mandate required. Marketing assets and community enrollment are critical.",
+                "Sweat Equity (Time > Money)": "The Hustle. We will prioritize free tools, barter networks, and organic growth.",
+                "Crowdfunded / Backed": "Public mandate. Marketing assets, video storytelling, and community management are critical.",
                 "Grant Funded": "Milestone driven. Reporting, impact metrics, and compliance are top priorities.",
                 "Venture Capital": "High octane. Focus on rapid scaling, burn rate, and defensible moats.",
                 "Public Budget": "Oversight heavy. Procurement, auditing, and RFP processes will be factors.",
-                "Undetermined": "The System will estimate resource requirements based on the goal scope."
+                "Undetermined": "The Engine will estimate resource requirements based on the goal scope."
             }
         },
         "prompt_injection": "ECONOMIC ATTENUATION: The project operates on a '{value}' model. Filter resource suggestions to match this economic physics."
     },
 
-    # --- REFACTORED: FROM GEOGRAPHY TO ONTOLOGY ---
     "SCALE": {
         "label": "Sphere of Influence",
         "icon": "fa-solid fa-earth-americas",
@@ -194,8 +196,8 @@ SYSTEM_NODES = {
         "ui_type": "tags", # SIGNALS FRONTEND TO USE PILL INTERFACE
         "wizard": {
             "question": "What must we Avoid?",
-            "helper": "Type a risk and press Enter (e.g. 'Burnout', 'Debt', 'Exclusion').",
-            "placeholder": "Add a dealbreaker...",
+            "helper": "Type a risk and press Enter (e.g. 'Debt', 'Displacement', 'Pollution').",
+            "placeholder": "Add a risk to avoid...",
             "insight_map": {}
         },
         "prompt_injection": """

@@ -235,27 +235,19 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
  * └─────────────────────────────────────────────────────────────────────────┘
  */
 
-/* --- 7.1 STAGE VIEWPORT (The Theater) --- */
-
+/* --- 7.1 STAGE VIEWPORT --- */
 #stage-viewport {
     position: relative;
-    flex: 1; /* Consumes remaining height after header/footer */
-    min-height: 0; /* CRITICAL: Allows flex children to shrink */
+    flex: 1;
+    min-height: 0;
     width: 100%;
-    /* CHANGED: Move scroll handling here, so the bar is at the edge, not hugging cards */
-    overflow-y: auto; 
-    overflow-x: hidden;
+    overflow: hidden; 
     display: flex;
     flex-direction: column;
     padding: 2rem;
-    /* Hide scrollbar for Chrome/Safari/Opera for cleaner look */
-    scrollbar-width: none; 
-    -ms-overflow-style: none;
 }
 
-#stage-viewport::-webkit-scrollbar { 
-    display: none; /* Hidden scrollbar for "Appliance" feel */
-}
+#stage-viewport::-webkit-scrollbar { display: none; }
 
 .goal-grid {
     display: grid;
@@ -267,51 +259,69 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
     margin: 0 auto;
     align-items: start;
     justify-content: center;
-    transition: opacity 0.5s ease;
-    /* CHANGED: Removed overflow-y: auto to kill the tight scrollbar */
     overflow: visible; 
 }
 
-/* --- 7.2 FLIP CARD WRAPPER --- */
-
+/* --- 7.2 FLIP CARD WRAPPER (The Container) --- */
 .flip-card-wrapper {
     position: relative;
     width: 100%;
-    max-width: 420px;
-    aspect-ratio: 2/3;
+    max-width: 380px;
+    aspect-ratio: 2/3; 
     min-height: 500px;
     cursor: pointer;
     z-index: 10;
     margin: 0 auto;
     perspective: 1500px;
+    
+    /* FIX: Start invisible to prevent FOUC */
+    opacity: 0; 
+    
     transition: 
         opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
         transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
         top 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
         left 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
         width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
-        height 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
-        border-radius 0.5s ease;
+        height 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* --- 7.3 FLIP CARD INNER --- */
+/* FIX: The "Floor Shadow" - Decoupled from rotation */
+.flip-card-wrapper::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    bottom: 0;
+    left: 5%;
+    width: 90%;
+    height: 40px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0.2) 0%, transparent 70%);
+    opacity: 0; 
+    transition: opacity 0.5s ease, transform 0.3s ease;
+    transform: translateY(15px) scale(0.9);
+    pointer-events: none;
+}
 
+/* Shadow logic: Visible when revealed, shrinks when lifted */
+.flip-card-wrapper.state-selection::after { opacity: 1; }
+.flip-card-wrapper.state-selection:hover::after { opacity: 0.6; transform: translateY(30px) scale(0.7); }
+
+/* --- 7.3 FLIP CARD INNER (The Gyroscope) --- */
 .flip-card-inner {
     position: relative;
     width: 100%;
     height: 100%;
-    border-radius: 32px;
     transform-style: preserve-3d;
     transform-origin: center center;
-    transform: rotate3d(1, 1, 0, 0deg);
-    transition: 
-        transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1),
-        border-radius 0.5s ease;
+    /* Default: Front Face Visible */
+    transform: rotate3d(1, 1, 0, 180deg); 
+    transition: transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1), border-radius 0.5s ease;
+    border-radius: 32px;
 }
 
-/* --- 7.4 CARD FACES --- */
-
-.flip-card-front,
+/* --- 7.4 FACES (Diagonal Orientation) --- */
+.flip-card-front, 
 .flip-card-back {
     position: absolute;
     inset: 0;
@@ -319,30 +329,32 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
     overflow: hidden;
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
-    transition: box-shadow 0.5s ease, border-radius 0.5s ease;
-    background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.05) 50%, rgba(0,0,0,0.3) 100%);
+    background: white;
+    transition: border-radius 0.5s ease;
 }
 
-.flip-card-back {
+/* Front: The Selection Interface */
+.flip-card-front {
+    transform: rotate3d(1, 1, 0, 180deg);
     z-index: 2;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    padding: 2.5rem;
+    border: 1px solid #e2e8f0;
 }
 
-.flip-card-front {
+/* Back: The Monolith / Hero */
+.flip-card-back {
+    transform: rotate3d(1, 1, 0, 0deg);
     z-index: 1;
-    transform: rotate3d(1, 1, 0, 180deg);
-    display: flex;
-    flex-direction: column;
-    background: white;
-    border: 1px solid #e2e8f0;
+    background: #2c3e50; 
+    color: white;
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center;
+    padding-left: 0px;
+    padding-right: 0px;
+    padding-top: 10px;
 }
 
 .card-texture-overlay {
@@ -352,226 +364,371 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
     z-index: 1; opacity: 0.6;
 }
 
+/* --- 7.5 CONTENT LAYERS (No White Flash) --- */
+.monolith-content {
+    position: absolute; /* Absolute to overlay */
+    inset: 0;
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center;
+    transition: opacity 0.5s ease;
+    opacity: 1;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.hero-card-content {
+    position: absolute; 
+    inset: 0; 
+    padding: .5rem;
+    display: flex; 
+    flex-direction: column;
+    opacity: 0; 
+    transition: opacity 0.6s ease;
+    z-index: 6;
+    color: white;
+    pointer-events: auto;
+}
+
 /* --- 7.6 STATE MACHINE CLASSES --- */
 
-.flip-card-wrapper.state-dealing { opacity: 0; transform: translateY(120px) scale(0.9); pointer-events: none; }
+/* A. DEALING (Hidden -> Visible) */
+.flip-card-wrapper.state-dealing { 
+    opacity: 0; 
+    transform: translateY(120px) scale(0.9); 
+    pointer-events: none; 
+}
+/* Dealing shows Back Face (0deg) */
 .flip-card-wrapper.state-dealing .flip-card-inner { transform: rotate3d(1, 1, 0, 0deg); }
 
-.flip-card-wrapper.state-revealing { opacity: 1; transform: translateY(0) scale(1); pointer-events: none; }
+/* B. REVEALING */
+.flip-card-wrapper.state-revealing { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
+    pointer-events: none; 
+}
 .flip-card-wrapper.state-revealing .flip-card-inner { transform: rotate3d(1, 1, 0, 0deg); }
 
-.flip-card-wrapper.state-selection { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; cursor: pointer; }
-.flip-card-wrapper.state-selection .flip-card-inner { transform: rotate3d(1, 1, 0, 180deg); }
-.flip-card-wrapper.state-selection:hover { transform: translateY(-12px) scale(1.02); z-index: 15; }
-.flip-card-wrapper.state-selection:hover .flip-card-front { box-shadow: 0 45px 80px -20px rgba(0, 0, 0, 0.35); }
-
-.flip-card-wrapper.state-config {
-    position: absolute; top: 0; left: 0; height: 100%; width: 35%; 
-    max-width: 480px; margin: 0; z-index: 100; pointer-events: auto;
-    border-radius: 0 24px 24px 0;
+/* C. SELECTION (Flip to Front - 180deg) */
+.flip-card-wrapper.state-selection { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
+    pointer-events: auto; 
+    cursor: pointer; 
 }
-.flip-card-wrapper.state-config .flip-card-inner,
+.flip-card-wrapper.state-selection .flip-card-inner { transform: rotate3d(1, 1, 0, 180deg); }
+
+.flip-card-wrapper.state-selection:hover { 
+    transform: translateY(-12px) scale(1.02); 
+    z-index: 15; 
+}
+.flip-card-wrapper.state-selection:hover .flip-card-front { 
+    box-shadow: 0 45px 80px -20px rgba(0, 0, 0, 0.35); 
+}
+
+/* D. CONFIG (Flip to Back, Dock Left - STATIC & SACRED) */
+.flip-card-wrapper.state-config {
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    height: 100%; 
+    width: 35%; 
+    max-width: 480px; 
+    margin: 0; 
+    z-index: 100; 
+    pointer-events: auto;
+    border-radius: 0 24px 24px 0;
+    
+    /* DISABLE WRAPPER TRANSFORMS (No Wiggle) */
+    transform: none !important; 
+    transition: none; 
+}
+
+/* FORCE INNER TO ROTATE 360 (The Flip) */
+.flip-card-wrapper.state-config .flip-card-inner { 
+    transform: rotate3d(1, 1, 0, 360deg) !important; 
+    border-radius: 0 24px 24px 0;
+    box-shadow: none; 
+}
+
+/* Override Selection Hover */
+.flip-card-wrapper.state-config:hover {
+    transform: none !important;
+    z-index: 100;
+}
+
+.flip-card-wrapper.state-config .flip-card-front,
 .flip-card-wrapper.state-config .flip-card-back { border-radius: 0 24px 24px 0; }
-.flip-card-wrapper.state-config .flip-card-inner { transform: rotate3d(1, 1, 0, 360deg); }
 .flip-card-wrapper.state-config .flip-card-back { box-shadow: 15px 0 50px -10px rgba(0, 0, 0, 0.30); }
 
-.flip-card-wrapper.state-returning { z-index: 100; pointer-events: none; border-radius: 32px; }
-.flip-card-wrapper.state-returning .flip-card-inner,
+/* E. RETURNING */
+.flip-card-wrapper.state-returning { z-index: 100; pointer-events: none; }
+.flip-card-wrapper.state-returning .flip-card-inner { transform: rotate3d(1, 1, 0, 180deg); border-radius: 32px; }
+.flip-card-wrapper.state-returning .flip-card-front,
 .flip-card-wrapper.state-returning .flip-card-back { border-radius: 32px; }
-.flip-card-wrapper.state-returning .flip-card-inner { transform: rotate3d(1, 1, 0, 180deg); }
 
+/* Utilities */
 .flip-card-wrapper.state-dimmed { opacity: 0; pointer-events: none; transform: scale(0.85) translateZ(-200px); filter: blur(4px); }
 .flip-card-wrapper.violation { cursor: not-allowed; }
 .flip-card-wrapper.violation .flip-card-inner { opacity: 0.7; filter: saturate(0.5); }
 
-/* --- 7.7 MONOLITH CONTENT --- */
-.monolith-content { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 2rem; }
+/* --- 7.7 CARD CONTENT --- */
 .monolith-icon-circle {
-    width: 160px !important; height: 160px !important; min-width: 160px; min-height: 160px;
+    width: 140px !important; height: 140px !important; min-width: 140px; min-height: 140px;
     display: flex; align-items: center; justify-content: center;
     background: rgba(255, 255, 255, 0.2); border-radius: 50%; margin-bottom: 1.5rem;
     border: 2px solid rgba(255, 255, 255, 0.4);
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), inset 0 0 30px rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(8px); padding: 0 !important;
 }
-.monolith-icon { font-size: 4.5rem; color: rgba(255, 255, 255, 0.95); filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2)); line-height: 1; display: block; }
-
-/* --- 7.8 CARD FRONT CONTENT (Precision Alignment) --- */
+.monolith-icon { font-size: 4rem; color: rgba(255, 255, 255, 0.95); filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2)); line-height: 1; display: block; }
 
 .card-header-plate { 
-    position: relative; 
-    /* Lock height to a rigid percentage of the card parent */
-    flex: 0 0 33%; 
-    min-height: 160px; 
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; 
-    /* Vertically center the badge within the colored zone */
-    justify-content: center; 
-    overflow: visible; 
-    /* Hardware acceleration to prevent sub-pixel jitter */
-    transform: translateZ(0);
+    position: relative; flex: 0 0 33%; min-height: 160px; 
+    display: flex; flex-direction: column; align-items: center; justify-content: center; 
+    overflow: visible; transform: translateZ(20px); 
 }
-
 .card-domain-badge-large {
-    position: relative; 
-    z-index: 5; 
-    font-family: var(--font-data); 
-    font-size: 0.75rem; 
-    font-weight: 800; 
-    letter-spacing: 0.2em;
-    text-transform: uppercase; 
-    color: white; 
-    background: rgba(255, 255, 255, 0.25); 
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.5); 
-    padding: 0.6rem 1.5rem; 
-    border-radius: 50px; 
-    /* Remove margin-bottom to rely on pure flex centering */
-    margin-bottom: 0;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    /* Ensure it sits slightly above the visual center for optical balance */
+    position: relative; z-index: 5; 
+    font-family: var(--font-data); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.2em;
+    text-transform: uppercase; color: white; 
+    background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.5); padding: 0.5rem 1.2rem; 
+    border-radius: 50px; margin-bottom: 0; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     transform: translateY(-10px); 
 }
-
 .card-icon-float-large {
-    position: absolute; 
-    /* Anchor exactly to the bottom seam */
-    bottom: 0; 
-    left: 50%; 
-    /* Mathematically center the circle on the line: 
-       -50% X centers it horizontally.
-       +50% Y pushes it down exactly half its height. 
-    */
-    transform: translate(-50%, 50%); 
-    z-index: 10;
-    width: 7.5rem; /* Locked Size */
-    height: 7.5rem; 
-    background: white; 
-    border-radius: 50%;
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
+    position: absolute; bottom: 0; left: 50%; transform: translate(-50%, 50%); 
+    z-index: 10; width: 7rem; height: 7rem; 
+    background: white; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
     box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.15), 0 0 0 6px white;
     transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
 }
-
-/* Hover State: Lift the icon slightly off the seam */
-.flip-card-wrapper.state-selection:hover .card-icon-float-large { 
-    /* Keep horizontal center, adjust vertical lift */
-    transform: translate(-50%, 42%) scale(1.05); 
-}
-
-.card-icon-float-large i { 
-    font-size: 3.2rem; 
-    transition: transform 0.3s ease; 
-}
+.flip-card-wrapper.state-selection:hover .card-icon-float-large { transform: translate(-50%, 42%) scale(1.05); }
+.card-icon-float-large i { font-size: 3rem; transition: transform 0.3s ease; }
 
 .card-body-large { 
-    flex-grow: 1; 
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; 
-    justify-content: flex-start; 
-    text-align: center; 
-    /* Top padding accounts for the icon pushing down (half icon height + buffer) */
-    padding: 4.5rem 2rem 1rem 2rem; 
+    flex-grow: 1; display: flex; flex-direction: column; align-items: center; 
+    justify-content: flex-start; text-align: center; padding: 4.5rem 2rem 1rem 2rem; 
 }
-
 .card-title-large { 
-    font-family: var(--font-brand); 
-    font-size: clamp(1.5rem, 2.5vw, 2rem); 
-    color: #1e293b; 
-    margin-bottom: 0.75rem; 
-    line-height: 1.1; 
-    /* Limit lines to prevent layout blowouts */
-    display: -webkit-box; 
-    -webkit-line-clamp: 3; 
-    line-clamp: 3;
-    -webkit-box-orient: vertical; 
-    overflow: hidden; 
+    font-family: var(--font-brand); font-size: clamp(1.4rem, 2.5vw, 1.8rem); 
+    color: #1e293b; margin-bottom: 0.5rem; line-height: 1.1; 
+    display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; 
 }
-
 .card-desc-large { 
-    font-family: var(--font-body); 
-    font-size: 0.95rem; 
-    font-weight: 500; 
-    color: #64748b; 
-    line-height: 1.5; 
-    max-width: 320px; 
-    display: -webkit-box; 
-    -webkit-line-clamp: 4; 
-    line-clamp: 4;
-    -webkit-box-orient: vertical; 
-    overflow: hidden; 
+    font-family: var(--font-body); font-size: 0.9rem; font-weight: 500; color: #64748b; 
+    line-height: 1.5; max-width: 320px; 
+    display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; 
 }
-
 .card-footer-large { 
     padding: 1.5rem 2rem 2rem 2rem; 
     margin-top: auto; 
     width: 100%;
+    position: relative; 
+    z-index: 20; 
 }
 
+/* FIX: Button Clickability */
 .btn-select-pill-large { 
-    display: block; 
-    width: 100%; 
-    padding: 1rem 2rem; 
-    border: none; 
-    border-radius: 50px; 
-    font-family: var(--font-data); 
-    font-size: 0.8rem; 
-    font-weight: 800; 
-    letter-spacing: 0.2em; 
-    text-transform: uppercase; 
-    color: white; 
-    cursor: pointer; 
+    display: block; width: 100%; padding: 1rem 2rem; border: none; border-radius: 50px; 
+    font-family: var(--font-data); font-size: 0.8rem; font-weight: 800; letter-spacing: 0.2em; 
+    text-transform: uppercase; color: white; cursor: pointer; 
     box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.2); 
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    
+    /* FORCE ON TOP OF TEXTURE LAYERS */
+    position: relative;
+    z-index: 50; 
+    pointer-events: auto;
+}
+.btn-select-pill-large:hover { transform: translateY(-2px); box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.25); }
+
+/* --- 7.9 HERO CONTENT ELEMENTS (Config State) --- */
+
+.hero-card-content { 
+    position: relative; 
+    z-index: 10; 
+    height: 100%; 
+    display: flex; 
+    flex-direction: column; 
+    /* Padding adjusted for new layout */
+    padding: 4.5rem 2.5rem 2.5rem 2.5rem; 
+    color: white; 
 }
 
-.btn-select-pill-large:hover { 
-    transform: translateY(-2px); 
-    box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.25);
+.hero-ghost-icon { 
+    position: absolute; 
+    bottom: -10%; 
+    right: -10%; 
+    font-size: 18rem; 
+    color: rgba(255, 255, 255, 0.08); 
+    transform: rotate(-12deg); 
+    pointer-events: none; 
+    z-index: 1; 
 }
 
-/* --- 7.9 HERO CARD CONTENT --- */
-.hero-card-content { position: relative; z-index: 10; height: 100%; display: flex; flex-direction: column; padding: 0; color: white; }
-.hero-ghost-icon { position: absolute; bottom: -15%; right: -15%; font-size: 20rem; color: rgba(255, 255, 255, 0.08); transform: rotate(-12deg); pointer-events: none; z-index: 1; }
+/* Return Button (Moved to absolute top-left for cleaner flow) */
 .hero-return-button {
-    position: relative; z-index: 10; display: flex; align-items: center; gap: 0.75rem;
-    color: rgba(255, 255, 255, 0.7); font-family: var(--font-data); font-size: 0.75rem;
-    font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase;
-    background: none; border: none; padding: 0; margin-bottom: 2rem; cursor: pointer; transition: all 0.2s ease;
+    position: absolute; 
+    top: 1.5rem; 
+    left: 2.5rem;
+    z-index: 50; 
+    display: flex; 
+    align-items: center; 
+    gap: 0.5rem;
+    color: rgba(255, 255, 255, 0.6); 
+    font-family: var(--font-data); 
+    font-size: 0.7rem;
+    font-weight: 800; 
+    letter-spacing: 0.15em; 
+    text-transform: uppercase;
+    background: none; 
+    border: none; 
+    padding: 0; 
+    cursor: pointer; 
+    transition: all 0.2s ease;
 }
 .hero-return-button:hover { color: white; transform: translateX(-5px); }
-.hero-domain-pill {
-    position: relative; z-index: 10; display: inline-flex; align-items: center; gap: 0.75rem;
-    background: white; border-radius: 50px; padding: 0.8rem 1.75rem;
-    margin-bottom: 2rem; width: fit-content; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+
+/* --- HEADER GROUP (Domain & Title) --- */
+.hero-header-group {
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* Left Align */
+    width: 100%;
 }
-.hero-domain-pill i { font-size: 1.4rem; color: #1e293b; }
-.hero-domain-pill span { font-size: 0.8rem; font-weight: 800; letter-spacing: 0.15em; color: #334155; }
-.hero-title { position: relative; z-index: 10; font-family: var(--font-brand); font-size: clamp(1.8rem, 3.5vw, 2.5rem); line-height: 1.1; margin-bottom: 1rem; }
-.hero-desc-box { display: flex; gap: 1rem; margin-bottom: 2rem; position: relative; z-index: 20; }
-.hero-desc-accent { width: 4px; background-color: rgba(255,255,255,0.6); border-radius: 4px; flex-shrink: 0; }
-.hero-desc-text { font-family: var(--font-body); font-size: 1.05rem; line-height: 1.5; font-weight: 500; color: rgba(255,255,255,0.95); text-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-#sys-pill-stack { position: relative; z-index: 10; display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start; margin-top: auto; }
 
-/* =================================================== */
-/* ======  7.10 CONFIGURATION WIZARD PANEL =========== */
-/* =================================================== */
+.hero-domain-label {
+    font-family: var(--font-data);
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 0.5rem;
+    display: block;
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    width: 100%;
+    padding-bottom: 4px;
+}
 
+/* Remove old centered pseudo-element if it exists */
+.hero-domain-label::after { display: none; }
 
+.hero-domain-pill {
+    position: relative; 
+    z-index: 10; 
+    display: inline-flex; 
+    align-items: center; 
+    gap: 0.75rem;
+    background: white; 
+    border-radius: 50px; 
+    padding: 0.5rem 1.25rem;
+    margin-top: 0.25rem;
+    width: auto; 
+    min-width: 160px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    border: 2px solid rgba(255,255,255,0.1);
+}
+
+.hero-domain-pill i { 
+    font-size: 1.1rem; 
+    color: inherit; /* Inherits from inline style set by JS */
+}
+
+.hero-domain-pill span { 
+    font-family: var(--font-data);
+    font-size: 0.8rem; 
+    font-weight: 800; 
+    letter-spacing: 0.1em; 
+    color: inherit;
+}
+
+.hero-title { 
+    position: relative; 
+    z-index: 10; 
+    font-family: var(--font-brand); 
+    font-size: clamp(1.8rem, 3.5vw, 2.5rem); 
+    line-height: 1.1; 
+    margin-bottom: 1.5rem; 
+    text-align: left;
+}
+
+/* --- DESCRIPTION BOX --- */
+.hero-desc-box { 
+    display: flex; 
+    gap: 1rem; 
+    margin-bottom: 2.5rem; 
+    position: relative; 
+    z-index: 20; 
+}
+
+.hero-desc-accent { 
+    width: 4px; 
+    background-color: rgba(255,255,255,0.6); 
+    border-radius: 4px; 
+    flex-shrink: 0; 
+}
+
+.hero-desc-text { 
+    font-family: var(--font-body); 
+    font-size: 1rem; 
+    line-height: 1.6; 
+    font-weight: 500; 
+    color: rgba(255,255,255,0.95); 
+    text-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+    text-align: left;
+}
+
+/* --- SYSTEM CONFIGURATION SECTION --- */
+#system-config-container {
+    width: 100%;
+    margin-top: 0; /* Let it flow naturally */
+}
+
+.sys-config-label {
+    font-family: var(--font-data);
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    border-bottom: 1px solid rgba(255,255,255,0.2); 
+    padding-bottom: 4px;
+    margin-bottom: 1rem;
+    text-align: left;
+    display: block;
+    width: 100%;
+}
+
+#sys-pill-stack { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 0.6rem; 
+    align-items: flex-start; 
+    width: 100%; 
+    position: relative; 
+    z-index: 10;
+}
+
+/* --- 7.10 CONFIG PANEL (Sliding Wizard) --- */
 #configuration-stage {
     position: absolute;
-    top: 0; bottom: 0; right: 0;
-    left: calc(31% + 0.125rem); /* Docked to right of hero card */
+    top: 0; 
+    bottom: 0; 
+    right: 0;
+    left: calc(28% + 0.0125rem);; /* Docked to left 35% */
     width: auto;
     z-index: 50;
     pointer-events: none;
     
-    /* Enter Animation */
-    opacity: 0; visibility: hidden; transform: translateX(50px);
+    /* Enter Animation: Hidden and shifted right by default */
+    opacity: 0; 
+    visibility: hidden; 
+    transform: translateX(50px);
     transition: 
         opacity 0.5s ease, 
         transform 0.6s cubic-bezier(0.23, 1, 0.32, 1),
@@ -582,8 +739,10 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 }
 
 #configuration-stage.active {
-    opacity: 1 !important; visibility: visible !important; 
-    transform: translateX(0) !important; pointer-events: auto;
+    opacity: 1 !important; 
+    visibility: visible !important; 
+    transform: translateX(0) !important; 
+    pointer-events: auto;
     transition-delay: 0.2s;
 }
 
@@ -591,12 +750,13 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
     height: 100%; 
     width: 100%; 
     background: white;
-    border-radius: 24px 0 0 24px;
+    /* Only round the right corners or keep left sharp to butt against card */
+    border-radius: 24px; 
     box-shadow: -5px 0 30px rgba(0, 0, 0, 0.08);
     display: flex; 
     flex-direction: column; 
     overflow: hidden;
-    border-left: none;
+    border-left: none; /* Clean look */
 }
 
 /* ================================================== */
@@ -1258,7 +1418,10 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
     letter-spacing: 1px;
 }
 
-/* 17.6 SYSTEM PILL (OPTION CARD) - The New Standard */
+/* =========================================
+   SECTION 17.6: SYSTEM PILL (OPTION CARD)
+   ========================================= */
+
 .option-grid-compact {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -1268,40 +1431,61 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
     min-height: 0;
 }
 
-.option-card, .option-card-pill { /* Handle both class names */
+/* Base Interactive Pill */
+.option-card, .option-card-pill {
+    /* Layout */
     display: flex;
     align-items: center;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
     width: 100%;
-    min-height: 72px;
-    background-color: white;
-    border: 2px solid #e2e8f0;
+    min-height: 72px; /* Ensure touch target size */
+    
+    /* Shape & Skin */
+    background-color: white; /* Fallback */
+    border: 2px solid #e2e8f0; /* Default border */
     border-radius: 9999px; /* Pill Shape */
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
-    text-align: left;
-    
-    /* Fallback color if inline style missing */
+    text-align: left; /* Align text left */
+
+    /* DYNAMIC COLOR LOGIC (The Slick Prototype look) */
+    /* Fallback color if JS doesn't inject one */
     --opt-primary: var(--active-theme-color);
+    
+    /* 1. Default State (Unselected but Tinted) */
+    /* Creates a 3% tint of the specific option color over white */
+    background-color: color-mix(in srgb, var(--opt-primary) 3%, white);
+    /* Slightly tinted border (15% mix with slate) */
+    border-color: color-mix(in srgb, var(--opt-primary) 15%, #e2e8f0);
 }
 
+/* Hover State */
 .option-card:hover, .option-card-pill:hover {
-    background-color: #f8fafc;
-    border-color: #cbd5e1;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-}
-
-.option-card.selected, .option-card-pill.selected {
     background-color: color-mix(in srgb, var(--opt-primary) 8%, white);
     border-color: var(--opt-primary);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.05);
+    z-index: 2;
 }
 
-/* Icons within Pills */
+/* The "Physical" Press effect */
+.option-card:active, .option-card-pill:active {
+    transform: scale(0.98);
+}
+
+/* Selected State */
+.option-card.selected, .option-card-pill.selected {
+    /* Darker tint (12%) */
+    background-color: color-mix(in srgb, var(--opt-primary) 12%, white);
+    border-color: var(--opt-primary);
+    /* Inner glow of the primary color */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), inset 0 0 0 1px var(--opt-primary);
+}
+
+/* Icon Container */
 .option-icon, .pill-icon-circle {
     height: 2.5rem; width: 2.5rem;
     flex-shrink: 0;
@@ -1309,55 +1493,59 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #f1f5f9;
-    color: #94a3b8;
+    
+    /* 2. Icon Background (Always tinted) */
+    background-color: color-mix(in srgb, var(--opt-primary) 15%, white);
+    color: var(--opt-primary); /* Glyph takes the color */
+    
     transition: all 0.2s;
     font-size: 1.1rem;
+    margin-bottom: 0; 
 }
 
+/* Selected Icon State (Inversion) */
 .option-card.selected .option-icon,
 .option-card-pill.selected .pill-icon-circle {
-    background-color: var(--opt-primary);
-    color: white;
+    background-color: var(--opt-primary); /* Solid color */
+    color: white; /* White glyph */
     transform: scale(1.05);
 }
 
-/* Labels within Pills */
+/* Text Label */
 .option-label, .pill-title {
     flex: 1;
     font-family: var(--font-data);
-    font-weight: 700;
+    font-weight: 800;
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #475569;
+    color: #475569; /* Slate 600 */
     line-height: 1.2;
     transition: color 0.2s;
 }
 
 .option-card.selected .option-label,
 .option-card-pill.selected .pill-title {
-    color: #0f172a;
+    color: #0f172a; /* Slate 900 (Darker) */
 }
 
 .pill-desc {
-    font-family: var(--font-body);
-    font-size: 0.7rem;
-    color: #64748b;
-    display: none; /* Hidden on standard, shown on Fork if needed */
+    display: none; /* Hide description in grid view to keep it clean */
 }
 
-/* Checkmark Badge */
+/* Checkmark Badge (Hidden until selected) */
 .option-card::after, .option-card-pill::after {
-    content: '\f00c'; 
+    content: '\f00c'; /* FA Check */
     font-family: "Font Awesome 6 Free"; 
     font-weight: 900;
     font-size: 0.9rem;
     color: var(--opt-primary);
     margin-right: 0.25rem;
+    
+    /* Animation */
     opacity: 0;
     transform: scale(0.5);
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .option-card.selected::after, .option-card-pill.selected::after {
@@ -1472,6 +1660,109 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 .embedded-spinner-wrapper .spinner-message { text-align: center; font-size: 1.1rem; width: 100%; }
 
 /* ================================================== */
+/* ===  17.11 WIZARD FORK & SPECIAL ACTIONS       === */
+/* ================================================== */
+
+/* --- The Big "Generate" Button (Hero Action) --- */
+.wiz-btn-gen {
+    position: relative;
+    overflow: hidden; /* Contains the shimmer */
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+    border: none;
+    z-index: 10;
+}
+
+.wiz-btn-gen:hover {
+    transform: scale(1.03) translateY(-3px);
+    box-shadow: 0 15px 30px -5px rgba(0, 188, 212, 0.4); /* Glow effect */
+}
+
+.wiz-btn-gen:active {
+    transform: scale(0.98) translateY(0);
+}
+
+/* Shimmer Animation Element */
+.shimmer-effect {
+    position: absolute;
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%;
+    background: linear-gradient(to right, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+    transform: skewX(-20deg) translateX(-150%);
+    transition: transform 0.5s;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* Run shimmer on hover */
+.wiz-btn-gen:hover .shimmer-effect {
+    transform: skewX(-20deg) translateX(150%);
+    transition: transform 0.7s ease-in-out;
+}
+
+/* --- Optional "Fork" Pills (The Extra Precision Options) --- */
+.option-card-pill {
+    /* Layout */
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    
+    /* Skin */
+    background: #ffffff;
+    border: 2px solid #e2e8f0;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.option-card-pill:hover {
+    border-color: var(--opt-primary, #94a3b8);
+    background-color: #f8fafc;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.option-card-pill.selected {
+    background-color: color-mix(in srgb, var(--opt-primary) 6%, white);
+    border-color: var(--opt-primary);
+    box-shadow: 0 4px 15px -3px rgba(0,0,0,0.1);
+}
+
+.option-card-pill .pill-icon-circle {
+    background-color: #f1f5f9;
+    color: #94a3b8;
+    transition: all 0.2s ease;
+}
+
+.option-card-pill.selected .pill-icon-circle {
+    background-color: var(--opt-primary);
+    color: white;
+    transform: scale(1.1) rotate(-5deg);
+}
+
+.option-card-pill .pill-title {
+    font-family: var(--font-data);
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: #334155;
+    transition: color 0.2s;
+}
+
+.option-card-pill.selected .pill-title {
+    color: var(--opt-primary);
+}
+
+.option-card-pill .pill-desc {
+    font-family: var(--font-body);
+    font-weight: 500;
+}
+
+/* ================================================== */
 /* ========  SECTION 18: INPUTS & CONTROLS  ========= */
 /* ================================================== */
 
@@ -1518,7 +1809,7 @@ input[type="date"]:hover::-webkit-calendar-picker-indicator { opacity: 1; filter
 }
 
 /* ================================================== */
-/* ======  SECTION 21: ANIMATIONS (WIPE FX)  ======== */
+/* ======  SECTION 19: ANIMATIONS (WIPE FX)  ======== */
 /* ================================================== */
 
 .wipe-text-target { display: inline-block; position: relative; white-space: nowrap; will-change: clip-path; }

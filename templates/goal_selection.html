@@ -14,7 +14,7 @@
         <!-- Left: Input Display/Edit -->
         <div class="d-flex align-items-center gap-4">
            <div id="user-input-display-container">
-               <div class="font-data text-muted small text-uppercase letter-spacing-1 mb-1">Mission Parameter</div>
+               <div class="font-data text-muted small text-uppercase letter-spacing-1 mb-1"> POSSIBILITY </div>
                <div class="d-flex align-items-center gap-3">
                    <h2 class="font-brand text-dark m-0 user-input-display text-truncate" 
                        style="font-size: 2rem; max-width: 600px;" 
@@ -38,9 +38,9 @@
         <!-- Right: Actions -->
         <div class="d-flex gap-3">
              <button type="button" class="btn btn-sm btn-outline-primary font-data rounded-pill px-4" id="generate-new-goals">
-               <i class="fas fa-sync-alt me-2"></i> RE-CALCULATE
+               <i class="fas fa-sync-alt me-2"></i> GENERATE NEW GOALS
              </button>
-             <a href="{{ url_for('routes_bp.index') }}" class="btn btn-sm btn-light border font-data rounded-pill px-4">ABORT</a>
+             <a href="{{ url_for('routes_bp.index') }}" class="btn btn-sm btn-light border font-data rounded-pill px-4">START OVER</a>
         </div>
       </div>
 
@@ -50,7 +50,8 @@
         <!-- A. THE GALLERY GRID (Initial View) -->
         <div class="goal-grid" id="goalCardsContainer">
             {% for goal in goals %}
-               <div class="flip-card-wrapper {{ 'violation' if not goal.is_compliant else '' }}" 
+               <!-- FIX: Removed the stray closing bracket '>' that was cutting off attributes -->
+               <div class="flip-card-wrapper {% if not goal.is_compliant %}violation{% endif %}" 
                     data-card-id="goal-{{ loop.index0 }}"
                     data-card-title="{{ goal.title | e }}"
                     data-color-hue="{{ goal.color_hue | default(180) }}"

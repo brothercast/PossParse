@@ -13,8 +13,9 @@ from werkzeug.exceptions import BadRequest, NotFound
 from flask import Blueprint, render_template, request, flash, redirect, url_for, \
                     jsonify, make_response, current_app, send_from_directory
 
-# --- App Context ---
+# --- App Context & Stores ---
 from app import USE_DATABASE
+from store import ssol_store, cos_store # <--- Added for In-Memory Support
 
 # --- Data Models & Config ---
 from models import get_engine_and_session, SSOL, COS
@@ -58,7 +59,45 @@ async def teardown_request(exception=None):
     await cleanup_gemini_client()
 
 # ==============================================================================
-# 2. BASIC NAVIGATION & UTILITIES
+# 2. INTERNAL HELPERS (Data Persistence - Hybrid Support)
+# ==============================================================================
+
+def speculate_update_ssol_system_node_internal(ssol_id_str, key, value):
+    """
+    Updates the system_data JSON column directly from backend logic.
+    Handles both SQL and In-Memory stores.
+    """
+    ssol_id_str = str(ssol_id_str)
+    
+    if USE_DATABASE:
+        engine, session = get_engine_and_session()
+        try:
+            ssol = session.query(SSOL).get(UUID(ssol_id_str))
+            if ssol:
+                # SQLAlchemy requires reassignment of JSON types
+                current_data = dict(ssol.system_data or {})
+                current_data[key] = value
+                ssol.system_data = current_data
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            current_app.logger.error(f"Internal System Node Update Failed (DB): {e}")
+            session.rollback()
+            return False
+        finally:
+            session.close()
+    else:
+        # In-Memory Logic
+        if ssol_id_str in ssol_store:
+            current_data = ssol_store[ssol_id_str].get('system_data', {})
+            current_data[key] = value
+            ssol_store[ssol_id_str]['system_data'] = current_data
+            return True
+        return False
+
+# ==============================================================================
+# 3. BASIC NAVIGATION
 # ==============================================================================
 
 @routes_bp.route('/favicon.ico')
@@ -85,7 +124,7 @@ async def analyze_input_route():
     })
 
 # ==============================================================================
-# 3. GOAL SELECTION
+# 4. GOAL SELECTION WIZARD
 # ==============================================================================
 
 @routes_bp.route('/goal_selection', methods=['POST'])
@@ -114,169 +153,101 @@ async def goal_selection():
     return redirect(url_for('routes_bp.index'))
 
 # ==============================================================================
-# 4. OUTCOME GENERATION (The Bootstrapper)
+# 5. OUTCOME GENERATION (The Bootstrapper - POST)
 # ==============================================================================
 
 @routes_bp.route('/outcome', methods=['POST'])
 async def outcome():
     if request.method == 'POST':
-        # 1. EXTRACT FORM DATA
+        # 1. EXTRACT CORE IDENTITY
         selected_goal_text = request.form.get('selected_goal', '').strip()
         domain = request.form.get('domain', '').strip()
         selected_goal_title = request.form.get('selected_goal_title', '').strip()
         domain_icon = request.form.get('domain_icon', '').strip()
 
+        # 2. DYNAMICALLY EXTRACT SYSTEM PHYSICS
+        system_constraints = {}
+        
+        # Legacy
+        if request.form.get('system_operator'): system_constraints['OPERATOR'] = request.form.get('system_operator')
+        if request.form.get('system_horizon'): system_constraints['HORIZON'] = request.form.get('system_horizon')
+        if request.form.get('system_budget'): system_constraints['BUDGET'] = request.form.get('system_budget')
+
+        # Dynamic
+        for node_key in SYSTEM_NODES.keys():
+            val = request.form.get(node_key)
+            if val and node_key not in system_constraints:
+                system_constraints[node_key] = val
+
         if not selected_goal_text:
-            flash("No goal selected. Please try again.", "error")
+            flash("No goal selected.", "error")
             return redirect(url_for('routes_bp.index'))
             
         try:
             current_app.logger.info(f"Initializing Outcome for: {selected_goal_title}")
+            current_app.logger.info(f"Applying Physics: {system_constraints}")
 
-            # ------------------------------------------------------------------
-            # 2. GENERATE INTELLIGENCE (Structure + System Nodes)
-            # ------------------------------------------------------------------
+            # 3. GENERATE INTELLIGENCE
             structured_solution_json = await generate_outcome_data(
                 ssol_title=selected_goal_title, 
                 ssol_description=selected_goal_text, 
-                domain=domain
+                domain=domain,
+                forced_constraints=system_constraints 
             )
             
-            raw_summary = structured_solution_json.get('ssolsummary', 'Analysis pending...')
-            # Apply Formatting (Magic Parsing for System Tags)
-            ssol_summary = format_ssol_text(raw_summary)
-            
-            ai_system_params = structured_solution_json.get('system_params', {})
+            ai_params = structured_solution_json.get('system_params', {})
+            final_system_data = {**ai_params, **system_constraints}
 
-            # ------------------------------------------------------------------
-            # 3. CREATE SSOL CONTAINER
-            # ------------------------------------------------------------------
+            # 4. CREATE SSOL CONTAINER
+            # This creates the ID. speculate_create_ssol handles USE_DATABASE internally.
             ssol_id_str = speculate_create_ssol(
                 USE_DATABASE, 
                 selected_goal_title, 
                 selected_goal_text, 
-                domain=domain
+                domain=domain,
+                system_data=final_system_data 
             )
             ssol_id_uuid = UUID(ssol_id_str)
 
-            # ------------------------------------------------------------------
-            # 4. BOOTSTRAP SYSTEM NODES (DB Save)
-            # ------------------------------------------------------------------
-            if USE_DATABASE:
-                engine, session = get_engine_and_session()
-                try:
-                    ssol_obj = session.query(SSOL).get(ssol_id_uuid)
-                    if ssol_obj:
-                        ssol_obj.system_data = ai_system_params
-                        if 'OPERATOR' in ai_system_params:
-                            ssol_obj.owner = ai_system_params['OPERATOR']
-                        session.commit()
-                        current_app.logger.info("Saved inferred System Nodes to DB.")
-                except Exception as db_e:
-                    current_app.logger.error(f"Failed to save System Data: {db_e}")
-                finally:
-                    session.close()
-
-            # ------------------------------------------------------------------
-            # 5. CREATE PHASES & CONDITIONS (Refactored for Reliability)
-            # ------------------------------------------------------------------
-            phases_for_template = {}
-            
+            # 5. CREATE PHASES & CONDITIONS
             if 'phases' in structured_solution_json:
                 for phase_name, cos_items in structured_solution_json['phases'].items():
-                    phases_for_template[phase_name] = []
-                    
                     for cos_content_with_tags in cos_items:
                         if not cos_content_with_tags: continue
-                            
                         try:
-                            # CREATE AND GET DATA IN ONE SHOT
-                            cos_data = await speculate_create_cos(
+                            await speculate_create_cos(
                                 USE_DATABASE, 
                                 ssol_id=ssol_id_uuid, 
                                 content=cos_content_with_tags, 
                                 status='Proposed'
                             )
-                            
-                            if cos_data:
-                                phases_for_template[phase_name].append(cos_data)
-                            else:
-                                current_app.logger.warning(f"COS creation returned empty data for phase {phase_name}")
-                                    
                         except Exception as cos_err:
                             current_app.logger.error(f"Error generating COS: {cos_err}")
 
-            # ------------------------------------------------------------------
-            # 6. RENDER COMMAND DECK UI (Visuals)
-            # ------------------------------------------------------------------
-            # We build the master list, then pass it to the single render function.
-            deck_params_list = []
-            
-            # A. Prepare Horizon (Default 1 year)
-            import datetime
-            default_horizon = (datetime.date.today() + datetime.timedelta(days=365)).strftime('%Y-%m-%d')
-            deck_params_list.append({
-                'type': 'HORIZON', 
-                'id': f'horizon_{ssol_id_str}', 
-                'value': default_horizon 
-            })
-            
-            # B. Prepare System Anchors
-            for key, val in ai_system_params.items():
-                if key in SYSTEM_NODES and key != 'HORIZON':
-                    deck_params_list.append({
-                        'type': key,
-                        'id': f'sys_{key}_{str(uuid.uuid4())[:8]}',
-                        'value': val
-                    })
-
-            # C. Render Components
-            # render_command_deck returns {'horizon_html': ..., 'sidebar_html': ...}
-            components = render_command_deck(deck_params_list) 
-            
-            gauge_html = components['horizon_html']
-            pills_html = components['sidebar_html']
-            
-            config_modal = render_system_config_modal()
-
-            # ------------------------------------------------------------------
-            # 7. ASYNC IMAGE GENERATION
-            # ------------------------------------------------------------------
+            # 6. ASYNC IMAGE GENERATION
             try:
                 image_prompt = f"""
                 A vibrant, isometric, mid-century retro illustration of '{selected_goal_title}: {selected_goal_text}' 
-                fulfilled. Style: 1950s Popular Science magazine cover meets Nary Blair.
-                Characteristics: 
-                Saturated technicolor palette (#ff7043;- Coral, #26c6da- Cyan, #ab47bc- Purple, #ffa726;- Amber, #66bd0e - Green), 
-                painterly lithograph texture,
-                idealized realism, optimistic composition. No text.
+                fulfilled. Context: {domain}. Style: 1950s Popular Science magazine cover meets Mary Blair.
+                Characteristics: Saturated technicolor palette (#ff7043, #26c6da, #ab47bc, #ffa726), 
+                painterly lithograph texture, idealized realism, optimistic composition. No text.
                 """
                 await generate_image(image_prompt, ssol_id_str)
             except Exception as e:
                 current_app.logger.warning(f"Image gen trigger failed: {e}")
 
-            # ------------------------------------------------------------------
-            # 8. FINAL RENDER
-            # ------------------------------------------------------------------
-            outcome_data = {
-                'ssol_id': ssol_id_str,
-                'ssol_title': selected_goal_title,
-                'selected_goal': selected_goal_text,
-                'domain': domain,
-                'domain_icon': domain_icon,
-                'ssol_summary': ssol_summary,
-                'phases': phases_for_template
-            }
+            # 7. SAVE ARTIFACTS & REDIRECT
+            
+            # A. Save Raw Summary
+            raw_ai_summary = structured_solution_json.get('ssolsummary', '')
+            speculate_update_ssol_system_node_internal(ssol_id_str, 'raw_summary', raw_ai_summary)
+            
+            # B. Save Domain Icon
+            if domain_icon:
+                speculate_update_ssol_system_node_internal(ssol_id_str, 'domain_icon', domain_icon)
 
-            return render_template(
-                'outcome.html', 
-                ssol=outcome_data, 
-                nodes=NODES, 
-                ssol_id=ssol_id_str,
-                horizon_gauge_html=gauge_html,
-                system_pills_html=pills_html,
-                system_config_modal_html=config_modal
-            )
+            # C. Redirect to GET route (Persists ID)
+            return redirect(url_for('routes_bp.view_ssol', ssol_id=ssol_id_str))
 
         except Exception as e:
             current_app.logger.error(f"CRITICAL error in /outcome: {e}", exc_info=True)
@@ -286,204 +257,254 @@ async def outcome():
     return redirect(url_for('routes_bp.index'))
 
 # ==============================================================================
-# 5. INTELLIGENCE & CONFIG
+# 6. OUTCOME VISUALIZATION (The Console Loader - GET)
 # ==============================================================================
-@routes_bp.route('/update_ssol_system_node', methods=['POST'])
-def update_ssol_system_node():
-    """
-    Updates a specific System Parameter (Anchor) for an SSOL.
-    Handles distinct logic for Core columns (Horizon/Owner) vs. JSON Metadata.
-    """
-    data = request.get_json()
-    ssol_id = data.get('ssol_id')
-    key = data.get('key')   # e.g., 'BUDGET', 'HORIZON', 'OPERATOR'
-    value = data.get('value') # The new value
 
-    # 1. Input Validation
-    if not ssol_id or not key:
-        return jsonify({'success': False, 'error': 'Missing SSOL ID or Node Key'}), 400
-
-    engine, session = get_engine_and_session()
+@routes_bp.route('/ssol/<uuid:ssol_id>', methods=['GET'])
+def view_ssol(ssol_id):
+    """
+    Re-hydrates the SSPEC Dashboard.
+    Supports both SQL and In-Memory modes via Hybrid Logic.
+    """
     
-    try:
-        # 2. Fetch SSOL Container
-        ssol = session.query(SSOL).get(UUID(ssol_id))
-        if not ssol:
-            return jsonify({'success': False, 'error': 'SSOL not found'}), 404
-
-        # 3. Node-Specific Logic
-        
-        # --- A. HORIZON (Time) ---
-        # Maps to the SQL 'target_date' column for sorting/filtering
-        if key == 'HORIZON':
-            try:
-                # Attempt to parse standard HTML date format YYYY-MM-DD
-                from datetime import datetime
-                dt = datetime.strptime(value, '%Y-%m-%d').date()
-                ssol.target_date = dt
-                
-                # Also store in JSON for prompt injection consistency
-                current_data = dict(ssol.system_data or {})
-                current_data['HORIZON'] = value
-                ssol.system_data = current_data
-                
-            except (ValueError, TypeError):
-                # If user entered fuzzy text (e.g., "Q4 2025"), store in JSON only
-                current_data = dict(ssol.system_data or {})
-                current_data['HORIZON'] = value # Store the raw text
-                ssol.system_data = current_data
-        
-        # --- B. OPERATOR (Identity) ---
-        # Maps to the SQL 'owner' column
-        elif key == 'OPERATOR':
-            ssol.owner = value
-            # Dual-write to JSON for the Attenuation Layer (AI Context)
-            current_data = dict(ssol.system_data or {})
-            current_data['OPERATOR'] = value
-            ssol.system_data = current_data
+    ssol_data_payload = {}
+    all_cos_list = []
+    
+    # --- DATA FETCHING (Hybrid) ---
+    if USE_DATABASE:
+        engine, session = get_engine_and_session()
+        try:
+            ssol_obj = session.query(SSOL).get(ssol_id)
+            if not ssol_obj:
+                flash("Structured Solution not found.", "error")
+                return redirect(url_for('routes_bp.index'))
             
-        # --- C. GENERIC SYSTEM NODES (Budget, Scale, Directive, etc.) ---
-        # Stored purely in the JSONB 'system_data' column
-        else:
-            # We must cast to dict and reassign to trigger SQLAlchemy change tracking
-            current_data = dict(ssol.system_data or {})
-            current_data[key] = value
-            ssol.system_data = current_data
+            # Populate basic data
+            ssol_data_payload = ssol_obj.to_dict() # Helper creates dict
+            # Add dynamic field fallback
+            ssol_data_payload['system_data'] = ssol_obj.system_data or {}
+            
+            # Fetch COS
+            all_cos_list = [c.to_dict() for c in ssol_obj.cos]
+            
+        except Exception as e:
+            current_app.logger.error(f"DB Error viewing SSOL: {e}")
+            flash("Database Error.", "error")
+            return redirect(url_for('routes_bp.index'))
+        finally:
+            session.close()
+    else:
+        # IN-MEMORY LOGIC
+        ssol_id_str = str(ssol_id)
+        raw_ssol = ssol_store.get(ssol_id_str)
+        
+        if not raw_ssol:
+            flash("Structured Solution not found (In-Memory).", "error")
+            return redirect(url_for('routes_bp.index'))
+            
+        ssol_data_payload = raw_ssol.copy()
+        if 'system_data' not in ssol_data_payload:
+            ssol_data_payload['system_data'] = {}
+            
+        # Manually filter COS for this SSOL
+        all_cos_list = [c for c in cos_store.values() if c['ssol_id'] == ssol_id_str]
 
-        # 4. Commit Transaction
-        session.commit()
-        current_app.logger.info(f"Updated System Node '{key}' for SSOL {ssol_id}")
-        return jsonify({'success': True})
+    # --- UI REHYDRATION (Common Logic) ---
+    try:
+        # 1. Command Deck
+        deck_params_list = []
+        sys_data = ssol_data_payload.get('system_data', {})
+        
+        for key, val in sys_data.items():
+            if key in SYSTEM_NODES:
+                deck_params_list.append({
+                    'type': key,
+                    'id': f'sys_{key}_{str(ssol_id)}',
+                    'value': val
+                })
+        
+        if not any(p['type'] == 'HORIZON' for p in deck_params_list):
+             deck_params_list.append({'type': 'HORIZON', 'id': 'horizon_def', 'value': 'Unset'})
+
+        components = render_command_deck(deck_params_list)
+        config_modal = render_system_config_modal()
+
+        # 2. Executive Charter
+        raw_summary = sys_data.get('raw_summary', ssol_data_payload.get('description', ""))
+        formatted_summary = format_ssol_text(raw_summary, phase_index=0, system_data=sys_data)
+
+        # 3. Phase Grid Reconstruction
+        phases_ordered = ['Discovery', 'Engagement', 'Action', 'Completion', 'Legacy']
+        phases_map = {p: [] for p in phases_ordered}
+        
+        if all_cos_list:
+            chunk_size = max(1, len(all_cos_list) // 5)
+            cos_iter = iter(all_cos_list)
+            
+            for i, phase in enumerate(phases_ordered):
+                if i == 4:
+                    phases_map[phase] = list(cos_iter)
+                else:
+                    items = []
+                    try:
+                        for _ in range(chunk_size): items.append(next(cos_iter))
+                    except StopIteration: pass
+                    phases_map[phase] = items
+
+        # 4. Final Payload Overrides
+        ssol_data_payload['ssol_summary'] = formatted_summary
+        ssol_data_payload['selected_goal'] = ssol_data_payload.get('description')
+        ssol_data_payload['ssol_title'] = ssol_data_payload.get('title')
+        
+        if 'domain_icon' in sys_data:
+            ssol_data_payload['domain_icon'] = sys_data['domain_icon']
+        elif 'domain_icon' not in ssol_data_payload:
+            ssol_data_payload['domain_icon'] = "fas fa-cube"
+
+        return render_template(
+            'outcome.html',
+            ssol=ssol_data_payload,
+            ssol_id=str(ssol_id),
+            phases=phases_map, # Pass explicitly if template expects it separate
+            horizon_gauge_html=components['horizon_html'],
+            system_pills_html=components['sidebar_html'],
+            system_config_modal_html=config_modal
+        )
 
     except Exception as e:
-        # 5. Safety Rollback
-        session.rollback()
-        current_app.logger.error(f"DB Transaction Failed in update_ssol_system_node: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
-        
-    finally:
-        session.close()
+        current_app.logger.error(f"Template Rendering Error: {e}", exc_info=True)
+        flash("Error rendering solution.", "error")
+        return redirect(url_for('routes_bp.index'))
+
+# ==============================================================================
+# 7. SYSTEM CONFIG & SPECULATION APIs
+# ==============================================================================
+
+@routes_bp.route('/update_ssol_system_node', methods=['POST'])
+def update_ssol_system_node():
+    data = request.get_json()
+    ssol_id = data.get('ssol_id')
+    key = data.get('key')   
+    value = data.get('value') 
+
+    if not ssol_id or not key:
+        return jsonify({'success': False, 'error': 'Missing ID/Key'}), 400
+
+    # Hybrid Logic for Update
+    if USE_DATABASE:
+        engine, session = get_engine_and_session()
+        try:
+            ssol = session.query(SSOL).get(UUID(ssol_id))
+            if not ssol: return jsonify({'success': False}), 404
+
+            # Specific column updates vs JSON updates
+            current_data = dict(ssol.system_data or {})
+            
+            if key == 'HORIZON':
+                try:
+                    dt = datetime.strptime(value, '%Y-%m-%d').date()
+                    ssol.target_date = dt
+                except: pass
+                current_data['HORIZON'] = value
+            elif key == 'OPERATOR':
+                ssol.owner = value
+                current_data['OPERATOR'] = value
+            else:
+                current_data[key] = value
+                
+            ssol.system_data = current_data
+            session.commit()
+            return jsonify({'success': True})
+        except Exception as e:
+            session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+        finally:
+            session.close()
+    else:
+        # In-Memory Update
+        if ssol_id in ssol_store:
+            ssol = ssol_store[ssol_id]
+            current_data = ssol.get('system_data', {})
+            current_data[key] = value
+            
+            if key == 'HORIZON': ssol['target_date'] = value
+            if key == 'OPERATOR': ssol['owner'] = value
+            
+            ssol['system_data'] = current_data
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'error': 'Not Found'}), 404
         
 @routes_bp.route('/speculate_context', methods=['POST'])
 async def speculate_context_route():
     try:
         data = request.get_json()
         ce_type = data.get('ce_type', 'Default')
-        context = data.get('context') # e.g., 'prerequisites', 'narrative', 'stakeholders'
-        sub_context = data.get('sub_context', '') # e.g., 'summary' for narrative fields
+        context = data.get('context') 
+        sub_context = data.get('sub_context', '') 
         cos_text = data.get('cos_text', '')
         ssol_id = data.get('ssol_id')
         
-        # 1. ATTENUATION LAYER (The "Telepathy" / System Physics)
-        # This injects the global constraints (Budget, Timeline, Ethics) into the local prompt.
+        # 1. ATTENUATION LAYER
         system_instructions = []
         
-        if ssol_id and USE_DATABASE:
-            engine, session = get_engine_and_session()
-            try:
-                # Handle UUID conversion safely
-                ssol_uuid = UUID(str(ssol_id))
-                ssol = session.query(SSOL).get(ssol_uuid)
-                
-                if ssol:
-                    current_app.logger.info(f"Applying Attenuation for SSOL {ssol_id}")
-                    
-                    # A. Core Constraints
-                    if ssol.target_date:
-                        system_instructions.append(f"TEMPORAL CONSTRAINT: Hard deadline is {ssol.target_date}. All generated roadmaps, lead times, and resource acquisitions must mathematically fit within this window.")
-                    if ssol.owner:
-                        system_instructions.append(f"OPERATOR CONTEXT: The acting entity is '{ssol.owner}'. Suggest resources accessible to this specific type of entity.")
-                    
-                    # B. System Nodes (The Physics)
-                    if ssol.system_data:
-                        active_physics = []
-                        for key, val in ssol.system_data.items():
-                            config = SYSTEM_NODES.get(key)
-                            # Check if this system node has a prompt injection rule
-                            if config and 'prompt_injection' in config and val:
-                                instruction = config['prompt_injection'].format(value=val)
-                                system_instructions.append(instruction)
-                                active_physics.append(key)
-                        
-                        if active_physics:
-                            current_app.logger.info(f"Active Physics Nodes applied: {active_physics}")
+        # Hybrid Fetch for Context
+        ssol_context = {}
+        if ssol_id:
+            if USE_DATABASE:
+                engine, session = get_engine_and_session()
+                try:
+                    obj = session.query(SSOL).get(UUID(str(ssol_id)))
+                    if obj: 
+                        ssol_context = {'target_date': obj.target_date, 'owner': obj.owner, 'system_data': obj.system_data}
+                finally:
+                    session.close()
+            else:
+                ssol_context = ssol_store.get(str(ssol_id), {})
 
-            except Exception as db_e:
-                current_app.logger.warning(f"Attenuation Layer skipped (DB Error): {db_e}")
-            finally:
-                session.close()
+        # Build Physics Block
+        if ssol_context:
+            if ssol_context.get('target_date'):
+                system_instructions.append(f"TEMPORAL: Hard deadline {ssol_context['target_date']}.")
+            if ssol_context.get('owner'):
+                system_instructions.append(f"OPERATOR: Entity is '{ssol_context['owner']}'.")
+            if ssol_context.get('system_data'):
+                for key, val in ssol_context['system_data'].items():
+                    config = SYSTEM_NODES.get(key)
+                    if config and 'prompt_injection' in config and val:
+                        system_instructions.append(config['prompt_injection'].format(value=val))
 
-        global_context_block = "\n".join(system_instructions)
-        if not global_context_block:
-            global_context_block = "CONTEXT: Standard operating procedure. No specific constraints defined."
-        else:
-            # Debug log to verify that physics are being injected
-            current_app.logger.debug(f"*** ATTENUATION BLOCK ***\n{global_context_block}\n*************************")
+        global_context_block = "\n".join(system_instructions) or "Standard procedures apply."
 
-        # 2. NODE-SPECIFIC PROMPT ASSEMBLY
-        # Resolve the specific "Job to be Done" based on the Node Type
+        # 2. PROMPT & EXECUTE
         node_config = NODES.get(ce_type, NODES['Default'])
         prompts_map = node_config.get('prompts', {})
         default_prompts = NODES['Default'].get('prompts', {})
         
-        system_inst_for_ai = "You are the SSPEC Speculation Engine. Act as an expert strategic logic processor."
-
         if context == 'narrative':
-            # Narrative Mode: Generating text for a specific field (e.g. Executive Summary)
             base_prompt = prompts_map.get('narrative', default_prompts.get('narrative'))
             prompt_content = base_prompt.format(cos_text=cos_text, field=sub_context, node_type=ce_type)
-            
-            # Combine Physics + Task
-            final_prompt = f"*** SYSTEM PHYSICS (NON-NEGOTIABLE CONSTRAINTS) ***\n{global_context_block}\n\n*** SPECIFIC TASK ***\n{prompt_content}"
-            system_inst_for_ai += " Return strictly JSON in this format: { \"text\": \"...\" }. Keep the tone professional, engineered, and action-oriented. Avoid fluff."
-            
+            final_prompt = f"*** SYSTEM PHYSICS ***\n{global_context_block}\n\n*** TASK ***\n{prompt_content}"
         else:
-            # Collection Mode: Generating arrays of items (Prereqs, Stakeholders, etc.)
-            base_prompt = prompts_map.get(context, default_prompts.get(context))
-            
-            # Fallback if specific prompt missing
-            if not base_prompt:
-                base_prompt = f"Analyze '{cos_text}'. List 3 items for {context}."
-            
-            # Handle empty context (Start of project)
-            if not cos_text or cos_text == "Project Goal":
-                 base_prompt += " (Infer context primarily from the System Physics provided)."
-
+            base_prompt = prompts_map.get(context, default_prompts.get(context)) or f"Analyze '{cos_text}'. List 3 items for {context}."
             prompt_content = base_prompt.format(cos_text=cos_text)
-            
-            # Combine Physics + Task
-            final_prompt = f"*** SYSTEM PHYSICS (NON-NEGOTIABLE CONSTRAINTS) ***\n{global_context_block}\n\n*** SPECIFIC TASK ***\n{prompt_content}"
-            system_inst_for_ai += " Return a valid JSON array of objects. Do not wrap in markdown code blocks."
+            final_prompt = f"*** SYSTEM PHYSICS ***\n{global_context_block}\n\n*** TASK ***\n{prompt_content}"
 
-        # 3. EXECUTE ENGINE
         ai_response = await generate_chat_response(
             messages=[{"role": "user", "content": final_prompt}], 
             role="SSPEC Engine", 
             task=f"{ce_type}-{context}",
-            system_instruction=system_inst_for_ai,
+            system_instruction="You are the SSPEC Speculation Engine. Return pure JSON.",
             temperature=0.75 
         )
         
-        # 4. PARSE & RETURN
         clean_json = ai_response.replace("```json", "").replace("```", "").strip()
         parsed = json.loads(clean_json)
 
         if context == 'narrative':
-            # Narrative returns a single text string
             txt = parsed.get('text', '') if isinstance(parsed, dict) else str(parsed)
             return jsonify({'success': True, 'text': txt, 'field': sub_context})
         else:
-            # Collections return a list of suggestions
-            suggestions = []
-            if isinstance(parsed, dict):
-                # Handle case where AI wraps array in a key like {"items": [...]}
-                for key, val in parsed.items():
-                    if isinstance(val, list):
-                        suggestions = val
-                        break
-            elif isinstance(parsed, list):
-                suggestions = parsed
-                
+            suggestions = parsed if isinstance(parsed, list) else parsed.get('items', [])
             return jsonify({'success': True, 'suggestions': suggestions, 'context': context})
 
     except Exception as e:
@@ -491,7 +512,7 @@ async def speculate_context_route():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # ==============================================================================
-# 7. CORE CRUD & EXPORT 
+# 8. CORE CRUD & MODAL APIs
 # ==============================================================================
 
 @routes_bp.route('/get_ce_modal/<string:ce_type>', methods=['POST'])
@@ -501,31 +522,22 @@ async def get_ce_modal_route(ce_type):
         ce_id_str = data.get('ce_id')
         ce_text = data.get('ce_text', 'Conditional Element')
         
-        # Ensure we have a valid UUID object for DB lookup, but keep string for fallback
         ce_id_obj = None
         if ce_id_str:
-            try:
-                ce_id_obj = UUID(ce_id_str)
-            except ValueError:
-                pass # Handle non-UUID strings if necessary
+            try: ce_id_obj = UUID(ce_id_str)
+            except ValueError: pass
 
-        # Fetch Data
         ce_data = speculate_get_ce_by_id(USE_DATABASE, ce_id_obj) if ce_id_obj else {}
         
-        # Initialize structure if missing
         if not ce_data or 'data' not in ce_data:
-            # Ensure the ID in the fallback dict is a STRING
             ce_data = {'id': str(ce_id_str) if ce_id_str else 'new_ce', 'node_type': ce_type, 'data': {
                 'details_data': {}, 'resources': [], 'prerequisites': [], 'stakeholders': [], 'assumptions': [], 'connections': []
             }}
 
         node_config = NODES.get(ce_type, NODES['Default'])
         cos_content_html = data.get('cos_content', '')
-        
-        # Strip HTML to feed plain text to AI
         cos_text_only = BeautifulSoup(cos_content_html, 'html.parser').get_text(separator=' ', strip=True)
         
-        # Get context summary
         ai_generated_data = await generate_ai_data(ce_type, cos_text_only, data.get('ssol_goal', ''), 'context')
 
         modal_html = await generate_dynamic_modal(
@@ -535,7 +547,6 @@ async def get_ce_modal_route(ce_type):
         )
         return jsonify(modal_html=modal_html, ce_data=ce_data)
     except Exception as e:
-        # Improved error logging to catch these issues in console
         current_app.logger.error(f"Error generating CE Modal: {e}", exc_info=True)
         return jsonify(error=str(e)), 500
 
@@ -549,8 +560,9 @@ def update_ce_route(ce_id):
 async def create_cos_route():
     try:
         data = request.get_json()
+        ssol_uuid_obj = UUID(data['ssol_id'])
         cos_data = await speculate_create_cos(
-            USE_DATABASE, UUID(data['ssol_id']), data['content'], 
+            USE_DATABASE, ssol_uuid_obj, data['content'], 
             data.get('status', 'Proposed'), data.get('accountable_party'), data.get('completion_date')
         )
         if cos_data: return jsonify(success=True, cos=cos_data), 201
