@@ -105,14 +105,27 @@ SYSTEM_SIDEBAR_STACK_TEMPLATE = """
         </div>
         
         <!-- Content -->
-        <div class="sys-meta-col">
+        <div class="sys-meta-col" style="overflow: hidden;">
             <div class="sys-label">
                 {{ param.label }}
-                {% if param.status == 'SUGGESTED' or loop.index == 1 %}
+                {% if param.status == 'SUGGESTED' %}
                 <span class="badge-suggested ms-2"><i class="fas fa-sparkles"></i> SUGGESTED</span>
                 {% endif %}
             </div>
-            <span class="sys-value">{{ param.value }}</span>
+            
+            <!-- LOGIC: If it contains commas, render as pills. Else, text. -->
+            {% if ',' in param.value and param.type not in ['OPERATOR', 'BUDGET'] %} 
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                    {% for tag in param.value.split(',') %}
+                    <span class="badge border font-body fw-bold text-dark" 
+                          style="background-color: rgba(255,255,255,0.7); font-size: 0.65rem;">
+                        {{ tag.strip() }}
+                    </span>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <span class="sys-value text-truncate d-block">{{ param.value }}</span>
+            {% endif %}
         </div>
     </div>
     {% endfor %}

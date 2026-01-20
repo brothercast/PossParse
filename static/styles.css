@@ -113,28 +113,40 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 /* ================================================== */
 
 .horizon-wrapper {
-  padding: clamp(1rem, 2vw, 2rem);
-  height: 100vh; /* Lock to viewport */
+  /* 1. Geometry */
+  padding: 0 1rem 1rem 1rem;
+  height: calc(100vh - 120px); 
+  width: 100%; /* Ensure the wrapper itself spans the screen */
+  
+  /* 2. Flexbox Centering */
   display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden; /* Prevent body scroll */
+  flex-direction: column;
+  justify-content: center; /* Centers Vertically */
+  align-items: center;     /* Centers Horizontally (THE FIX) */
+  
+  overflow: hidden;
 }
 
 .console-housing {
+  /* 4. Fill the calculated wrapper exactly */
+  height: 100%; 
+  width: 100%;
+  max-width: 1440px;
+  
+  /* Visuals */
   background-color: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(24px);
   background-image: radial-gradient(#94a3b8 1.5px, transparent 1.5px);
   background-size: 24px 24px;
   border-radius: 24px;
   box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15);
-  width: 98%;
-  max-width: 1440px;
-  height: 90vh; /* Fixed height for the housing */
-  margin: 0 auto;
   border: 1px solid rgba(255,255,255,0.8);
+  
+  /* Layout Internals */
   position: relative;
   overflow: hidden;
+  display: flex;        /* Ensure holy grail layout for internal footer */
+  flex-direction: column; 
 }
 
 .brand-strip {
@@ -238,13 +250,14 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 /* --- 7.1 STAGE VIEWPORT --- */
 #stage-viewport {
     position: relative;
-    flex: 1;
-    min-height: 0;
+    flex: 1;       /* Grow to fill available space */
+    min-height: 0; /* Critical for nested flex scrolling */
     width: 100%;
-    overflow: hidden; 
+    overflow-y: auto; /* Enable internal scroll if cards are too tall */
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
-    padding: 2rem;
+    padding: 1rem 2rem; /* Reduced padding */
 }
 
 #stage-viewport::-webkit-scrollbar { display: none; }
@@ -546,7 +559,9 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 }
 .btn-select-pill-large:hover { transform: translateY(-2px); box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.25); }
 
-/* --- 7.9 HERO CONTENT ELEMENTS (Config State) --- */
+/* ================================================== */
+/* =========  7.9 HERO CONTENT ELEMENTS   =========== */
+/* ================================================== */
 
 .hero-card-content { 
     position: relative; 
@@ -554,8 +569,7 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
     height: 100%; 
     display: flex; 
     flex-direction: column; 
-    /* Padding adjusted for new layout */
-    padding: 4.5rem 2.5rem 2.5rem 2.5rem; 
+    padding: 3rem 2.5rem 2.5rem 2.5rem; /* Tighter Top Padding */
     color: white; 
 }
 
@@ -570,148 +584,102 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
     z-index: 1; 
 }
 
-/* Return Button (Moved to absolute top-left for cleaner flow) */
+/* Return Button */
 .hero-return-button {
     position: absolute; 
     top: 1.5rem; 
     left: 2.5rem;
     z-index: 50; 
-    display: flex; 
-    align-items: center; 
-    gap: 0.5rem;
+    display: flex; align-items: center; gap: 0.5rem;
     color: rgba(255, 255, 255, 0.6); 
-    font-family: var(--font-data); 
-    font-size: 0.7rem;
-    font-weight: 800; 
-    letter-spacing: 0.15em; 
-    text-transform: uppercase;
-    background: none; 
-    border: none; 
-    padding: 0; 
-    cursor: pointer; 
-    transition: all 0.2s ease;
+    font-family: var(--font-data); font-size: 0.7rem; font-weight: 800; 
+    letter-spacing: 0.15em; text-transform: uppercase;
+    background: none; border: none; padding: 0; 
+    cursor: pointer; transition: all 0.2s ease;
 }
 .hero-return-button:hover { color: white; transform: translateX(-5px); }
 
-/* --- HEADER GROUP (Domain & Title) --- */
+/* Header Group */
 .hero-header-group {
     margin-bottom: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start; /* Left Align */
+    display: flex; flex-direction: column; align-items: flex-start;
     width: 100%;
 }
 
 .hero-domain-label {
-    font-family: var(--font-data);
-    font-size: 0.65rem;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
+    font-family: var(--font-data); font-size: 0.65rem;
+    letter-spacing: 0.2em; text-transform: uppercase;
     color: rgba(255, 255, 255, 0.5);
-    margin-bottom: 0.5rem;
-    display: block;
-    text-align: left;
+    margin-bottom: 0.5rem; display: block; text-align: left;
     border-bottom: 1px solid rgba(255,255,255,0.2);
-    width: 100%;
-    padding-bottom: 4px;
+    width: 100%; padding-bottom: 4px;
 }
 
-/* Remove old centered pseudo-element if it exists */
-.hero-domain-label::after { display: none; }
-
+/* --- UPDATED: INVERTED DOMAIN PILL --- */
 .hero-domain-pill {
     position: relative; 
     z-index: 10; 
-    display: inline-flex; 
-    align-items: center; 
-    gap: 0.75rem;
-    background: white; 
+    display: inline-flex; align-items: center; gap: 0.75rem;
+    
+    /* Saturated Background / White Text */
+    background: var(--active-theme-color); 
+    color: white; 
+    
     border-radius: 50px; 
     padding: 0.5rem 1.25rem;
     margin-top: 0.25rem;
-    width: auto; 
-    min-width: 160px;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-    border: 2px solid rgba(255,255,255,0.1);
+    width: auto; min-width: 160px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255,255,255,0.1);
 }
 
 .hero-domain-pill i { 
     font-size: 1.1rem; 
-    color: inherit; /* Inherits from inline style set by JS */
+    color: rgba(255,255,255,0.9);
 }
 
 .hero-domain-pill span { 
-    font-family: var(--font-data);
-    font-size: 0.8rem; 
-    font-weight: 800; 
-    letter-spacing: 0.1em; 
-    color: inherit;
+    font-family: var(--font-data); font-size: 0.8rem; 
+    font-weight: 800; letter-spacing: 0.1em; 
+    color: white;
 }
 
+/* Hero Typography */
 .hero-title { 
-    position: relative; 
-    z-index: 10; 
+    position: relative; z-index: 10; 
     font-family: var(--font-brand); 
     font-size: clamp(1.8rem, 3.5vw, 2.5rem); 
-    line-height: 1.1; 
-    margin-bottom: 1.5rem; 
-    text-align: left;
+    line-height: 1.1; margin-bottom: 1.5rem; text-align: left;
 }
 
-/* --- DESCRIPTION BOX --- */
 .hero-desc-box { 
-    display: flex; 
-    gap: 1rem; 
-    margin-bottom: 2.5rem; 
-    position: relative; 
-    z-index: 20; 
+    display: flex; gap: 1rem; margin-bottom: 2.5rem; 
+    position: relative; z-index: 20; 
 }
-
 .hero-desc-accent { 
-    width: 4px; 
-    background-color: rgba(255,255,255,0.6); 
-    border-radius: 4px; 
-    flex-shrink: 0; 
+    width: 4px; background-color: rgba(255,255,255,0.6); 
+    border-radius: 4px; flex-shrink: 0; 
 }
-
 .hero-desc-text { 
-    font-family: var(--font-body); 
-    font-size: 1rem; 
-    line-height: 1.6; 
-    font-weight: 500; 
-    color: rgba(255,255,255,0.95); 
-    text-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+    font-family: var(--font-body); font-size: 1rem; 
+    line-height: 1.6; font-weight: 500; 
+    color: rgba(255,255,255,0.95); text-shadow: 0 1px 3px rgba(0,0,0,0.1); 
     text-align: left;
 }
 
-/* --- SYSTEM CONFIGURATION SECTION --- */
-#system-config-container {
-    width: 100%;
-    margin-top: 0; /* Let it flow naturally */
-}
-
+/* System Config Stack */
+#system-config-container { width: 100%; margin-top: 0; }
 .sys-config-label {
-    font-family: var(--font-data);
-    font-size: 0.65rem;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
+    font-family: var(--font-data); font-size: 0.65rem;
+    letter-spacing: 0.2em; text-transform: uppercase;
     color: rgba(255, 255, 255, 0.5);
     border-bottom: 1px solid rgba(255,255,255,0.2); 
-    padding-bottom: 4px;
-    margin-bottom: 1rem;
-    text-align: left;
-    display: block;
-    width: 100%;
+    padding-bottom: 4px; margin-bottom: 1rem;
+    text-align: left; display: block; width: 100%;
 }
-
 #sys-pill-stack { 
-    display: flex; 
-    flex-direction: column; 
-    gap: 0.6rem; 
-    align-items: flex-start; 
-    width: 100%; 
-    position: relative; 
-    z-index: 10;
+    display: flex; flex-direction: column; gap: 0.6rem; 
+    align-items: flex-start; width: 100%; position: relative; z-index: 10;
 }
 
 /* --- 7.10 CONFIG PANEL (Sliding Wizard) --- */
@@ -862,9 +830,13 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 /* ================================================== */
 .loading-spinner-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background-color: rgba(15, 23, 42, 0.2); backdrop-filter: blur(3px);
+    background-color: rgba(15, 23, 42, 0.4); backdrop-filter: blur(5px);
     display: flex; justify-content: center; align-items: center; 
-    z-index: 9999; transition: opacity 0.3s ease;
+    
+    /* CRITICAL: Must be higher than .horizon-system-bar (usually z-100) */
+    z-index: 10000; 
+    
+    transition: opacity 0.3s ease;
 }
 .loading-spinner-overlay.d-none { display: none !important; }
 
@@ -1336,87 +1308,241 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 /* ======  SECTION 17: WIZARD UI & SYSTEM PILLS   === */
 /* ================================================== */
 
-/* 17.1 Container Structure (The Anchor) */
+/* 17.1 Container Structure */
 .wizard-container {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 100%;
-    background: white;
-    overflow: hidden;
-    position: relative;
+    display: flex; flex-direction: column;
+    height: 100%; min-height: 100%;
+    background: white; overflow: hidden; position: relative;
     --active-theme-color: var(--aviation-teal); 
     --theme-light: rgba(0, 188, 212, 0.1);
 }
 
-/* 17.2 Header Area */
+/* 17.2 Header Area (Compressed) */
 .wizard-header {
-    padding: 2rem 2.5rem 0; 
-    flex-shrink: 0;
-    background: white;
-    z-index: 10;
+    padding: 1.5rem 2.5rem 0.5rem; /* Reduced bottom padding */
+    flex-shrink: 0; background: white; z-index: 10;
 }
+.wizard-header.hidden { display: none; }
 
-/* 17.3 Content Area (The Scrollable Middle) */
+/* 17.3 Content Area */
 .wizard-content {
-    flex: 1; 
-    overflow-y: auto; 
-    padding: 1rem 2.5rem; 
-    display: flex;
-    flex-direction: column;
-    justify-content: center; 
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 transparent;
+    flex: 1; overflow-y: auto; 
+    padding: 0.5rem 2.5rem; /* Tight vertical padding */
+    display: flex; flex-direction: column; justify-content: center; 
+    scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent;
 }
-
 .wizard-content::-webkit-scrollbar { width: 6px; }
 .wizard-content::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
 
-/* 17.4 The Footer (Pinned Bottom) */
+/* 17.4 The Footer (Compressed) */
 .wizard-footer {
-    flex-shrink: 0;
-    margin-top: auto;
-    padding: 1.5rem 2.5rem;
-    background: white;
-    border-top: 1px solid #f1f5f9;
-    z-index: 20;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 2rem;
+    flex-shrink: 0; margin-top: auto;
+    padding: 1rem 2.5rem 1.5rem; /* Tight vertical padding */
+    background: white; border-top: 1px solid #f1f5f9;
+    z-index: 20; display: flex; justify-content: space-between;
+    align-items: center; gap: 2rem;
 }
 
-/* 17.5 Breadcrumbs (Dots) */
-.wizard-progress-track {
-    display: flex;
-    gap: 0.5rem;
-}
-
+/* 17.5 Breadcrumbs */
+.wizard-progress-track { display: flex; gap: 0.5rem; }
 .wizard-step-dot {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    background: #e2e8f0;
-    transition: all 0.3s;
-    cursor: pointer;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #e2e8f0; transition: all 0.3s; cursor: pointer;
 }
-
-.wizard-step-dot.active {
-    background: var(--active-theme-color);
-    transform: scale(1.2);
-}
-
-.wizard-step-dot.completed {
-    background: var(--success);
-}
-
+.wizard-step-dot.active { background: var(--active-theme-color); transform: scale(1.2); }
+.wizard-step-dot.completed { background: var(--success); }
 .wizard-track-label {
-    font-family: var(--font-data);
-    font-size: 0.75rem;
-    color: #94a3b8;
-    margin-right: 1rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    font-family: var(--font-data); font-size: 0.75rem; color: #94a3b8;
+    margin-right: 1rem; text-transform: uppercase; letter-spacing: 1px;
 }
+
+/* =========================================
+   SECTION 17.6: STANDARD OPTION CARDS
+   ========================================= */
+
+.option-grid-compact {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 1rem; width: 100%; margin-bottom: 1rem; min-height: 0;
+}
+
+/* Base Interactive Card (Main Wizard) */
+.option-card {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.5rem 1rem; width: 100%;
+    min-height: 60px; /* Reduced Height for Density */
+    
+    background-color: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 999px; /* Capsule Shape */
+    
+    cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative; overflow: hidden; text-align: left;
+    
+    /* Dynamic Tint Logic */
+    --opt-primary: var(--active-theme-color);
+    background-color: color-mix(in srgb, var(--opt-primary) 3%, white);
+    border-color: color-mix(in srgb, var(--opt-primary) 15%, #e2e8f0);
+}
+
+.option-card:hover {
+    background-color: color-mix(in srgb, var(--opt-primary) 8%, white);
+    border-color: var(--opt-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.05); z-index: 2;
+}
+.option-card:active { transform: scale(0.98); }
+
+.option-card.selected {
+    background-color: color-mix(in srgb, var(--opt-primary) 12%, white);
+    border-color: var(--opt-primary);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), inset 0 0 0 1px var(--opt-primary);
+}
+
+.option-icon {
+    height: 2.5rem; width: 2.5rem; flex-shrink: 0;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background-color: color-mix(in srgb, var(--opt-primary) 15%, white);
+    color: var(--opt-primary); 
+    transition: all 0.2s; font-size: 1.1rem;
+}
+
+.option-card.selected .option-icon {
+    background-color: var(--opt-primary); color: white; transform: scale(1.05);
+}
+
+.option-label {
+    flex: 1; font-family: var(--font-data);
+    font-weight: 800; font-size: 0.8rem;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: #475569; line-height: 1.2; transition: color 0.2s;
+}
+.option-card.selected .option-label { color: #0f172a; }
+
+/* Checkmark Badge */
+.option-card::after {
+    content: '\f00c'; font-family: "Font Awesome 6 Free"; font-weight: 900;
+    font-size: 0.9rem; color: var(--opt-primary); margin-right: 0.25rem;
+    opacity: 0; transform: scale(0.5);
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.option-card.selected::after { opacity: 1; transform: scale(1); }
+
+
+/* =========================================
+   SECTION 17.11: FORK SCREEN & SYSTEM PILLS
+   ========================================= */
+
+/* The Fork "Generate" Button */
+.wiz-btn-gen {
+    position: relative; overflow: hidden;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+    border: none; z-index: 10;
+}
+.wiz-btn-gen:hover {
+    transform: scale(1.03) translateY(-3px);
+    box-shadow: 0 15px 30px -5px rgba(0, 188, 212, 0.4);
+}
+.wiz-btn-gen:active { transform: scale(0.98) translateY(0); }
+
+/* The "Precision" System Pills (Rounded & Detailed) */
+.option-card-pill {
+    /* Layout */
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    
+    /* Skin */
+    background: #ffffff;
+    border: 2px solid #e2e8f0;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    padding: 0.75rem 1rem; /* Slightly taller for breathing room */
+}
+
+.option-card-pill:hover {
+    border-color: var(--opt-primary, #94a3b8);
+    background-color: #f8fafc;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.option-card-pill.selected {
+    background-color: color-mix(in srgb, var(--opt-primary) 6%, white);
+    border-color: var(--opt-primary);
+    box-shadow: 0 4px 15px -3px rgba(0,0,0,0.1);
+}
+
+.option-card-pill .pill-icon-circle {
+    background-color: #f1f5f9;
+    color: #94a3b8;
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.option-card-pill.selected .pill-icon-circle {
+    background-color: var(--opt-primary);
+    color: white;
+    transform: scale(1.1);
+}
+
+.option-card-pill .pill-title {
+    font-family: var(--font-data);
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: #334155;
+    margin-bottom: 2px;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.option-card-pill.selected .pill-title {
+    color: var(--opt-primary);
+}
+
+.option-card-pill .pill-desc {
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 0.7rem; color: #64748b; line-height: 1.2;
+}
+
+/* --- THE RIGHT-ALIGNED CHECK INDICATOR --- */
+.pill-check-indicator {
+    width: 28px; 
+    height: 28px; 
+    border-radius: 50%;
+    border: 2px solid #cbd5e1; /* Unselected Gray Ring */
+    
+    /* Flexbox Magic: This pushes it to the far right */
+    margin-left: auto; 
+    
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    font-size: 0.8rem;
+    color: transparent; /* Hide checkmark when unselected */
+    background: white;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+}
+
+/* Selected State for Indicator */
+.option-card-pill.selected .pill-check-indicator {
+    background-color: var(--opt-primary);
+    border-color: var(--opt-primary);
+    color: white; /* Show checkmark */
+    transform: scale(1.1);
+}
+
+/* Hide the old ::after pseudo-element checkmark to avoid duplicates */
+.option-card-pill::after { display: none; }
 
 /* =========================================
    SECTION 17.6: SYSTEM PILL (OPTION CARD)
@@ -1437,9 +1563,9 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 1rem; /* Reduced padding */
     width: 100%;
-    min-height: 72px; /* Ensure touch target size */
+    min-height: 60px;
     
     /* Shape & Skin */
     background-color: white; /* Fallback */
@@ -1768,44 +1894,135 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 
 /* 18.1 General */
 .form-select, .form-control { cursor: pointer; }
-.hover-lift {
-    transition: transform 0.2s, box-shadow 0.2s;
-    will-change: transform, box-shadow;
+.hover-lift { transition: transform 0.2s, box-shadow 0.2s; will-change: transform, box-shadow; }
+.hover-lift:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.08); }
+
+/* --- 18.2 HERO TIMELINE WRAPPER (Replaces old Date Picker) --- */
+.timeline-hero-wrapper {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 24px;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.05);
+    margin-bottom: 2rem;
+    position: relative;
 }
-.hover-lift:hover {
+
+.timeline-label-small {
+    font-family: var(--font-data);
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    color: #94a3b8;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.timeline-date-display {
+    font-family: var(--font-brand); /* Righteous font */
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    color: #1e293b;
+    line-height: 1;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.timeline-date-display:hover {
+    color: var(--active-theme-color);
+}
+
+.timeline-icon-trigger {
+    font-size: 2rem;
+    color: #cbd5e1;
+    transition: color 0.2s;
+}
+.timeline-date-display:hover .timeline-icon-trigger {
+    color: var(--active-theme-color);
+}
+
+/* Hidden real input, triggered by clicking the text */
+.timeline-real-input {
+    position: absolute;
+    top: 50%; left: 50%;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px; height: 1px;
+}
+
+/* --- 18.3 MODERN QUICK CHIPS --- */
+.chip-row {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding-top: 1.5rem;
+    border-top: 2px solid #f1f5f9;
+}
+
+.date-chip-modern {
+    background: white;
+    border: 2px solid #e2e8f0;
+    padding: 0.6rem 1.25rem;
+    border-radius: 50px;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.date-chip-modern:hover {
+    border-color: #cbd5e1;
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.08);
 }
 
-/* 18.2 Appliance Date Picker */
-input[type="date"] {
-    -webkit-appearance: none; appearance: none;
-    background-color: #f8fafc; border: 2px solid #e2e8f0;
-    border-radius: 12px; padding: 1rem;
-    font-family: var(--font-data); color: var(--text-dark);
-    font-size: 1.4rem; letter-spacing: 2px; text-align: center;
-    cursor: pointer; transition: all 0.2s; width: 100%;
+.date-chip-modern.active {
+    border-color: var(--active-theme-color);
+    color: var(--active-theme-color);
+    background-color: white; /* Keep white bg, color border/text */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
-input[type="date"]:hover, input[type="date"]:focus {
-    border-color: var(--active-theme-color); background-color: white;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05); outline: none;
-}
-input[type="date"]::-webkit-calendar-picker-indicator {
-    opacity: 0.3; cursor: pointer; position: absolute; right: 15px; filter: grayscale(100%);
-}
-input[type="date"]:hover::-webkit-calendar-picker-indicator { opacity: 1; filter: none; }
 
-/* 18.3 Quick Chips */
-.date-quick-chips { display: flex; gap: 0.8rem; flex-wrap: wrap; justify-content: center; margin-bottom: 1rem; }
-.date-chip {
-    padding: 0.5rem 1rem; background: white; border: 1px solid #e2e8f0;
-    border-radius: 50px; font-family: var(--font-data); font-size: 0.75rem;
-    font-weight: 700; color: #64748b; cursor: pointer; transition: all 0.2s;
+/* --- 18.4 PHYSICS INFO BOX (New Addition) --- */
+.timeline-physics-box {
+    background: #fff7ed; /* Light Orange/Yellow tint */
+    border: 1px solid #ffedd5;
+    border-radius: 16px;
+    padding: 1.25rem;
+    display: flex;
+    gap: 1rem;
+    text-align: left;
+    margin-top: 1rem;
 }
-.date-chip:hover { border-color: var(--active-theme-color); color: var(--active-theme-color); transform: translateY(-1px); }
-.date-chip.active {
-    background: var(--active-theme-color); color: white; border-color: var(--active-theme-color);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+
+.physics-icon {
+    color: #f97316; /* Orange */
+    font-size: 1.25rem;
+    margin-top: 2px;
+}
+
+.physics-content h6 {
+    color: #9a3412; /* Dark Orange */
+    font-family: var(--font-data);
+    font-weight: 800;
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+.physics-content p {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: #7c2d12;
+    margin-bottom: 0;
+    line-height: 1.4;
 }
 
 /* ================================================== */
@@ -1821,3 +2038,148 @@ input[type="date"]:hover::-webkit-calendar-picker-indicator { opacity: 1; filter
 @keyframes slideUpFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes popIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ================================================== */
+/* ===  SECTION 20: CLASSIC ATOM LOADER (WIZARD)  === */
+/* ================================================== */
+
+/* --- 20.1 Backgrounds & Scene --- */
+.atom-wrapper {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: white; overflow: hidden;
+    z-index: 100;
+}
+
+.atom-rainbow-border {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 6px;
+    background: linear-gradient(180deg, #ff7043, #26c6da, #ab47bc, #ffa726);
+    background-size: 100% 400%;
+    animation: rainbow-flow 4s ease infinite;
+    z-index: 10;
+}
+
+.atom-bg-dots {
+    position: absolute; inset: 0; opacity: 0.3; pointer-events: none;
+    background-image: radial-gradient(#94a3b8 1.5px, transparent 1.5px);
+    background-size: 20px 20px;
+    animation: slide-diagonal 2s linear infinite;
+}
+
+.atom-scene {
+    position: relative; width: 16rem; height: 16rem;
+    display: flex; align-items: center; justify-content: center;
+    perspective: 1000px; z-index: 20; margin-bottom: 2.5rem;
+}
+
+.atom-core {
+    width: 100%; height: 100%; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    transform-style: preserve-3d;
+    animation: float-core 6s ease-in-out infinite;
+}
+
+/* --- 20.2 The Nucleus --- */
+.atom-nucleus {
+    position: relative; width: 6rem; height: 6rem;
+    background: linear-gradient(135deg, #4f46e5, #9333ea, #db2777);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    z-index: 20;
+    transform: translateZ(1px); /* Force layer */
+}
+
+.nucleus-ring {
+    position: absolute; inset: -6px; border-radius: 50%;
+    border: 1px dashed rgba(148, 163, 184, 0.6);
+    animation: spin 20s linear infinite;
+}
+
+.nucleus-glow {
+    position: absolute; inset: 0; background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.nucleus-icon {
+    font-size: 2.2rem; color: white; filter: drop-shadow(0 4px 3px rgba(0,0,0,0.1));
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.nucleus-icon.pop-in { transform: scale(0.5); opacity: 0; }
+.nucleus-icon.visible { transform: scale(1); opacity: 1; }
+
+/* --- 20.3 The Orbits --- */
+.orbit-plane {
+    position: absolute; width: 14rem; height: 14rem;
+    transform-style: preserve-3d;
+}
+
+/* Three distinct angles */
+.orbit-plane-1 { transform: rotateZ(0deg) rotateX(65deg); }
+.orbit-plane-2 { transform: rotateZ(60deg) rotateX(65deg); }
+.orbit-plane-3 { transform: rotateZ(120deg) rotateX(65deg); }
+
+.orbit-track-wrapper {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    transform-style: preserve-3d;
+    /* animation: orbit-spin [duration] linear infinite; Set inline per orbit */
+}
+
+/* SVG Styling */
+.orbit-svg { width: 100%; height: 100%; overflow: visible; }
+.orbit-trail { fill: none; stroke-width: 2.5; stroke-linecap: round; }
+.orbit-ring-faint { fill: none; stroke-opacity: 0.15; stroke-width: 0.5; }
+
+/* The Electron (Sphere) */
+.electron-sphere {
+    position: absolute; width: 1.5rem; height: 1.5rem; border-radius: 50%;
+    top: 2%; left: 50%; margin-left: -0.75rem; margin-top: -0.75rem;
+    box-shadow: 0 0 12px currentColor; /* Inherits text color for shadow */
+    /* animation: counter-spin [duration] linear infinite; Set inline */
+}
+
+/* --- 20.4 Text & Messages --- */
+.atom-text-area {
+    position: relative; z-index: 20; text-align: center; padding: 0 2rem; max-width: 28rem;
+}
+.atom-title {
+    font-family: var(--font-brand); font-size: 1.8rem; color: #1e293b;
+    margin-bottom: 0.5rem; text-transform: uppercase;
+}
+.atom-message-box {
+    height: 2rem; position: relative;
+    font-family: var(--font-data); color: #94a3b8; letter-spacing: 0.15em;
+    font-size: 0.85rem; font-weight: 700; text-transform: uppercase;
+}
+.atom-msg {
+    position: absolute; width: 100%; text-align: center;
+    transition: opacity 0.3s; opacity: 0; transform: translateY(5px);
+}
+.atom-msg.active { opacity: 1; transform: translateY(0); }
+
+/* --- 20.5 Keyframes --- */
+@keyframes rainbow-flow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+@keyframes slide-diagonal {
+    0% { background-position: 0 0; }
+    100% { background-position: 40px -40px; }
+}
+@keyframes float-core {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+@keyframes orbit-spin {
+    0% { transform: rotateZ(0deg); }
+    100% { transform: rotateZ(360deg); }
+}
+@keyframes counter-spin-normal {
+    0% { transform: rotateZ(0deg) rotateX(-65deg); }
+    100% { transform: rotateZ(-360deg) rotateX(-65deg); }
+}
+@keyframes counter-spin-reverse {
+    0% { transform: rotateZ(0deg) rotateX(-65deg); }
+    100% { transform: rotateZ(360deg) rotateX(-65deg); }
+}

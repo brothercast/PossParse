@@ -137,6 +137,20 @@ function formatDateFriendly(dateStr) {
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+/**
+ * 2d. Hint Resolution
+ * Extracts the 'hint' text from the DEFAULTS ontology matching the label.
+ * Returns actionable advice for the Insight Box.
+ */
+function getHintForOption(optLabel) {
+    for (let cat in DEFAULTS) {
+        // Check for match in label or id
+        const match = DEFAULTS[cat].find(o => o.label === optLabel || o.id === optLabel);
+        if (match && match.hint) return match.hint;
+    }
+    return "Refines the structural constraints of the solution.";
+}
+
 // =============================================================================
 // 3. STATE MANAGEMENT
 // =============================================================================
@@ -179,11 +193,13 @@ window.updateInsightText = function(text) {
 };
 window.resetInsightText = function() {
     const box = document.getElementById('active-insight-box');
-    if(box) box.querySelector('.context-insight-body').innerText = "Hover over an option to see how it affects the Engine.";
+    if(box) {
+        // Matches the default state in renderStandardStep
+        box.querySelector('.context-insight-body').innerText = "Hover over an option to preview its impact on the pathway.";
+    }
 };
 window.handleTagInput = handleTagInput;
 window.removeTag = removeTag;
-
 
 // =============================================================================
 // 5. BUSINESS LOGIC (Internal)
@@ -191,13 +207,21 @@ window.removeTag = removeTag;
 
 function toggleExtraParamLogic(id) {
     const idx = State.extraParams.indexOf(id);
+    // Visual toggle in DOM
     const btn = document.querySelector(`.option-card-pill[onclick*="${id}"]`);
-    
+    const icon = btn.querySelector('.pill-icon-circle i');
+    const defIcon = btn.dataset.defIcon || 'fa-circle'; // Fallback if needed, though renderForkScreen handles redraw usually
+
     if(idx > -1) {
         // Remove
         State.extraParams.splice(idx, 1);
         State.steps = State.steps.filter(s => s.id !== id);
-        if(btn) btn.classList.remove('selected');
+        if(btn) {
+            btn.classList.remove('selected');
+            // Hacky icon toggle or just let re-render handle it? 
+            // Re-rendering is safer for icons, but let's toggle class for speed
+            // ideally we just re-render the button icon here
+        }
     } else {
         // Add
         State.extraParams.push(id);
@@ -209,24 +233,45 @@ function toggleExtraParamLogic(id) {
         } else if (id === 'AVOIDANCE') {
             conf = { step_label: 'Dealbreakers', step_icon: 'fa-ban', question: 'What must we avoid?', helper: 'Negative constraints are vital.', ui_type: 'tags', placeholder: 'e.g. Debt, Burnout' };
         } else if (id === 'SCALE') {
-            conf = { step_label: 'Scale', step_icon: 'fa-map-location-dot', question: 'What is the footprint?', helper: 'Geography dictates physics.', options: DEFAULTS.SCALE.map(o => o.label) };
+            conf = { step_label: 'Scale', step_icon: 'fa-map', question: 'What is the footprint?', helper: 'Geography dictates physics.', options: DEFAULTS.SCALE.map(o => o.label) };
         } else if (id === 'MODALITY') {
-            conf = { step_label: 'Work Style', step_icon: 'fa-people-group', question: 'How do we coordinate?', helper: 'Rhythm dictates structure.', options: DEFAULTS.MODALITY.map(o => o.label) };
+            conf = { step_label: 'Work Style', step_icon: 'fa-users-gear', question: 'How do we coordinate?', helper: 'Rhythm dictates structure.', options: DEFAULTS.MODALITY.map(o => o.label) };
         }
 
         const stepDef = { id: id, ...conf };
-        State.steps.splice(State.currentStepIndex + 1, 0, stepDef);
+        // Insert after current step (which is FORK)
+        // Wait, standard insert logic:
+        const forkIndex = State.steps.findIndex(s => s.id === 'FORK');
+        // We actually want to append them after FORK in order of appearance
+        // Re-sorting might be needed if user clicks out of order, 
+        // but for now appending to the queue is fine.
+        if (State.currentStepIndex + 1 < State.steps.length) {
+             State.steps.splice(State.currentStepIndex + 1, 0, stepDef);
+        } else {
+             State.steps.push(stepDef);
+        }
     }
     
-    const nextBtn = document.getElementById('fork-next-btn');
-    if(nextBtn) {
+    // --- FOOTER LOGIC ---
+    updateForkFooter();
+    
+    // Re-render to update icons (checkmarks)
+    const mainContainer = document.getElementById('wizard-main-area');
+    mainContainer.innerHTML = renderForkScreen();
+}
+
+function updateForkFooter() {
+    const nextBtn = document.querySelector('.wiz-btn-next');
+    if (!nextBtn) return; // Safety check
+    
+    if (State.steps[State.currentStepIndex].id === 'FORK') {
         if (State.extraParams.length > 0) {
             nextBtn.innerHTML = `CONFIGURE EXTRAS (${State.extraParams.length}) <i class="fas fa-arrow-right ms-2"></i>`;
-            nextBtn.style.opacity = '1';
-            nextBtn.style.pointerEvents = 'auto';
+            nextBtn.style.visibility = 'visible';
+            nextBtn.classList.add('btn-primary', 'text-white', 'border-0');
         } else {
-            nextBtn.style.opacity = '0';
-            nextBtn.style.pointerEvents = 'none';
+            nextBtn.style.visibility = 'hidden';
+            nextBtn.classList.remove('btn-primary', 'text-white', 'border-0');
         }
     }
 }
@@ -250,15 +295,20 @@ function wizardNavigation(action, idx=null) {
             renderWizard();
         }
     }
+    
+    // Update footer logic after render
+    setTimeout(updateForkFooter, 50); 
 }
 
 function submitConfigLogic() {
+    // 1. Populate Hidden Form
     const form = document.getElementById('final-submit-form');
     document.getElementById('form-goal').value = State.selectedCardData.goal;
     document.getElementById('form-title').value = State.selectedCardData.title;
     document.getElementById('form-domain').value = State.selectedCardData.domain;
     document.getElementById('form-domain-icon').value = State.selectedCardData.icon;
     
+    // Clear old dynamics
     form.querySelectorAll('.dynamic-param').forEach(e => e.remove());
 
     Object.keys(State.config).forEach(key => {
@@ -272,32 +322,149 @@ function submitConfigLogic() {
         form.appendChild(input);
     });
 
+    // 2. Prepare Wizard Container
     const wizardContainer = document.querySelector('.wizard-container');
-    if (wizardContainer) {
-        wizardContainer.classList.add('loading-state');
-        let spinnerWrapper = wizardContainer.querySelector('.embedded-spinner-wrapper');
-        if (!spinnerWrapper) {
-            spinnerWrapper = document.createElement('div');
-            spinnerWrapper.className = 'embedded-spinner-wrapper';
-            wizardContainer.appendChild(spinnerWrapper);
-        }
-        spinnerWrapper.innerHTML = `
-            <div class="spinner-box">
-                <div class="spinner-visual-stack">
-                    <div class="la-ball-atom la-2x" style="color: var(--active-theme-color);"><div></div><div></div><div></div><div></div></div>
-                    <i class="fas fa-bolt spinner-overlay-icon" style="color: var(--active-theme-color);"></i>
-                </div>
-                <div class="spinner-content">
-                    <div class="spinner-title">Generating Solution...</div>
-                    <div class="spinner-text-stage" id="wizard-text-stage"><div class="spinner-message wipe-in">SSPEC ENGINE ONLINE...</div></div>
-                </div>
-            </div>`;
-        setTimeout(() => { form.submit(); }, 1500);
-    } else {
-        form.submit();
-    }
-}
+    if (!wizardContainer) { form.submit(); return; }
 
+    wizardContainer.classList.add('loading-state');
+    
+    // 3. Inject CLASSIC ATOM SPINNER
+    // Helper to generate an Orbit SVG string
+    const getOrbitHtml = (color, duration, reverse, sphereGradient) => {
+        const dir = reverse ? 'reverse' : 'normal';
+        const counterAnim = reverse ? 'counter-spin-reverse' : 'counter-spin-normal';
+        const flipStyle = reverse ? 'transform: scaleX(-1);' : '';
+        
+        // Define unique gradient ID
+        const gradId = `grad-${color.replace('#','')}`;
+        
+        return `
+        <div class="orbit-track-wrapper" style="animation: orbit-spin ${duration} linear infinite; animation-direction: ${dir};">
+            <svg viewBox="0 0 100 100" class="orbit-svg" style="${flipStyle}">
+                <defs>
+                    <linearGradient id="${gradId}" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="${color}" stop-opacity="0" />
+                        <stop offset="100%" stop-color="${color}" stop-opacity="1" />
+                    </linearGradient>
+                </defs>
+                <circle cx="50" cy="50" r="48" class="orbit-ring-faint" stroke="${color}" />
+                <path d="M 16,84 A 48,48 0 0 1 50,2" class="orbit-trail" stroke="url(#${gradId})" />
+            </svg>
+            <div class="electron-sphere" 
+                 style="background: ${sphereGradient}; color: ${color}; animation: ${counterAnim} ${duration} linear infinite;">
+            </div>
+        </div>`;
+    };
+
+    const atomHtml = `
+    <div class="atom-wrapper fade-in">
+        <div class="atom-rainbow-border"></div>
+        <div class="atom-bg-dots"></div>
+        
+        <!-- 3D Scene -->
+        <div class="atom-scene">
+            <div class="atom-core">
+                
+                <!-- ORBIT 1: CYAN -->
+                <div class="orbit-plane orbit-plane-1">
+                    ${getOrbitHtml('#22d3ee', '1.5s', false, 'radial-gradient(circle at 35% 35%, #67e8f9 0%, #22d3ee 60%, #06b6d4 100%)')}
+                </div>
+
+                <!-- ORBIT 2: ORANGE -->
+                <div class="orbit-plane orbit-plane-2">
+                    ${getOrbitHtml('#fb923c', '2s', true, 'radial-gradient(circle at 35% 35%, #fdba74 0%, #fb923c 60%, #ea580c 100%)')}
+                </div>
+
+                <!-- ORBIT 3: PURPLE -->
+                <div class="orbit-plane orbit-plane-3">
+                    ${getOrbitHtml('#c084fc', '2.5s', false, 'radial-gradient(circle at 35% 35%, #d8b4fe 0%, #c084fc 60%, #9333ea 100%)')}
+                </div>
+
+                <!-- NUCLEUS -->
+                <div class="atom-nucleus">
+                    <div class="nucleus-ring"></div>
+                    <div class="nucleus-glow"></div>
+                    <i id="atom-icon" class="fas fa-rocket nucleus-icon visible"></i>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Text Wipe -->
+        <div class="atom-text-area">
+            <div class="atom-title">GENERATING YOUR STRUCTURED SOLUTION</div>
+            <div class="atom-message-box">
+                <div id="atom-msg-display" class="atom-msg active">ACCESSING SSPEC NEURAL NETWORK...</div>
+            </div>
+        </div>
+    </div>`;
+
+    // Clear and Inject
+    // If embedded wrapper exists reuse it, else append
+    let wrapper = wizardContainer.querySelector('.embedded-spinner-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.className = 'embedded-spinner-wrapper';
+        wrapper.style.cssText = "display: flex; flex:1; width:100%; height:100%;";
+        wizardContainer.innerHTML = ''; // clear wizard content
+        wizardContainer.appendChild(wrapper);
+    }
+    wrapper.innerHTML = atomHtml;
+
+    // 4. Start Animations (Icon & Text Cycling)
+    const icons = ['fa-rocket', 'fa-bolt', 'fa-globe', 'fa-microchip', 'fa-layer-group', 'fa-database'];
+    const messages = [
+        "Vectorizing inputs...",
+        "Calibrating Horizon constraints...",
+        "Optimizing resource paths...",
+        "Drafting executive language...",
+        "Finalizing data packet..."
+    ];
+    
+    let iIdx = 0;
+    let mIdx = 0;
+    const iconEl = document.getElementById('atom-icon');
+    const msgEl = document.getElementById('atom-msg-display');
+
+    const animInterval = setInterval(() => {
+        // Swap Icon
+        iIdx = (iIdx + 1) % icons.length;
+        if(iconEl) {
+            iconEl.classList.remove('visible');
+            iconEl.classList.add('pop-in');
+            
+            setTimeout(() => {
+                iconEl.className = `fas ${icons[iIdx]} nucleus-icon pop-in`;
+                requestAnimationFrame(() => {
+                    iconEl.classList.remove('pop-in');
+                    iconEl.classList.add('visible');
+                });
+            }, 150); // wait for fade out
+        }
+
+        // Swap Text (Slower cycle, every 2nd tick maybe? or just every tick is fine)
+        // Let's do text every 2 ticks (2.4s)
+        if (iIdx % 2 === 0) {
+            mIdx = (mIdx + 1) % messages.length;
+            if(msgEl) {
+                msgEl.style.opacity = 0;
+                msgEl.style.transform = "translateY(-5px)";
+                setTimeout(() => {
+                    msgEl.innerText = messages[mIdx];
+                    msgEl.style.opacity = 1;
+                    msgEl.style.transform = "translateY(0)";
+                }, 300);
+            }
+        }
+
+    }, 1200);
+
+    // 5. Submit after delay
+    setTimeout(() => { 
+        clearInterval(animInterval);
+        form.submit(); 
+    }, 4500); // 4.5s simulation
+}
 function handleTagInput(key, event) {
     if (event.key === 'Enter' || event.key === ',') {
         event.preventDefault();
@@ -528,6 +695,7 @@ function renderWizard() {
     const footerContainer = document.querySelector('.wizard-footer');
     const wizardMeta = (State.sysConfig[currentStep.id] && State.sysConfig[currentStep.id].wizard) ? State.sysConfig[currentStep.id].wizard : currentStep; 
     
+    // Render Main Content
     if (currentStep.id === 'FORK') {
         headerContainer.classList.add('hidden'); 
         mainContainer.innerHTML = renderForkScreen();
@@ -545,22 +713,45 @@ function renderWizard() {
         mainContainer.innerHTML = renderStandardStep(currentStep);
     }
 
+    // Render Progress Dots
     const dotsHtml = State.steps.map((s, idx) => {
         let status = idx === State.currentStepIndex ? 'active' : (idx < State.currentStepIndex ? 'completed' : '');
         return `<div class="wizard-step-dot ${status}" onclick="window.jumpToStep(${idx})" title="${s.step_label || s.id}"></div>`;
     }).join('');
 
+    // --- NAVIGATION BUTTON LOGIC ---
+    
+    // 1. Back Button
     const backBtnHtml = State.currentStepIndex === 0 
         ? `<button class="wiz-btn-back" style="visibility: hidden">Back</button>`
         : `<button class="wiz-btn-back" onclick="window.wizardBack()"><i class="fas fa-arrow-left"></i> Back</button>`;
         
-    const nextBtnHtml = currentStep.id === 'FORK'
-        ? `` 
-        : `<button class="wiz-btn-next" onclick="window.wizardNext()">Next <i class="fas fa-arrow-right"></i></button>`;
+    // 2. Next Button (The Fix)
+    // We ALWAYS create the button structure, but we control visibility/text based on state.
+    let nextVisibility = 'visible';
+    let nextText = `Next <i class="fas fa-arrow-right ms-2"></i>`;
+    let nextClass = '';
 
+    if (currentStep.id === 'FORK') {
+        if (State.extraParams.length > 0) {
+            nextText = `CONFIGURE EXTRAS (${State.extraParams.length}) <i class="fas fa-arrow-right ms-2"></i>`;
+            nextClass = 'btn-primary text-white border-0'; // Add pop for the action
+        } else {
+            nextVisibility = 'hidden'; // Hide if no extras selected yet
+        }
+    }
+
+    const nextBtnHtml = `
+        <button class="wiz-btn-next ${nextClass}" 
+                style="visibility: ${nextVisibility};" 
+                onclick="window.wizardNext()">
+            ${nextText}
+        </button>`;
+
+    // Render Footer
     footerContainer.innerHTML = `
         <div class="d-flex align-items-center"><span class="wizard-track-label">Step ${State.currentStepIndex + 1}/${State.steps.length}</span><div class="wizard-progress-track">${dotsHtml}</div></div>
-        <div class="d-flex gap-3">${backBtnHtml}${nextBtnHtml}</div>
+        <div class="d-flex gap-3 align-items-center">${backBtnHtml}${nextBtnHtml}</div>
     `;
 }
 
@@ -571,7 +762,7 @@ function renderStandardStep(step) {
     
     let innerContent = '';
 
-    // A. OPTIONS
+    // A. OPTIONS (The Grid View)
     if (step.options && step.options.length > 0) {
         innerContent = `
             <div class="option-grid-compact fade-in">
@@ -580,10 +771,17 @@ function renderStandardStep(step) {
                     const colorHex = getColorForOption(optLabel);
                     const isSelected = existingVal === optLabel;
                     
+                    // --- REWIRED HINT LOGIC ---
+                    const hintText = getHintForOption(optLabel);
+                    // Safe escape for HTML attributes
+                    const safeHint = hintText.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    
                     return `
                     <div class="option-card ${isSelected ? 'selected' : ''}" 
                          style="--opt-primary: ${colorHex};"
-                         onclick="window.selectOption('${step.id}', '${optLabel}')">
+                         onclick="window.selectOption('${step.id}', '${optLabel}')"
+                         onmouseenter="window.updateInsightText('${safeHint}')"
+                         onmouseleave="window.resetInsightText()">
                         <div class="option-icon"><i class="fas ${iconClass}"></i></div>
                         <div class="option-label">${optLabel}</div>
                     </div>`;
@@ -603,26 +801,62 @@ function renderStandardStep(step) {
                 </div>
             </div>`;
     }
-    // C. DATE
+    // C. DATE (THE HERO TIMELINE)
     else if (step.id === 'HORIZON' || backendNode.ui_type === 'date') {
-        const quicks = wizardMeta.quick_selects || ["3 Months", "6 Months", "1 Year"];
+        const quicks = wizardMeta.quick_selects || ["3 Months", "6 Months", "1 Year", "2 Years", "5 Years"];
+        
+        // Logic to show a default "Today" or the selected date
+        let displayDate = existingVal ? existingVal : new Date().toISOString().split('T')[0];
+        
+        // Helper to trigger the hidden date input
+        window.triggerDateInput = () => document.getElementById('real-date-input').showPicker();
+
         innerContent = `
             <div class="fade-in">
-                <div class="date-quick-chips">
-                    ${quicks.map(label => {
-                        const calcDate = getSmartHorizonDate(label);
-                        const isActive = existingVal === calcDate;
-                        return `<div class="date-chip ${isActive ? 'active' : ''}" onclick="window.selectOption('${step.id}', '${calcDate}')">${label}</div>`;
-                    }).join('')}
+                
+                <!-- Hero Wrapper -->
+                <div class="timeline-hero-wrapper">
+                    <div class="timeline-label-small">TARGET COMPLETION DATE</div>
+                    
+                    <!-- The Big Clickable Text -->
+                    <div class="timeline-date-display" onclick="window.triggerDateInput()">
+                        <span id="date-text-display">${existingVal ? existingVal : '-- / -- / --'}</span>
+                        <i class="far fa-calendar-alt timeline-icon-trigger"></i>
+                    </div>
+
+                    <!-- Hidden Input -->
+                    <input type="date" id="real-date-input" class="timeline-real-input"
+                           value="${existingVal}" 
+                           onchange="window.selectOption('${step.id}', this.value); document.getElementById('date-text-display').innerText = this.value;">
+
+                    <!-- Quick Chips -->
+                    <div class="chip-row">
+                        ${quicks.map(label => {
+                            const calcDate = getSmartHorizonDate(label);
+                            const isActive = existingVal === calcDate;
+                            return `<div class="date-chip-modern ${isActive ? 'active' : ''}" 
+                                         onclick="window.selectOption('${step.id}', '${calcDate}')">
+                                         ${label}
+                                    </div>`;
+                        }).join('')}
+                    </div>
                 </div>
-                <div class="mt-4">
-                    <label class="font-data text-muted x-small mb-2">OR SELECT SPECIFIC DATE</label>
-                    <input type="date" class="form-control form-control-lg border-2 shadow-sm" style="height: 60px;"
-                           value="${existingVal.includes('-') ? existingVal : ''}" onchange="window.selectOption('${step.id}', this.value)">
+
+                <!-- Physics/Insight Box -->
+                <div class="timeline-physics-box">
+                    <div class="physics-icon"><i class="fas fa-info-circle"></i></div>
+                    <div class="physics-content">
+                        <h6>TIMELINE PHYSICS</h6>
+                        <p>
+                            Short horizons (months) force "Hack" strategies and MVP compromises. 
+                            Long horizons (years) allow for Infrastructure, Deep Research, and Institutional building.
+                        </p>
+                    </div>
                 </div>
+
             </div>`;
     }
-    // D. FALLBACK
+    // D. FALLBACK TEXTAREA
     else {
         innerContent = `<div class="fade-in"><textarea class="form-control bg-light border-0 font-body p-3 shadow-inner" rows="4" placeholder="Enter details..." oninput="window.selectOption('${step.id}', this.value)">${existingVal}</textarea></div>`;
     }
@@ -630,30 +864,34 @@ function renderStandardStep(step) {
     return `
         <div class="d-flex flex-column h-100 justify-content-center">
             ${innerContent}
+            <!-- UPDATED INSIGHT BOX COPY -->
             <div class="context-insight-box mt-auto" id="active-insight-box">
-                <div class="context-insight-title"><i class="fas fa-microchip me-1"></i> SPECULATE ENGINE</div>
-                <div class="context-insight-body">Hover over an option to see how it affects the Engine.</div>
+                <div class="context-insight-title"><i class="fas fa-info-circle me-1"></i> SYSTEM INSIGHT</div>
+                <div class="context-insight-body">Hover over an option to preview its impact on the roadmap.</div>
             </div>
         </div>`;
 }
 
 function renderForkScreen() {
     const extraOptions = [
-        { id: 'DIRECTIVE', label: 'Core Values', icon: 'fa-heart', desc: 'Define ethical non-negotiables.' },
-        { id: 'AVOIDANCE', label: 'Dealbreakers', icon: 'fa-triangle-exclamation', desc: 'Outcomes to actively prevent.' },
-        { id: 'SCALE', label: 'Scale', icon: 'fa-map-location-dot', desc: 'Geographic or digital footprint.' },
-        { id: 'MODALITY', label: 'Work Style', icon: 'fa-people-carry-box', desc: 'Methodology (Agile, etc).' }
+        { id: 'DIRECTIVE', label: 'Core Values', icon: 'fa-heart', desc: 'Ethical Standards' },
+        { id: 'AVOIDANCE', label: 'Dealbreakers', icon: 'fa-ban', desc: 'Risks to Prevent' },
+        { id: 'SCALE', label: 'Scale', icon: 'fa-map', desc: 'Physical Footprint' },
+        { id: 'MODALITY', label: 'Work Style', icon: 'fa-people-group', desc: 'Team Rhythm' }
     ];
 
     return `
         <div class="wizard-step fade-in h-100 d-flex flex-column">
-            <div class="text-center pt-1 mb-2">
-                <div class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2 mb-2 font-data">
+            <!-- HEADER -->
+            <div class="text-center pt-2 mb-4">
+                <div class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2 mb-3 font-data">
                     <i class="fas fa-check-circle me-2"></i> BASELINES ESTABLISHED
                 </div>
                 <h2 class="font-brand display-5 mb-2 text-dark">Ready to Engineer</h2>
             </div>
-            <div class="flex-grow-1 d-flex flex-column justify-content-center align-items-center mb-3">
+
+            <!-- GENERATE BUTTON (Primary Action) -->
+            <div class="flex-grow-1 d-flex flex-column justify-content-center align-items-center mb-4">
                 <p class="text-muted font-body text-center mx-auto mb-4" style="max-width: 500px; font-size: 1.05rem;">
                     The Engine has enough context to reverse-engineer a valid path. <br>
                     You can generate the solution now, or add <strong>precision constraints</strong> below.
@@ -665,36 +903,44 @@ function renderForkScreen() {
                     <div class="shimmer-effect"></div>
                 </button>
             </div>
-            <div class="border-top pt-3 mt-auto">
-                <div class="d-flex justify-content-between align-items-center mb-2">
+
+            <!-- SYSTEM PILLS (Secondary Configuration) -->
+            <div class="border-top pt-4 mt-auto">
+                <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="d-flex flex-column">
                         <h6 class="font-data text-dark fw-bold small mb-0" style="letter-spacing: 1px;">INCREASE PRECISION (OPTIONAL)</h6>
                         <span class="font-body x-small text-muted">Select factors to fine-tune the Engine's logic.</span>
                     </div>
                 </div>
+                
+                <!-- PILL GRID -->
                 <div class="option-grid-compact">
                     ${extraOptions.map(p => {
                         const isChecked = State.extraParams.includes(p.id);
+                        
                         return `
                         <div class="option-card-pill ${isChecked ? 'selected' : ''}" 
-                             onclick="window.toggleExtraParam('${p.id}')"
-                             style="--opt-primary: var(--active-theme-color);">
-                            <div class="pill-icon-circle" style="width: 36px; height: 36px; font-size: 1rem;">
-                                <i class="fas ${isChecked ? 'fa-check' : p.icon}"></i>
+                                onclick="window.toggleExtraParam('${p.id}')"
+                                style="--opt-primary: var(--active-theme-color);">
+                            
+                            <!-- Left: Icon -->
+                            <div class="pill-icon-circle">
+                                <i class="fas ${p.icon}"></i>
                             </div>
-                            <div class="pill-content" style="flex:1;">
-                                <div class="pill-title" style="font-size: 0.75rem; margin-bottom: 1px;">${p.label}</div>
-                                <div class="pill-desc" style="font-size: 0.65rem; color: #64748b; line-height:1.2; display:block;">${p.desc}</div>
+                            
+                            <!-- Middle: Text -->
+                            <div class="pill-content d-flex flex-column">
+                                <span class="pill-title">${p.label}</span>
+                                <span class="pill-desc font-body text-muted x-small">${p.desc}</span>
                             </div>
+
+                            <!-- Right: The New Check Indicator -->
+                            <div class="pill-check-indicator">
+                                <i class="fas fa-check"></i>
+                            </div>
+
                         </div>`;
                     }).join('')}
-                </div>
-                <div class="text-center mt-2" style="height: 35px;">
-                    <button id="fork-next-btn" class="btn btn-outline-dark rounded-pill px-4 font-data small" 
-                            style="opacity: 0; pointer-events: none; transition: opacity 0.3s;"
-                            onclick="window.wizardNext()">
-                        CONFIGURE EXTRAS <i class="fas fa-arrow-right ms-2"></i>
-                    </button>
                 </div>
             </div>
         </div>`;

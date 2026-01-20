@@ -168,26 +168,27 @@ async def outcome():
         # 2. DYNAMICALLY EXTRACT SYSTEM PHYSICS
         system_constraints = {}
         
-        # Legacy
-        if request.form.get('system_operator'): system_constraints['OPERATOR'] = request.form.get('system_operator')
-        if request.form.get('system_horizon'): system_constraints['HORIZON'] = request.form.get('system_horizon')
-        if request.form.get('system_budget'): system_constraints['BUDGET'] = request.form.get('system_budget')
-
-        # Dynamic
+        # We iterate through the Master Ontology (SYSTEM_NODES)
+        # This ensures that if you add "MOOD" or "WEATHER" to system_nodes.py later,
+        # it automatically works here without changing code.
         for node_key in SYSTEM_NODES.keys():
+            # The Wizard sends keys like "OPERATOR", "DIRECTIVE", "AVOIDANCE"
             val = request.form.get(node_key)
-            if val and node_key not in system_constraints:
-                system_constraints[node_key] = val
-
-        if not selected_goal_text:
-            flash("No goal selected.", "error")
-            return redirect(url_for('routes_bp.index'))
             
-        try:
-            current_app.logger.info(f"Initializing Outcome for: {selected_goal_title}")
-            current_app.logger.info(f"Applying Physics: {system_constraints}")
+            if val:
+                # SPECIAL HANDLING FOR TAGS (Arrays)
+                # If the UI type is 'tags', the frontend sends "Value1, Value2, Value3"
+                # We want to keep it as a string for the prompt, but maybe clean it up.
+                config = SYSTEM_NODES.get(node_key, {})
+                if config.get('ui_type') == 'tags':
+                    # Clean up list formatting just in case
+                    cleaned_val = ", ".join([x.strip() for x in val.split(',') if x.strip()])
+                    system_constraints[node_key] = cleaned_val
+                else:
+                    system_constraints[node_key] = val.strip()
 
-            # 3. GENERATE INTELLIGENCE
+        # 3. GENERATE INTELLIGENCE
+        try:
             structured_solution_json = await generate_outcome_data(
                 ssol_title=selected_goal_title, 
                 ssol_description=selected_goal_text, 

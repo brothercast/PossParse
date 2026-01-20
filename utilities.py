@@ -265,13 +265,40 @@ async def generate_outcome_data(ssol_title, ssol_description, domain, forced_con
     The Core Engine. Generates the structured phases and content.
     Includes the 'Attenuation Layer' (System Physics).
     """
-    constraint_text = ""
+    from system_nodes import SYSTEM_NODES # Ensure import
+
+    constraint_block = []
+    
     if forced_constraints:
-        constraint_text = "\n*** HARD SYSTEM PHYSICS (ATTENUATION) ***\n" + "\n".join([f"- {k}: {v}" for k, v in forced_constraints.items() if v])
+        constraint_block.append("\n*** SYSTEM PHYSICS (ATTENUATION LAYER) ***")
+        
+        for key, value in forced_constraints.items():
+            if not value: continue
+            
+            # 1. Look for specific Prompt Injection logic in the Node Config
+            node_config = SYSTEM_NODES.get(key, {})
+            injection_template = node_config.get('prompt_injection')
+            
+            if injection_template:
+                # Format the template with the user's value
+                # e.g., "RISK ATTENUATION: Avoid [Debt, Pollution]..."
+                try:
+                    formatted_instruction = injection_template.format(value=value)
+                    constraint_block.append(f"- {formatted_instruction}")
+                except:
+                    # Fallback if formatting fails
+                    constraint_block.append(f"- {key}: {value}")
+            else:
+                # Generic Fallback
+                constraint_block.append(f"- {key}: {value}")
+
+    # Join into a single strong block of text
+    constraint_text = "\n".join(constraint_block)
 
     prompt = f"""
     IDENTITY: SPECULATE ENGINE. Reverse-Engineer a 100% completed future.
     INPUT: Title: '{ssol_title}', Context: {ssol_description}, Domain: '{domain}'
+    
     {constraint_text}
     
     PHASE 1: EXEC CHARTER. Write a summary using <sys type="TYPE">Value</sys> tags for anchors.
