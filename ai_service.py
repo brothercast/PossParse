@@ -273,3 +273,64 @@ async def generate_image(prompt: str, ssol_id: str):
     except Exception as e:
         logger.error(f"Error in generate_image for SSOL {ssol_id}: {e}", exc_info=True)
         raise
+
+# ai_service.py (Additions)
+
+async def generate_governance_report(ssol_context: dict):
+    """
+    Runs the Bicameral Governance Check:
+    1. Ombud: Strict constraint checking (Negative Feedback Loop).
+    2. Advocate: Strategic synthesis (Positive Feedback Loop).
+    """
+    from system_nodes import SAFETY_PROTOCOL
+    
+    # Extract Context
+    title = ssol_context.get('title')
+    constraints = ssol_context.get('system_data', {})
+    horizon = constraints.get('HORIZON', 'Unknown')
+    budget = constraints.get('BUDGET', 'Unknown')
+    
+    # 1. THE OMBUD (The Brake)
+    ombud_prompt = f"""
+    ROLE: The Ombud. You are the impartial guardian of constraints.
+    CONTEXT: Project '{title}'. 
+    CONSTRAINTS: Horizon: {horizon}, Budget: {budget}.
+    CHARTER: {SAFETY_PROTOCOL}
+    
+    TASK: Scan the project definition. 
+    1. Are the constraints realistic? 
+    2. Is there a Charter violation?
+    
+    OUTPUT JSON: {{ "status": "Stable" | "Risk" | "Violation", "message": "Short, stern assessment." }}
+    """
+
+    # 2. THE ADVOCATE (The Accelerator)
+    advocate_prompt = f"""
+    ROLE: The Advocate. You are the strategic synthesizer.
+    CONTEXT: Project '{title}'.
+    
+    TASK: Look for opportunities.
+    1. What is the most exciting synergy missing?
+    2. How can we speed this up without breaking constraints?
+    
+    OUTPUT JSON: {{ "insight": "Inspiring, forward-looking advice." }}
+    """
+
+    try:
+        # Run in parallel (Conceptual, sequentially here for simplicity)
+        ombud_res = await generate_chat_response(
+            [{"role": "user", "content": ombud_prompt}], "user", "ombud", temperature=0.2
+        )
+        advocate_res = await generate_chat_response(
+            [{"role": "user", "content": advocate_prompt}], "user", "advocate", temperature=0.7
+        )
+        
+        return {
+            "ombud": json.loads(ombud_res.replace("```json", "").replace("```", "")),
+            "advocate": json.loads(advocate_res.replace("```json", "").replace("```", ""))
+        }
+    except Exception as e:
+        return {
+            "ombud": {"status": "Offline", "message": "Governance link severed."},
+            "advocate": {"insight": "Reconnecting to neural net..."}
+        }    

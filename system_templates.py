@@ -6,9 +6,6 @@ import datetime
 # ==============================================================================
 # 1. HORIZON GAUGE (Strict Single-Line Layout)
 # ==============================================================================
-# ==============================================================================
-# 1. HORIZON GAUGE (Strict Single-Line Layout)
-# ==============================================================================
 HORIZON_GAUGE_TEMPLATE = """
 <div class="card border-0 shadow-sm mb-4 overflow-visible system-node-card cursor-pointer group"
      onclick="openSystemEditor('{{ id }}', 'HORIZON', '{{ value }}')"
@@ -83,57 +80,43 @@ HORIZON_GAUGE_TEMPLATE = """
 """
 
 # ==============================================================================
-# 2. SIDEBAR STACK (The "System Anchors" / Left Column)
+# 2. SIDEBAR STACK (Refined "Monolith" Style)
 # ==============================================================================
 SYSTEM_SIDEBAR_STACK_TEMPLATE = """
-<div class="d-flex flex-column mt-4" id="system-anchor-stack">
-    <!-- Header -->
-    <div class="d-flex align-items-center justify-content-between mb-3 px-1">
-        <span class="font-data text-muted small tracking-widest">STRATEGIC ANCHORS</span>
-        <i class="far fa-question-circle text-muted opacity-50 cursor-pointer" title="System Configuration" style="font-size:0.8rem;"></i>
+<div class="d-flex flex-column gap-2 mt-4" id="system-anchor-stack">
+    
+    <div class="d-flex align-items-center justify-content-between px-1 mb-2">
+        <span class="font-data text-white-50 small tracking-widest opacity-75">SYSTEM PHYSICS</span>
+        <i class="fas fa-cog text-white-50 cursor-pointer hover-text-white transition-colors" title="Configure System"></i>
     </div>
     
-    <!-- Cards -->
     {% for param in system_params %}
-    <div class="system-anchor-card" 
-         style="--sys-color: {{ param.color }};"
-         onclick="openSystemEditor('{{ param.id }}', '{{ param.type }}', '{{ param.value }}')">
+    <!-- SYSTEM PILL (Matches Goal Selection "Precision" Pills) -->
+    <div class="system-pill-static"
+         onclick="openSystemEditor('{{ param.id }}', '{{ param.type }}', '{{ param.value }}')"
+         title="Calibrate {{ param.label }}">
         
         <!-- Icon -->
-        <div class="sys-icon-circle">
+        <div class="pill-icon-box" style="background-color: {{ param.color }};">
             <i class="{{ param.icon }}"></i>
         </div>
         
-        <!-- Content -->
-        <div class="sys-meta-col" style="overflow: hidden;">
-            <div class="sys-label">
-                {{ param.label }}
-                {% if param.status == 'SUGGESTED' %}
-                <span class="badge-suggested ms-2"><i class="fas fa-sparkles"></i> SUGGESTED</span>
-                {% endif %}
-            </div>
-            
-            <!-- LOGIC: If it contains commas, render as pills. Else, text. -->
-            {% if ',' in param.value and param.type not in ['OPERATOR', 'BUDGET'] %} 
-                <div class="d-flex flex-wrap gap-1 mt-1">
-                    {% for tag in param.value.split(',') %}
-                    <span class="badge border font-body fw-bold text-dark" 
-                          style="background-color: rgba(255,255,255,0.7); font-size: 0.65rem;">
-                        {{ tag.strip() }}
-                    </span>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <span class="sys-value text-truncate d-block">{{ param.value }}</span>
-            {% endif %}
+        <!-- Text -->
+        <div class="pill-content">
+            <div class="pill-label">{{ param.label }}</div>
+            <div class="pill-value text-truncate">{{ param.value }}</div>
+        </div>
+
+        <!-- Edit Hint -->
+        <div class="pill-action">
+            <i class="fas fa-sliders-h"></i>
         </div>
     </div>
     {% endfor %}
 
-    <!-- Add Button -->
-    <button class="btn btn-outline-secondary border-dashed w-100 rounded-pill font-data small py-2 mt-2"
+    <button class="btn btn-outline-light border-dashed w-100 rounded-pill font-data x-small py-2 mt-3 opacity-50 hover-opacity-100"
             onclick="openSystemEditor('new', '', '')">
-        <i class="fas fa-plus me-2"></i> ADD PARAMETER
+        <i class="fas fa-plus me-2"></i> ADD CONSTRAINT
     </button>
 </div>
 """
@@ -275,7 +258,6 @@ SYSTEM_EDITOR_MODAL_TEMPLATE = """
 </div>
 """
 
-
 # ==============================================================================
 # 4. RENDER FUNCTIONS
 # ==============================================================================
@@ -354,3 +336,50 @@ def render_command_deck(system_params):
 
 def render_system_config_modal():
     return render_template_string(SYSTEM_EDITOR_MODAL_TEMPLATE, nodes=SYSTEM_NODES)
+
+# ==============================================================================
+# 5. GOVERNANCE WIDGET (The AI Clamps)
+# ==============================================================================
+GOVERNANCE_WIDGET_TEMPLATE = """
+<div class="governance-console mb-4 fade-in">
+    <div class="row g-0">
+        <!-- OMBUD (Constraints) -->
+        <div class="col-md-6 border-end border-light-subtle">
+            <div class="p-3 d-flex align-items-start gap-3">
+                <div class="gov-icon-box ombud">
+                    <i class="fas fa-balance-scale"></i>
+                </div>
+                <div>
+                    <div class="font-data x-small text-muted tracking-widest mb-1">OMBUD OVERSIGHT</div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="badge bg-success-subtle text-success border border-success-subtle font-data" id="ombud-status">COMPLIANT</span>
+                        <span class="text-muted x-small" id="ombud-timestamp">Synced Just Now</span>
+                    </div>
+                    <p class="font-body x-small text-secondary mb-0" id="ombud-msg">
+                        System constraints (Budget, Horizon) are aligned with projected velocity. No Charter violations detected.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADVOCATE (Harmony) -->
+        <div class="col-md-6">
+            <div class="p-3 d-flex align-items-start gap-3">
+                <div class="gov-icon-box advocate">
+                    <i class="fas fa-lightbulb"></i>
+                </div>
+                <div>
+                    <div class="font-data x-small text-muted tracking-widest mb-1">ADVOCATE INSIGHT</div>
+                    <p class="font-body x-small text-dark fw-medium mb-0" id="advocate-msg">
+                        <i class="fas fa-quote-left text-muted me-1 opacity-50"></i>
+                        Consider creating a public-facing "Legacy" milestone early in the Engagement phase to build momentum before major resource expenditure.
+                    </p>
+                    <button class="btn btn-link p-0 text-decoration-none font-data x-small mt-1 text-primary" onclick="triggerGovernanceRefresh()">
+                        <i class="fas fa-sync-alt me-1"></i> RE-SYNTHESIZE
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+"""

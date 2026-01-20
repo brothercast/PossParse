@@ -1055,31 +1055,27 @@ function injectPillToHero(type, value, icon) {
 // =============================================================================
 
 function renderNewGoals(goals, gridElement) {
-    // 1. Clear Grid
     gridElement.innerHTML = '';
     
-    // 2. Iterate & Build
     goals.forEach((goal, index) => {
         const hue = goal.color_hue || (index * 60) % 360;
         const cardId = `goal-${index}`;
-        const cardWrapper = document.createElement('div');
         
-        // Base Classes
+        const cardWrapper = document.createElement('div');
+        // Add 'violation' class if needed
         cardWrapper.className = `flip-card-wrapper ${!goal.is_compliant ? 'violation' : ''}`;
         
-        // Data Attributes for Logic
         cardWrapper.dataset.cardId = cardId;
         cardWrapper.dataset.cardTitle = goal.title;
         cardWrapper.dataset.colorHue = hue;
-        cardWrapper.dataset.goalIndex = index;
         
-        // Visual Gradients
+        // Use Backend Gradients (Python assigns specific red themes for violations)
+        // FIX: Do not force #2c3e50 if violation; use the goal.card_gradient (which is red)
         const cardGrad = goal.card_gradient || `linear-gradient(135deg, hsl(${hue}, 70%, 50%), hsl(${hue + 30}, 80%, 40%))`;
         const plateGrad = goal.plate_gradient || `linear-gradient(135deg, hsl(${hue}, 70%, 60%), hsl(${hue}, 70%, 50%))`;
         const btnGrad = goal.btn_gradient || `linear-gradient(to right, hsl(${hue}, 70%, 50%), hsl(${hue}, 80%, 40%))`;
         const iconColor = goal.icon_color || '#fff';
 
-        // Inner HTML (The Monolith & The Selection Face)
         cardWrapper.innerHTML = `
             <div class="flip-card-inner">
                 
@@ -1087,10 +1083,25 @@ function renderNewGoals(goals, gridElement) {
                 <div class="flip-card-back" style="background: ${cardGrad};">
                     <div class="card-texture-overlay"></div>
                     <div class="monolith-content">
-                        <div class="monolith-icon-circle"><i class="${goal.icon} monolith-icon"></i></div>
+                        <div class="monolith-icon-circle" style="${!goal.is_compliant ? 'border-color: #ffcdd2;' : ''}">
+                            <i class="${goal.icon} monolith-icon"></i>
+                        </div>
+                        
                         ${!goal.is_compliant 
-                            ? `<span class="badge bg-black bg-opacity-25 border border-danger text-white font-data px-3 py-2 mt-3">PROTOCOL VIOLATION</span>` 
-                            : `<div class="font-data text-white-50 x-small tracking-widest opacity-75 border border-white border-opacity-25 rounded-pill px-3 py-1 mt-3">STRUCTURED SPECULATION</div>`
+                            ? `<!-- VIOLATION STATE UI -->
+                               <div class="d-flex flex-column align-items-center mt-3 fade-in">
+                                 <div class="badge bg-white text-danger border border-danger font-data px-4 py-2 shadow-sm" 
+                                      style="font-size: 0.85rem; letter-spacing: 2px;">
+                                      <i class="fas fa-ban me-2"></i>PROTOCOL VIOLATION
+                                 </div>
+                                 <div class="text-white font-body x-small mt-2 text-center px-4 opacity-75">
+                                    Safety constraints active.
+                                 </div>
+                               </div>` 
+                            : `<!-- VALID STATE UI -->
+                               <div class="font-data text-white-50 x-small tracking-widest opacity-75 border border-white border-opacity-25 rounded-pill px-3 py-1 mt-3">
+                                   STRUCTURED SPECULATION
+                               </div>`
                         }
                     </div>
                 </div>
@@ -1099,40 +1110,48 @@ function renderNewGoals(goals, gridElement) {
                 <div class="flip-card-front">
                      <div class="card-header-plate" style="background: ${plateGrad};">
                          <div class="card-texture-overlay"></div>
-                         <div class="card-domain-badge-large">${(goal.domain || 'GENERAL').toUpperCase()}</div>
-                         <div class="card-icon-float-large"><i class="${goal.icon}" style="color: ${iconColor};"></i></div>
+                         <div class="card-domain-badge-large" style="${!goal.is_compliant ? 'background: rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.2);' : ''}">
+                            ${(goal.domain || 'RESTRICTED').toUpperCase()}
+                         </div>
+                         <div class="card-icon-float-large">
+                            <i class="${goal.icon}" style="color: ${iconColor};"></i>
+                         </div>
                      </div>
+                     
                      <div class="card-body-large">
-                         <h3 class="card-title-large">${goal.title}</h3>
-                         <p class="card-desc-large">${goal.goal}</p>
+                         <h3 class="card-title-large text-dark">${goal.title}</h3>
+                         <p class="card-desc-large text-muted">${goal.goal}</p>
                      </div>
+                     
                      <div class="card-footer-large">
-                         <button type="button" class="btn-select-pill-large" style="background: ${btnGrad};">
-                             ${!goal.is_compliant ? 'PROTOCOL VIOLATION' : 'CHOOSE GOAL'}
+                         <button type="button" class="btn-select-pill-large" 
+                                 style="background: ${!goal.is_compliant ? '#94a3b8' : btnGrad}; 
+                                        ${!goal.is_compliant ? 'cursor: not-allowed !important; filter: grayscale(1);' : ''}">
+                             ${!goal.is_compliant ? '<i class="fas fa-lock me-2"></i> RESTRICTED' : 'CHOOSE GOAL'}
                          </button>
                      </div>
                 </div>
             </div>
-            <!-- Pill Dock (Used for animations) -->
+            <!-- Pill Dock -->
             <div class="system-pill-dock position-absolute top-0 start-0 w-100 p-4 d-flex flex-column gap-2" style="z-index: 5; pointer-events: none;"></div>
         `;
         
-        // 3. Attach Event Listener (The Fix)
-        const btn = cardWrapper.querySelector('.btn-select-pill-large');
-        if (btn) {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent card wrapper click
-                if (!goal.is_compliant) return; // Ignore violations
-                window.selectGoal(cardWrapper);
-            });
+        // Attach Listeners
+        if (goal.is_compliant) {
+            const btn = cardWrapper.querySelector('.btn-select-pill-large');
+            if(btn) btn.addEventListener('click', (e) => { e.stopPropagation(); window.selectGoal(cardWrapper); });
+            cardWrapper.onclick = () => window.selectGoal(cardWrapper);
+        } else {
+            // Shake on click
+            cardWrapper.onclick = () => {
+                cardWrapper.classList.remove('animate-shake');
+                void cardWrapper.offsetWidth; // Force reflow
+                cardWrapper.classList.add('animate-shake');
+            };
         }
         
-        // 4. Mount
         gridElement.appendChild(cardWrapper);
     });
-    
-    // 5. Re-init Navigation Dots
-    if (typeof initFooterDots === 'function') initFooterDots();
 }
 
 function initFooterDots() {

@@ -27,7 +27,7 @@ from system_templates import (
 )
 
 # --- Service Layers ---
-from ai_service import cleanup_gemini_client, generate_chat_response
+from ai_service import cleanup_gemini_client, generate_chat_response, generate_governance_report
 from utilities import generate_goal, analyze_user_input, is_input_compliant, \
                     generate_outcome_data, generate_ai_data, generate_image, \
                     format_ssol_text
@@ -168,27 +168,24 @@ async def outcome():
         # 2. DYNAMICALLY EXTRACT SYSTEM PHYSICS
         system_constraints = {}
         
-        # We iterate through the Master Ontology (SYSTEM_NODES)
-        # This ensures that if you add "MOOD" or "WEATHER" to system_nodes.py later,
-        # it automatically works here without changing code.
+        # Iterate through the Master Ontology to capture Wizard inputs
         for node_key in SYSTEM_NODES.keys():
-            # The Wizard sends keys like "OPERATOR", "DIRECTIVE", "AVOIDANCE"
+            # The Wizard sends keys exactly matching the SYSTEM_NODES keys (e.g. "OPERATOR")
             val = request.form.get(node_key)
             
             if val:
                 # SPECIAL HANDLING FOR TAGS (Arrays)
-                # If the UI type is 'tags', the frontend sends "Value1, Value2, Value3"
-                # We want to keep it as a string for the prompt, but maybe clean it up.
                 config = SYSTEM_NODES.get(node_key, {})
                 if config.get('ui_type') == 'tags':
-                    # Clean up list formatting just in case
+                    # Clean up list formatting (remove trailing commas etc)
                     cleaned_val = ", ".join([x.strip() for x in val.split(',') if x.strip()])
                     system_constraints[node_key] = cleaned_val
                 else:
                     system_constraints[node_key] = val.strip()
 
-        # 3. GENERATE INTELLIGENCE
+        # 3. GENERATE INTELLIGENCE (With Attenuation)
         try:
+            # We pass the constraints to the AI to influence the text generation
             structured_solution_json = await generate_outcome_data(
                 ssol_title=selected_goal_title, 
                 ssol_description=selected_goal_text, 
@@ -196,11 +193,11 @@ async def outcome():
                 forced_constraints=system_constraints 
             )
             
+            # Merge AI params with User Constraints (User wins conflicts)
             ai_params = structured_solution_json.get('system_params', {})
             final_system_data = {**ai_params, **system_constraints}
 
             # 4. CREATE SSOL CONTAINER
-            # This creates the ID. speculate_create_ssol handles USE_DATABASE internally.
             ssol_id_str = speculate_create_ssol(
                 USE_DATABASE, 
                 selected_goal_title, 
@@ -210,7 +207,7 @@ async def outcome():
             )
             ssol_id_uuid = UUID(ssol_id_str)
 
-            # 5. CREATE PHASES & CONDITIONS
+            # 5. CREATE PHASES & CONDITIONS (Standard Logic)
             if 'phases' in structured_solution_json:
                 for phase_name, cos_items in structured_solution_json['phases'].items():
                     for cos_content_with_tags in cos_items:
@@ -243,11 +240,14 @@ async def outcome():
             raw_ai_summary = structured_solution_json.get('ssolsummary', '')
             speculate_update_ssol_system_node_internal(ssol_id_str, 'raw_summary', raw_ai_summary)
             
-            # B. Save Domain Icon
+            # Save the Domain Icon specifically for the Dashboard Hero view
             if domain_icon:
                 speculate_update_ssol_system_node_internal(ssol_id_str, 'domain_icon', domain_icon)
+                
+            # Save the Raw Summary for the Charter
+            raw_ai_summary = structured_solution_json.get('ssolsummary', '')
+            speculate_update_ssol_system_node_internal(ssol_id_str, 'raw_summary', raw_ai_summary)
 
-            # C. Redirect to GET route (Persists ID)
             return redirect(url_for('routes_bp.view_ssol', ssol_id=ssol_id_str))
 
         except Exception as e:
@@ -445,10 +445,10 @@ async def speculate_context_route():
         cos_text = data.get('cos_text', '')
         ssol_id = data.get('ssol_id')
         
-        # 1. ATTENUATION LAYER
-        system_instructions = []
-        
-        # Hybrid Fetch for Context
+        # ==========================================================
+        # 1. HYBRID CONTEXT FETCHING
+        #    Retrieves Title + System Physics for AI Attenuation
+        # ==========================================================
         ssol_context = {}
         if ssol_id:
             if USE_DATABASE:
@@ -456,48 +456,95 @@ async def speculate_context_route():
                 try:
                     obj = session.query(SSOL).get(UUID(str(ssol_id)))
                     if obj: 
-                        ssol_context = {'target_date': obj.target_date, 'owner': obj.owner, 'system_data': obj.system_data}
+                        ssol_context = {
+                            'title': obj.title, # Critical for Governance Prompt
+                            'target_date': obj.target_date, 
+                            'owner': obj.owner, 
+                            'system_data': obj.system_data or {}
+                        }
                 finally:
                     session.close()
             else:
                 ssol_context = ssol_store.get(str(ssol_id), {})
 
-        # Build Physics Block
+        # ==========================================================
+        # 2. GOVERNANCE BRANCH (Ombud/Advocate)
+        #    Bypasses standard CE logic to run the Bicameral Check
+        # ==========================================================
+        if context == 'governance':
+            if not ssol_context:
+                return jsonify({'success': False, 'error': 'SSOL Context Not Found'}), 404
+            
+            # Delegates to ai_service.py logic defined in previous step
+            report = await generate_governance_report(ssol_context)
+            return jsonify({'success': True, 'report': report})
+
+        # ==========================================================
+        # 3. STANDARD ATTENUATION LAYER (The Physics Block)
+        #    Constructs the prompt rules for standard CE generation
+        # ==========================================================
+        system_instructions = []
+        
         if ssol_context:
             if ssol_context.get('target_date'):
                 system_instructions.append(f"TEMPORAL: Hard deadline {ssol_context['target_date']}.")
             if ssol_context.get('owner'):
                 system_instructions.append(f"OPERATOR: Entity is '{ssol_context['owner']}'.")
+            
+            # Dynamic Node Injection (Budget, Scale, Modality, etc.)
             if ssol_context.get('system_data'):
                 for key, val in ssol_context['system_data'].items():
                     config = SYSTEM_NODES.get(key)
                     if config and 'prompt_injection' in config and val:
-                        system_instructions.append(config['prompt_injection'].format(value=val))
+                        # Format the specific injection string
+                        try:
+                            system_instructions.append(config['prompt_injection'].format(value=val))
+                        except Exception:
+                            # Fallback if formatting fails
+                            system_instructions.append(f"{key}: {val}")
 
+        # Default fallback if no physics exist
         global_context_block = "\n".join(system_instructions) or "Standard procedures apply."
 
-        # 2. PROMPT & EXECUTE
+        # ==========================================================
+        # 4. STANDARD NODE PROMPTING
+        #    Narrative generation or List/Collection generation
+        # ==========================================================
         node_config = NODES.get(ce_type, NODES['Default'])
         prompts_map = node_config.get('prompts', {})
         default_prompts = NODES['Default'].get('prompts', {})
         
+        # A. Narrative Mode (Single Text Block)
         if context == 'narrative':
             base_prompt = prompts_map.get('narrative', default_prompts.get('narrative'))
             prompt_content = base_prompt.format(cos_text=cos_text, field=sub_context, node_type=ce_type)
             final_prompt = f"*** SYSTEM PHYSICS ***\n{global_context_block}\n\n*** TASK ***\n{prompt_content}"
+            
+            ai_response = await generate_chat_response(
+                messages=[{"role": "user", "content": final_prompt}], 
+                role="SSPEC Engine", 
+                task=f"{ce_type}-narrative",
+                system_instruction="You are the SSPEC Speculation Engine. Return pure JSON { 'text': ... }.",
+                temperature=0.75 
+            )
+
+        # B. Collection Mode (Lists of Prereqs, Stakeholders, etc.)
         else:
             base_prompt = prompts_map.get(context, default_prompts.get(context)) or f"Analyze '{cos_text}'. List 3 items for {context}."
             prompt_content = base_prompt.format(cos_text=cos_text)
             final_prompt = f"*** SYSTEM PHYSICS ***\n{global_context_block}\n\n*** TASK ***\n{prompt_content}"
 
-        ai_response = await generate_chat_response(
-            messages=[{"role": "user", "content": final_prompt}], 
-            role="SSPEC Engine", 
-            task=f"{ce_type}-{context}",
-            system_instruction="You are the SSPEC Speculation Engine. Return pure JSON.",
-            temperature=0.75 
-        )
+            ai_response = await generate_chat_response(
+                messages=[{"role": "user", "content": final_prompt}], 
+                role="SSPEC Engine", 
+                task=f"{ce_type}-{context}",
+                system_instruction="You are the SSPEC Speculation Engine. Return pure JSON array or object.",
+                temperature=0.75 
+            )
         
+        # ==========================================================
+        # 5. PARSING & RETURN
+        # ==========================================================
         clean_json = ai_response.replace("```json", "").replace("```", "").strip()
         parsed = json.loads(clean_json)
 
@@ -506,10 +553,14 @@ async def speculate_context_route():
             return jsonify({'success': True, 'text': txt, 'field': sub_context})
         else:
             suggestions = parsed if isinstance(parsed, list) else parsed.get('items', [])
+            # Fallback if AI wraps array in a key
+            if not isinstance(suggestions, list) and isinstance(parsed, dict):
+                suggestions = next((v for k, v in parsed.items() if isinstance(v, list)), [])
+                
             return jsonify({'success': True, 'suggestions': suggestions, 'context': context})
 
     except Exception as e:
-        current_app.logger.error(f"Speculation Context Error: {e}", exc_info=True)
+        current_app.logger.error(f"Speculate Context Error: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # ==============================================================================

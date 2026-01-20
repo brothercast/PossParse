@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<!-- 1. JINJA LOGIC: Pre-calculate System Stats for the Goal Visualizer -->
+<!-- 1. JINJA LOGIC: Pre-calculate System Stats for visualizers -->
 {% set total_ces = 0 %}
 {% set active_ces = 0 %}
 {% set verified_ces = 0 %}
@@ -23,275 +23,247 @@
     {% endfor %}
 {% endif %}
 
-<!-- THE HORIZON WRAPPER -->
+<!-- THE HORIZON WRAPPER (Locked Viewport) -->
 <div class="horizon-wrapper">
   <div class="console-housing">
     
     <!-- MAIN CONSOLE GRID (2-Column Layout) -->
-    <div class="row g-0 bg-white" style="min-height: 85vh;">
+    <div class="row g-0 bg-white" style="height: 100%;">
         
         <!-- ============================================= -->
-        <!-- A. LEFT COLUMN: CONTEXT & IDENTITY (Sidebar)  -->
+        <!-- A. LEFT COLUMN: HERO CONSOLE (Fixed Sidebar)  -->
         <!-- ============================================= -->
-        <div class="col-lg-3 border-end bg-surface-screen d-flex flex-column position-relative z-10">
+        <div class="col-lg-3 border-end d-flex flex-column position-relative z-10" 
+             style="background: linear-gradient(160deg, #00bcd4 0%, #0097a7 100%); color: white; overflow: hidden; height: 100%;">
             
-            <!-- Context Header -->
-            <div class="mission-context-header py-3 px-4 d-flex align-items-center justify-content-between text-white" 
-                 style="background: linear-gradient(90deg, #00bcd4 0%, #26c6da 100%); border-bottom: 1px solid rgba(255,255,255,0.1); height: 60px;">
-                <span class="font-data tracking-widest small">
-                    <i class="fas fa-satellite-dish me-2 opacity-50"></i>MISSION CONTEXT
-                </span>
-                <i class="fas fa-ellipsis-v opacity-50 small cursor-pointer"></i>
+            <!-- Context Header: UPDATED -->
+            <div class="py-3 px-4 d-flex align-items-center justify-content-between" 
+                 style="border-bottom: 1px solid rgba(255,255,255,0.2); height: 70px; flex-shrink: 0;">
+                <a href="{{ url_for('routes_bp.index') }}" class="text-white text-decoration-none font-data tracking-widest small fw-bold opacity-75 hover-opacity-100 transition-all">
+                    <i class="fas fa-chevron-left me-2"></i>RETURN TO GOAL SELECTION
+                </a>
+                <div class="dropdown">
+                    <i class="fas fa-ellipsis-v opacity-50 small cursor-pointer" data-bs-toggle="dropdown"></i>
+                    <ul class="dropdown-menu dropdown-menu-dark font-data small">
+                        <li><a class="dropdown-item" href="#" onclick="window.print()"><i class="fas fa-print me-2"></i> Print View</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('routes_bp.index') }}"><i class="fas fa-power-off me-2"></i> Exit Session</a></li>
+                    </ul>
+                </div>
             </div>
 
             <!-- SCROLLABLE SIDEBAR CONTENT -->
-            <div class="p-4 flex-grow-1 d-flex flex-column gap-3 overflow-y-auto">
+            <div class="p-4 flex-grow-1 d-flex flex-column gap-4 overflow-y-auto custom-scrollbar-dark" style="z-index: 5;">
                 
-                <!-- 1. Visualization Portal (Square 1:1 via CSS) -->
-                <div class="image-portal border shadow-sm mx-auto">
-                    <!-- Placeholder animation while stable diffusion generates -->
-                    <img src="{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}" id="placeholderImage" class="fade-in" alt="System Processing">
-                    <!-- Actual image injected by JS -->
-                    <img src="" id="ssolImage" class="fade-in" style="opacity: 0;" alt="Generated Outcome Visualization">
+                <!-- 1. Visualization Portal -->
+                <div class="image-portal shadow-lg mx-auto position-relative" style="width: 100%; aspect-ratio: 1/1; border: 4px solid rgba(255,255,255,0.8); border-radius: 12px; background: #000;">
+                    <img src="{{ url_for('static', filename='images/SSPEC_Logo_Motion.gif') }}" id="placeholderImage" class="fade-in" style="object-fit: cover; width:100%; height:100%;" alt="System Processing">
+                    <img src="" id="ssolImage" class="fade-in" style="opacity: 0; object-fit: cover; width:100%; height:100%; transition: opacity 1s;" alt="Generated Outcome Visualization">
                 </div>
 
-                <!-- 2. Domain Badge (Solid Pill Below Image) -->
-                <div class="domain-badge-container text-center">
-                    <div class="badge rounded-pill bg-dark text-white font-data px-3 py-2 shadow-sm" title="System Domain: {{ ssol.domain }}">
-                        <i class="{{ ssol.domain_icon }} me-2 text-info"></i> {{ ssol.domain | upper }}
+                <!-- 2. Hero Identity Block -->
+                <div class="text-center">
+                    <!-- Domain Pill: UPDATED (Larger) -->
+                    <div class="d-inline-flex align-items-center gap-2 px-4 py-2 rounded-pill mb-3 shadow-sm" 
+                         style="background: rgba(255,255,255,0.2); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.4);">
+                        <i class="{{ ssol.domain_icon }} text-white fs-6"></i>
+                        <span class="font-data text-white fs-6 fw-bold tracking-widest">{{ ssol.domain | upper }}</span>
                     </div>
-                </div>
-
-                <!-- 3. Prime Objective Card (Highlighted Box) -->
-                <div class="card border-0 bg-white shadow-sm p-3 mt-2">
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <i class="fas fa-bullseye text-danger"></i>
-                        <div class="font-data text-danger small tracking-widest fw-bold">PRIME OBJECTIVE</div>
-                    </div>
+                    
                     <!-- Hidden hook for AI Context -->
                     <div id="ssol-goal" class="d-none">{{ ssol.selected_goal }}</div>
                     
-                    <p class="font-body text-dark fw-bold fst-italic lh-sm mb-0" style="font-size: 0.95rem;">
-                        "{{ ssol.selected_goal }}"
-                    </p>
+                    <div class="font-body text-white opacity-75 small mt-1 fst-italic">"{{ ssol.selected_goal }}"</div>
                 </div>
 
-                <!-- 4. System Variables (The Anchors Stack) -->
-                <!-- Injected via backend from system_templates.py -->
+                <!-- 3. Strategic Anchors (System Pills) -->
                 <div class="w-100 mt-2">
                     {{ system_pills_html | default('') | safe }}
                 </div>
             </div>
 
-            <!-- Metadata Footer -->
-            <div class="p-3 border-top text-center bg-white mt-auto">
-                <span class="font-data text-muted small opacity-50">ID: {{ ssol_id.split('-')[0] | upper }}</span>
+            <!-- Ghost Watermark -->
+            <div class="position-absolute bottom-0 end-0 opacity-10 pointer-events-none" style="transform: translate(20%, 20%) rotate(-15deg); z-index: 0;">
+                <i class="{{ ssol.domain_icon }}" style="font-size: 18rem; color: white;"></i>
+            </div>
+
+            <!-- Footer Metadata -->
+            <div class="p-3 border-top text-center" style="border-color: rgba(255,255,255,0.2) !important; background: rgba(0,0,0,0.1); flex-shrink: 0; z-index: 10;">
+                <span class="font-data text-white small opacity-50">ID: {{ ssol_id.split('-')[0] | upper }}</span>
             </div>
         </div>
 
 
         <!-- ============================================= -->
-        <!-- B. RIGHT COLUMN: WORKSPACE (The Engine)      -->
+        <!-- B. RIGHT COLUMN: WORKSPACE (Tabbed)          -->
         <!-- ============================================= -->
-        <div class="col-lg-9 d-flex flex-column position-relative">
+        <div class="col-lg-9 d-flex flex-column position-relative bg-surface-screen" style="height: 100%; overflow: hidden;">
             
-            <!-- Brand Strip (Top Accent) -->
+            <!-- Brand Strip -->
             <div class="brand-strip"></div>
 
-            <!-- Workspace Padding -->
-            <div class="p-4 p-lg-5 flex-grow-1 overflow-y-auto">
-                
-                <!-- 1. Title Header & Actions -->
-                <div class="d-flex justify-content-between align-items-start mb-4">
-                    <div>
-                        <div class="font-data text-muted small mb-1">SSPEC SOLUTION</div>
-                        <h1 class="font-brand display-5 text-dark mb-0">{{ ssol.ssol_title }}</h1>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-outline-secondary font-data rounded-pill px-4" title="Share Link"><i class="fas fa-share-nodes"></i></button>
-                        <button id="save-as-pdf-button" data-ssol-id="{{ ssol_id }}" class="btn btn-info text-white font-data rounded-pill px-4 shadow-sm">
-                            <i class="fas fa-file-pdf me-2"></i> EXPORT REPORT
-                        </button>
-                    </div>
+            <!-- 1. Header (Fixed Top) -->
+            <div class="px-5 py-3 border-bottom bg-white d-flex justify-content-between align-items-center shadow-sm z-20" style="height: 80px; flex-shrink: 0;">
+                <div style="min-width: 0; padding-right: 20px;">
+                    <div class="font-data text-muted x-small mb-0 tracking-widest">SSPEC SOLUTION</div>
+                    <!-- TITLE: Larger Headline -->
+                    <h1 class="font-brand display-6 text-dark mb-0 text-truncate" style="line-height: 1.1;" title="{{ ssol.ssol_title }}">{{ ssol.ssol_title }}</h1>
                 </div>
+                <div class="d-flex gap-2 flex-shrink-0">
+                    <button class="btn btn-outline-secondary font-data rounded-pill px-4 btn-sm" onclick="alert('Link copied to clipboard')">
+                        <i class="fas fa-share-nodes me-2"></i> SHARE
+                    </button>
+                    <button id="save-as-pdf-button" data-ssol-id="{{ ssol_id }}" class="btn btn-info text-white font-data rounded-pill px-4 btn-sm shadow-sm">
+                        <i class="fas fa-file-pdf me-2"></i> EXPORT
+                    </button>
+                </div>
+            </div>
 
-                <!-- 2. Command Deck -->
-                <div class="command-deck-wrapper mb-5 d-flex flex-column gap-4">
+            <!-- 2. TAB NAVIGATION (New) -->
+            <div class="px-5 pt-4 bg-white border-bottom flex-shrink-0">
+                <ul class="nav nav-tabs ce-nav-tabs border-0 gap-4" id="mainTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link font-data active px-0 pb-3" id="charter-tab" data-bs-toggle="tab" data-bs-target="#tab-charter" type="button" role="tab">
+                            <i class="fas fa-layer-group me-2"></i>EXECUTIVE CHARTER
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link font-data px-0 pb-3" id="phases-tab" data-bs-toggle="tab" data-bs-target="#tab-phases" type="button" role="tab">
+                            <i class="fas fa-list-check me-2"></i>PHASES & CONDITIONS
+                        </button>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 3. Scrollable Content Area -->
+            <div class="p-5 flex-grow-1 overflow-y-auto custom-scrollbar tab-content bg-surface-screen" id="mainTabContent">
+                
+                <!-- TAB 1: CHARTER & HORIZON -->
+                <div class="tab-pane fade show active" id="tab-charter" role="tabpanel">
                     
-                    <!-- A. Strategic Charter (Executive Summary) -->
-                    <!-- Now utilizing the new .charter-card glassmorphism style -->
-                    <div class="bg-white rounded-4 border shadow-sm position-relative overflow-hidden charter-card" style="min-height: 200px;">
-                        
-                        <!-- Internal Header -->
-                        <div class="py-3 px-4 border-bottom d-flex align-items-center gap-3" 
-                             style="background: linear-gradient(90deg, #00bcd4, #26c6da, transparent);">
-                            <div class="p-2 bg-white bg-opacity-25 rounded-3 backdrop-blur-sm text-white d-flex align-items-center justify-content-center" 
-                                 style="width:36px; height:36px;">
-                                <i class="fas fa-layer-group"></i>
-                            </div>
-                            <span class="font-brand text-white small tracking-widest fw-bold" style="letter-spacing: 1px; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">EXECUTIVE CHARTER</span>
-                        </div>
-
-                        <!-- Ghost Watermark (Domain Icon) -->
-                        <div class="domain-ghost-watermark" style="opacity: 0.1;">
-                           <i class="{{ ssol.domain_icon }}"></i>
-                        </div>
-
-                        <!-- Content with "Magic Parsing" Highlighting -->
-                        <div class="charter-content font-body text-dark lead position-relative p-5">
+                    <!-- A. Executive Charter (Glass Card) -->
+                    <div class="bg-white rounded-4 border shadow-sm position-relative overflow-hidden charter-card mb-5">
+                        <div class="domain-ghost-watermark" style="opacity: 0.05;"><i class="{{ ssol.domain_icon }}"></i></div>
+                        <div class="charter-content font-body text-dark lead position-relative p-5" style="font-size: 1.15rem; line-height: 1.8;">
                             {{ ssol.ssol_summary | safe }}
                         </div>
                     </div>
 
                     <!-- B. Flight Path Timeline (Horizon Gauge) -->
-                    <!-- Injected from backend (system_templates.py) -->
-                    <div class="w-100">
+                    <div class="mb-5">
                         {{ horizon_gauge_html | default('<div class="alert alert-light border text-muted font-data small">TIMELINE CALIBRATING...</div>') | safe }}
                     </div>
-                    
                 </div>
 
-                <!-- 3. Phase Execution Grid (The Table) -->
-                <div class="border rounded-3 overflow-hidden shadow-sm bg-white mb-4">
+                <!-- TAB 2: PHASES & CONDITIONS -->
+                <div class="tab-pane fade" id="tab-phases" role="tabpanel">
                     
-                    <!-- Grid Header -->
-                    <div class="bg-light px-4 py-3 border-bottom d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center gap-3">
-                             <div class="p-2 bg-white rounded-circle border shadow-sm text-muted"><i class="fas fa-list-check"></i></div>
-                             <h2 class="h6 mb-0 text-secondary font-brand letter-spacing-1">PHASES & CONDITIONS</h2>
+                    <!-- C. Phase Execution Grid -->
+                    <div class="border rounded-3 overflow-hidden shadow-sm bg-white mb-4">
+                        <!-- Legend (Header) -->
+                        <div class="bg-light px-4 py-3 border-bottom d-flex justify-content-between align-items-center">
+                            <span class="font-data text-muted small fw-bold tracking-widest">PROTOCOL SEQUENCE</span>
+                            <div class="d-none d-lg-flex gap-4 font-data text-muted small tracking-widest align-items-center">
+                                {% for phase_name in ssol.phases.keys() %}
+                                <span class="phase-legend-item d-flex align-items-center gap-2 cursor-pointer hover-text-dark transition-colors" 
+                                      data-target-id="collapse{{ loop.index }}" 
+                                      title="Scroll to {{ phase_name }}">
+                                    <div class="rounded-circle" style="width:8px;height:8px;background:var(--phase-{{ loop.index0 }});"></div> 
+                                    {{ phase_name.upper() }}
+                                </span>
+                                {% endfor %}
+                            </div>
                         </div>
                         
-                        <!-- Interactive Legend -->
-                        <div class="d-none d-lg-flex gap-4 font-data text-muted small tracking-widest align-items-center">
-                            {% for phase_name in ssol.phases.keys() %}
-                            <span class="phase-legend-item d-flex align-items-center gap-2 cursor-pointer hover-text-dark transition-colors" 
-                                  data-target-id="collapse{{ loop.index }}" 
-                                  title="Scroll to {{ phase_name }}">
-                                <div class="rounded-circle" style="width:8px;height:8px;background:var(--phase-{{ loop.index0 }});"></div> 
-                                {{ phase_name.upper() }}
-                            </span>
+                        <!-- Accordion -->
+                        <div class="accordion accordion-flush" id="phaseAccordion">
+                            {% for phase_name, cos_list in ssol.phases.items() %}
+                            <div class="accordion-item border-bottom mb-0">
+                                <!-- Phase Header -->
+                                <div class="module-header collapsed cursor-pointer py-3 px-4 transition-all text-white position-relative overflow-hidden" 
+                                     data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" id="heading{{ loop.index }}"
+                                     style="background-color: var(--phase-{{ loop.index0 }}); border-bottom: 1px solid rgba(0,0,0,0.1);">
+                                    <div class="position-absolute top-0 start-0 w-100 h-100" style="background-image: radial-gradient(rgba(255,255,255,0.2) 1px, transparent 1px); background-size: 8px 8px; opacity: 0.3;"></div>
+                                    <div class="d-flex align-items-center justify-content-between w-100 position-relative z-1">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div class="phase-icon text-dark bg-white shadow-sm" style="opacity: 0.9; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold;">{{ phase_name[0] }}</div>
+                                            <div class="text-white">
+                                                <div class="phase-title font-brand" style="font-size: 1.2rem; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">{{ phase_name }} PHASE</div>
+                                                <div class="font-data small opacity-75 letter-spacing-2">SEQUENCE 0{{ loop.index }}</div>
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-chevron-down text-white opacity-75 transition-transform"></i>
+                                    </div>
+                                </div>
+                                <!-- Phase Body -->
+                                <div id="collapse{{ loop.index }}" class="accordion-collapse collapse show bg-white" data-bs-parent="#phaseAccordion">
+                                    <div class="accordion-body p-0 phase-table-container" data-ssol-id="{{ ssol_id }}">
+                                        {% if cos_list %}
+                                        <table class="table table-hover mb-0 align-middle retro-table">
+                                            <thead class="bg-surface-screen border-bottom">
+                                                <tr>
+                                                    <th class="ps-5 text-muted small font-data py-3" style="width: 110px;">STATUS</th>
+                                                    <th class="text-muted small font-data py-3">CONDITION OF SATISFACTION</th> 
+                                                    <th class="text-muted small font-data py-3" style="width: 18%;">ACCOUNTABLE</th>
+                                                    <th class="text-muted small font-data py-3" style="width: 12%;">TARGET</th>
+                                                    <th class="text-end pe-5 text-muted small font-data py-3" style="width: 100px;">EDIT</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for cos in cos_list %}
+                                                <tr class="cos-row" data-cos-id="{{ cos.id }}" data-editing="false">
+                                                    <td class="status-cell ps-5">
+                                                        <span class="status-block font-data shadow-sm" style="background-color: {{ 'var(--success)' if cos.status == 'Completed' else 'var(--warning)' if cos.status == 'Active' else '#17a2b8' }}; color: white; font-size: 0.65rem; padding: 4px 10px; border-radius: 4px;">{{ cos.status | upper }}</span>
+                                                    </td>
+                                                    <td class="cos-content-cell py-4">
+                                                        <div class="cos-content-display font-body text-dark fs-6">{{ cos.content | safe }}</div>
+                                                        <div class="cos-content-edit d-none"><textarea class="form-control font-body bg-light border-0 p-3 shadow-inner">{{ cos.content | striptags }}</textarea></div>
+                                                    </td>
+                                                    <td class="cos-accountable-party-cell">
+                                                        <div class="d-flex align-items-center gap-2 font-body fw-bold text-secondary small">
+                                                            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center text-muted border" style="width:32px;height:32px;"><i class="fas fa-user small"></i></div>
+                                                            <span class="cos-accountable-party-display">{{ cos.accountable_party or 'N/A' }}</span>
+                                                            <input type="text" class="form-control form-control-sm cos-accountable-party-edit d-none" value="{{ cos.accountable_party }}">
+                                                        </div>
+                                                    </td>
+                                                    <td class="cos-completion-date-cell font-data text-muted small">
+                                                        <span class="cos-completion-date-display">{{ cos.completion_date or 'TBD' }}</span>
+                                                        <input type="date" class="form-control form-control-sm cos-completion-date-edit d-none" value="{{ cos.completion_date if cos.completion_date else '' }}">
+                                                    </td>
+                                                    <td class="text-end actions-cell pe-5">
+                                                        <div class="btn-group cos-actions opacity-50 hover-opacity-100 transition">
+                                                            <button class="btn btn-sm btn-link text-muted edit-cos-button p-2"><i class="fas fa-cog"></i></button>
+                                                            <button class="btn btn-sm btn-link text-danger delete-cos-button p-2"><i class="fas fa-trash"></i></button>
+                                                        </div>
+                                                        <div class="btn-group cos-actions d-none">
+                                                            <button class="btn btn-sm btn-success update-cos-button p-1"><i class="fas fa-check"></i></button>
+                                                            <button class="btn btn-sm btn-secondary cancel-cos-button p-1"><i class="fas fa-times"></i></button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                        <div class="p-3 bg-white border-top d-flex justify-content-center">
+                                            <button class="btn btn-white border font-data rounded-pill px-5 py-2 text-secondary hover-shadow add-cos" data-phase="{{ phase_name }}"><i class="fas fa-plus me-2 text-primary"></i> ADD CONDITION UNIT</button>
+                                        </div>
+                                        {% else %}
+                                        <div class="p-5 text-center text-muted font-body opacity-50"><i class="fas fa-folder-open fa-3x mb-3"></i><p class="small">No conditions initialized.</p></div>
+                                        <div class="p-3 bg-white border-top d-flex justify-content-center"><button class="btn btn-sm btn-outline-secondary rounded-pill px-4 font-data add-cos" data-phase="{{ phase_name }}"><i class="fas fa-plus me-2"></i> INITIALIZE</button></div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
                             {% endfor %}
                         </div>
                     </div>
-                    
-                    <!-- Accordion Stack -->
-                    <div class="accordion accordion-flush" id="phaseAccordion">
-                        {% for phase_name, cos_list in ssol.phases.items() %}
-                        <div class="accordion-item border-bottom mb-0">
-                            
-                            <!-- Phase Header (Vibrant Full Color) -->
-                            <div class="module-header collapsed cursor-pointer py-3 px-4 transition-all text-white position-relative overflow-hidden" 
-                                 data-bs-toggle="collapse" 
-                                 data-bs-target="#collapse{{ loop.index }}" 
-                                 id="heading{{ loop.index }}"
-                                 style="background-color: var(--phase-{{ loop.index0 }}); border-bottom: 1px solid rgba(0,0,0,0.1);">
-                                
-                                <!-- Subtle texture overlay for headers -->
-                                <div class="position-absolute top-0 start-0 w-100 h-100" style="background-image: radial-gradient(rgba(255,255,255,0.2) 1px, transparent 1px); background-size: 8px 8px; opacity: 0.3;"></div>
-
-                                <div class="d-flex align-items-center justify-content-between w-100 position-relative z-1">
-                                    <div class="d-flex align-items-center gap-3">
-                                        <div class="phase-icon text-dark bg-white shadow-sm" style="opacity: 0.9; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold;">
-                                            {{ phase_name[0] }}
-                                        </div>
-                                        <div class="text-white">
-                                            <div class="phase-title font-brand" style="font-size: 1.2rem; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">{{ phase_name }} PHASE</div>
-                                            <div class="font-data small opacity-75 letter-spacing-2">SEQUENCE 0{{ loop.index }}</div>
-                                        </div>
-                                    </div>
-                                    <i class="fas fa-chevron-down text-white opacity-75 transition-transform"></i>
-                                </div>
-                            </div>
-
-                            <!-- Phase Body -->
-                            <div id="collapse{{ loop.index }}" class="accordion-collapse collapse show bg-white" data-bs-parent="#phaseAccordion">
-                                <div class="accordion-body p-0 phase-table-container" data-ssol-id="{{ ssol_id }}">
-                                    {% if cos_list %}
-                                    <!-- The New Table Structure (Retro Table) -->
-                                    <table class="table table-hover mb-0 align-middle retro-table">
-                                        <thead class="bg-surface-screen border-bottom">
-                                            <tr>
-                                                <th class="ps-5 text-muted small font-data py-3" style="width: 110px;">STATUS</th>
-                                                <th class="text-muted small font-data py-3">CONDITION OF SATISFACTION</th> 
-                                                <th class="text-muted small font-data py-3" style="width: 18%;">ACCOUNTABLE</th>
-                                                <th class="text-muted small font-data py-3" style="width: 12%;">TARGET</th>
-                                                <th class="text-end pe-5 text-muted small font-data py-3" style="width: 100px;">EDIT</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for cos in cos_list %}
-                                            <tr class="cos-row" data-cos-id="{{ cos.id }}" data-editing="false">
-                                                <!-- Status -->
-                                                <td class="status-cell ps-5">
-                                                    <span class="status-block font-data shadow-sm" 
-                                                          style="background-color: {{ 'var(--success)' if cos.status == 'Completed' else 'var(--warning)' if cos.status == 'Active' else '#17a2b8' }}; color: white; font-size: 0.65rem; padding: 4px 10px; border-radius: 4px;">
-                                                        {{ cos.status | upper }}
-                                                    </span>
-                                                </td>
-                                                <!-- Content with HTML (Pills) -->
-                                                <td class="cos-content-cell py-4">
-                                                    <div class="cos-content-display font-body text-dark fs-6">{{ cos.content | safe }}</div>
-                                                    <!-- Hidden Textarea for Editing -->
-                                                    <div class="cos-content-edit d-none">
-                                                        <textarea class="form-control font-body bg-light border-0 p-3 shadow-inner">{{ cos.content | striptags }}</textarea>
-                                                    </div>
-                                                </td>
-                                                <!-- Accountable Party -->
-                                                <td class="cos-accountable-party-cell">
-                                                    <div class="d-flex align-items-center gap-2 font-body fw-bold text-secondary small">
-                                                        <div class="bg-light rounded-circle d-flex align-items-center justify-content-center text-muted border" style="width:32px;height:32px;"><i class="fas fa-user small"></i></div>
-                                                        <span class="cos-accountable-party-display">{{ cos.accountable_party or 'N/A' }}</span>
-                                                        <input type="text" class="form-control form-control-sm cos-accountable-party-edit d-none" value="{{ cos.accountable_party }}">
-                                                    </div>
-                                                </td>
-                                                <!-- Date -->
-                                                <td class="cos-completion-date-cell font-data text-muted small">
-                                                    <span class="cos-completion-date-display">{{ cos.completion_date or 'TBD' }}</span>
-                                                    <input type="date" class="form-control form-control-sm cos-completion-date-edit d-none" value="{{ cos.completion_date if cos.completion_date else '' }}">
-                                                </td>
-                                                <!-- Actions -->
-                                                <td class="text-end actions-cell pe-5">
-                                                    <div class="btn-group cos-actions opacity-50 hover-opacity-100 transition">
-                                                        <button class="btn btn-sm btn-link text-muted edit-cos-button p-2"><i class="fas fa-cog"></i></button>
-                                                        <button class="btn btn-sm btn-link text-danger delete-cos-button p-2"><i class="fas fa-trash"></i></button>
-                                                    </div>
-                                                    <!-- Save/Cancel Actions (Hidden by default) -->
-                                                    <div class="btn-group cos-actions d-none">
-                                                        <button class="btn btn-sm btn-success update-cos-button p-1"><i class="fas fa-check"></i></button>
-                                                        <button class="btn btn-sm btn-secondary cancel-cos-button p-1"><i class="fas fa-times"></i></button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                    <!-- Add Button -->
-                                    <div class="p-3 bg-white border-top d-flex justify-content-center">
-                                        <button class="btn btn-white border font-data rounded-pill px-5 py-2 text-secondary hover-shadow add-cos" data-phase="{{ phase_name }}">
-                                            <i class="fas fa-plus me-2 text-primary"></i> ADD CONDITION UNIT
-                                        </button>
-                                    </div>
-                                    {% else %}
-                                    <!-- Empty State -->
-                                    <div class="p-5 text-center text-muted font-body opacity-50">
-                                        <i class="fas fa-folder-open fa-3x mb-3"></i>
-                                        <p class="small">No conditions initialized.</p>
-                                    </div>
-                                    <div class="p-3 bg-white border-top d-flex justify-content-center">
-                                        <button class="btn btn-sm btn-outline-secondary rounded-pill px-4 font-data add-cos" data-phase="{{ phase_name }}"><i class="fas fa-plus me-2"></i> INITIALIZE</button>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
                 </div>
-
+                
+                <!-- Footer Pad -->
+                <div style="height: 50px;"></div>
             </div>
             
-            <!-- Page Footer -->
-            <div class="px-5 py-3 bg-white border-top mt-auto d-flex justify-content-between align-items-center">
+            <!-- 3. System Status Footer -->
+            <div class="px-5 py-3 bg-white border-top d-flex justify-content-between align-items-center" style="flex-shrink: 0; z-index: 20;">
                 <div class="font-data small text-muted d-flex align-items-center">
                     <div class="rounded-circle bg-success me-2 animate-pulse" style="width:8px; height:8px;"></div>
                     SYSTEM ONLINE
@@ -307,12 +279,10 @@
 
 <!-- Modal Injectors -->
 <div class="modal fade" id="errorModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-body font-body" id="errorMessageContent"></div></div></div></div>
-<!-- The System Config Modal (Injected from Backend) -->
 {{ system_config_modal_html | default('') | safe }}
-<!-- The CE Node Modal Container -->
 <div id="dynamicModalContainer"></div>
 
-<!-- STYLES Specific to this Layout (Overriding old CSS if necessary) -->
+<!-- STYLES Specific to this Layout -->
 <style>
     .animate-pulse { animation: pulse 2s infinite; }
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
@@ -321,8 +291,33 @@
     .transition-transform { transition: transform 0.2s; }
     .module-header:not(.collapsed) .fa-chevron-down { transform: rotate(180deg); }
     .flex-shrink-0 { flex-shrink: 0 !important; }
-    /* Ensure the table is retro and stylish */
+    
+    /* Table Styling */
     .retro-table thead th { font-weight: 700; letter-spacing: 1px; }
+    
+    /* Custom Scrollbar for Dark Sidebar */
+    .custom-scrollbar-dark::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar-dark::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+    .custom-scrollbar-dark::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+    .custom-scrollbar-dark::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+    
+    /* TAB STYLING OVERRIDES */
+    .nav-tabs .nav-link {
+        color: #94a3b8; /* Muted */
+        border: none;
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s;
+    }
+    .nav-tabs .nav-link:hover {
+        color: var(--text-dark);
+        border-color: transparent;
+    }
+    .nav-tabs .nav-link.active {
+        color: var(--aviation-teal);
+        background: transparent;
+        border-color: var(--aviation-teal);
+        font-weight: 700;
+    }
 </style>
 {% endblock %}
 
@@ -330,17 +325,8 @@
 <script>
     // Inject Python System Node Configuration into JS Scope
     window.SYSTEM_NODES_CONFIG = {{ system_nodes | tojson }};
-    
-    // Inject the SSOL ID so the CE Modal knows which "Physics" to apply
     window.SSOL_ID = "{{ ssol_id }}"; 
-
-    // Inject Pre-Calculated Stats for the 'GOAL' Visualizer
-    window.SSOL_STATS = {
-        total: {{ total_ces }},
-        active: {{ active_ces }},
-        verified: {{ verified_ces }},
-        integrity: {{ ssol.integrity_score }}
-    };
+    window.SSOL_STATS = { total: {{ total_ces }}, active: {{ active_ces }}, verified: {{ verified_ces }}, integrity: {{ ssol.integrity_score }} };
 </script>
 
 <!-- Module Imports -->
@@ -351,10 +337,7 @@
 <script type="module">
     import { initSystemCards } from "{{ url_for('static', filename='js/system_cards.js') }}";
     document.addEventListener('DOMContentLoaded', () => {
-        // Initialize the System Anchors Logic
         initSystemCards("{{ ssol_id }}");
-        
-        // Phase Legend Navigation logic
         const legendItems = document.querySelectorAll('.phase-legend-item');
         legendItems.forEach(item => {
             item.addEventListener('click', () => {
@@ -367,8 +350,6 @@
                 }
             });
         });
-
-        // Async Image Loading
         const ssolImageElement = document.getElementById('ssolImage'); 
         const placeholderImageElement = document.getElementById('placeholderImage');
         if (ssolImageElement) {

@@ -265,34 +265,30 @@ async def generate_outcome_data(ssol_title, ssol_description, domain, forced_con
     The Core Engine. Generates the structured phases and content.
     Includes the 'Attenuation Layer' (System Physics).
     """
-    from system_nodes import SYSTEM_NODES # Ensure import
+    from system_nodes import SYSTEM_NODES 
 
     constraint_block = []
     
     if forced_constraints:
         constraint_block.append("\n*** SYSTEM PHYSICS (ATTENUATION LAYER) ***")
+        constraint_block.append("The user has explicitly defined the following constraints. You MUST adhere to them:")
         
         for key, value in forced_constraints.items():
             if not value: continue
             
-            # 1. Look for specific Prompt Injection logic in the Node Config
+            # Look for specific Prompt Injection logic
             node_config = SYSTEM_NODES.get(key, {})
             injection_template = node_config.get('prompt_injection')
             
             if injection_template:
-                # Format the template with the user's value
-                # e.g., "RISK ATTENUATION: Avoid [Debt, Pollution]..."
                 try:
                     formatted_instruction = injection_template.format(value=value)
                     constraint_block.append(f"- {formatted_instruction}")
                 except:
-                    # Fallback if formatting fails
                     constraint_block.append(f"- {key}: {value}")
             else:
-                # Generic Fallback
                 constraint_block.append(f"- {key}: {value}")
 
-    # Join into a single strong block of text
     constraint_text = "\n".join(constraint_block)
 
     prompt = f"""
