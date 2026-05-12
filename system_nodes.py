@@ -18,7 +18,7 @@ SYSTEM_NODES = {
     "GOAL": {
         "label": "The Future Fulfilled",
         "icon": "fa-solid fa-bullseye",
-        "color": "#212121", 
+        "color": "#FF6D3A", 
         "description": "The destination as a completed fact.",
         "guide": "Speak from the future. The park IS open. The app IS launched.",
         "ui_type": "textarea",
@@ -31,7 +31,7 @@ SYSTEM_NODES = {
     "OPERATOR": {
         "label": "The Driver",
         "icon": "fa-solid fa-user-astronaut",
-        "color": "#03a9f4", 
+        "color": "#7C8BF5", 
         "description": "Who is accountable for this outcome?",
         "guide": "The identity of the driver determines available leverage.",
         "ui_type": "select",
@@ -63,7 +63,7 @@ SYSTEM_NODES = {
     "HORIZON": {
         "label": "Time Horizon",
         "icon": "fa-solid fa-stopwatch",
-        "color": "#ff9800", 
+        "color": "#FFBE2E", 
         "description": "The date this reality is fully realized.",
         "guide": "Is this a sprint or a marathon?",
         "ui_type": "date", 
@@ -82,7 +82,7 @@ SYSTEM_NODES = {
     "BUDGET": {
         "label": "Resource Model",
         "icon": "fa-solid fa-bolt", 
-        "color": "#4caf50", 
+        "color": "#7CB342", 
         "description": "The energy source for the project.",
         "ui_type": "select",
         "options": [
@@ -111,7 +111,7 @@ SYSTEM_NODES = {
     "SCALE": {
         "label": "Sphere of Influence",
         "icon": "fa-solid fa-earth-americas",
-        "color": "#3f51b5", 
+        "color": "#AB47BC", 
         "description": "The level of transformation being generated.",
         "ui_type": "select",
         "options": [
@@ -143,7 +143,7 @@ SYSTEM_NODES = {
     "MODALITY": {
         "label": "Work Style",
         "icon": "fa-solid fa-people-carry-box",
-        "color": "#607d8b", 
+        "color": "#FF8A50", 
         "description": "The rhythm of coordination.",
         "ui_type": "select",
         "options": [
@@ -172,7 +172,7 @@ SYSTEM_NODES = {
     "DIRECTIVE": {
         "label": "Non-Negotiables",
         "icon": "fa-solid fa-heart",
-        "color": "#9c27b0", 
+        "color": "#EC407A", 
         "description": "The immutable standards we uphold.",
         "ui_type": "tags", # SIGNALS FRONTEND TO USE PILL INTERFACE
         "wizard": {
@@ -191,7 +191,7 @@ SYSTEM_NODES = {
     "AVOIDANCE": { 
         "label": "Dealbreakers",
         "icon": "fa-solid fa-ban", 
-        "color": "#ef5350", 
+        "color": "#EF5350", 
         "description": "Outcomes we must prevent at all costs.",
         "ui_type": "tags", # SIGNALS FRONTEND TO USE PILL INTERFACE
         "wizard": {
@@ -213,7 +213,7 @@ SYSTEM_NODES = {
     "FULFILLMENT": {
         "label": "The Proof",
         "icon": "fa-solid fa-signature",
-        "color": "#009688", # Teal
+        "color": "#26A69A", # Bright Warm Teal
         "description": "The tangible evidence of completion.",
         "ui_type": "text",
         "wizard": {

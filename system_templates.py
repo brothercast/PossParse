@@ -83,7 +83,7 @@ HORIZON_GAUGE_TEMPLATE = """
 # 2. SIDEBAR STACK (Refined "Monolith" Style)
 # ==============================================================================
 SYSTEM_SIDEBAR_STACK_TEMPLATE = """
-<div class="d-flex flex-column gap-2 mt-4" id="system-anchor-stack">
+<div class="d-flex flex-column gap-2 mt-4 custom-scrollbar-dark" id="system-anchor-stack" style="max-height: 340px; overflow-y: auto;">
     
     <div class="d-flex align-items-center justify-content-between px-1 mb-2">
         <span class="font-data text-white-50 small tracking-widest opacity-75">SYSTEM PHYSICS</span>
@@ -129,32 +129,33 @@ SYSTEM_EDITOR_MODAL_TEMPLATE = """
     <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content border-0 rounded-4 shadow-2xl overflow-visible">
             
-            <!-- Nav Arrows -->
+            <!-- Nav Arrows (Glassmorphic) -->
             <div class="sys-nav-arrow sys-nav-prev" onclick="navigateSystemNode(-1)"><i class="fas fa-chevron-left fa-lg"></i></div>
             <div class="sys-nav-arrow sys-nav-next" onclick="navigateSystemNode(1)"><i class="fas fa-chevron-right fa-lg"></i></div>
 
             <div class="row g-0" style="min-height: 600px;">
                 
                 <!-- LEFT: Identity & State (Visualizer) -->
-                <div class="col-md-5 sys-modal-left p-5" id="sys-identity-panel" style="background-color: #333; transition: background-color 0.5s;">
+                <div class="col-md-5 sys-modal-left p-5" id="sys-identity-panel">
                     <div class="sys-modal-texture"></div>
                     
-                    <div class="position-relative z-1 h-100 d-flex flex-column justify-content-between">
+                    <!-- Ghost Icon Watermark -->
+                    <i class="fas fa-cube sys-ghost-icon" id="sys-ghost-icon"></i>
+                    
+                    <div class="position-relative z-1 h-100 d-flex flex-column justify-content-between sys-panel-transition" id="sys-left-content">
                         <!-- Header -->
                         <div>
-                            <div class="bg-white bg-opacity-25 rounded-3 d-flex align-items-center justify-content-center mb-4 shadow-sm backdrop-blur" 
-                                 style="width: 64px; height: 64px;">
-                                <i class="fas fa-cube fa-2x text-white" id="sys-display-icon"></i>
+                            <div class="sys-icon-badge" id="sys-icon-badge">
+                                <i class="fas fa-cube" id="sys-display-icon"></i>
                             </div>
-                            <h2 class="font-brand text-white display-6 mb-2" id="sys-display-label">LOADING...</h2>
-                            <div class="font-data text-white-50 small letter-spacing-2 mb-5">SYSTEM NODE CONFIGURATION</div>
+                            <h2 class="sys-node-label" id="sys-display-label">LOADING...</h2>
+                            <div class="sys-node-subtitle">SYSTEM NODE CONFIGURATION</div>
                         </div>
 
                         <!-- THE STATE MONITOR (Bespoke Visualizer) -->
                         <div class="flex-grow-1 d-flex flex-column justify-content-center">
                              <div class="font-data text-white-50 x-small tracking-widest mb-2">CURRENT STATE VECTOR</div>
-                             <!-- JS populates this based on node type (Stack vs Gauge vs Pill) -->
-                             <div id="sys-visualizer-container" class="w-100"></div>
+                             <div id="sys-visualizer-container" class="w-100 sys-viz-crossfade"></div>
                         </div>
 
                         <!-- Pagination -->
@@ -174,37 +175,33 @@ SYSTEM_EDITOR_MODAL_TEMPLATE = """
                             <i class="fas fa-sliders-h me-2"></i> CALIBRATION CONSOLE
                         </div>
                         <div class="d-flex gap-2">
-                             <span class="badge bg-light text-muted border font-data rounded-pill px-3" id="sys-status-badge">PENDING</span>
+                             <span class="sys-status-glass unset" id="sys-status-badge">
+                                 <i class="fas fa-circle" style="font-size:6px;"></i> PENDING
+                             </span>
                         </div>
                     </div>
                     
                     <!-- Scrollable Area -->
-                    <div class="flex-grow-1 overflow-y-auto pe-2 custom-scrollbar d-flex flex-column gap-4">
+                    <div class="flex-grow-1 overflow-y-auto pe-2 custom-scrollbar d-flex flex-column gap-4 sys-panel-transition" id="sys-right-content">
                         
-                        <!-- 1. DEFINITION CARD (Context) -->
-                        <div class="bg-light rounded-3 p-4 border border-light-subtle">
-                             <div class="d-flex gap-3">
-                                <div class="mt-1"><i class="fas fa-info-circle text-primary"></i></div>
-                                <div>
-                                    <h6 class="font-data text-dark small mb-1">ONTOLOGICAL DEFINITION</h6>
-                                    <p class="font-body text-secondary small mb-2" id="sys-display-desc" style="line-height: 1.5;">Description...</p>
-                                    <div class="mt-2 pt-2 border-top border-light-subtle">
-                                        <span class="font-data x-small text-muted uppercase me-1">Tip:</span>
-                                        <span class="font-body x-small text-muted fst-italic" id="sys-display-guide">...</span>
-                                    </div>
-                                    <!-- Examples Container (New) -->
-                                    <div id="sys-examples-container" class="d-flex flex-wrap gap-2 mt-3 pt-2 border-top border-dashed"></div>
-                                </div>
+                        <!-- 1. DEFINITION CARD (Context Insight Style) -->
+                        <div class="sys-definition-card">
+                             <div class="sys-def-title">
+                                 <i class="fas fa-info-circle"></i> ONTOLOGICAL DEFINITION
                              </div>
+                             <p class="sys-def-body" id="sys-display-desc">Description...</p>
+                             <div class="sys-def-tip" id="sys-display-guide">...</div>
+                             <!-- Examples Container -->
+                             <div id="sys-examples-container" class="d-flex flex-wrap gap-2 mt-3 pt-2 border-top border-dashed"></div>
                         </div>
 
                         <!-- 2. PROTOCOL TOGGLE -->
                         <div class="sys-protocol-toggle">
                             <button type="button" class="sys-protocol-btn active" id="mode-specify" onclick="setProtocolMode('SPECIFY')">
-                                <i class="fas fa-pen-to-square me-2"></i> Specify
+                                <i class="fas fa-pen-to-square"></i> Specify
                             </button>
                             <button type="button" class="sys-protocol-btn" id="mode-speculate" onclick="setProtocolMode('SPECULATE')">
-                                <i class="fas fa-wand-magic-sparkles me-2"></i> Speculate
+                                <i class="fas fa-wand-magic-sparkles"></i> Speculate
                             </button>
                         </div>
 
@@ -215,20 +212,22 @@ SYSTEM_EDITOR_MODAL_TEMPLATE = """
                             <!-- JS Injects the correct inputs here -->
                             <div id="sys-input-container" class="mb-4"></div>
                             
-                            <!-- 4. CONFIGURATION (Hard/Soft) -->
-                            <div class="row g-3 mb-3">
-                                <div class="col-6">
-                                    <div class="border rounded-3 p-3 cursor-pointer hover-shadow transition-all selected-mode-card h-100" 
-                                         id="constraint-hard" onclick="setConstraintMode('HARD')">
-                                        <div class="font-data small text-dark mb-1"><i class="fas fa-lock me-2 text-primary"></i> HARD CONSTRAINT</div>
-                                        <div class="text-muted x-small">Strict adherence.</div>
+                            <!-- 4. CONSTRAINT MODE (Capsule Cards) -->
+                            <div class="d-flex gap-3 mb-3">
+                                <div class="sys-constraint-card selected flex-1 h-100" 
+                                     id="constraint-hard" onclick="setConstraintMode('HARD')">
+                                    <div class="sys-constraint-icon"><i class="fas fa-lock"></i></div>
+                                    <div>
+                                        <div class="sys-constraint-label">HARD CONSTRAINT</div>
+                                        <div class="sys-constraint-desc">Strict adherence required.</div>
                                     </div>
                                 </div>
-                                <div class="col-6">
-                                    <div class="border rounded-3 p-3 cursor-pointer hover-shadow transition-all opacity-50 h-100" 
-                                         id="constraint-soft" onclick="setConstraintMode('SOFT')">
-                                        <div class="font-data small text-dark mb-1"><i class="fas fa-unlock me-2"></i> SOFT GUIDELINE</div>
-                                        <div class="text-muted x-small">Trade-offs permitted.</div>
+                                <div class="sys-constraint-card flex-1 h-100" 
+                                     id="constraint-soft" onclick="setConstraintMode('SOFT')">
+                                    <div class="sys-constraint-icon"><i class="fas fa-unlock"></i></div>
+                                    <div>
+                                        <div class="sys-constraint-label">SOFT GUIDELINE</div>
+                                        <div class="sys-constraint-desc">Trade-offs permitted.</div>
                                     </div>
                                 </div>
                                 <input type="hidden" name="constraint_mode" id="sys-constraint-input" value="HARD">
@@ -236,8 +235,8 @@ SYSTEM_EDITOR_MODAL_TEMPLATE = """
 
                             <!-- Rationale -->
                             <div>
-                                <label class="font-data text-muted x-small mb-1">RATIONALE</label>
-                                <textarea name="rationale" id="sys-rationale" class="form-control bg-light border-0 small" rows="2" placeholder="Why is this constraint set?"></textarea>
+                                <label class="sys-rationale-label">RATIONALE</label>
+                                <textarea name="rationale" id="sys-rationale" class="sys-rationale-input" rows="2" placeholder="Why is this constraint set?"></textarea>
                             </div>
                         </form>
 
@@ -245,8 +244,9 @@ SYSTEM_EDITOR_MODAL_TEMPLATE = """
                     
                     <!-- Footer -->
                     <div class="d-flex justify-content-end gap-3 mt-4 pt-3 border-top">
-                        <button type="button" class="btn btn-light rounded-pill font-data px-4" data-bs-dismiss="modal">CANCEL</button>
-                        <button type="button" class="btn btn-primary rounded-pill font-data px-5 shadow-lg" onclick="submitSystemForm()">
+                        <button type="button" class="sys-btn-cancel" data-bs-dismiss="modal">CANCEL</button>
+                        <button type="button" class="sys-btn-commit" onclick="submitSystemForm()">
+                            <span class="shimmer-fx"></span>
                             <i class="fas fa-save me-2"></i> COMMIT ANCHOR
                         </button>
                     </div>

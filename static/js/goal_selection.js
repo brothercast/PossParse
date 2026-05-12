@@ -164,7 +164,8 @@ const State = {
     currentStepIndex: 0,
     steps: [], 
     config: {},     
-    extraParams: [] 
+    extraParams: [],
+    isGenerating: false 
 };
 
 // =============================================================================
@@ -184,7 +185,30 @@ window.wizardNext = function() { wizardNavigation('next'); };
 window.wizardBack = function() { wizardNavigation('back'); };
 window.jumpToStep = function(idx) { wizardNavigation('jump', idx); };
 window.submitConfig = function() { submitConfigLogic(); };
-window.exitStage = function() { if (State.phase === 'CONFIG') transitionTo('RETURNING'); };
+window.exitStage = function() { 
+    if (State.phase === 'CONFIG') {
+        if (State.isGenerating) {
+            if (confirm("You are currently generating a structured solution. Do you really wish to cancel the Speculation?")) {
+                // Cancel the generation
+                clearInterval(window.generationInterval);
+                clearTimeout(window.generationTimeout);
+                State.isGenerating = false;
+                
+                // Restore the wizard UI
+                const wizardContainer = document.querySelector('.wizard-container');
+                if(wizardContainer) {
+                    wizardContainer.classList.remove('loading-state');
+                    const wrapper = wizardContainer.querySelector('.embedded-spinner-wrapper');
+                    if (wrapper) wrapper.remove();
+                    renderWizard();
+                }
+                transitionTo('RETURNING');
+            }
+        } else {
+            transitionTo('RETURNING');
+        }
+    }
+};
 
 // Insight Hover Helpers
 window.updateInsightText = function(text) {
@@ -282,7 +306,15 @@ function wizardNavigation(action, idx=null) {
             State.currentStepIndex++;
             renderWizard();
         } else {
-            window.submitConfig();
+            // We are on the last step of the wizard.
+            // If we are past the FORK screen (configuring extras), loop back to FORK to review.
+            const forkIdx = State.steps.findIndex(s => s.id === 'FORK');
+            if (forkIdx !== -1 && State.currentStepIndex > forkIdx) {
+                State.currentStepIndex = forkIdx;
+                renderWizard();
+            } else {
+                window.submitConfig();
+            }
         }
     } else if (action === 'back') {
         if(State.currentStepIndex > 0) {
@@ -423,10 +455,9 @@ function submitConfigLogic() {
     
     let iIdx = 0;
     let mIdx = 0;
-    const iconEl = document.getElementById('atom-icon');
-    const msgEl = document.getElementById('atom-msg-display');
+    State.isGenerating = true;
 
-    const animInterval = setInterval(() => {
+    window.generationInterval = setInterval(() => {
         // Swap Icon
         iIdx = (iIdx + 1) % icons.length;
         if(iconEl) {
@@ -460,8 +491,9 @@ function submitConfigLogic() {
     }, 1200);
 
     // 5. Submit after delay
-    setTimeout(() => { 
-        clearInterval(animInterval);
+    window.generationTimeout = setTimeout(() => { 
+        clearInterval(window.generationInterval);
+        State.isGenerating = false;
         form.submit(); 
     }, 4500); // 4.5s simulation
 }
@@ -632,6 +664,7 @@ function handleConfigPhase(cardWrapper, goalData) {
         cardWrapper.style.top = '0px'; 
         cardWrapper.style.left = '0px'; 
         cardWrapper.style.height = '100%';
+        cardWrapper.style.width = '28%';
     });
     
     setTimeout(() => {
@@ -734,11 +767,17 @@ function renderWizard() {
 
     if (currentStep.id === 'FORK') {
         if (State.extraParams.length > 0) {
+            // If they are on FORK but haven't gone through the extra steps yet,
+            // or if they came back, this button lets them cycle through them.
             nextText = `CONFIGURE EXTRAS (${State.extraParams.length}) <i class="fas fa-arrow-right ms-2"></i>`;
             nextClass = 'btn-primary text-white border-0'; // Add pop for the action
         } else {
             nextVisibility = 'hidden'; // Hide if no extras selected yet
         }
+    } else if (State.currentStepIndex === State.steps.length - 1 && State.currentStepIndex > 0) {
+        // Last step of the extra parameters loop
+        nextText = `REVIEW CONFIGURATION <i class="fas fa-check ms-2"></i>`;
+        nextClass = 'btn-success text-white border-0';
     }
 
     const nextBtnHtml = `
@@ -898,8 +937,16 @@ function renderForkScreen() {
                 </p>
                 <button class="btn wiz-btn-gen rounded-pill px-5 py-3 font-data text-white shadow-lg hover-lift" 
                         onclick="window.submitConfig()"
-                        style="background-color: var(--active-theme-color); font-size: 1.1rem; min-width: 260px; position: relative; overflow: hidden;">
-                    <span class="position-relative z-2"><i class="fas fa-bolt me-2"></i> GENERATE STRUCTURED SOLUTION</span>
+                        style="background-color: var(--active-theme-color); font-size: 1.1rem; min-width: 260px; position: relative; overflow: hidden; display: inline-flex; align-items: center; justify-content: center;">
+                    <span class="position-relative z-2 d-flex align-items-center text-start">
+                        <div style="background: white; color: var(--active-theme-color); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0;">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <div class="ms-3" style="line-height: 1.2;">
+                            <span style="font-size: 0.75em; opacity: 0.8; letter-spacing: 1px;">GENERATE</span><br/>
+                            <span style="font-size: 1.1em; font-weight: bold;">STRUCTURED SOLUTION</span>
+                        </div>
+                    </span>
                     <div class="shimmer-effect"></div>
                 </button>
             </div>
@@ -948,64 +995,95 @@ function renderForkScreen() {
 
 function injectHeroContent(cardWrapper, goalData) {
     const backFace = cardWrapper.querySelector('.flip-card-back');
-    if (!backFace) return;
+    const monolithContent = backFace?.querySelector('.monolith-content');
+    if (!backFace || !monolithContent) return;
     
     // 1. Calculate Colors
     const hue = goalData.colorHue || 180;
     const activeColor = `hsl(${hue}, 70%, 45%)`; 
     cardWrapper.style.setProperty('--active-theme-color', activeColor);
 
-    // 2. TIMING SEQUENCE:
-    // A. Hold the "Monolith" view for 600ms (The "Beat")
+    // 2. TIMING SEQUENCE: Hold the "Monolith" branding for a beat, then crossfade content.
     setTimeout(() => {
+        // Create the new configuration content
+        const heroContent = document.createElement('div');
+        heroContent.className = 'hero-card-content';
+        heroContent.style.opacity = '0'; // Start hidden
         
-        // B. Fade Out the Monolith (prepare for swap)
-        // Ensure transition is active for this inline style change
-        backFace.style.transition = 'opacity 0.4s ease';
-        backFace.style.opacity = '0';
-        
-        // C. Swap Content & Fade In (After 400ms fade-out completes)
-        setTimeout(() => {
-            backFace.innerHTML = `
-                <div class="card-texture-overlay"></div>
-                <!-- CRITICAL FIX: style="opacity: 1" overrides the CSS default of 0 -->
-                <div class="hero-card-content" style="opacity: 1 !important;"> 
-                    <i class="${goalData.icon} hero-ghost-icon"></i>
-                    
-                    <button onclick="window.exitStage()" class="hero-return-button" style="pointer-events: auto;">
-                        <i class="fas fa-arrow-left"></i> RETURN TO CHOICES
-                    </button>
-                    
-                    <!-- Header Group: Domain & Title -->
-                    <div class="hero-header-group">
-                        <span class="hero-domain-label">SYSTEM DOMAIN</span>
-                        <div class="hero-domain-pill" style="color: ${activeColor};">
-                            <i class="${goalData.icon}"></i> 
-                            <span>${goalData.domain}</span>
+        heroContent.innerHTML = `
+            <i class="${goalData.icon} hero-ghost-icon"></i>
+            
+            <button onclick="window.exitStage()" class="hero-return-button" style="pointer-events: auto;">
+                <i class="fas fa-arrow-left"></i> RETURN TO CHOICES
+            </button>
+            
+            <!-- Header Group: Domain & Title -->
+            <div class="hero-header-group">
+                <span class="hero-domain-label">SYSTEM DOMAIN</span>
+                <div class="hero-domain-pill" style="color: ${activeColor};">
+                    <i class="${goalData.icon}"></i> 
+                    <span>${goalData.domain}</span>
+                </div>
+            </div>
+
+            <h2 class="hero-title">${goalData.title}</h2>
+            
+            <div class="hero-desc-box">
+                <div class="hero-desc-accent"></div>
+                <p class="hero-desc-text">${goalData.goal}</p>
+            </div>
+            
+            <!-- System Config aligned below description -->
+            <div id="system-config-container">
+                <span class="sys-config-label">SYSTEM CONFIGURATION</span>
+                <div id="sys-pill-stack"></div>
+            </div>
+
+            <!-- SYSTEM PILLS (Secondary Configuration) -->
+            <div class="border-top pt-4 mt-auto">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex flex-column">
+                        <h6 class="font-data text-dark fw-bold small mb-0" style="letter-spacing: 1px;">INCREASE PRECISION (OPTIONAL)</h6>
+                        <span class="font-body x-small text-muted">Select factors to fine-tune the Engine's logic.</span>
+                    </div>
+                </div>
+                
+                <!-- PILL GRID -->
+                <div class="option-grid-compact mb-4" id="extra-options-container">
+                    <!-- Javascript will inject pills here dynamically if needed, though they start empty here -->
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-center mt-auto pb-2">
+                <button class="btn wiz-btn-gen rounded-pill px-4 py-3 font-data text-white shadow-lg hover-lift w-100" 
+                        onclick="window.submitConfig()"
+                        style="background-color: var(--active-theme-color); font-size: 1.1rem; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                    <span class="position-relative z-2 d-flex align-items-center text-start">
+                        <div style="background: white; color: var(--active-theme-color); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0;">
+                            <i class="fas fa-bolt"></i>
                         </div>
-                    </div>
-    
-                    <h2 class="hero-title">${goalData.title}</h2>
-                    
-                    <div class="hero-desc-box">
-                        <div class="hero-desc-accent"></div>
-                        <p class="hero-desc-text">${goalData.goal}</p>
-                    </div>
-                    
-                    <!-- System Config aligned below description -->
-                    <div id="system-config-container">
-                        <span class="sys-config-label">SYSTEM CONFIGURATION</span>
-                        <div id="sys-pill-stack"></div>
-                    </div>
-                </div>`;
-            
-            // D. Force Reflow & Fade In
-            void backFace.offsetWidth; 
-            backFace.style.opacity = '1';
-            
-        }, 400); // Wait for fade-out
+                        <div class="ms-3" style="line-height: 1.2;">
+                            <span style="font-size: 0.75em; opacity: 0.8; letter-spacing: 1px;">GENERATE</span><br/>
+                            <span style="font-size: 1.1em; font-weight: bold;">STRUCTURED SOLUTION</span>
+                        </div>
+                    </span>
+                    <div class="shimmer-effect"></div>
+                </button>
+            </div>
+        `;
         
-    }, 800); // Hold time
+        backFace.appendChild(heroContent);
+        
+        // Force reflow
+        void heroContent.offsetWidth;
+        
+        // Execute Crossfade with a longer duration (1.2s) to make it less aggressive
+        monolithContent.style.transition = 'opacity 1.2s ease-in-out';
+        heroContent.style.transition = 'opacity 1.2s ease-in-out';
+        monolithContent.style.opacity = '0';
+        heroContent.style.opacity = '1';
+        
+    }, 600); // Wait 600ms for the flip to finish and hold the branding
 }
 
 function restoreMonolithContent(cardWrapper) {
@@ -1013,16 +1091,14 @@ function restoreMonolithContent(cardWrapper) {
     if (!backFace) return;
     const originalIcon = cardWrapper.dataset.originalIcon || 'fas fa-cube';
     
-    backFace.style.opacity = '0';
-    setTimeout(() => {
-        backFace.innerHTML = `
-            <div class="card-texture-overlay"></div>
-            <div class="monolith-content">
-                <div class="monolith-icon-circle"><i class="${originalIcon} monolith-icon"></i></div>
-                <div class="font-data text-white-50 x-small tracking-widest opacity-75 border border-white border-opacity-25 rounded-pill px-3 py-1">STRUCTURED SPECULATION</div>
-            </div>`;
-        backFace.style.opacity = '1';
-    }, 150);
+    // Instantly restore the monolith content without dropping backFace opacity to 0
+    // to prevent the card from becoming transparent during the 3D flip back
+    backFace.innerHTML = `
+        <div class="card-texture-overlay"></div>
+        <div class="monolith-content" style="opacity: 1;">
+            <div class="monolith-icon-circle"><i class="${originalIcon} monolith-icon"></i></div>
+            <div class="font-data text-white-50 x-small tracking-widest opacity-75 border border-white border-opacity-25 rounded-pill px-3 py-1">STRUCTURED SPECULATION</div>
+        </div>`;
 }
 
 function injectPillToHero(type, value, icon) {

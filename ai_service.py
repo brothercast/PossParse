@@ -276,11 +276,11 @@ async def generate_image(prompt: str, ssol_id: str):
 
 # ai_service.py (Additions)
 
-async def generate_governance_report(ssol_context: dict):
+async def generate_governance_report(ssol_context: dict, failing_criteria: list = None):
     """
     Runs the Bicameral Governance Check:
     1. Ombud: Strict constraint checking (Negative Feedback Loop).
-    2. Advocate: Strategic synthesis (Positive Feedback Loop).
+    2. Advocate: Strategic synthesis and Impact Measurement (Positive Feedback Loop).
     """
     from system_nodes import SAFETY_PROTOCOL
     
@@ -290,16 +290,22 @@ async def generate_governance_report(ssol_context: dict):
     horizon = constraints.get('HORIZON', 'Unknown')
     budget = constraints.get('BUDGET', 'Unknown')
     
+    criteria_context = ""
+    if failing_criteria:
+        crit_strs = [f"- ID: {c.get('id')} | {c.get('label')} (Current Status: {c.get('status')})" for c in failing_criteria]
+        criteria_context = "\nCOMPROMISED CRITERIA DETECTED:\n" + "\n".join(crit_strs)
+    
     # 1. THE OMBUD (The Brake)
     ombud_prompt = f"""
     ROLE: The Ombud. You are the impartial guardian of constraints.
     CONTEXT: Project '{title}'. 
     CONSTRAINTS: Horizon: {horizon}, Budget: {budget}.
     CHARTER: {SAFETY_PROTOCOL}
+    {criteria_context}
     
-    TASK: Scan the project definition. 
-    1. Are the constraints realistic? 
-    2. Is there a Charter violation?
+    TASK: Analyze the situation. 
+    1. Assess the severity of the compromised criteria or project state.
+    2. Is there a Charter violation or fatal flaw?
     
     OUTPUT JSON: {{ "status": "Stable" | "Risk" | "Violation", "message": "Short, stern assessment." }}
     """
@@ -308,12 +314,20 @@ async def generate_governance_report(ssol_context: dict):
     advocate_prompt = f"""
     ROLE: The Advocate. You are the strategic synthesizer.
     CONTEXT: Project '{title}'.
+    {criteria_context}
     
-    TASK: Look for opportunities.
-    1. What is the most exciting synergy missing?
-    2. How can we speed this up without breaking constraints?
+    TASK: The Node Integrity is compromised due to failing/blocked criteria. 
+    1. Suggest a specific, actionable resolution to unblock these dependencies (e.g., reallocating resources, adjusting thresholds).
+    2. Provide an 'Impact Measurement': Predict how this proposed change will affect the overall project (SSOL) and upstream Parent Conditions.
     
-    OUTPUT JSON: {{ "insight": "Inspiring, forward-looking advice." }}
+    OUTPUT JSON: {{ 
+        "resolution": "Actionable proposal to fix the logic...", 
+        "impact_measurement": "Analysis of downstream/upstream effects...",
+        "state_updates": [
+            {{"id": "<exact_id_from_context>", "field": "status", "new_value": "Compliant"}},
+            {{"id": "<exact_id_from_context>", "field": "label", "new_value": "<Optional new target metric>"}}
+        ]
+    }}
     """
 
     try:

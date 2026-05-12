@@ -6,8 +6,8 @@
 {% set total_ces = 0 %}
 {% set active_ces = 0 %}
 {% set verified_ces = 0 %}
-{% if ssol.phases %}
-    {% for phase_name, cos_list in ssol.phases.items() %}
+{% if phases %}
+    {% for phase_name, cos_list in phases.items() %}
         {% if cos_list %}
             {% for cos in cos_list %}
                 {% if cos.conditional_elements %}
@@ -28,13 +28,13 @@
   <div class="console-housing">
     
     <!-- MAIN CONSOLE GRID (2-Column Layout) -->
-    <div class="row g-0 bg-white" style="height: 100%;">
+    <div class="row g-0 bg-white console-row" style="height: 100%;">
         
         <!-- ============================================= -->
         <!-- A. LEFT COLUMN: HERO CONSOLE (Fixed Sidebar)  -->
         <!-- ============================================= -->
         <div class="col-lg-3 border-end d-flex flex-column position-relative z-10" 
-             style="background: linear-gradient(160deg, #00bcd4 0%, #0097a7 100%); color: white; overflow: hidden; height: 100%;">
+             style="background: linear-gradient(160deg, #00bcd4 0%, #0097a7 100%); background-image: radial-gradient(rgba(255,255,255,0.12) 1.5px, transparent 1.5px), linear-gradient(160deg, #00bcd4 0%, #0097a7 100%); background-size: 24px 24px, 100% 100%; color: white; overflow: hidden;">
             
             <!-- Context Header: UPDATED -->
             <div class="py-3 px-4 d-flex align-items-center justify-content-between" 
@@ -82,8 +82,8 @@
             </div>
 
             <!-- Ghost Watermark -->
-            <div class="position-absolute bottom-0 end-0 opacity-10 pointer-events-none" style="transform: translate(20%, 20%) rotate(-15deg); z-index: 0;">
-                <i class="{{ ssol.domain_icon }}" style="font-size: 18rem; color: white;"></i>
+            <div class="position-absolute bottom-0 end-0 pointer-events-none" style="opacity: 0.15; transform: translate(10%, 5%) rotate(-15deg); z-index: 0;">
+                <i class="{{ ssol.domain_icon }}" style="font-size: 14rem; color: white;"></i>
             </div>
 
             <!-- Footer Metadata -->
@@ -96,7 +96,7 @@
         <!-- ============================================= -->
         <!-- B. RIGHT COLUMN: WORKSPACE (Tabbed)          -->
         <!-- ============================================= -->
-        <div class="col-lg-9 d-flex flex-column position-relative bg-surface-screen" style="height: 100%; overflow: hidden;">
+        <div class="col-lg-9 d-flex flex-column position-relative bg-surface-screen" style="height: 100%; min-height: 0; overflow: hidden;">
             
             <!-- Brand Strip -->
             <div class="brand-strip"></div>
@@ -120,7 +120,7 @@
 
             <!-- 2. TAB NAVIGATION (New) -->
             <div class="px-5 pt-4 bg-white border-bottom flex-shrink-0">
-                <ul class="nav nav-tabs ce-nav-tabs border-0 gap-4" id="mainTab" role="tablist">
+                <ul class="nav nav-tabs ce-nav-tabs border-0 gap-4" id="mainTab" role="tablist" style="overflow-y: hidden; scrollbar-width: none;">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link font-data active px-0 pb-3" id="charter-tab" data-bs-toggle="tab" data-bs-target="#tab-charter" type="button" role="tab">
                             <i class="fas fa-layer-group me-2"></i>EXECUTIVE CHARTER
@@ -135,7 +135,7 @@
             </div>
 
             <!-- 3. Scrollable Content Area -->
-            <div class="p-5 flex-grow-1 overflow-y-auto custom-scrollbar tab-content bg-surface-screen" id="mainTabContent">
+            <div class="p-5 flex-grow-1 custom-scrollbar tab-content bg-surface-screen" id="mainTabContent" style="min-height: 0; overflow-y: auto;">
                 
                 <!-- TAB 1: CHARTER & HORIZON -->
                 <div class="tab-pane fade show active" id="tab-charter" role="tabpanel">
@@ -143,14 +143,178 @@
                     <!-- A. Executive Charter (Glass Card) -->
                     <div class="bg-white rounded-4 border shadow-sm position-relative overflow-hidden charter-card mb-5">
                         <div class="domain-ghost-watermark" style="opacity: 0.05;"><i class="{{ ssol.domain_icon }}"></i></div>
-                        <div class="charter-content font-body text-dark lead position-relative p-5" style="font-size: 1.15rem; line-height: 1.8;">
+                        <div class="charter-content font-body text-dark lead position-relative p-5 custom-scrollbar" style="font-size: 1.15rem; line-height: 1.8;">
                             {{ ssol.ssol_summary | safe }}
                         </div>
                     </div>
 
-                    <!-- B. Flight Path Timeline (Horizon Gauge) -->
-                    <div class="mb-5">
-                        {{ horizon_gauge_html | default('<div class="alert alert-light border text-muted font-data small">TIMELINE CALIBRATING...</div>') | safe }}
+                    <!-- B. COMMAND CENTER: Governance & Telemetry -->
+                    <div class="row g-4 mb-5" style="height: 280px;">
+                        <!-- 1. Execution Readiness Gauge -->
+                        <div class="col-md-3">
+                            <div class="bg-white rounded-4 border shadow-sm p-3 h-100 d-flex flex-column align-items-center justify-content-center text-center hover-scale transition-transform">
+                                <div class="readiness-gauge mb-2 position-relative d-flex justify-content-center align-items-center" style="flex: 1; min-height: 0; width: 100%;">
+                                    <svg viewBox="0 0 36 36" class="circular-chart transition-all" style="max-height: 120px; max-width: 120px;">
+                                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e2e8f0" stroke-width="2"/>
+                                        <!-- Calculate dynamic percentage. For now, hardcode 35 for visual -->
+                                        {% set percent = (active_ces / total_ces * 100) | int if total_ces > 0 else 35 %}
+                                        <path stroke-dasharray="{{ percent }}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="url(#gauge-gradient)" stroke-width="2.5" stroke-linecap="round" style="transition: stroke-dasharray 1s ease-out;"/>
+                                        <defs>
+                                            <linearGradient id="gauge-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                <stop offset="0%" stop-color="#00bcd4" />
+                                                <stop offset="100%" stop-color="#3b82f6" />
+                                            </linearGradient>
+                                        </defs>
+                                        <text x="18" y="20.5" font-family="var(--font-data)" font-weight="800" font-size="6px" text-anchor="middle" fill="#334155">{{ percent }}%</text>
+                                    </svg>
+                                </div>
+                                <div class="font-data text-muted x-small tracking-widest fw-bold">CALIBRATION STATUS</div>
+                                <div class="font-body small opacity-75 mt-1">{{ active_ces }} of {{ total_ces }} Nodes Defined</div>
+                            </div>
+                        </div>
+
+                        <!-- 2. System Vitals -->
+                        <div class="col-md-4">
+                            <div class="bg-white rounded-4 border shadow-sm p-4 h-100 d-flex flex-column justify-content-start">
+                                <div class="font-data text-muted x-small tracking-widest fw-bold mb-4"><i class="fas fa-heartbeat me-2 text-danger opacity-75"></i>SYSTEM VITALS</div>
+                                
+                                <div class="mb-4">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="font-body small fw-bold text-dark"><i class="fas fa-clock text-muted me-2"></i>Horizon Elapsed</span>
+                                        <span class="font-data small text-muted">20%</span>
+                                    </div>
+                                    <div class="progress rounded-pill" style="height: 6px; background: rgba(0,0,0,0.05);">
+                                        <div class="progress-bar rounded-pill" role="progressbar" style="width: 20%; background: linear-gradient(to right, #00bcd4, #3b82f6);"></div>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="font-body small fw-bold text-dark"><i class="fas fa-network-wired text-muted me-2"></i>Node Density</span>
+                                        <span class="font-data small text-muted">{{ total_ces }} Items</span>
+                                    </div>
+                                    <div class="progress rounded-pill" style="height: 6px; background: rgba(0,0,0,0.05);">
+                                        <div class="progress-bar bg-secondary rounded-pill" role="progressbar" style="width: {{ [total_ces * 2, 100]|min }}%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Governance Alert Terminal -->
+                        <div class="col-md-5">
+                            <div class="rounded-4 border shadow-sm h-100 d-flex flex-column overflow-hidden position-relative" style="background: linear-gradient(160deg, #fffbf5 0%, #fff5ee 50%, #fef0e7 100%); border-color: #f0d9c6 !important;">
+                                <!-- Terminal Header -->
+                                <div class="px-3 py-2 d-flex justify-content-between align-items-center" style="background: linear-gradient(90deg, #D84315, #E65100); border-bottom: 2px solid rgba(216,67,21,0.2);">
+                                    <span class="font-data small fw-bold tracking-widest text-white"><i class="fas fa-compass me-2 opacity-75"></i>PATHWAY ADVISOR</span>
+                                    <span class="badge rounded-pill shadow-sm" style="font-size: 0.6rem; letter-spacing: 0.5px; background: rgba(255,255,255,0.25); color: white;">2 INSIGHTS</span>
+                                </div>
+                                
+                                <!-- Terminal Body -->
+                                <div class="p-3 flex-grow-1 custom-scrollbar d-flex flex-column gap-3" id="governance-alert-list" style="min-height: 0; overflow-y: auto;">
+                                    
+                                    <!-- Opportunity Alert -->
+                                    <div class="rounded-4 p-3 border-start border-3 position-relative overflow-hidden" style="border-color: #E65100 !important; background: linear-gradient(90deg, rgba(230,81,0,0.06) 0%, transparent 100%);">
+                                        <div class="d-flex align-items-start gap-3 position-relative z-1">
+                                            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 mt-1" style="width: 28px; height: 28px; background: linear-gradient(135deg, #D84315, #E65100);">
+                                                <i class="fas fa-route text-white" style="font-size: 0.7rem;"></i>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <span class="font-data x-small fw-bold tracking-widest" style="color: #D84315;">PATHWAY OPPORTUNITY</span>
+                                                    <span class="font-data x-small text-muted opacity-50">Just now</span>
+                                                </div>
+                                                <div class="font-body small text-dark opacity-85 mb-2" style="font-size: 0.85rem;">Dependency Gap: <span style="color: #5C6BC0; font-weight: 600;"><i class="fas fa-rocket me-1"></i>Praxis</span> requires <span class="badge rounded-pill border" style="background: #fff5ee; color: #D84315; border-color: #f0d9c6 !important;">$100k Budget</span>. Current model is Sweat Equity — let's find a creative bridge!</div>
+                                                <button class="btn btn-sm font-data x-small py-1 px-3 rounded-pill hover-scale transition-all text-white shadow-sm" style="background: linear-gradient(90deg, #D84315, #E65100);" onclick="engageAdvocate('mock_void_01')">
+                                                    <i class="fas fa-wand-magic-sparkles me-1"></i> EXPLORE OPTIONS
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Suggestion Alert -->
+                                    <div class="rounded-4 p-3 border-start border-3 position-relative overflow-hidden" style="border-color: #6A1B9A !important; background: linear-gradient(90deg, rgba(106,27,154,0.05) 0%, transparent 100%);">
+                                        <div class="d-flex align-items-start gap-3 position-relative z-1">
+                                            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 mt-1" style="width: 28px; height: 28px; background: linear-gradient(135deg, #6A1B9A, #8E24AA);">
+                                                <i class="fas fa-lightbulb text-white" style="font-size: 0.7rem;"></i>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <span class="font-data x-small fw-bold tracking-widest" style="color: #6A1B9A;">SUGGESTED NEXT STEP</span>
+                                                    <span class="font-data x-small text-muted opacity-50">2m ago</span>
+                                                </div>
+                                                <div class="font-body small text-dark opacity-85 mb-2" style="font-size: 0.85rem;">
+                                                    <strong style="color: #6A1B9A;"><i class="fas fa-handshake me-1"></i>Establish Collaboration</strong><br>
+                                                    The Engagement Phase could benefit from stakeholder mapping. Adding a <span style="color: #6A1B9A; font-weight: 600;"><i class="fas fa-handshake me-1"></i>Collaboration</span> node will strengthen execution pathways.
+                                                </div>
+                                                <button class="btn btn-sm font-data x-small py-1 px-3 rounded-pill hover-scale transition-all text-white shadow-sm" style="background: linear-gradient(90deg, #6A1B9A, #8E24AA);" onclick="engageAdvocate('mock_suggestion_01')">
+                                                    <i class="fas fa-sparkles me-1"></i> REVIEW IDEA
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- C. Node Explorer (Subway Map) -->
+                    <div class="ssol-node-explorer mt-5 pt-4 border-top border-dashed">
+                        <div class="d-flex align-items-center mb-5">
+                            <i class="fas fa-network-wired text-muted me-3 fs-5"></i>
+                            <span class="font-data text-muted small fw-bold tracking-widest">ARCHITECTURE MAP</span>
+                        </div>
+                        
+                        <div class="subway-map-container overflow-x-auto pb-4 custom-scrollbar">
+                            <div class="subway-line d-flex position-relative" style="min-width: 800px; padding-top: 20px;">
+                                <!-- Connecting Line -->
+                                <div class="position-absolute top-0 start-0 w-100" style="height: 4px; background: #e2e8f0; margin-top: 34px; z-index: 0;"></div>
+                                
+                                {% for phase_name, cos_list in phases.items() %}
+                                {% set p_index = loop.index %}
+                                {% set p_index0 = loop.index0 %}
+                                <div class="subway-station flex-1 position-relative d-flex flex-column align-items-center z-1" style="flex: 1; padding: 0 15px;">
+                                    <!-- Station Node -->
+                                    <div class="station-node rounded-circle d-flex align-items-center justify-content-center shadow-sm transition-transform cursor-pointer hover-scale bg-white" 
+                                         style="width: 32px; height: 32px; border: 4px solid var(--phase-{{ p_index0 }});"
+                                         onclick="document.getElementById('phases-tab').click(); setTimeout(()=>document.getElementById('heading{{ p_index }}').click(), 200)">
+                                        <div class="rounded-circle" style="width: 10px; height: 10px; background: var(--phase-{{ p_index0 }});"></div>
+                                    </div>
+                                    
+                                    <!-- Station Label -->
+                                    <div class="font-data small fw-bold mt-2 text-center" style="color: var(--phase-{{ p_index0 }}); letter-spacing: 1px;">
+                                        {{ phase_name.upper() }}
+                                    </div>
+                                    
+                                    <!-- COS Branches -->
+                                    <div class="d-flex flex-column gap-3 mt-4 w-100 position-relative">
+                                        <!-- Vertical Line connecting COS to Station -->
+                                        <div class="position-absolute start-50 top-0 bottom-0" style="width: 2px; background: rgba(0,0,0,0.05); transform: translateX(-50%); z-index: 0;"></div>
+                                        
+                                        {% if cos_list %}
+                                            {% for cos in cos_list %}
+                                            <div class="subway-cos-node bg-white border rounded-3 p-3 shadow-sm position-relative z-1 transition-all cursor-pointer subway-node-hover"
+                                                 style="border-left: 3px solid var(--phase-{{ p_index0 }}) !important;"
+                                                 onclick="document.getElementById('phases-tab').click(); setTimeout(()=>document.getElementById('heading{{ p_index }}').click(), 200)">
+                                                <div class="font-body text-dark small lh-sm">{{ cos.content | striptags | truncate(60) }}</div>
+                                                
+                                                {% if cos.conditional_elements %}
+                                                <div class="d-flex flex-wrap gap-1 mt-2">
+                                                    {% for ce in cos.conditional_elements %}
+                                                    <span class="badge rounded-pill" style="background: rgba(0,0,0,0.05); color: #64748b; font-size: 0.6rem; font-weight: 500; border: 1px solid rgba(0,0,0,0.05);"><i class="fas fa-cube me-1 opacity-50"></i>{{ ce.type }}</span>
+                                                    {% endfor %}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <div class="text-center opacity-50 py-2"><i class="fas fa-ellipsis-v text-muted"></i></div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -163,7 +327,7 @@
                         <div class="bg-light px-4 py-3 border-bottom d-flex justify-content-between align-items-center">
                             <span class="font-data text-muted small fw-bold tracking-widest">PROTOCOL SEQUENCE</span>
                             <div class="d-none d-lg-flex gap-4 font-data text-muted small tracking-widest align-items-center">
-                                {% for phase_name in ssol.phases.keys() %}
+                                {% for phase_name in phases.keys() %}
                                 <span class="phase-legend-item d-flex align-items-center gap-2 cursor-pointer hover-text-dark transition-colors" 
                                       data-target-id="collapse{{ loop.index }}" 
                                       title="Scroll to {{ phase_name }}">
@@ -176,7 +340,7 @@
                         
                         <!-- Accordion -->
                         <div class="accordion accordion-flush" id="phaseAccordion">
-                            {% for phase_name, cos_list in ssol.phases.items() %}
+                            {% for phase_name, cos_list in phases.items() %}
                             <div class="accordion-item border-bottom mb-0">
                                 <!-- Phase Header -->
                                 <div class="module-header collapsed cursor-pointer py-3 px-4 transition-all text-white position-relative overflow-hidden" 
@@ -292,6 +456,13 @@
     .module-header:not(.collapsed) .fa-chevron-down { transform: rotate(180deg); }
     .flex-shrink-0 { flex-shrink: 0 !important; }
     
+    /* Layout Locks - Forces the app to fit 100vh exactly and delegates scrolling to the mainTabContent */
+    body { height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+    .content-main { flex-grow: 1; display: flex; flex-direction: column; min-height: 0; padding-bottom: 0 !important; }
+    .horizon-wrapper { flex-grow: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden !important; }
+    .console-housing { flex-grow: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden !important; }
+    .console-row { flex-grow: 1; min-height: 0; height: 100%; display: flex; }
+    
     /* Table Styling */
     .retro-table thead th { font-weight: 700; letter-spacing: 1px; }
     
@@ -332,12 +503,16 @@
 <!-- Module Imports -->
 <script type="module" src="{{ url_for('static', filename='js/cos_table.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ce_cards.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/constellation.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/system_cards.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/governance.js') }}"></script>
 
 <script type="module">
     import { initSystemCards } from "{{ url_for('static', filename='js/system_cards.js') }}";
+    import { initGovernance } from "{{ url_for('static', filename='js/governance.js') }}";
     document.addEventListener('DOMContentLoaded', () => {
         initSystemCards("{{ ssol_id }}");
+        initGovernance("{{ ssol_id }}");
         const legendItems = document.querySelectorAll('.phase-legend-item');
         legendItems.forEach(item => {
             item.addEventListener('click', () => {
@@ -370,6 +545,26 @@
             }
             checkImage();
         }
+        
+        // Global Handler for Interactive Tags in Charter
+        window.highlightExplorerNode = function(id, type) {
+            console.log("Tag Clicked:", id, type);
+            // 1. Scroll to Node Explorer
+            const explorer = document.querySelector('.ssol-node-explorer');
+            if(explorer) explorer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // 2. Pulse effect on matching items
+            document.querySelectorAll('.subway-cos-node').forEach(node => {
+                if (node.innerText.includes(type)) {
+                    node.style.transform = 'scale(1.05)';
+                    node.style.boxShadow = '0 0 20px rgba(0,255,255,0.5)';
+                    setTimeout(() => {
+                        node.style.transform = '';
+                        node.style.boxShadow = '';
+                    }, 1000);
+                }
+            });
+        };
     });
 </script>
 {% endblock %}

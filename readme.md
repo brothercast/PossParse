@@ -1,58 +1,72 @@
-#  SSPEC PossPath: Structured Speculation Possibility Pathfinder
+# ✨ SSPEC HORIZON: Possibility Pathfinder ✨
 
-Welcome to **SSPEC PossPath**, a groundbreaking project management tool designed to drive innovation through mass collaboration. Whether you're working on a startup, a research project, or a community initiative, PossPath empowers you to bridge divides and achieve ambitious goals.
+**SSPEC Horizon** is an advanced, AI-driven project architecture and speculation engine. Designed for complex planning, innovation, and mass collaboration, it replaces traditional linear planning with an autonomous, self-healing "System Physics" ecosystem.
 
-##  Features
+## 🚀 The Vision
+Traditional project management tools track what you *already know*. SSPEC Horizon helps you discover what you *don't know*. 
 
-* Collaborative Goal Selection: Engage teams to speculate and select high-level outcomes that inspire collective commitment.
-* Structured Solutions: Generate detailed Conditions of Satisfaction (COS) and Conditional Elements (CE) for each phase of your project.
-* AI-Driven Insights: Leverage AI to enhance decision-making and streamline complex processes.
-* Dynamic Modals: Interactive elements that provide contextual data and intuitive interfaces for project management.
-* PDF Export: Seamlessly convert your solutions and plans into PDF documents for easy sharing.
+By mapping **System Physics** (Constraints, Budget, Scale, Horizon) into an actionable data model, the platform allows users to generate dynamic **Conditions of Satisfaction (COS)** and dive deep into atomic **Conceptual Entities (CE)**—all guided by an advanced, contextually-aware Artificial Intelligence.
 
-##  Screenshots
+## 🧠 Core Features
 
-![Goal Selection](static/images/goal_selection_screenshot.png)
-*Choose from AI-generated outcomes tailored to your input.*
+### 1. Autonomous Speculation
+Leveraging **Google Gemini 1.5 Pro** and **Flash**, the system drafts complex narratives, extracts required prerequisites, and identifies stakeholders with a single click via our "Progressive Disclosure" UI.
 
-![Outcome Phases](static/images/outcome_phases_screenshot.png)
-*Visualize your project's phases with interactive conditions and elements.*
+### 2. Bicameral Governance AI
+SSPEC Horizon introduces a groundbreaking dual-AI feedback loop to ensure your project logic doesn't collapse under its own weight:
+- 🛑 **The Ombud (The Brake):** Constantly monitors the system for constraint violations and logic failures (e.g., impossible budgets, failing criteria).
+- 💡 **The Advocate (The Accelerator):** When integrity is compromised, the Advocate synthesizes the context and proposes actionable, programmatic resolutions (with measured downstream impact) that users can instantly **Align & Implement**.
 
-##  Technology Stack
+### 3. Logic & Criteria Mapping
+Forget flat text. Every Conceptual Entity allows users to define explicit logic rules (Thresholds, Gates, Constraints, Conditionals, and Benchmarks) that dynamically control the state of the parent project.
 
-* Frontend: HTML, CSS, JavaScript, Bootstrap
-* Backend: Flask, SQLAlchemy
-* AI Integration: Azure OpenAI
-* Database: PostgreSQL (optional with in-memory fallback)
+### 4. Interactive Constellation Views
+Visualize the interconnected dependencies of your stakeholders, prerequisites, and resources with interactive, dynamic node graphs (powered by Vis.js).
 
-##  Setup & Installation
+---
 
-1. **Clone the Repository:**
+## 🛠️ Technology Stack
 
-git clone [https://github.com/brothercast/PossParse.git](https://github.com/brothercast/PossParse.git)
+- **Frontend:** HTML5, Vanilla JavaScript, CSS3 (Bespoke Glassmorphism & Micro-animations), Bootstrap 5, Vis.js
+- **Backend:** Python, Flask, SQLAlchemy
+- **AI Integration:** Google Gemini API (`google-genai`)
+- **Database:** PostgreSQL (with SQLite in-memory fallback for rapid prototyping)
+- **Versioning:** Automated Git-Hash Tracking
+
+---
+
+## ⚙️ Setup & Installation
+
+**1. Clone the Repository**
+```bash
+git clone https://github.com/brothercast/PossParse.git
 cd PossParse
+```
 
-
-**2.  Install Dependencies:**
+**2. Install Dependencies**
+```bash
 pip install -r requirements.txt
+```
 
-**3. Set Up Environment Variables:**
+**3. Configure Environment Variables**
+Create a `.env` file in the root directory:
+```env
+GOOGLE_GEMINI_API=your_gemini_api_key_here
+GEMINI_MODEL_NAME=gemini-1.5-flash
+GEMINI_THINKING_MODEL_NAME=gemini-1.5-pro
+GEMINI_IMAGE_MODEL_NAME=imagen-3.0-generate-001
+SECRET_KEY=your_secret_flask_key
+USE_DATABASE=False # Set to True to use PostgreSQL
+# SQLALCHEMY_DATABASE_URI=postgresql://user:pass@localhost/sspec
+```
 
-Create a .env file in the root directory.   
-Add your configuration keys:
+**4. Run the Engine**
+```bash
+python app.py
+```
+*Access the application at `http://localhost:5000`.*
 
-**AZURE_OPENAI_API_KEY=your_azure_key**
-**AZURE_OPENAI_ENDPOINT=your_azure_endpoint**
-**SQLALCHEMY_DATABASE_URI**=**your_database_uri**
+---
 
-4. Run the Application:
-
-**flask run**
-
-5. **Access the App:** 
-Open http://localhost:5000 in your web browser.
-
-
-### License
-This project is licensed under the MIT License. See the LICENSE file for details.   
-
+## 📜 License
+This project is licensed under the MIT License. See the `LICENSE` file for details.

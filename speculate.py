@@ -18,30 +18,120 @@ from datetime import date, datetime, timedelta
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # --- Helper function to render a CE pill ---
+
+# Comprehensive alias table: maps common AI hallucinations to correct CE types
+CE_TYPE_ALIASES = {
+    # Research aliases
+    'research': 'Research', 'study': 'Research', 'analysis': 'Research',
+    'feasibility': 'Research', 'feasibility study': 'Research',
+    'market analysis': 'Research', 'data analysis': 'Research',
+    'survey': 'Research', 'literature review': 'Research',
+    'site analysis': 'Research', 'assessment': 'Research',
+    'investigation': 'Research', 'evaluation': 'Research',
+    # Risk aliases
+    'risk': 'Risk', 'risk analysis': 'Risk', 'risk assessment': 'Risk',
+    'threat': 'Risk', 'vulnerability': 'Risk', 'hazard': 'Risk',
+    'contingency': 'Risk', 'mitigation': 'Risk',
+    # Stakeholder aliases
+    'stakeholder': 'Stakeholder', 'community': 'Stakeholder',
+    'audience': 'Stakeholder', 'beneficiary': 'Stakeholder',
+    'user': 'Stakeholder', 'customer': 'Stakeholder',
+    'champion': 'Stakeholder', 'resident': 'Stakeholder',
+    # Praxis aliases
+    'praxis': 'Praxis', 'task': 'Praxis', 'operation': 'Praxis',
+    'execution': 'Praxis', 'deployment': 'Praxis',
+    'implementation': 'Praxis', 'pilot': 'Praxis',
+    'prototype': 'Praxis', 'construction': 'Praxis',
+    'installation': 'Praxis', 'launch': 'Praxis',
+    # Environment aliases
+    'environment': 'Environment', 'ecosystem': 'Environment',
+    'habitat': 'Environment', 'climate': 'Environment',
+    'sustainability': 'Environment', 'impact': 'Environment',
+    'environmental': 'Environment',
+    # Timeline aliases
+    'timeline': 'Timeline', 'milestone': 'Timeline',
+    'deadline': 'Timeline', 'schedule': 'Timeline',
+    'roadmap': 'Timeline', 'phase': 'Timeline',
+    # Advocacy aliases
+    'advocacy': 'Advocacy', 'campaign': 'Advocacy',
+    'marketing': 'Advocacy', 'outreach': 'Advocacy',
+    'narrative': 'Advocacy', 'communication': 'Advocacy',
+    'education': 'Advocacy', 'awareness': 'Advocacy',
+    # Collaboration aliases
+    'collaboration': 'Collaboration', 'partnership': 'Collaboration',
+    'alliance': 'Collaboration', 'joint venture': 'Collaboration',
+    'cooperation': 'Collaboration', 'network': 'Collaboration',
+    'governance': 'Collaboration',
+    # Legal aliases
+    'legal': 'Legal', 'compliance': 'Legal', 'regulatory': 'Legal',
+    'contract': 'Legal', 'permit': 'Legal', 'license': 'Legal',
+    'zoning': 'Legal', 'regulation': 'Legal', 'policy': 'Legal',
+    'intellectual property': 'Legal', 'ip': 'Legal',
+    # Financial aliases
+    'financial': 'Financial', 'finance': 'Financial',
+    'budget': 'Financial', 'funding': 'Financial',
+    'seed funding': 'Financial', 'investment': 'Financial',
+    'revenue': 'Financial', 'cost': 'Financial',
+    'grant': 'Financial', 'fundraising': 'Financial',
+    'economic': 'Financial', 'pricing': 'Financial',
+    # Technology aliases
+    'technology': 'Technology', 'tech': 'Technology',
+    'software': 'Technology', 'hardware': 'Technology',
+    'platform': 'Technology', 'infrastructure': 'Technology',
+    'api': 'Technology', 'app': 'Technology',
+    'iot': 'Technology', 'automation': 'Technology',
+    'digital': 'Technology', 'system': 'Technology',
+    'iot monitoring': 'Technology', 'monitoring system': 'Technology',
+    'crop health tracking': 'Technology', 'irrigation management': 'Technology',
+    # Measurement aliases
+    'measurement': 'Measurement', 'metric': 'Measurement',
+    'kpi': 'Measurement', 'indicator': 'Measurement',
+    'benchmark': 'Measurement',
+    'reporting': 'Measurement', 'analytics': 'Measurement',
+    'impact assessment': 'Measurement', 'impact measurement': 'Measurement',
+    'baseline metric': 'Measurement', 'success metric': 'Measurement',
+    'nutritional outcome': 'Measurement', 'outcome measurement': 'Measurement',
+}
+
 def normalize_ce_type(raw_type: str) -> str:
     """
-    Uses fuzzy matching to correct common AI hallucinations.
-    Example: 'Risk Analysis' -> 'Risk', 'Stakeholder Map' -> 'Stakeholder'
+    Multi-tier normalization to prevent Default fallback.
+    1. Exact match (case-insensitive)
+    2. Alias table (common AI hallucinations)
+    3. Keyword substring match (partial aliases)
+    4. Fuzzy match (cutoff 0.7 — strict)
+    5. Fallback to Default (should be rare)
     """
     if not raw_type: return 'Default'
+    
+    clean = raw_type.strip()
     
     # 1. Exact Match (Case Insensitive)
     valid_types = list(NODES.keys())
     key_map = {k.lower(): k for k in valid_types}
-    if raw_type.lower() in key_map:
-        return key_map[raw_type.lower()]
+    if clean.lower() in key_map:
+        return key_map[clean.lower()]
     
-    # 2. Fuzzy Match
-    matches = get_close_matches(raw_type, valid_types, n=1, cutoff=0.5)
+    # 2. Alias Table (full string, case insensitive)
+    if clean.lower() in CE_TYPE_ALIASES:
+        return CE_TYPE_ALIASES[clean.lower()]
+    
+    # 3. Keyword Substring Match (check if any alias keyword appears in the string)
+    clean_lower = clean.lower()
+    for alias, target in sorted(CE_TYPE_ALIASES.items(), key=lambda x: -len(x[0])):
+        if alias in clean_lower:
+            return target
+    
+    # 4. Fuzzy Match (strict cutoff)
+    matches = get_close_matches(clean, valid_types, n=1, cutoff=0.7)
     if matches:
-        # Use a safe logger if outside app context, otherwise current_app
         if current_app:
-            current_app.logger.info(f"Normalized Node Type: '{raw_type}' -> '{matches[0]}'")
+            current_app.logger.info(f"Normalized Node Type (fuzzy): '{raw_type}' -> '{matches[0]}'")
         return matches[0]
         
-    # 3. Fallback
+    # 5. Fallback — log at WARNING so we can plug gaps
     if current_app:
-        current_app.logger.warning(f"Unknown Node Type '{raw_type}' defaulted.")
+        current_app.logger.warning(f"⚠ UNRESOLVED NODE TYPE '{raw_type}' -> Default. Consider adding an alias.")
     return 'Default'
 
 def _render_ce_pill_html(ce_id: str, ce_type: str, ce_text: str) -> str:

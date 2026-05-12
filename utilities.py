@@ -137,22 +137,39 @@ def assign_goal_colors(goals: List[Dict]) -> List[Dict]:
 # ==============================================================================
 
 def get_system_pill_color(sys_type: str, phase_index: Optional[int] = None) -> Dict[str, str]:
+    is_bespoke = sys_type not in SYSTEM_NODES
     config = SYSTEM_NODES.get(sys_type, SYSTEM_NODES.get('CUSTOM', {}))
-    default = config.get('color', '#64748b')
     
+    # Known system types ALWAYS use their canonical color for visual consistency
+    if not is_bespoke:
+        canonical = config.get('color', '#64748b')
+        return {'background': canonical, 'border': canonical, 'icon_color': '#ffffff', 'text': canonical}
+
+    # Bespoke/unknown types: generate from phase or hash
     if phase_index is not None and phase_index in PHASE_COLORS:
         phase = PHASE_COLORS[phase_index]
         sys_hue = (phase['hue'] + 30) % 360
         sys_hex = hsl_to_hex(sys_hue, phase['saturation'] * 0.7, phase['lightness'] + 0.1)
         sys_dark = hsl_to_hex(sys_hue, phase['saturation'] * 0.85, phase['lightness'] - 0.1)
         return {'background': sys_hex, 'border': sys_dark, 'icon_color': '#ffffff', 'text': sys_dark}
-    
-    return {'background': default, 'border': default, 'icon_color': '#ffffff', 'text': default}
+        
+    hash_val = sum(ord(c) for c in sys_type) * 13
+    hue = hash_val % 360
+    hex_bg = hsl_to_hex(hue, 0.8, 0.94)
+    hex_border = hsl_to_hex(hue, 0.7, 0.5)
+    hex_text = hsl_to_hex(hue, 0.8, 0.3)
+    return {'background': hex_bg, 'border': hex_border, 'icon_color': '#ffffff', 'text': hex_text}
 
 def get_ce_pill_color(ce_type: str, phase_index: Optional[int] = None) -> Dict[str, str]:
+    is_bespoke = ce_type not in NODES
     config = NODES.get(ce_type, NODES.get('Default', {}))
-    default = config.get('color', '#6c757d')
     
+    # Known CE types ALWAYS use their canonical color for visual consistency
+    if not is_bespoke:
+        canonical = config.get('color', '#6c757d')
+        return {'background': canonical, 'icon_color': canonical}
+
+    # Bespoke/unknown types: generate from phase or hash
     if phase_index is not None and phase_index in PHASE_COLORS:
         phase = PHASE_COLORS[phase_index]
         ce_hue = (phase['hue'] + 150) % 360
@@ -160,7 +177,11 @@ def get_ce_pill_color(ce_type: str, phase_index: Optional[int] = None) -> Dict[s
         ce_dark = hsl_to_hex(ce_hue, phase['saturation'] * 0.9, phase['lightness'] - 0.15)
         return {'background': ce_hex, 'icon_color': ce_dark}
         
-    return {'background': default, 'icon_color': default}
+    hash_val = sum(ord(c) for c in ce_type) * 17
+    hue = hash_val % 360
+    hex_bg = hsl_to_hex(hue, 0.7, 0.90)
+    hex_icon = hsl_to_hex(hue, 0.8, 0.4)
+    return {'background': hex_bg, 'icon_color': hex_icon}
 
 def replace_ce_tags_with_pills(content: str, phase_index: Optional[int] = None) -> str:
     """Parses <ce> tags into interactive pills for the dashboard."""
@@ -173,10 +194,11 @@ def replace_ce_tags_with_pills(content: str, phase_index: Optional[int] = None) 
         icon_cls = NODES.get(ce_type, NODES['Default']).get('icon', 'fa-cube')
         
         new_tag = soup.new_tag('span', attrs={
-            'class': 'ce-capsule',
+            'class': 'ce-capsule ce-capsule-interactive cursor-pointer',
             'data-ce-id': tag.get('id', ''),
             'data-ce-type': ce_type,
-            'style': f"--node-color: {colors['background']}; --node-icon-color: {colors['icon_color']};"
+            'style': f"--node-color: {colors['background']}; --node-icon-color: {colors['icon_color']};",
+            'onclick': f"highlightExplorerNode('{tag.get('id', '')}', '{ce_type}')"
         })
         icon = soup.new_tag('i', attrs={'class': icon_cls})
         new_tag.append(icon)
@@ -206,10 +228,11 @@ def replace_sys_tags_with_highlights(content: str, phase_index: Optional[int] = 
         config = SYSTEM_NODES.get(sys_type, SYSTEM_NODES.get('CUSTOM', {}))
         
         wrapper = soup.new_tag('span', attrs={
-            'class': 'sys-highlight',
+            'class': 'sys-highlight sys-highlight-interactive cursor-pointer',
             'data-type': sys_type,
             'title': f"{config.get('label', sys_type)}: {sys_text}",
-            'style': f"--sys-color: {colors['background']}; --sys-border: {colors['border']};"
+            'style': f"--sys-color: {colors['background']}; --sys-border: {colors['border']};",
+            'onclick': f"openSystemEditor('', '{sys_type}', '{sys_text.replace(chr(39), chr(92)+chr(39))}')"
         })
         
         icon_span = soup.new_tag('span', attrs={'class': 'sys-highlight-icon'})
@@ -298,8 +321,11 @@ async def generate_outcome_data(ssol_title, ssol_description, domain, forced_con
     {constraint_text}
     
     PHASE 1: EXEC CHARTER. Write a summary using <sys type="TYPE">Value</sys> tags for anchors.
+    CRITICAL: You MUST use ONLY the following valid SYS Types: {', '.join(get_valid_system_types())}.
     PHASE 2: ROADMAP. 5 Phases (Discovery, Engagement, Action, Completion, Legacy). 
-    3-5 COS per phase. Embed <ce type="Type">Label</ce> tags.
+    3-5 COS per phase. The COS should be a complete sentence. 
+    CRITICAL: Do NOT wrap the entire sentence in a <ce> tag. Instead, embed multiple <ce type="Type">noun/phrase</ce> tags AROUND specific entities, actions, or commodities WITHIN the sentence. 
+    Example: "Researched <ce type="Research">grant funding</ce> from <ce type="Partnership">environmental foundations</ce>."
     Valid CEs: {', '.join(get_valid_node_types())}
     
     RETURN JSON: {{ "ssolsummary": "html...", "system_params": {{...}}, "phases": {{ "Discovery": ["cos..."], ... }} }}

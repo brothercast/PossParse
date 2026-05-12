@@ -103,11 +103,25 @@ def get_badge_class_from_status(status):
         'Rejected': 'bg-danger'
     }.get(status, 'bg-secondary')
 
+import subprocess
+
+def get_git_hash():
+    try:
+        # Get the short git commit hash
+        commit_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
+        return f"v2026.05 [{commit_hash}]"
+    except Exception:
+        return "v2026.05 [dev]"
+
 from ce_nodes import NODES
 @app.context_processor
-def inject_nodes():
+def inject_globals():
     from system_nodes import SYSTEM_NODES
-    return dict(nodes=NODES, system_nodes=SYSTEM_NODES)
+    return dict(
+        nodes=NODES, 
+        system_nodes=SYSTEM_NODES,
+        system_version=get_git_hash()
+    )
 
 # ----------------------
 # --- TERMINAL TITLE SCREEN ---
@@ -177,7 +191,10 @@ def print_startup_banner():
 # Main
 # ----------------------
 if __name__ == '__main__':
-    print_title_screen()
-    print_startup_banner()
+    try:
+        print_title_screen()
+        print_startup_banner()
+    except Exception:
+        print("SSPEC Horizon - Starting...")
     # Run Flask app normally: CTRL+C message will appear
     app.run(debug=True, port=5000)

@@ -14,7 +14,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
                     jsonify, make_response, current_app, send_from_directory
 
 # --- App Context & Stores ---
-from app import USE_DATABASE
+USE_DATABASE = os.environ.get('USE_DATABASE', 'False').lower() in ('true', '1', 't', 'y', 'yes')
 from store import ssol_store, cos_store # <--- Added for In-Memory Support
 
 # --- Data Models & Config ---
@@ -112,6 +112,118 @@ def index():
 def about():
     return render_template('about.html')
 
+# ==============================================================================
+# 3b. DEBUG BYPASS — Skip Goal Selection, land on Outcome with sample data
+# ==============================================================================
+
+@routes_bp.route('/debug')
+async def debug_bypass():
+    """
+    Creates a sample SSOL with pre-baked phases and conditions,
+    then redirects straight to the outcome page.
+    Usage: Navigate to http://127.0.0.1:5000/debug
+    """
+    # 1. System Physics (pre-baked wizard answers)
+    system_data = {
+        'GOAL': 'Sustainable Urban Farming Network',
+        'OPERATOR': 'GreenVentures Inc.',
+        'HORIZON': '2027-06-01',
+        'BUDGET': 'Bootstrapped (Under $50K)',
+        'SCALE': 'Small Team / Startup',
+        'MODALITY': 'Hybrid (Digital + Physical)',
+        'domain_icon': 'fas fa-seedling',
+        'raw_summary': (
+            'Establish a network of <sys type="SCALE">community-scale</sys> urban farms '
+            'across <ce type="Environment">metropolitan food deserts</ce>, leveraging '
+            '<ce type="Research">vertical farming technology</ce> and '
+            '<ce type="Collaboration">local partnership models</ce> to provide '
+            'affordable, fresh produce within a <sys type="HORIZON">2-year horizon</sys>. '
+            'The initiative will operate under a <sys type="BUDGET">lean bootstrap model</sys> '
+            'with <ce type="Stakeholder">community ownership structures</ce> '
+            'ensuring long-term sustainability and equitable access.'
+        )
+    }
+
+    # 2. Create SSOL Container
+    ssol_id_str = speculate_create_ssol(
+        USE_DATABASE,
+        'Sustainable Urban Farming Network',
+        'Establish a network of community-scale urban farms across metropolitan food deserts, '
+        'providing affordable fresh produce through vertical farming technology and local partnerships.',
+        domain='Agriculture & Food Systems',
+        system_data=system_data
+    )
+    ssol_id_uuid = UUID(ssol_id_str)
+
+    # 3. Pre-baked Phases & Conditions (with CE tags for pill rendering)
+    sample_phases = {
+        'Discovery': [
+            "Conducted intensive <ce type='Research'>feasibility studies</ce> and <ce type='Research'>site analysis</ce> "
+            "for modular vertical farming installations in identified <ce type='Environment'>food desert zones</ce>, "
+            "evaluating soil conditions, sunlight access, and water infrastructure.",
+            
+            "Completed comprehensive <ce type='Research'>market demand analysis</ce> across target neighborhoods, "
+            "identifying <ce type='Stakeholder'>community champions</ce> and mapping existing "
+            "<ce type='Environment'>food distribution networks</ce>.",
+
+            "Established <ce type='Measurement'>baseline nutrition metrics</ce> across target communities "
+            "to enable pre/post <ce type='Measurement'>impact assessment</ce> of the farming network.",
+        ],
+        'Engagement': [
+            "Established <ce type='Collaboration'>strategic partnerships</ce> with "
+            "<ce type='Stakeholder'>local community organizations</ce> and "
+            "<ce type='Stakeholder'>urban agriculture cooperatives</ce> to co-develop farm sites.",
+            
+            "Secured initial <ce type='Financial'>seed funding</ce> from "
+            "<ce type='Stakeholder'>impact investors</ce> and <ce type='Financial'>municipal grant programs</ce> "
+            "to develop detailed engineering plans and procure long-lead equipment.",
+
+            "Completed <ce type='Legal'>zoning compliance review</ce> and obtained "
+            "<ce type='Legal'>urban agriculture permits</ce> for all proposed farm sites.",
+        ],
+        'Action': [
+            "Deployed first <ce type='Praxis'>pilot vertical farm module</ce> at the "
+            "<ce type='Environment'>Eastside Community Center</ce>, achieving "
+            "<ce type='Timeline'>30-day harvest cycle</ce> for leafy greens and herbs.",
+            
+            "Implemented <ce type='Technology'>IoT monitoring systems</ce> for automated "
+            "<ce type='Technology'>crop health tracking</ce> and <ce type='Technology'>irrigation management</ce>, "
+            "reducing water usage by 40% compared to traditional methods.",
+        ],
+        'Completion': [
+            "Achieved network of <ce type='Praxis'>5 operational farm sites</ce> serving "
+            "<ce type='Stakeholder'>12,000+ residents</ce> with weekly fresh produce deliveries.",
+            
+            "Published <ce type='Advocacy'>impact report</ce> demonstrating "
+            "<ce type='Measurement'>nutritional outcome improvements</ce> and "
+            "<ce type='Environment'>carbon footprint reduction</ce> metrics for stakeholder reporting.",
+        ],
+        'Legacy': [
+            "Created open-source <ce type='Research'>Urban Farm Playbook</ce> enabling "
+            "<ce type='Collaboration'>replication across 50+ cities</ce> with standardized "
+            "<ce type='Praxis'>deployment frameworks</ce> and <ce type='Timeline'>90-day launch timelines</ce>.",
+        ]
+    }
+
+    # 4. Create COS entries (with baseline system pills)
+    for phase_name, cos_items in sample_phases.items():
+        for cos_content in cos_items:
+            try:
+                await speculate_create_cos(
+                    USE_DATABASE,
+                    ssol_id=ssol_id_uuid,
+                    content=cos_content,
+                    status='Proposed'
+                )
+            except Exception as e:
+                current_app.logger.error(f"Debug: Error creating COS: {e}")
+
+    # 5. Save domain icon
+    speculate_update_ssol_system_node_internal(ssol_id_str, 'domain_icon', 'fas fa-seedling')
+
+    current_app.logger.info(f"🔧 DEBUG BYPASS: Created sample SSOL {ssol_id_str}")
+    return redirect(url_for('routes_bp.view_ssol', ssol_id=ssol_id_str))
+
 @routes_bp.route('/analyze_input', methods=['POST'])
 async def analyze_input_route():
     text = request.form.get('user_text')
@@ -183,6 +295,14 @@ async def outcome():
                 else:
                     system_constraints[node_key] = val.strip()
 
+        # Inject the Prime Directive (GOAL) so it appears as a System Physics pill
+        if selected_goal_title and 'GOAL' not in system_constraints:
+            system_constraints['GOAL'] = selected_goal_title
+        
+        # Persist domain icon for sidebar rendering
+        if domain_icon:
+            system_constraints['domain_icon'] = domain_icon
+
         # 3. GENERATE INTELLIGENCE (With Attenuation)
         try:
             # We pass the constraints to the AI to influence the text generation
@@ -206,6 +326,26 @@ async def outcome():
                 system_data=final_system_data 
             )
             ssol_id_uuid = UUID(ssol_id_str)
+
+            # 4.5. CREATE BASELINE CEs FROM SYSTEM PILLS
+            # By instantiating these as CE atoms, we ensure they are queryable and resolvable 
+            # by the Arbitration Pane, while leaving the flat final_system_data on the SSOL for mobility.
+            for key, value in final_system_data.items():
+                if value and str(value).strip():
+                    # Format as a distinct CE atom representing a baseline constraint or physics property
+                    # Using <ce> tags ensures it parses correctly in the frontend CE Workshop
+                    ce_label = "Constraint" if key in ["DIRECTIVE", "AVOIDANCE", "HORIZON", "BUDGET"] else "Guideline"
+                    pill_content = f"[{ce_label.upper()}] The foundational {key.lower()} for this roadmap is defined as: <ce type='{key}'>{value}</ce>"
+                    
+                    try:
+                        await speculate_create_cos(
+                            USE_DATABASE,
+                            ssol_id=ssol_id_uuid,
+                            content=pill_content,
+                            status='Proposed'
+                        )
+                    except Exception as ce_err:
+                        current_app.logger.error(f"Error generating baseline CE for {key}: {ce_err}")
 
             # 5. CREATE PHASES & CONDITIONS (Standard Logic)
             if 'phases' in structured_solution_json:
@@ -313,9 +453,23 @@ def view_ssol(ssol_id):
     # --- UI REHYDRATION (Common Logic) ---
     try:
         # 1. Command Deck
-        deck_params_list = []
         sys_data = ssol_data_payload.get('system_data', {})
         
+        # 1a. Back-fill sys_data from charter <sys> tags
+        #     The AI mentions system nodes in the charter text that may not be
+        #     in the wizard-captured system_data. Extract them for sidebar reciprocity.
+        raw_summary = sys_data.get('raw_summary', ssol_data_payload.get('description', ""))
+        if raw_summary:
+            from bs4 import BeautifulSoup as BS4
+            charter_soup = BS4(str(raw_summary), 'html.parser')
+            for sys_tag in charter_soup.find_all('sys'):
+                tag_type = sys_tag.get('type', '').upper()
+                tag_value = sys_tag.get_text().strip()
+                # Only back-fill if the key is a valid SYSTEM_NODE and not already set
+                if tag_type and tag_type in SYSTEM_NODES and tag_type not in sys_data:
+                    sys_data[tag_type] = tag_value
+
+        deck_params_list = []
         for key, val in sys_data.items():
             if key in SYSTEM_NODES:
                 deck_params_list.append({
@@ -331,7 +485,6 @@ def view_ssol(ssol_id):
         config_modal = render_system_config_modal()
 
         # 2. Executive Charter
-        raw_summary = sys_data.get('raw_summary', ssol_data_payload.get('description', ""))
         formatted_summary = format_ssol_text(raw_summary, phase_index=0, system_data=sys_data)
 
         # 3. Phase Grid Reconstruction
@@ -369,7 +522,8 @@ def view_ssol(ssol_id):
             phases=phases_map, # Pass explicitly if template expects it separate
             horizon_gauge_html=components['horizon_html'],
             system_pills_html=components['sidebar_html'],
-            system_config_modal_html=config_modal
+            system_config_modal_html=config_modal,
+            system_nodes=SYSTEM_NODES
         )
 
     except Exception as e:
@@ -475,8 +629,10 @@ async def speculate_context_route():
             if not ssol_context:
                 return jsonify({'success': False, 'error': 'SSOL Context Not Found'}), 404
             
+            failing_criteria = data.get('failing_criteria', [])
+            
             # Delegates to ai_service.py logic defined in previous step
-            report = await generate_governance_report(ssol_context)
+            report = await generate_governance_report(ssol_context, failing_criteria)
             return jsonify({'success': True, 'report': report})
 
         # ==========================================================
@@ -486,6 +642,8 @@ async def speculate_context_route():
         system_instructions = []
         
         if ssol_context:
+            if ssol_context.get('title'):
+                system_instructions.append(f"PROJECT GOAL: {ssol_context['title']}")
             if ssol_context.get('target_date'):
                 system_instructions.append(f"TEMPORAL: Hard deadline {ssol_context['target_date']}.")
             if ssol_context.get('owner'):
@@ -524,11 +682,34 @@ async def speculate_context_route():
                 messages=[{"role": "user", "content": final_prompt}], 
                 role="SSPEC Engine", 
                 task=f"{ce_type}-narrative",
-                system_instruction="You are the SSPEC Speculation Engine. Return pure JSON { 'text': ... }.",
+                system_instruction="You are the SSPEC Speculation Engine. CRITICAL: Be CONCISE. The primary field should contain only the core artifact — the question, specification, or objective in 2-5 sentences MAX. No essays, no numbered lists, no preambles. Supporting analysis goes elsewhere. Return pure JSON { 'text': ... }.",
                 temperature=0.75 
             )
 
-        # B. Collection Mode (Lists of Prereqs, Stakeholders, etc.)
+        # B. System Parameter Mode
+        elif context == 'system_parameter':
+            config = SYSTEM_NODES.get(ce_type, {})
+            options = config.get('options', [])
+            helper = config.get('description', '')
+            
+            prompt_content = f"Suggest an optimal value for the '{ce_type}' parameter.\n"
+            prompt_content += f"Parameter Purpose: {helper}\n"
+            if options:
+                prompt_content += f"Pre-defined standard options: {', '.join(options)}\n"
+            prompt_content += "You may select one of the pre-defined options OR invent a custom value if it improves the project flow based on the physics. "
+            prompt_content += "If your suggestion might disrupt standard assumptions, append a brief warning to the text (e.g. 'Custom Option (Warning: Increases Cost)')."
+            
+            final_prompt = f"*** SYSTEM PHYSICS ***\n{global_context_block}\n\n*** TASK ***\n{prompt_content}"
+            
+            ai_response = await generate_chat_response(
+                messages=[{"role": "user", "content": final_prompt}], 
+                role="SSPEC Engine", 
+                task=f"speculate_sys_{ce_type}",
+                system_instruction="You are the SSPEC Speculation Engine. Return pure JSON { 'text': 'Suggested Value' }.",
+                temperature=0.75 
+            )
+
+        # C. Collection Mode (Lists of Prereqs, Stakeholders, etc.)
         else:
             base_prompt = prompts_map.get(context, default_prompts.get(context)) or f"Analyze '{cos_text}'. List 3 items for {context}."
             prompt_content = base_prompt.format(cos_text=cos_text)
@@ -548,7 +729,7 @@ async def speculate_context_route():
         clean_json = ai_response.replace("```json", "").replace("```", "").strip()
         parsed = json.loads(clean_json)
 
-        if context == 'narrative':
+        if context in ['narrative', 'system_parameter']:
             txt = parsed.get('text', '') if isinstance(parsed, dict) else str(parsed)
             return jsonify({'success': True, 'text': txt, 'field': sub_context})
         else:
@@ -655,4 +836,90 @@ def save_as_pdf(ssol_id):
         r.headers['Content-Disposition'] = f'attachment; filename="SSPEC_{ssol_id}.pdf"'
         return r
     except Exception as e:
+        return jsonify(success=False, error=str(e)), 500
+
+# ==============================================================================
+# 9. GOVERNANCE (Ombud & Advocate Micro-Generations)
+# ==============================================================================
+
+@routes_bp.route('/advocate/resolve_void', methods=['POST'])
+async def resolve_void():
+    """
+    The Localized Micro-Generation endpoint for the Advocate node.
+    Receives a Dependency Void and returns a speculative pathway to bridge it.
+    """
+    try:
+        data = request.get_json()
+        ssol_id = data.get('ssol_id')
+        void_id = data.get('void_id')
+        
+        void_context = data.get('void_context', 'Dependency Void: Conflict in execution node.')
+        
+        # 1. Fetch SSOL Context
+        ssol_context = {}
+        if ssol_id:
+            if USE_DATABASE:
+                engine, session = get_engine_and_session()
+                try:
+                    obj = session.query(SSOL).get(UUID(str(ssol_id)))
+                    if obj:
+                        ssol_context = {
+                            'title': obj.title,
+                            'system_data': obj.system_data or {}
+                        }
+                finally:
+                    session.close()
+            else:
+                ssol_context = ssol_store.get(str(ssol_id), {})
+
+        # 2. Build Context String
+        physics_context = []
+        if ssol_context.get('system_data'):
+            for k, v in ssol_context['system_data'].items():
+                physics_context.append(f"{k}: {v}")
+        physics_str = "\n".join(physics_context)
+        
+        # 3. Construct Prompt
+        prompt = f"""
+*** PROJECT CONTEXT ***
+Title: {ssol_context.get('title', 'Unknown Project')}
+Physics/Constraints:
+{physics_str}
+
+*** DEPENDENCY VOID ***
+{void_context}
+
+*** TASK ***
+You are the SSPEC Advocate Node. Resolve this conflict via 'gradient descent'—finding an alternate pathway to the outcome that satisfies the constraints.
+Explain the impact of Aligning, Declining, or Countering this pathway. Include 1-3 new CE sub-nodes (e.g., type: 'Partnership', 'Design', 'Development') required to execute the resolution.
+
+Return pure JSON matching this exact structure:
+{{
+    "summary": "Brief 2-sentence explanation of the proposed pathway.",
+    "impact_analysis": {{
+        "align": "What happens if they accept this pathway?",
+        "decline": "What are the risks of declining it?",
+        "counter": "What is an alternative compromise?"
+    }},
+    "sub_nodes": [
+        {{"type": "Collaboration", "text": "Sponsorship Tier"}}
+    ]
+}}
+"""
+        
+        ai_response = await generate_chat_response(
+            messages=[{"role": "user", "content": prompt}], 
+            role="SSPEC Advocate", 
+            task=f"resolve_void_{void_id}",
+            system_instruction="You are the SSPEC Advocate. Return pure JSON only.",
+            temperature=0.7 
+        )
+
+        clean_json = ai_response.replace("```json", "").replace("```", "").strip()
+        resolution = json.loads(clean_json)
+        
+        return jsonify(success=True, status="success", resolution=resolution)
+        
+    except Exception as e:
+        current_app.logger.error(f"Advocate Error: {e}")
         return jsonify(success=False, error=str(e)), 500

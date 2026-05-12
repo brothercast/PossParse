@@ -42,6 +42,20 @@ NODES = {
             {"key": "title", "label": "Resource Title", "type": "text"},
             {"key": "url", "label": "Link", "type": "link"}
         ],
+        "criterion_schema": [
+            {"key": "label", "label": "Criterion", "type": "text"},
+            {"key": "criterion_type", "label": "Type", "type": "select", "options": ["Threshold", "Gate", "Constraint", "Conditional", "Benchmark"]},
+            {"key": "operator", "label": "Operator", "type": "select", "options": ["≤", "≥", "=", "≠", "between"]},
+            {"key": "target", "label": "Target", "type": "text"},
+            {"key": "unit", "label": "Unit", "type": "text"},
+            {"key": "current", "label": "Current Value", "type": "text"},
+            {"key": "severity", "label": "Severity", "type": "select", "options": ["Hard", "Soft"]},
+            {"key": "condition", "label": "Condition", "type": "text"},
+            {"key": "if_true", "label": "If True", "type": "text"},
+            {"key": "if_false", "label": "If False", "type": "text"},
+            {"key": "reference", "label": "Reference", "type": "text"},
+            {"key": "status", "label": "Status", "type": "select", "options": ["Pending", "Pass", "Fail", "Blocked", "Compliant", "Violated", "Unresolved"]}
+        ],
         "prompts": {
             "narrative": """
                 IDENTITY: You are a sub-routine of the SPECULATE Engine.
@@ -52,7 +66,16 @@ NODES = {
             "prerequisites": "Analyze '{cos_text}'. Considering the System Constraints, what 3 precursors are physically required? Return JSON array: [{{\"title\": \"Prereq\", \"status\": \"Pending\"}}]",
             "stakeholders": "Who is involved in '{cos_text}'? Ensure they match the OPERATOR context (e.g. Grassroots vs Corp). Return JSON array: [{{\"name\": \"Name/Role\", \"role\": \"Description\"}}]",
             "assumptions": "What are we assuming about '{cos_text}'? Return JSON array: [{{\"hypothesis\": \"Assumption...\", \"risk\": \"Medium\"}}]",
-            "resources": "Suggest 3 resources for '{cos_text}' compatible with the BUDGET context. Return JSON array: [{{\"title\": \"Resource Name\", \"url\": \"#\"}}]"
+            "resources": "Suggest 3 resources for '{cos_text}' compatible with the BUDGET context. Return JSON array: [{{\"title\": \"Resource Name\", \"url\": \"#\"}}]",
+            "criteria": """Analyze '{cos_text}' and extract 3-5 concrete, testable success criteria. For each, identify the most appropriate type:
+- Threshold: numeric pass/fail (has operator + target number + unit)
+- Gate: binary checkpoint (done or not done, may block downstream work)
+- Constraint: invariant rule (must ALWAYS be true)
+- Conditional: if/then branching logic (contingency path)
+- Benchmark: comparison to external reference point
+
+Return JSON array: [{{\"label\": \"Criterion name\", \"criterion_type\": \"Threshold|Gate|Constraint|Conditional|Benchmark\", \"operator\": \"≤\", \"target\": \"50000\", \"unit\": \"$\", \"status\": \"Pending\"}}]
+Only include fields relevant to the criterion_type. For Gate: use label + status. For Constraint: use label + severity + status. For Conditional: use label + condition + if_true + if_false + status."""
         }
     },
 
@@ -87,9 +110,12 @@ NODES = {
         "prompts": {
             "narrative": """
                 IDENTITY: You are the Research Module of the SPECULATE Engine.
-                TASK: Define the epistemic requirements for: '{cos_text}'. Write the '{field}'.
+                TASK: Formulate a concise, actionable '{field}' for: '{cos_text}'.
+                RULES:
+                - If the field is 'research_question': Write ONLY the research question itself. 2-3 sentences MAX. No preamble, no background, no numbered lists. Just the question.
+                - If the field is 'summary': Write a brief executive synthesis (3-5 sentences) summarizing the research approach.
                 ATTENUATION: Ensure the scope of research fits the HORIZON constraint.
-                OUTPUT: JSON {{ "text": "Your research text here." }}
+                OUTPUT: JSON {{ "text": "Your concise text here." }}
             """,
             "prerequisites": """
                 To answer the research question implied by: '{cos_text}', what data is required?
@@ -478,6 +504,218 @@ NODES = {
             "resources": """
                 What governance documents are required for: '{cos_text}'?
                 Return JSON array: [{{\"title\": \"MOU/Teaming Agreement\", \"status\": \"Drafting\"}}]
+            """
+        }
+    },
+
+    # ==============================================================================
+    # 10. LEGAL (The Counselor)
+    # ==============================================================================
+    "Legal": {
+        "definition": "Contracts, compliance, and regulatory frameworks.",
+        "icon": "fa-solid fa-scale-balanced",
+        "color": "#78909c", # Blue-gray
+        "details_schema": [
+            {"key": "regulatory_requirement", "label": "Regulatory Requirement", "type": "textarea", "rows": 3},
+            {"key": "compliance_strategy", "label": "Compliance Strategy", "type": "textarea", "rows": 3}
+        ],
+        "prerequisite_schema": [
+            {"key": "regulation", "label": "Applicable Law/Regulation", "type": "text"},
+            {"key": "jurisdiction", "label": "Jurisdiction", "type": "text"}
+        ],
+        "stakeholder_schema": [
+            {"key": "counsel", "label": "Legal Counsel", "type": "text"},
+            {"key": "authority", "label": "Regulatory Authority", "type": "text"}
+        ],
+        "assumption_schema": [
+            {"key": "interpretation", "label": "Regulatory Interpretation", "type": "text"},
+            {"key": "risk_level", "label": "Compliance Risk", "type": "select", "options": ["Low", "Medium", "High"]}
+        ],
+        "resource_schema": [
+            {"key": "document", "label": "Legal Document", "type": "text"},
+            {"key": "status", "label": "Status", "type": "select", "options": ["Draft", "Under Review", "Executed"]}
+        ],
+        "prompts": {
+            "narrative": """
+                IDENTITY: You are the Legal & Compliance Module of the SPECULATE Engine.
+                TASK: Write a '{field}' for the legal/regulatory requirements of: '{cos_text}'.
+                ATTENUATION: Filter through the OPERATOR type and SCALE to determine appropriate regulatory framework complexity.
+                OUTPUT: JSON {{ "text": "Your compliance analysis here." }}
+            """,
+            "prerequisites": """
+                What laws, permits, or regulations apply to '{cos_text}'?
+                Return JSON array: [{{"regulation": "Specific Law/Code", "jurisdiction": "City/State/Federal"}}]
+            """,
+            "stakeholders": """
+                Who provides legal oversight for '{cos_text}'?
+                Return JSON array: [{{"counsel": "Attorney/Firm", "authority": "Regulatory Body"}}]
+            """,
+            "assumptions": """
+                What regulatory interpretations are we relying on for '{cos_text}'?
+                Return JSON array: [{{"interpretation": "We assume the regulation means...", "risk_level": "Medium"}}]
+            """,
+            "resources": """
+                What legal documents are required for '{cos_text}'?
+                Return JSON array: [{{"document": "Contract/License/Permit", "status": "Draft"}}]
+            """
+        }
+    },
+
+    # ==============================================================================
+    # 11. FINANCIAL (The Treasurer)
+    # ==============================================================================
+    "Financial": {
+        "definition": "Budgets, funding models, and economic sustainability.",
+        "icon": "fa-solid fa-coins",
+        "color": "#43a047", # Money-green
+        "details_schema": [
+            {"key": "financial_objective", "label": "Financial Objective", "type": "textarea", "rows": 3},
+            {"key": "funding_model", "label": "Funding Model", "type": "textarea", "rows": 3}
+        ],
+        "prerequisite_schema": [
+            {"key": "capital_req", "label": "Capital Requirement", "type": "text"},
+            {"key": "secured", "label": "Secured?", "type": "select", "options": ["Pending", "Partial", "Secured"]}
+        ],
+        "stakeholder_schema": [
+            {"key": "funder", "label": "Funder/Investor", "type": "text"},
+            {"key": "terms", "label": "Terms", "type": "text"}
+        ],
+        "assumption_schema": [
+            {"key": "revenue_model", "label": "Revenue Assumption", "type": "text"},
+            {"key": "burn_rate", "label": "Burn Rate", "type": "text"}
+        ],
+        "resource_schema": [
+            {"key": "instrument", "label": "Financial Instrument", "type": "text"},
+            {"key": "amount", "label": "Amount", "type": "text"}
+        ],
+        "prompts": {
+            "narrative": """
+                IDENTITY: You are the Financial Strategy Module of the SPECULATE Engine.
+                TASK: Write a '{field}' for the financial dimensions of: '{cos_text}'.
+                ATTENUATION: Strictly align with the BUDGET constraint. A 'Sweat Equity' project gets different advice than 'Venture Capital'.
+                OUTPUT: JSON {{ "text": "Your financial analysis here." }}
+            """,
+            "prerequisites": """
+                What capital or financial prerequisites are needed for '{cos_text}'?
+                Return JSON array: [{{"capital_req": "Specific Amount/Resource", "secured": "Pending"}}]
+            """,
+            "stakeholders": """
+                Who funds or financially supports '{cos_text}'?
+                Return JSON array: [{{"funder": "Investor/Grant Body", "terms": "Equity/Grant/Loan"}}]
+            """,
+            "assumptions": """
+                What financial assumptions underpin '{cos_text}'?
+                Return JSON array: [{{"revenue_model": "We assume revenue from...", "burn_rate": "$X/month"}}]
+            """,
+            "resources": """
+                What financial instruments or accounts are needed for '{cos_text}'?
+                Return JSON array: [{{"instrument": "Grant/Line of Credit/Revenue", "amount": "$X"}}]
+            """
+        }
+    },
+
+    # ==============================================================================
+    # 12. TECHNOLOGY (The Architect)
+    # ==============================================================================
+    "Technology": {
+        "definition": "Platforms, tools, and technical architecture.",
+        "icon": "fa-solid fa-microchip",
+        "color": "#1565c0", # Deep blue
+        "details_schema": [
+            {"key": "technical_spec", "label": "Technical Specification", "type": "textarea", "rows": 3},
+            {"key": "architecture", "label": "Architecture Overview", "type": "textarea", "rows": 3}
+        ],
+        "prerequisite_schema": [
+            {"key": "tech_dependency", "label": "Technical Dependency", "type": "text"},
+            {"key": "status", "label": "Status", "type": "select", "options": ["Evaluating", "Selected", "Deployed"]}
+        ],
+        "stakeholder_schema": [
+            {"key": "engineer", "label": "Technical Lead", "type": "text"},
+            {"key": "vendor", "label": "Vendor/Provider", "type": "text"}
+        ],
+        "assumption_schema": [
+            {"key": "capability", "label": "Capability Assumption", "type": "text"},
+            {"key": "maturity", "label": "Tech Maturity", "type": "select", "options": ["Emerging", "Proven", "Legacy"]}
+        ],
+        "resource_schema": [
+            {"key": "platform", "label": "Platform/Tool", "type": "text"},
+            {"key": "license", "label": "License", "type": "select", "options": ["Open Source", "Commercial", "Custom"]}
+        ],
+        "prompts": {
+            "narrative": """
+                IDENTITY: You are the Technical Architecture Module of the SPECULATE Engine.
+                TASK: Write a '{field}' for the technology requirements of: '{cos_text}'.
+                ATTENUATION: Match technical complexity to the BUDGET and OPERATOR constraints. A bootstrapped individual needs low-code; an enterprise needs enterprise-grade.
+                OUTPUT: JSON {{ "text": "Your technical specification here." }}
+            """,
+            "prerequisites": """
+                What technical dependencies must be resolved for '{cos_text}'?
+                Return JSON array: [{{"tech_dependency": "Specific Platform/API/Tool", "status": "Evaluating"}}]
+            """,
+            "stakeholders": """
+                Who builds and maintains the technology for '{cos_text}'?
+                Return JSON array: [{{"engineer": "Role/Title", "vendor": "Provider Name"}}]
+            """,
+            "assumptions": """
+                What technical assumptions are we making about '{cos_text}'?
+                Return JSON array: [{{"capability": "We assume the platform can...", "maturity": "Proven"}}]
+            """,
+            "resources": """
+                What platforms or tools are needed for '{cos_text}'?
+                Return JSON array: [{{"platform": "Tool Name", "license": "Open Source"}}]
+            """
+        }
+    },
+
+    # ==============================================================================
+    # 13. MEASUREMENT (The Analyst)
+    # ==============================================================================
+    "Measurement": {
+        "definition": "KPIs, metrics, and impact assessment.",
+        "icon": "fa-solid fa-chart-line",
+        "color": "#f57c00", # Warm orange
+        "details_schema": [
+            {"key": "success_metric", "label": "Success Metric", "type": "textarea", "rows": 3},
+            {"key": "measurement_plan", "label": "Measurement Plan", "type": "textarea", "rows": 3}
+        ],
+        "prerequisite_schema": [
+            {"key": "baseline", "label": "Baseline Value", "type": "text"},
+            {"key": "data_source", "label": "Data Source", "type": "text"}
+        ],
+        "stakeholder_schema": [
+            {"key": "analyst", "label": "Analyst/Owner", "type": "text"},
+            {"key": "audience", "label": "Report Audience", "type": "text"}
+        ],
+        "assumption_schema": [
+            {"key": "target", "label": "Target Value", "type": "text"},
+            {"key": "confidence", "label": "Confidence", "type": "slider"}
+        ],
+        "resource_schema": [
+            {"key": "tool", "label": "Analytics Tool", "type": "text"},
+            {"key": "frequency", "label": "Frequency", "type": "select", "options": ["Daily", "Weekly", "Monthly", "Quarterly"]}
+        ],
+        "prompts": {
+            "narrative": """
+                IDENTITY: You are the Impact Measurement Module of the SPECULATE Engine.
+                TASK: Write a '{field}' defining how success is measured for: '{cos_text}'.
+                ATTENUATION: Align measurement complexity with the SCALE and MODALITY constraints.
+                OUTPUT: JSON {{ "text": "Your measurement plan here." }}
+            """,
+            "prerequisites": """
+                What baselines must be established before measuring '{cos_text}'?
+                Return JSON array: [{{"baseline": "Current Value/State", "data_source": "Where to get it"}}]
+            """,
+            "stakeholders": """
+                Who tracks and reports on '{cos_text}'?
+                Return JSON array: [{{"analyst": "Role/Title", "audience": "Board/Funders/Team"}}]
+            """,
+            "assumptions": """
+                What targets are we aiming for with '{cos_text}'?
+                Return JSON array: [{{"target": "Specific KPI Target", "confidence": 70}}]
+            """,
+            "resources": """
+                What tools are needed to measure '{cos_text}'?
+                Return JSON array: [{{"tool": "Analytics Platform", "frequency": "Monthly"}}]
             """
         }
     }
