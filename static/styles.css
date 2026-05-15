@@ -115,7 +115,9 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 .horizon-wrapper {
   /* 1. Geometry */
   padding: 0 1rem 1rem 1rem;
-  height: calc(100vh - 120px); 
+  min-height: 75vh;
+  max-height: calc(100vh - 80px); 
+  height: auto;
   width: 100%; /* Ensure the wrapper itself spans the screen */
   
   /* 2. Flexbox Centering */
@@ -129,7 +131,8 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 
 .console-housing {
   /* 4. Fill the calculated wrapper exactly */
-  height: 100%; 
+  height: auto;
+  flex-grow: 1; 
   width: 100%;
   max-width: 1440px;
   
@@ -161,7 +164,7 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
     position: relative;
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* Internal scrolling only */
+    /* overflow: hidden; Removed to allow stage-viewport to grow properly if needed, but flex-grow-1 will do it */
 }
 
 /* ================================================== */
@@ -263,30 +266,40 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 #stage-viewport::-webkit-scrollbar { display: none; }
 
 .goal-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
     gap: 2.5rem;
-    padding: 1rem;
+    /* Allows the first and last cards to be centered */
+    padding: 2rem calc(50% - 170px);
     width: 100%;
-    max-width: 1400px;
-    margin: 0 auto;
-    align-items: start;
-    justify-content: center;
-    overflow: visible; 
+    align-items: center;
+    scroll-behavior: smooth;
+    
+    /* Hide scrollbar */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.goal-grid::-webkit-scrollbar { 
+    display: none; 
 }
 
 /* --- 7.2 FLIP CARD WRAPPER (The Container) --- */
 .flip-card-wrapper {
     position: relative;
-    width: 100%;
-    /* Strict Geometry Enforcement */
-    aspect-ratio: 2/3 !important; 
-    min-height: 0; /* Prevents grid blowout */
-    height: auto;  /* Allows aspect-ratio to drive height */
+    flex: 0 0 340px; /* Fixed width for carousel items */
+    scroll-snap-align: center;
+    
+    /* Let content dictate height, flex grid will stretch siblings */
+    min-height: 510px; /* Base minimum height */
+    display: flex;
+    flex-direction: column;
     
     cursor: pointer;
     z-index: 10;
-    margin: 0 auto;
+    margin: 0;
     perspective: 1500px;
     
     opacity: 0; 
@@ -318,7 +331,9 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 .flip-card-inner {
     position: relative;
     width: 100%;
-    height: 100%;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
     transform-style: preserve-3d;
     transform-origin: center center;
     /* Default: Front Face Visible */
@@ -328,9 +343,22 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 }
 
 /* --- 7.4 FACES (Diagonal Orientation) --- */
-.flip-card-front, 
+.flip-card-front {
+    position: relative; /* Drives the height of the card */
+    width: 100%;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    border-radius: 32px;
+    overflow: hidden;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    background: white;
+    transition: border-radius 0.6s ease, opacity 0.8s ease-in-out, transform 0.8s ease-in-out;
+}
+
 .flip-card-back {
-    position: absolute;
+    position: absolute; /* Sits behind the front */
     inset: 0;
     border-radius: 32px;
     overflow: hidden;
@@ -344,8 +372,6 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 .flip-card-front {
     transform: rotate3d(1, 1, 0, 180deg);
     z-index: 2;
-    display: flex;
-    flex-direction: column;
     border: 1px solid #e2e8f0;
 }
 
@@ -1181,6 +1207,7 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 }
 .loading-spinner-overlay.d-none { display: none !important; }
 
+
 .spinner-box {
     width: 90%; max-width: 600px;
     padding: clamp(1.5rem, 3vw, 2.5rem);
@@ -1471,16 +1498,17 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
 }
 .pill-label {
     font-family: var(--font-data);
-    font-size: 0.5rem;
-    letter-spacing: 1.5px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 1px;
     text-transform: uppercase;
-    color: rgba(255,255,255,0.45);
+    color: rgba(255,255,255,0.85);
     line-height: 1;
     margin-bottom: 2px;
 }
 .pill-value {
     font-family: var(--font-body);
-    font-size: 0.78rem;
+    font-size: 0.9rem;
     font-weight: 600;
     color: white;
     line-height: 1.2;
@@ -1703,6 +1731,15 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
     display: flex; flex-direction: column; justify-content: space-between;
     background-image: linear-gradient(160deg, var(--sys-node-color, #333) 0%, color-mix(in srgb, var(--sys-node-color, #333) 70%, #000) 100%);
     transition: background-image 0.5s ease, background-color 0.5s ease;
+}
+
+@media (min-width: 768px) {
+    .sys-modal-left { border-top-left-radius: 1rem; border-bottom-left-radius: 1rem; }
+    .sys-modal-right { border-top-right-radius: 1rem; border-bottom-right-radius: 1rem; }
+}
+@media (max-width: 767.98px) {
+    .sys-modal-left { border-top-left-radius: 1rem; border-top-right-radius: 1rem; }
+    .sys-modal-right { border-bottom-left-radius: 1rem; border-bottom-right-radius: 1rem; }
 }
 
 .sys-modal-texture {
@@ -2970,11 +3007,33 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
     z-index: 10;
 }
 
-.atom-bg-dots {
-    position: absolute; inset: 0; opacity: 0.3; pointer-events: none;
-    background-image: radial-gradient(#94a3b8 1.5px, transparent 1.5px);
-    background-size: 20px 20px;
-    animation: slide-diagonal 2s linear infinite;
+/* --- Four-Quadrant Converging Dot Grid (meets behind nucleus) --- */
+.atom-bg-quad {
+    position: absolute; opacity: 0.8; pointer-events: none;
+    width: 50%;
+    background-image: radial-gradient(#64748b 2.5px, transparent 2.5px);
+    background-size: 30px 30px;
+    --convergence-y: 40%; /* vertical meeting point — tune to match nucleus center */
+}
+.atom-bg-quad--tl {
+    top: 0; left: 0;
+    height: var(--convergence-y);
+    animation: quad-drift-tl 3s linear infinite;
+}
+.atom-bg-quad--tr {
+    top: 0; right: 0;
+    height: var(--convergence-y);
+    animation: quad-drift-tr 3s linear infinite;
+}
+.atom-bg-quad--bl {
+    bottom: 0; left: 0;
+    height: calc(100% - var(--convergence-y));
+    animation: quad-drift-bl 3s linear infinite;
+}
+.atom-bg-quad--br {
+    bottom: 0; right: 0;
+    height: calc(100% - var(--convergence-y));
+    animation: quad-drift-br 3s linear infinite;
 }
 
 .atom-scene {
@@ -3074,9 +3133,23 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
 }
-@keyframes slide-diagonal {
-    0% { background-position: 0 0; }
-    100% { background-position: 40px -40px; }
+/* Four-Quadrant Drift: each converges toward center (TL→↘ TR→↙ BL→↗ BR→↖) */
+/* perfectly synchronized seamless convergence */
+@keyframes quad-drift-tl { 
+    from { background-position: calc(100% - 30px) calc(100% - 30px); } 
+    to   { background-position: 100% 100%; }   
+}
+@keyframes quad-drift-tr { 
+    from { background-position: calc(0% + 30px) calc(100% - 30px); } 
+    to   { background-position: 0% 100%; }  
+}
+@keyframes quad-drift-bl { 
+    from { background-position: calc(100% - 30px) calc(0% + 30px); } 
+    to   { background-position: 100% 0%; }  
+}
+@keyframes quad-drift-br { 
+    from { background-position: calc(0% + 30px) calc(0% + 30px); } 
+    to   { background-position: 0% 0%; } 
 }
 @keyframes float-core {
     0%, 100% { transform: translateY(0); }
@@ -3120,3 +3193,36 @@ body.state-outcome .aurora-background { opacity: 0.2; filter: grayscale(80%); }
     pointer-events: none;
     transition: all 0.3s ease;
 }
+
+/* --- BUTTON SHINE EFFECT --- */
+@keyframes shine {
+    0% { transform: skewX(-20deg) translateX(-150%); }
+    50% { transform: skewX(-20deg) translateX(250%); }
+    100% { transform: skewX(-20deg) translateX(250%); }
+}
+.group:hover .shine-overlay {
+    opacity: 1 !important;
+}
+.transition-opacity {
+    transition: opacity 0.3s ease;
+}
+
+/* ================================================== */
+/* ===========  14. RADAR SWEEP ANIMATION =========== */
+/* ================================================== */
+.radar-sweep {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 50%;
+    height: 50%;
+    background: conic-gradient(from 0deg at 0 0, transparent 0deg, rgba(0, 188, 212, 0.35) 90deg);
+    transform-origin: 0 0;
+    animation: radar-spin 2.5s linear infinite;
+    border-radius: 0 100% 0 0;
+}
+@keyframes radar-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+

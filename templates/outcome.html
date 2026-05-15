@@ -39,14 +39,14 @@
             <!-- Context Header: UPDATED -->
             <div class="py-3 px-4 d-flex align-items-center justify-content-between" 
                  style="border-bottom: 1px solid rgba(255,255,255,0.2); height: 70px; flex-shrink: 0;">
-                <a href="{{ url_for('routes_bp.index') }}" class="text-white text-decoration-none font-data tracking-widest small fw-bold opacity-75 hover-opacity-100 transition-all">
+                <a href="#" data-bs-toggle="modal" data-bs-target="#exitGuardModal" class="text-white text-decoration-none font-data tracking-widest small fw-bold opacity-75 hover-opacity-100 transition-all">
                     <i class="fas fa-chevron-left me-2"></i>RETURN TO GOAL SELECTION
                 </a>
                 <div class="dropdown">
                     <i class="fas fa-ellipsis-v opacity-50 small cursor-pointer" data-bs-toggle="dropdown"></i>
                     <ul class="dropdown-menu dropdown-menu-dark font-data small">
                         <li><a class="dropdown-item" href="#" onclick="window.print()"><i class="fas fa-print me-2"></i> Print View</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('routes_bp.index') }}"><i class="fas fa-power-off me-2"></i> Exit Session</a></li>
+                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#exitGuardModal"><i class="fas fa-power-off me-2"></i> Exit Session</a></li>
                     </ul>
                 </div>
             </div>
@@ -71,8 +71,10 @@
                     
                     <!-- Hidden hook for AI Context -->
                     <div id="ssol-goal" class="d-none">{{ ssol.selected_goal }}</div>
+                    <div id="ssol-title" class="d-none">{{ ssol.title }}</div>
                     
-                    <div class="font-body text-white opacity-75 small mt-1 fst-italic">"{{ ssol.selected_goal }}"</div>
+                    <h4 class="font-brand text-white mb-2" id="ui-ssol-title" style="font-size: 1.4rem; letter-spacing: 0.5px;">{{ ssol.title }}</h4>
+                    <div id="ui-ssol-goal" class="font-body text-white opacity-75 small mt-1 fst-italic">"{{ ssol.selected_goal }}"</div>
                 </div>
 
                 <!-- 3. Strategic Anchors (System Pills) -->
@@ -140,175 +142,110 @@
                 <!-- TAB 1: CHARTER & HORIZON -->
                 <div class="tab-pane fade show active" id="tab-charter" role="tabpanel">
                     
-                    <!-- A. Executive Charter (Glass Card) -->
-                    <div class="bg-white rounded-4 border shadow-sm position-relative overflow-hidden charter-card mb-5">
+                    <!-- A. EXECUTIVE CHARTER (Compact Summary + Expandable) -->
+                    <div id="executive-charter-card" class="bg-white rounded-4 border shadow-sm position-relative overflow-hidden charter-card mb-4">
                         <div class="domain-ghost-watermark" style="opacity: 0.05;"><i class="{{ ssol.domain_icon }}"></i></div>
-                        <div class="charter-content font-body text-dark lead position-relative p-5 custom-scrollbar" style="font-size: 1.15rem; line-height: 1.8;">
-                            {{ ssol.ssol_summary | safe }}
+                        
+                        <!-- Compact Summary (Always Visible) -->
+                        <div class="position-relative p-4 pb-3">
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                                <i class="fas fa-scroll" style="color: var(--aviation-teal);"></i>
+                                <span class="font-data x-small tracking-widest fw-bold text-muted">EXECUTIVE CHARTER</span>
+                            </div>
+                            <div class="charter-summary font-body text-dark" style="font-size: 1.05rem; line-height: 1.7;" id="charter-summary-text">
+                                {{ ssol.ssol_summary | safe }}
+                            </div>
+                        </div>
+
+                        <!-- Stat Pills Bar -->
+                        <div class="d-flex flex-wrap gap-3 px-4 pb-3">
+                            <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-pill" style="background: rgba(0,188,212,0.08); border: 1px solid rgba(0,188,212,0.15);">
+                                <i class="fas fa-layer-group" style="color: var(--aviation-teal); font-size: 0.75rem;"></i>
+                                <span class="font-data x-small fw-bold" style="color: var(--aviation-teal);">{{ telemetry.total_phases }} PHASES</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-pill" style="background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.15);">
+                                <i class="fas fa-cube" style="color: #22c55e; font-size: 0.75rem;"></i>
+                                <span class="font-data x-small fw-bold" style="color: #22c55e;">{{ telemetry.entity_counts.ce }} ENTITIES</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-pill" style="background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.15);">
+                                <i class="fas fa-link" style="color: #a855f7; font-size: 0.75rem;"></i>
+                                <span class="font-data x-small fw-bold" style="color: #a855f7;">{{ telemetry.entity_counts.logic }} LINKS</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-pill" style="background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.15);">
+                                <i class="fas fa-atom" style="color: #6366f1; font-size: 0.75rem;"></i>
+                                <span class="font-data x-small fw-bold" style="color: #6366f1;">{{ telemetry.cohesion_score }}% COHESION</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-pill" style="background: rgba(249,115,22,0.08); border: 1px solid rgba(249,115,22,0.15);">
+                                <i class="fas fa-list-check" style="color: #f97316; font-size: 0.75rem;"></i>
+                                <span class="font-data x-small fw-bold" style="color: #f97316;">{{ telemetry.entity_counts.cos }} CONDITIONS</span>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions Bar -->
+                        <div class="d-flex flex-wrap gap-2 px-4 pb-4 pt-2" style="border-top: 1px solid rgba(0,0,0,0.04);">
+                            <button class="btn btn-sm font-data rounded-pill px-3 py-1 hover-scale transition-all" style="background: linear-gradient(135deg, var(--aviation-teal), #0097a7); color: white; font-size: 0.7rem; letter-spacing: 0.5px;" onclick="recalibrateCharter()" id="btn-recalibrate">
+                                <i class="fas fa-arrows-rotate me-1"></i> RECALIBRATE CHARTER
+                            </button>
+                            <button class="btn btn-sm font-data rounded-pill px-3 py-1 hover-scale transition-all" style="background: rgba(99,102,241,0.1); color: #6366f1; border: 1px solid rgba(99,102,241,0.2); font-size: 0.7rem; letter-spacing: 0.5px;" onclick="openSystemEditor('new', '', '')">
+                                <i class="fas fa-sliders me-1"></i> SYSTEM CONFIG
+                            </button>
+                            <button class="btn btn-sm font-data rounded-pill px-3 py-1 hover-scale transition-all" style="background: rgba(249,115,22,0.1); color: #f97316; border: 1px solid rgba(249,115,22,0.2); font-size: 0.7rem; letter-spacing: 0.5px;" onclick="document.getElementById('phases-tab').click()">
+                                <i class="fas fa-list-check me-1"></i> EXPLORE CONDITIONS
+                            </button>
                         </div>
                     </div>
 
-                    <!-- B. COMMAND CENTER: Governance & Telemetry -->
-                    <div class="row g-4 mb-5" style="height: 280px;">
-                        <!-- 1. Execution Readiness Gauge -->
-                        <div class="col-md-3">
-                            <div class="bg-white rounded-4 border shadow-sm p-3 h-100 d-flex flex-column align-items-center justify-content-center text-center hover-scale transition-transform">
-                                <div class="readiness-gauge mb-2 position-relative d-flex justify-content-center align-items-center" style="flex: 1; min-height: 0; width: 100%;">
-                                    <svg viewBox="0 0 36 36" class="circular-chart transition-all" style="max-height: 120px; max-width: 120px;">
-                                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e2e8f0" stroke-width="2"/>
-                                        <!-- Calculate dynamic percentage. For now, hardcode 35 for visual -->
-                                        {% set percent = (active_ces / total_ces * 100) | int if total_ces > 0 else 35 %}
-                                        <path stroke-dasharray="{{ percent }}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="url(#gauge-gradient)" stroke-width="2.5" stroke-linecap="round" style="transition: stroke-dasharray 1s ease-out;"/>
-                                        <defs>
-                                            <linearGradient id="gauge-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                                <stop offset="0%" stop-color="#00bcd4" />
-                                                <stop offset="100%" stop-color="#3b82f6" />
-                                            </linearGradient>
-                                        </defs>
-                                        <text x="18" y="20.5" font-family="var(--font-data)" font-weight="800" font-size="6px" text-anchor="middle" fill="#334155">{{ percent }}%</text>
-                                    </svg>
-                                </div>
-                                <div class="font-data text-muted x-small tracking-widest fw-bold">CALIBRATION STATUS</div>
-                                <div class="font-body small opacity-75 mt-1">{{ active_ces }} of {{ total_ces }} Nodes Defined</div>
+                    <!-- B. PHASE RUNWAY (Promoted Architecture Map) -->
+                    <div class="bg-white rounded-4 border shadow-sm p-4 mb-4 position-relative overflow-hidden">
+                        <div class="d-flex align-items-center justify-content-between mb-4">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="fas fa-route" style="color: var(--aviation-teal);"></i>
+                                <span class="font-data x-small tracking-widest fw-bold text-muted">PHASE RUNWAY</span>
                             </div>
-                        </div>
-
-                        <!-- 2. System Vitals -->
-                        <div class="col-md-4">
-                            <div class="bg-white rounded-4 border shadow-sm p-4 h-100 d-flex flex-column justify-content-start">
-                                <div class="font-data text-muted x-small tracking-widest fw-bold mb-4"><i class="fas fa-heartbeat me-2 text-danger opacity-75"></i>SYSTEM VITALS</div>
-                                
-                                <div class="mb-4">
-                                    <div class="d-flex justify-content-between mb-1">
-                                        <span class="font-body small fw-bold text-dark"><i class="fas fa-clock text-muted me-2"></i>Horizon Elapsed</span>
-                                        <span class="font-data small text-muted">20%</span>
-                                    </div>
-                                    <div class="progress rounded-pill" style="height: 6px; background: rgba(0,0,0,0.05);">
-                                        <div class="progress-bar rounded-pill" role="progressbar" style="width: 20%; background: linear-gradient(to right, #00bcd4, #3b82f6);"></div>
-                                    </div>
-                                </div>
-                                
-                                <div>
-                                    <div class="d-flex justify-content-between mb-1">
-                                        <span class="font-body small fw-bold text-dark"><i class="fas fa-network-wired text-muted me-2"></i>Node Density</span>
-                                        <span class="font-data small text-muted">{{ total_ces }} Items</span>
-                                    </div>
-                                    <div class="progress rounded-pill" style="height: 6px; background: rgba(0,0,0,0.05);">
-                                        <div class="progress-bar bg-secondary rounded-pill" role="progressbar" style="width: {{ [total_ces * 2, 100]|min }}%;"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 3. Governance Alert Terminal -->
-                        <div class="col-md-5">
-                            <div class="rounded-4 border shadow-sm h-100 d-flex flex-column overflow-hidden position-relative" style="background: linear-gradient(160deg, #fffbf5 0%, #fff5ee 50%, #fef0e7 100%); border-color: #f0d9c6 !important;">
-                                <!-- Terminal Header -->
-                                <div class="px-3 py-2 d-flex justify-content-between align-items-center" style="background: linear-gradient(90deg, #D84315, #E65100); border-bottom: 2px solid rgba(216,67,21,0.2);">
-                                    <span class="font-data small fw-bold tracking-widest text-white"><i class="fas fa-compass me-2 opacity-75"></i>PATHWAY ADVISOR</span>
-                                    <span class="badge rounded-pill shadow-sm" style="font-size: 0.6rem; letter-spacing: 0.5px; background: rgba(255,255,255,0.25); color: white;">2 INSIGHTS</span>
-                                </div>
-                                
-                                <!-- Terminal Body -->
-                                <div class="p-3 flex-grow-1 custom-scrollbar d-flex flex-column gap-3" id="governance-alert-list" style="min-height: 0; overflow-y: auto;">
-                                    
-                                    <!-- Opportunity Alert -->
-                                    <div class="rounded-4 p-3 border-start border-3 position-relative overflow-hidden" style="border-color: #E65100 !important; background: linear-gradient(90deg, rgba(230,81,0,0.06) 0%, transparent 100%);">
-                                        <div class="d-flex align-items-start gap-3 position-relative z-1">
-                                            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 mt-1" style="width: 28px; height: 28px; background: linear-gradient(135deg, #D84315, #E65100);">
-                                                <i class="fas fa-route text-white" style="font-size: 0.7rem;"></i>
-                                            </div>
-                                            <div class="flex-grow-1">
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <span class="font-data x-small fw-bold tracking-widest" style="color: #D84315;">PATHWAY OPPORTUNITY</span>
-                                                    <span class="font-data x-small text-muted opacity-50">Just now</span>
-                                                </div>
-                                                <div class="font-body small text-dark opacity-85 mb-2" style="font-size: 0.85rem;">Dependency Gap: <span style="color: #5C6BC0; font-weight: 600;"><i class="fas fa-rocket me-1"></i>Praxis</span> requires <span class="badge rounded-pill border" style="background: #fff5ee; color: #D84315; border-color: #f0d9c6 !important;">$100k Budget</span>. Current model is Sweat Equity — let's find a creative bridge!</div>
-                                                <button class="btn btn-sm font-data x-small py-1 px-3 rounded-pill hover-scale transition-all text-white shadow-sm" style="background: linear-gradient(90deg, #D84315, #E65100);" onclick="engageAdvocate('mock_void_01')">
-                                                    <i class="fas fa-wand-magic-sparkles me-1"></i> EXPLORE OPTIONS
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Suggestion Alert -->
-                                    <div class="rounded-4 p-3 border-start border-3 position-relative overflow-hidden" style="border-color: #6A1B9A !important; background: linear-gradient(90deg, rgba(106,27,154,0.05) 0%, transparent 100%);">
-                                        <div class="d-flex align-items-start gap-3 position-relative z-1">
-                                            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 mt-1" style="width: 28px; height: 28px; background: linear-gradient(135deg, #6A1B9A, #8E24AA);">
-                                                <i class="fas fa-lightbulb text-white" style="font-size: 0.7rem;"></i>
-                                            </div>
-                                            <div class="flex-grow-1">
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <span class="font-data x-small fw-bold tracking-widest" style="color: #6A1B9A;">SUGGESTED NEXT STEP</span>
-                                                    <span class="font-data x-small text-muted opacity-50">2m ago</span>
-                                                </div>
-                                                <div class="font-body small text-dark opacity-85 mb-2" style="font-size: 0.85rem;">
-                                                    <strong style="color: #6A1B9A;"><i class="fas fa-handshake me-1"></i>Establish Collaboration</strong><br>
-                                                    The Engagement Phase could benefit from stakeholder mapping. Adding a <span style="color: #6A1B9A; font-weight: 600;"><i class="fas fa-handshake me-1"></i>Collaboration</span> node will strengthen execution pathways.
-                                                </div>
-                                                <button class="btn btn-sm font-data x-small py-1 px-3 rounded-pill hover-scale transition-all text-white shadow-sm" style="background: linear-gradient(90deg, #6A1B9A, #8E24AA);" onclick="engageAdvocate('mock_suggestion_01')">
-                                                    <i class="fas fa-sparkles me-1"></i> REVIEW IDEA
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- C. Node Explorer (Subway Map) -->
-                    <div class="ssol-node-explorer mt-5 pt-4 border-top border-dashed">
-                        <div class="d-flex align-items-center mb-5">
-                            <i class="fas fa-network-wired text-muted me-3 fs-5"></i>
-                            <span class="font-data text-muted small fw-bold tracking-widest">ARCHITECTURE MAP</span>
+                            <span class="font-data x-small text-muted opacity-50">Click a phase to explore • Hover for details</span>
                         </div>
                         
-                        <div class="subway-map-container overflow-x-auto pb-4 custom-scrollbar">
-                            <div class="subway-line d-flex position-relative" style="min-width: 800px; padding-top: 20px;">
+                        <div class="subway-map-container overflow-x-auto pb-3 custom-scrollbar">
+                            <div class="subway-line d-flex position-relative" style="min-width: 700px; padding-top: 20px;">
                                 <!-- Connecting Line -->
-                                <div class="position-absolute top-0 start-0 w-100" style="height: 4px; background: #e2e8f0; margin-top: 34px; z-index: 0;"></div>
+                                <div class="position-absolute top-0 start-0 w-100" style="height: 4px; background: linear-gradient(90deg, var(--phase-0), var(--phase-1), var(--phase-2), var(--phase-3), var(--phase-4)); margin-top: 34px; z-index: 0; border-radius: 2px;"></div>
                                 
+                                {% set phases_colors = {'Discovery': 'var(--phase-0)', 'Engagement': 'var(--phase-1)', 'Action': 'var(--phase-2)', 'Completion': 'var(--phase-3)', 'Legacy': 'var(--phase-4)'} %}
                                 {% for phase_name, cos_list in phases.items() %}
                                 {% set p_index = loop.index %}
                                 {% set p_index0 = loop.index0 %}
-                                <div class="subway-station flex-1 position-relative d-flex flex-column align-items-center z-1" style="flex: 1; padding: 0 15px;">
+                                {% set stats = telemetry.phase_stats[phase_name] %}
+                                <div class="subway-station flex-1 position-relative d-flex flex-column align-items-center z-1" style="flex: 1; padding: 0 10px;">
+                                    
                                     <!-- Station Node -->
-                                    <div class="station-node rounded-circle d-flex align-items-center justify-content-center shadow-sm transition-transform cursor-pointer hover-scale bg-white" 
-                                         style="width: 32px; height: 32px; border: 4px solid var(--phase-{{ p_index0 }});"
-                                         onclick="document.getElementById('phases-tab').click(); setTimeout(()=>document.getElementById('heading{{ p_index }}').click(), 200)">
-                                        <div class="rounded-circle" style="width: 10px; height: 10px; background: var(--phase-{{ p_index0 }});"></div>
+                                    <div class="station-node rounded-circle d-flex align-items-center justify-content-center shadow-sm transition-transform cursor-pointer hover-scale bg-white position-relative" 
+                                         style="width: 36px; height: 36px; border: 4px solid {{ phases_colors[phase_name] }}; {% if telemetry.hottest_phase == phase_name %}box-shadow: 0 0 12px {{ phases_colors[phase_name] }};{% endif %}"
+                                         onclick="document.getElementById('phases-tab').click(); setTimeout(()=>document.getElementById('heading{{ p_index }}').click(), 200)"
+                                         data-bs-toggle="tooltip" data-bs-placement="top" 
+                                         title="{{ stats.cos_count }} Conditions • {{ stats.ce_count }} Entities">
+                                        <div class="rounded-circle" style="width: 12px; height: 12px; background: {{ phases_colors[phase_name] }};"></div>
+                                        {% if telemetry.hottest_phase == phase_name %}
+                                        <div class="position-absolute rounded-circle animate-pulse" style="width: 36px; height: 36px; border: 2px solid {{ phases_colors[phase_name] }}; opacity: 0.4;"></div>
+                                        {% endif %}
                                     </div>
                                     
                                     <!-- Station Label -->
-                                    <div class="font-data small fw-bold mt-2 text-center" style="color: var(--phase-{{ p_index0 }}); letter-spacing: 1px;">
+                                    <div class="font-data small fw-bold mt-2 text-center" style="color: {{ phases_colors[phase_name] }}; letter-spacing: 1px; font-size: 0.65rem;">
                                         {{ phase_name.upper() }}
                                     </div>
                                     
-                                    <!-- COS Branches -->
-                                    <div class="d-flex flex-column gap-3 mt-4 w-100 position-relative">
-                                        <!-- Vertical Line connecting COS to Station -->
-                                        <div class="position-absolute start-50 top-0 bottom-0" style="width: 2px; background: rgba(0,0,0,0.05); transform: translateX(-50%); z-index: 0;"></div>
-                                        
+                                    <!-- Phase Stats Card (Hover Preview) -->
+                                    <div class="bg-white border rounded-4 p-3 shadow-sm mt-3 w-100 transition-all cursor-pointer subway-node-hover" 
+                                         style="border-left: 3px solid {{ phases_colors[phase_name] }} !important; min-height: 80px;"
+                                         onclick="document.getElementById('phases-tab').click(); setTimeout(()=>document.getElementById('heading{{ p_index }}').click(), 200)">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="font-data x-small fw-bold" style="color: {{ phases_colors[phase_name] }};">{{ stats.cos_count }} COS</span>
+                                            <span class="font-data x-small text-muted">{{ stats.ce_count }} CE</span>
+                                        </div>
                                         {% if cos_list %}
-                                            {% for cos in cos_list %}
-                                            <div class="subway-cos-node bg-white border rounded-3 p-3 shadow-sm position-relative z-1 transition-all cursor-pointer subway-node-hover"
-                                                 style="border-left: 3px solid var(--phase-{{ p_index0 }}) !important;"
-                                                 onclick="document.getElementById('phases-tab').click(); setTimeout(()=>document.getElementById('heading{{ p_index }}').click(), 200)">
-                                                <div class="font-body text-dark small lh-sm">{{ cos.content | striptags | truncate(60) }}</div>
-                                                
-                                                {% if cos.conditional_elements %}
-                                                <div class="d-flex flex-wrap gap-1 mt-2">
-                                                    {% for ce in cos.conditional_elements %}
-                                                    <span class="badge rounded-pill" style="background: rgba(0,0,0,0.05); color: #64748b; font-size: 0.6rem; font-weight: 500; border: 1px solid rgba(0,0,0,0.05);"><i class="fas fa-cube me-1 opacity-50"></i>{{ ce.type }}</span>
-                                                    {% endfor %}
-                                                </div>
-                                                {% endif %}
-                                            </div>
-                                            {% endfor %}
+                                        <div class="font-body text-dark small lh-sm opacity-75" style="font-size: 0.75rem;">{{ cos_list[0].content | striptags | truncate(55) }}</div>
                                         {% else %}
-                                            <div class="text-center opacity-50 py-2"><i class="fas fa-ellipsis-v text-muted"></i></div>
+                                        <div class="font-body text-muted small opacity-50 fst-italic" style="font-size: 0.75rem;">No conditions yet</div>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -316,6 +253,76 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- C. GOVERNANCE CONSOLE (SSPEC Horizon Styled) -->
+                    <div class="rounded-4 border shadow-sm overflow-hidden position-relative mb-4" style="background: linear-gradient(160deg, #f0fdfa 0%, #f0f9ff 50%, #faf5ff 100%); border-color: rgba(0,188,212,0.2) !important;">
+                        <!-- Console Header -->
+                        <div class="px-4 py-3 d-flex justify-content-between align-items-center" style="background: linear-gradient(90deg, rgba(0,188,212,0.08), rgba(99,102,241,0.05)); border-bottom: 1px solid rgba(0,188,212,0.1);">
+                            <span class="font-data small fw-bold tracking-widest" style="color: var(--deep-space-blue);"><i class="fas fa-satellite-dish me-2" style="color: var(--aviation-teal);"></i>PATHWAY ADVISOR</span>
+                            {% if telemetry.alerts|length > 0 %}
+                            <span class="badge rounded-pill shadow-sm" style="font-size: 0.6rem; letter-spacing: 0.5px; background: linear-gradient(90deg, #D84315, #E65100); color: white;">{{ telemetry.alerts|length }} ALERTS</span>
+                            {% else %}
+                            <span class="badge rounded-pill shadow-sm" style="font-size: 0.6rem; letter-spacing: 0.5px; background: rgba(0,188,212,0.1); color: var(--aviation-teal);"><i class="fas fa-check me-1"></i>SYSTEM CLEAR</span>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Console Body -->
+                        <div class="p-4 d-flex flex-column gap-3 position-relative" id="governance-alert-list" style="min-height: 100px;">
+                            {% if telemetry.alerts|length == 0 %}
+                            <!-- Scanning State -->
+                            <div class="d-flex align-items-center gap-4">
+                                <div class="position-relative d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(0,188,212,0.08); border: 1px solid rgba(0,188,212,0.15); overflow: hidden;">
+                                    <div class="radar-sweep"></div>
+                                    <i class="fas fa-satellite-dish position-relative z-1" style="color: var(--aviation-teal); font-size: 0.9rem;"></i>
+                                </div>
+                                <div>
+                                    <div class="font-data x-small tracking-widest fw-bold mb-1" style="color: var(--aviation-teal);">ADVOCATE MONITORING</div>
+                                    <div class="font-body small text-muted" style="font-size: 0.8rem;">Scanning for alignment drift, dependency gaps, and optimization opportunities.</div>
+                                </div>
+                            </div>
+                            {% else %}
+                                <!-- Real alerts iterate here -->
+                            {% endif %}
+
+                            <!-- Suggested Actions (Always Visible) -->
+                            <div class="border-top pt-3" style="border-color: rgba(0,188,212,0.1) !important;">
+                                <div class="font-data x-small tracking-widest fw-bold text-muted mb-3"><i class="fas fa-compass me-2" style="color: var(--aviation-teal);"></i>SUGGESTED NEXT STEPS</div>
+                                <div class="d-flex flex-column gap-2">
+                                    <div class="d-flex align-items-center gap-3 p-3 rounded-4 border transition-all cursor-pointer" style="border-color: rgba(0,0,0,0.06) !important; background: white;" onmouseenter="this.style.borderColor='rgba(0,188,212,0.3)'; this.style.boxShadow='0 2px 8px rgba(0,188,212,0.1)';" onmouseleave="this.style.borderColor='rgba(0,0,0,0.06)'; this.style.boxShadow='none';" onclick="document.getElementById('phases-tab').click()">
+                                        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 32px; height: 32px; background: rgba(249,115,22,0.1);">
+                                            <i class="fas fa-pen-to-square" style="color: #f97316; font-size: 0.7rem;"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="font-data x-small fw-bold text-dark">Review & Refine Conditions</div>
+                                            <div class="font-body x-small text-muted">Edit COS content, assign accountability, and set target dates</div>
+                                        </div>
+                                        <i class="fas fa-chevron-right text-muted opacity-25 small"></i>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-3 p-3 rounded-4 border transition-all cursor-pointer" style="border-color: rgba(0,0,0,0.06) !important; background: white;" onmouseenter="this.style.borderColor='rgba(0,188,212,0.3)'; this.style.boxShadow='0 2px 8px rgba(0,188,212,0.1)';" onmouseleave="this.style.borderColor='rgba(0,0,0,0.06)'; this.style.boxShadow='none';" data-bs-toggle="modal" data-bs-target="#systemConfigModal">
+                                        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 32px; height: 32px; background: rgba(99,102,241,0.1);">
+                                            <i class="fas fa-sliders" style="color: #6366f1; font-size: 0.7rem;"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="font-data x-small fw-bold text-dark">Tune System Physics</div>
+                                            <div class="font-body x-small text-muted">Adjust budget, scale, timeline, and core values to recalibrate</div>
+                                        </div>
+                                        <i class="fas fa-chevron-right text-muted opacity-25 small"></i>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-3 p-3 rounded-4 border transition-all cursor-pointer" style="border-color: rgba(0,0,0,0.06) !important; background: white;" onmouseenter="this.style.borderColor='rgba(0,188,212,0.3)'; this.style.boxShadow='0 2px 8px rgba(0,188,212,0.1)';" onmouseleave="this.style.borderColor='rgba(0,0,0,0.06)'; this.style.boxShadow='none';" onclick="window.print()">
+                                        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 32px; height: 32px; background: rgba(34,197,94,0.1);">
+                                            <i class="fas fa-file-export" style="color: #22c55e; font-size: 0.7rem;"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="font-data x-small fw-bold text-dark">Export or Share</div>
+                                            <div class="font-body x-small text-muted">Print, save as PDF, or share this SSOL with collaborators</div>
+                                        </div>
+                                        <i class="fas fa-chevron-right text-muted opacity-25 small"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- TAB 2: PHASES & CONDITIONS -->
@@ -446,6 +453,91 @@
 {{ system_config_modal_html | default('') | safe }}
 <div id="dynamicModalContainer"></div>
 
+<!-- EXIT GUARD MODAL -->
+<div class="modal fade" id="exitGuardModal" tabindex="-1" aria-labelledby="exitGuardLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+            <!-- Header -->
+            <div class="px-4 pt-4 pb-3 text-center" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+                <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" 
+                     style="width: 56px; height: 56px; background: rgba(251,191,36,0.15); border: 2px solid rgba(251,191,36,0.3);">
+                    <i class="fas fa-triangle-exclamation fa-lg" style="color: #fbbf24;"></i>
+                </div>
+                <h5 class="font-brand text-white mb-1" id="exitGuardLabel">Leave This Solution?</h5>
+                <p class="font-body text-white small opacity-60 mb-0">Your structured solution will remain saved in this session.</p>
+            </div>
+            
+            <!-- Body -->
+            <div class="p-4 bg-white">
+                <div class="d-flex flex-column gap-3">
+                    <!-- Option 1: Start Fresh (Destructive) -->
+                    <a href="{{ url_for('routes_bp.index') }}" class="text-decoration-none">
+                        <div class="d-flex align-items-center gap-3 p-3 rounded-3 border transition-all" 
+                             style="cursor: pointer; border-color: #e2e8f0 !important;"
+                             onmouseenter="this.style.borderColor='#f87171'; this.style.background='#fef2f2';"
+                             onmouseleave="this.style.borderColor='#e2e8f0'; this.style.background='transparent';">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" 
+                                 style="width: 40px; height: 40px; background: #fee2e2;">
+                                <i class="fas fa-arrow-rotate-left" style="color: #ef4444;"></i>
+                            </div>
+                            <div>
+                                <div class="font-data small fw-bold text-dark tracking-widest">START FRESH</div>
+                                <div class="font-body x-small text-muted">Discard this session and enter a new possibility</div>
+                            </div>
+                        </div>
+                    </a>
+                    
+                    <!-- Option 2: Back to Goal Cards (Resume) -->
+                    <a href="{{ url_for('routes_bp.resume_goal_selection', ssol_id=ssol.id) if ssol.status == 'Draft' else '#' }}" class="text-decoration-none {% if ssol.status != 'Draft' %}pe-none{% endif %}">
+                        <div class="d-flex align-items-center gap-3 p-3 rounded-3 border transition-all" 
+                             style="cursor: {% if ssol.status == 'Draft' %}pointer{% else %}not-allowed; opacity: 0.6;{% endif %}; border-color: #e2e8f0 !important;"
+                             {% if ssol.status == 'Draft' %}
+                             onmouseenter="this.style.borderColor='#6366f1'; this.style.background='#eef2ff';"
+                             onmouseleave="this.style.borderColor='#e2e8f0'; this.style.background='transparent';"
+                             {% endif %}>
+                            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" 
+                                 style="width: 40px; height: 40px; background: #e0e7ff;">
+                                <i class="fas fa-layer-group" style="color: #6366f1;"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="font-data small fw-bold text-dark tracking-widest">BACK TO GOAL CARDS</div>
+                                <div class="font-body x-small text-muted">Return to the gallery and adjust your selection</div>
+                            </div>
+                            {% if ssol.status != 'Draft' %}
+                                <i class="fas fa-lock text-muted opacity-50" title="Locked: Shut down protocol required"></i>
+                            {% endif %}
+                        </div>
+                    </a>
+                    
+                    <!-- Option 3: Save & Return to Dashboard (Coming Soon) -->
+                    <div class="d-flex align-items-center gap-3 p-3 rounded-3 border" 
+                         style="opacity: 0.45; cursor: not-allowed; border-color: #e2e8f0 !important; position: relative;"
+                         title="Coming soon — SSOL Dashboard">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" 
+                             style="width: 40px; height: 40px; background: #e0f2fe;">
+                            <i class="fas fa-bookmark" style="color: #0ea5e9;"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="font-data small fw-bold text-dark tracking-widest">SAVE & RETURN TO DASHBOARD</div>
+                            <div class="font-body x-small text-muted">Bookmark this SSOL and manage all your solutions</div>
+                        </div>
+                        <span class="badge rounded-pill font-data" style="font-size: 0.55rem; background: #f1f5f9; color: #94a3b8; letter-spacing: 0.5px;">COMING SOON</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="px-4 py-3 bg-white border-top d-flex justify-content-end">
+                <button type="button" class="btn btn-sm font-data rounded-pill px-4 fw-bold" 
+                        data-bs-dismiss="modal"
+                        style="background: linear-gradient(135deg, #00bcd4, #0097a7); color: white; letter-spacing: 1px;">
+                    <i class="fas fa-arrow-left me-2"></i>STAY HERE
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- STYLES Specific to this Layout -->
 <style>
     .animate-pulse { animation: pulse 2s infinite; }
@@ -563,6 +655,54 @@
                         node.style.boxShadow = '';
                     }, 1000);
                 }
+            });
+        };
+
+        // Recalibration Protocol
+        window.recalibrateCharter = function() {
+            const btn = document.getElementById('btn-recalibrate');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin me-2"></i> RECALIBRATING...';
+            btn.disabled = true;
+            
+            fetch('/recalibrate_charter', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ssol_id: window.SSOL_ID })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the charter text
+                    const charterCard = document.getElementById('executive-charter-card');
+                    const content = charterCard.querySelector('.charter-content');
+                    content.innerHTML = data.new_charter_html;
+                    content.style.filter = '';
+                    
+                    // Hide overlay
+                    const overlay = document.getElementById('charter-recalibrate-overlay');
+                    if (overlay) {
+                        overlay.style.opacity = '0';
+                        overlay.style.pointerEvents = 'none';
+                    }
+                    
+                    // Dispatch a custom event so governance.js can listen for it
+                    if (data.impact_report) {
+                        const event = new CustomEvent('charterRecalibrated', { detail: data.impact_report });
+                        document.dispatchEvent(event);
+                    }
+                    
+                } else {
+                    alert("Recalibration failed: " + data.error);
+                }
+            })
+            .catch(e => {
+                console.error(e);
+                alert("An error occurred during recalibration.");
+            })
+            .finally(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             });
         };
     });

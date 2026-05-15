@@ -37,64 +37,104 @@
 
         <!-- Right: Actions -->
         <div class="d-flex gap-3">
-             <button type="button" class="btn btn-sm btn-outline-primary font-data rounded-pill px-4" id="generate-new-goals">
-               <i class="fas fa-sync-alt me-2"></i> GENERATE NEW GOALS
-             </button>
              <a href="{{ url_for('routes_bp.index') }}" class="btn btn-sm btn-light border font-data rounded-pill px-4">START OVER</a>
         </div>
       </div>
 
       <!-- 2. STAGE VIEWPORT: Consumes remaining height, handles internal scrolling -->
-      <div id="stage-viewport">
+      <div id="stage-viewport" class="flex-grow-1">
         
-        <!-- A. THE GALLERY GRID (Initial View) -->
-        <div class="goal-grid" id="goalCardsContainer">
-            {% for goal in goals %}
-               <!-- FIX: Removed the stray closing bracket '>' that was cutting off attributes -->
-               <div class="flip-card-wrapper {% if not goal.is_compliant %}violation{% endif %}" 
-                    data-card-id="goal-{{ loop.index0 }}"
-                    data-card-title="{{ goal.title | e }}"
-                    data-color-hue="{{ goal.color_hue | default(180) }}"
-                    data-goal-index="{{ loop.index0 }}"
-                    onclick="window.selectGoal(this)">
-                    
-                    <div class="flip-card-inner">
-                        <!-- BACK FACE (Monolith/Hero) -->
-                        <div class="flip-card-back" style="background: {{ goal.card_gradient | default('linear-gradient(135deg, #00bcd4 0%, #2979ff 100%)') }};">
-                            <div class="card-texture-overlay"></div>
-                            <div class="monolith-content">
-                                <div class="monolith-icon-circle"><i class="{{ goal.icon }} monolith-icon"></i></div>
-                                {% if not goal.is_compliant %}
-                                    <span class="badge bg-black bg-opacity-25 border border-danger text-white font-data px-3 py-2 mt-3">PROTOCOL VIOLATION</span>
-                                {% else %}
-                                    <div class="font-data text-white-50 x-small tracking-widest opacity-75 border border-white border-opacity-25 rounded-pill px-3 py-1 mt-3">STRUCTURED SPECULATION</div>
-                                {% endif %}
+        <!-- A. THE GALLERY GRID (Carousel View) -->
+        <div class="goal-grid-wrapper position-relative w-100 d-flex flex-column align-items-center" style="overflow-x: hidden; overflow-y: visible; padding: 40px 40px 100px 40px;">
+            
+            <div class="position-relative w-100" style="max-width: 1200px;">
+                <!-- Pagination Left -->
+                <button class="btn btn-link text-muted position-absolute top-50 translate-middle-y d-none hover-scale" id="gallery-prev-btn" style="width: 60px; height: 60px; z-index: 10; left: -60px;">
+                    <i class="fas fa-chevron-left fa-2x"></i>
+                </button>
+
+                <!-- The Track -->
+                <div class="overflow-visible w-100">
+                    <div class="goal-grid d-flex gap-4 p-4" id="goalCardsContainer" style="flex-wrap: nowrap; transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1); width: max-content;">
+                        {% for goal in goals %}
+                       <div class="flip-card-wrapper {% if not goal.is_compliant %}violation{% endif %}" 
+                            data-card-id="goal-{{ loop.index0 }}"
+                            data-card-title="{{ goal.title | e }}"
+                            data-color-hue="{{ goal.color_hue | default(180) }}"
+                            data-goal-index="{{ loop.index0 }}"
+                            onclick="window.selectGoal(this)">
+                            
+                            <div class="flip-card-inner">
+                                <!-- BACK FACE (Monolith/Hero) -->
+                                <div class="flip-card-back" style="background: {{ goal.card_gradient | default('linear-gradient(135deg, #00bcd4 0%, #2979ff 100%)') }};">
+                                    <div class="card-texture-overlay"></div>
+                                    <div class="monolith-content">
+                                        <div class="monolith-icon-circle"><i class="{{ goal.icon }} monolith-icon"></i></div>
+                                        {% if not goal.is_compliant %}
+                                            <span class="badge bg-black bg-opacity-25 border border-danger text-white font-data px-3 py-2 mt-3">PROTOCOL VIOLATION</span>
+                                        {% else %}
+                                            <div class="font-data text-white-50 x-small tracking-widest opacity-75 border border-white border-opacity-25 rounded-pill px-3 py-1 mt-3">STRUCTURED SPECULATION</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- FRONT FACE (Goal Details) -->
+                                <div class="flip-card-front d-flex flex-column h-100">
+                                     <div class="card-header-plate" style="background: {{ goal.plate_gradient | default('linear-gradient(135deg, #4dd0e1 0%, #00bcd4 100%)') }};">
+                                         <div class="card-texture-overlay"></div>
+                                         <div class="card-domain-badge-large">{{ goal.domain | upper }}</div>
+                                         <div class="card-icon-float-large"><i class="{{ goal.icon }}" style="color: {{ goal.icon_color | default('#00838f') }};"></i></div>
+                                     </div>
+                                     <div class="card-body-large flex-grow-1">
+                                         <h3 class="card-title-large">{{ goal.title }}</h3>
+                                         <p class="card-desc-large">{{ goal.goal }}</p>
+                                     </div>
+                                     <div class="card-footer-large mt-auto mb-3">
+                                         <button type="button" class="btn-select-pill-large" style="background: {{ goal.btn_gradient | default('linear-gradient(to right, #00bcd4, #00838f)') }};">
+                                             {{ 'PROTOCOL VIOLATION' if not goal.is_compliant else 'CHOOSE GOAL' }}
+                                         </button>
+                                     </div>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <!-- FRONT FACE (Goal Details) -->
-                        <div class="flip-card-front">
-                             <div class="card-header-plate" style="background: {{ goal.plate_gradient | default('linear-gradient(135deg, #4dd0e1 0%, #00bcd4 100%)') }};">
-                                 <div class="card-texture-overlay"></div>
-                                 <div class="card-domain-badge-large">{{ goal.domain | upper }}</div>
-                                 <div class="card-icon-float-large"><i class="{{ goal.icon }}" style="color: {{ goal.icon_color | default('#00838f') }};"></i></div>
-                             </div>
-                             <div class="card-body-large">
-                                 <h3 class="card-title-large">{{ goal.title }}</h3>
-                                 <p class="card-desc-large">{{ goal.goal }}</p>
-                             </div>
-                             <div class="card-footer-large">
-                                 <button type="button" class="btn-select-pill-large" style="background: {{ goal.btn_gradient | default('linear-gradient(to right, #00bcd4, #00838f)') }};">
-                                     {{ 'PROTOCOL VIOLATION' if not goal.is_compliant else 'CHOOSE GOAL' }}
-                                 </button>
-                             </div>
-                        </div>
+                            
+                            <!-- Dynamic Dock for System Pills (Injected by JS) -->
+                            <div class="system-pill-dock position-absolute top-0 start-0 w-100 p-4 d-flex flex-column gap-2" style="z-index: 5; pointer-events: none;"></div>
+                       </div>
+                    {% endfor %}
+                </div>
+
+                </div> <!-- Close overflow-visible w-100 -->
+
+                <!-- Pagination Right -->
+                <button class="btn btn-link text-muted position-absolute top-50 translate-middle-y d-none hover-scale" id="gallery-next-btn" style="width: 60px; height: 60px; z-index: 10; right: -80px;">
+                    <i class="fas fa-chevron-right fa-2x"></i>
+                </button>
+            </div>
+            
+            <!-- Gallery Footer Actions (The New Generate Button) -->
+            <div class="mt-4 text-center w-100" id="gallery-actions" style="max-width: 320px; transition: opacity 0.5s;">
+                <button type="button" class="btn btn-lg w-100 font-data fw-bold rounded-pill shadow position-relative overflow-hidden group hover-scale d-flex align-items-center justify-content-center" 
+                        id="generate-new-goals" 
+                        style="background: linear-gradient(135deg, #00bcd4, #3b82f6); color: white; letter-spacing: 1px; border: 2px solid rgba(255,255,255,0.2); height: 54px;">
+                    <div class="position-absolute top-0 start-0 w-100 h-100 opacity-0 transition-opacity shine-overlay" 
+                         style="background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); transform: skewX(-20deg) translateX(-150%);"></div>
+                    <i class="fas fa-sync-alt me-2" id="generate-btn-icon"></i> <span id="generate-btn-text">GENERATE NEW GOALS</span>
+                </button>
+                
+                <!-- Coaching Banner (Hidden initially) -->
+                <div class="font-body text-muted small mt-2 d-none fade-in" id="gallery-coaching-banner">
+                    <div class="p-3 bg-white border rounded-3 shadow-sm text-center border-start border-3 border-warning">
+                        <i class="fas fa-lightbulb text-warning mb-2 fa-lg"></i>
+                        <p class="mb-0 text-dark">Maximum generations reached.</p>
+                        <p class="mb-0 opacity-75 mt-1">If none of these fit, try <a href="{{ url_for('routes_bp.index') }}" class="fw-bold text-primary text-decoration-none">refining your initial prompt</a>.</p>
                     </div>
-                    
-                    <!-- Dynamic Dock for System Pills (Injected by JS) -->
-                    <div class="system-pill-dock position-absolute top-0 start-0 w-100 p-4 d-flex flex-column gap-2" style="z-index: 5; pointer-events: none;"></div>
-               </div>
-            {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Page Indicator (Dot Pagination) -->
+            <div id="gallery-page-indicator" class="mt-4 d-flex align-items-center justify-content-center gap-2 d-none transition-all" style="height: 12px;">
+                <!-- Filled dynamically by JS -->
+            </div>
         </div>
 
         <!-- B. CONFIGURATION WIZARD (Slides In) -->
@@ -160,6 +200,9 @@
     <input type="hidden" name="system_horizon" id="form-horizon">
     <input type="hidden" name="system_budget" id="form-budget">
     
+    <!-- State persistence for sliding back to Gallery -->
+    <input type="hidden" name="gallery_state" id="form-gallery-state">
+    
     <!-- Dynamic inputs (DIRECTIVE, AVOIDANCE, etc) appended by JS -->
 </form>
 {% endblock %}
@@ -172,6 +215,9 @@
     // 2. Inject Master Configuration from Python (system_nodes.py)
     // This allows the Wizard to dynamically build itself based on the Backend Logic
     window.WIZARD_CONFIG = {{ system_nodes | tojson | safe }};
+    
+    // 3. Sliding State Resumption
+    window.INITIAL_WIZARD_STATE = {{ initial_wizard_state | tojson | safe if initial_wizard_state else 'null' }};
 </script>
 
 <!-- Load the Controller -->

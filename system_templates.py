@@ -93,6 +93,7 @@ SYSTEM_SIDEBAR_STACK_TEMPLATE = """
     {% for param in system_params %}
     <!-- SYSTEM PILL (Matches Goal Selection "Precision" Pills) -->
     <div class="system-pill-static"
+         id="sys-pill-{{ param.type }}"
          onclick="openSystemEditor('{{ param.id }}', '{{ param.type }}', '{{ param.value }}')"
          title="Calibrate {{ param.label }}">
         
@@ -104,7 +105,7 @@ SYSTEM_SIDEBAR_STACK_TEMPLATE = """
         <!-- Text -->
         <div class="pill-content">
             <div class="pill-label">{{ param.label }}</div>
-            <div class="pill-value text-truncate">{{ param.value }}</div>
+            <div class="pill-value text-truncate">{{ param.value | capitalize }}</div>
         </div>
 
         <!-- Edit Hint -->
@@ -122,96 +123,98 @@ SYSTEM_SIDEBAR_STACK_TEMPLATE = """
 """
 
 # ==============================================================================
-# 3. CAROUSEL MODAL (The "Calibration Wizard")
+# 3. GLOBAL SETTINGS BLADE (The "Tabbed Card Catalogue Index")
 # ==============================================================================
 SYSTEM_EDITOR_MODAL_TEMPLATE = """
-<div class="modal fade" id="systemConfigModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
-        <div class="modal-content border-0 rounded-4 shadow-2xl overflow-visible">
+<div class="offcanvas offcanvas-end" tabindex="-1" id="systemConfigModal" style="width: 85vw; max-width: 1400px; background: transparent; border: none;">
+    <div class="offcanvas-body p-0 overflow-hidden h-100">
+        <div class="row g-0 h-100 shadow-2xl" style="border-top-left-radius: 2rem; border-bottom-left-radius: 2rem; overflow: hidden;">
             
-            <!-- Nav Arrows (Glassmorphic) -->
-            <div class="sys-nav-arrow sys-nav-prev" onclick="navigateSystemNode(-1)"><i class="fas fa-chevron-left fa-lg"></i></div>
-            <div class="sys-nav-arrow sys-nav-next" onclick="navigateSystemNode(1)"><i class="fas fa-chevron-right fa-lg"></i></div>
-
-            <div class="row g-0" style="min-height: 600px;">
+            <!-- LEFT: The Tabbed Card Catalogue (Index) -->
+            <div class="col-md-4 sys-modal-left p-0 d-flex flex-column h-100" id="sys-identity-panel" style="border-right: 1px solid rgba(255,255,255,0.1);">
+                <div class="sys-modal-texture"></div>
+                <!-- Ghost Icon Watermark -->
+                <i class="fas fa-sliders sys-ghost-icon" id="sys-ghost-icon" style="opacity: 0.05;"></i>
                 
-                <!-- LEFT: Identity & State (Visualizer) -->
-                <div class="col-md-5 sys-modal-left p-5" id="sys-identity-panel">
-                    <div class="sys-modal-texture"></div>
-                    
-                    <!-- Ghost Icon Watermark -->
-                    <i class="fas fa-cube sys-ghost-icon" id="sys-ghost-icon"></i>
-                    
-                    <div class="position-relative z-1 h-100 d-flex flex-column justify-content-between sys-panel-transition" id="sys-left-content">
-                        <!-- Header -->
-                        <div>
-                            <div class="sys-icon-badge" id="sys-icon-badge">
-                                <i class="fas fa-cube" id="sys-display-icon"></i>
+                <div class="position-relative z-1 h-100 d-flex flex-column">
+                    <!-- Header -->
+                    <div class="p-4 border-bottom d-flex justify-content-between align-items-center" style="background: rgba(255,255,255,0.05); backdrop-filter: blur(10px);">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="sys-icon-badge" style="width: 40px; height: 40px; font-size: 1rem;"><i class="fas fa-sliders-h"></i></div>
+                            <div>
+                                <h2 class="sys-node-label mb-0" style="font-size: 1.2rem;">SYSTEM CONFIGURATION</h2>
+                                <div class="sys-node-subtitle" style="font-size: 0.6rem;">GLOBAL SETTINGS BLADE</div>
                             </div>
-                            <h2 class="sys-node-label" id="sys-display-label">LOADING...</h2>
-                            <div class="sys-node-subtitle">SYSTEM NODE CONFIGURATION</div>
                         </div>
+                        <button type="button" class="btn-close btn-close-white opacity-75 hover-opacity-100" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                    </div>
 
-                        <!-- THE STATE MONITOR (Bespoke Visualizer) -->
-                        <div class="flex-grow-1 d-flex flex-column justify-content-center">
-                             <div class="font-data text-white-50 x-small tracking-widest mb-2">CURRENT STATE VECTOR</div>
-                             <div id="sys-visualizer-container" class="w-100 sys-viz-crossfade"></div>
-                        </div>
+                    <!-- The Catalogue Index (Scrollable Tabs) -->
+                    <div class="flex-grow-1 overflow-y-auto custom-scrollbar-dark p-4 d-flex flex-column gap-3" id="sys-catalogue-list">
+                        <!-- JS Injects the Tab Cards here -->
+                    </div>
 
-                        <!-- Pagination -->
-                        <div class="d-flex justify-content-between align-items-end mt-4">
-                            <div class="font-data text-white-50 small" id="sys-counter">CARD 1 / X</div>
-                            <div class="sys-pagination" id="sys-dots-container"></div>
-                        </div>
+                    <!-- Footer / Commit -->
+                    <div class="p-4 border-top mt-auto" style="background: rgba(0,0,0,0.2); backdrop-filter: blur(10px);">
+                        <button class="btn btn-outline-light border-dashed w-100 rounded-pill font-data x-small py-2 opacity-75 hover-opacity-100 mb-3" onclick="openSystemEditor('new', '', '')">
+                            <i class="fas fa-plus me-2"></i> ADD CUSTOM CONSTRAINT
+                        </button>
+                        <button type="button" class="sys-btn-commit w-100" onclick="submitSystemForm()" style="justify-content: center;">
+                            <span class="shimmer-fx"></span>
+                            <i class="fas fa-save me-2"></i> COMMIT SYSTEM ARCHITECTURE
+                        </button>
                     </div>
                 </div>
+            </div>
 
-                <!-- RIGHT: Ontology & Config (The Context) -->
-                <div class="col-md-7 bg-white p-5 d-flex flex-column">
-                    
-                    <!-- Header -->
-                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
-                        <div class="font-data text-muted small tracking-widest">
-                            <i class="fas fa-sliders-h me-2"></i> CALIBRATION CONSOLE
-                        </div>
-                        <div class="d-flex gap-2">
-                             <span class="sys-status-glass unset" id="sys-status-badge">
-                                 <i class="fas fa-circle" style="font-size:6px;"></i> PENDING
-                             </span>
-                        </div>
+            <!-- RIGHT: Ontology & Config (The Editor) -->
+            <div class="col-md-8 bg-white p-5 d-flex flex-column sys-modal-right h-100">
+                
+                <!-- Header -->
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                    <div class="font-data text-muted small tracking-widest d-flex align-items-center gap-2">
+                        <i class="fas fa-pen-nib" id="sys-display-icon"></i> <span id="sys-display-label">CALIBRATION CONSOLE</span>
                     </div>
+                    <div class="d-flex gap-2">
+                         <span class="sys-status-glass unset" id="sys-status-badge">
+                             <i class="fas fa-circle" style="font-size:6px;"></i> PENDING
+                         </span>
+                    </div>
+                </div>
+                
+                <!-- Scrollable Area -->
+                <div class="flex-grow-1 overflow-y-auto pe-3 custom-scrollbar d-flex flex-column gap-4 sys-panel-transition" id="sys-right-content">
                     
-                    <!-- Scrollable Area -->
-                    <div class="flex-grow-1 overflow-y-auto pe-2 custom-scrollbar d-flex flex-column gap-4 sys-panel-transition" id="sys-right-content">
+                    <!-- 1. DEFINITION CARD (Context Insight Style) -->
+                    <div class="sys-definition-card">
+                         <div class="sys-def-title">
+                             <i class="fas fa-info-circle"></i> ONTOLOGICAL DEFINITION
+                         </div>
+                         <p class="sys-def-body" id="sys-display-desc">Description...</p>
+                         <div class="sys-def-tip" id="sys-display-guide">...</div>
+                         <!-- Examples Container -->
+                         <div id="sys-examples-container" class="d-flex flex-wrap gap-2 mt-3 pt-2 border-top border-dashed"></div>
+                    </div>
+
+                    <!-- 2. PROTOCOL TOGGLE -->
+                    <div class="sys-protocol-toggle">
+                        <button type="button" class="sys-protocol-btn active" id="mode-specify" onclick="setProtocolMode('SPECIFY')">
+                            <i class="fas fa-pen-to-square"></i> Manual Input
+                        </button>
+                        <button type="button" class="sys-protocol-btn" id="mode-speculate" onclick="setProtocolMode('SPECULATE')">
+                            <i class="fas fa-wand-magic-sparkles"></i> AI Speculate
+                        </button>
+                    </div>
+
+                    <!-- 3. ACTIVE INPUT AREA (Bespoke) -->
+                    <form id="system-node-form">
+                        <input type="hidden" name="param_id" id="sys-param-id">
+                        <input type="hidden" name="sys_type" id="sys-param-type">
+                        <!-- JS Injects the correct inputs here -->
+                        <div id="sys-input-container" class="mb-4"></div>
                         
-                        <!-- 1. DEFINITION CARD (Context Insight Style) -->
-                        <div class="sys-definition-card">
-                             <div class="sys-def-title">
-                                 <i class="fas fa-info-circle"></i> ONTOLOGICAL DEFINITION
-                             </div>
-                             <p class="sys-def-body" id="sys-display-desc">Description...</p>
-                             <div class="sys-def-tip" id="sys-display-guide">...</div>
-                             <!-- Examples Container -->
-                             <div id="sys-examples-container" class="d-flex flex-wrap gap-2 mt-3 pt-2 border-top border-dashed"></div>
-                        </div>
-
-                        <!-- 2. PROTOCOL TOGGLE -->
-                        <div class="sys-protocol-toggle">
-                            <button type="button" class="sys-protocol-btn active" id="mode-specify" onclick="setProtocolMode('SPECIFY')">
-                                <i class="fas fa-pen-to-square"></i> Specify
-                            </button>
-                            <button type="button" class="sys-protocol-btn" id="mode-speculate" onclick="setProtocolMode('SPECULATE')">
-                                <i class="fas fa-wand-magic-sparkles"></i> Speculate
-                            </button>
-                        </div>
-
-                        <!-- 3. ACTIVE INPUT AREA (Bespoke) -->
-                        <form id="system-node-form">
-                            <input type="hidden" name="param_id" id="sys-param-id">
-                            <input type="hidden" name="sys_type" id="sys-param-type">
-                            <!-- JS Injects the correct inputs here -->
-                            <div id="sys-input-container" class="mb-4"></div>
-                            
+                        <!-- Constraint & Rationale Block (Hidden for GOAL) -->
+                        <div id="sys-constraint-rationale-block">
                             <!-- 4. CONSTRAINT MODE (Capsule Cards) -->
                             <div class="d-flex gap-3 mb-3">
                                 <div class="sys-constraint-card selected flex-1 h-100" 
@@ -238,20 +241,16 @@ SYSTEM_EDITOR_MODAL_TEMPLATE = """
                                 <label class="sys-rationale-label">RATIONALE</label>
                                 <textarea name="rationale" id="sys-rationale" class="sys-rationale-input" rows="2" placeholder="Why is this constraint set?"></textarea>
                             </div>
-                        </form>
-
-                    </div>
+                        </div>
+                    </form>
                     
-                    <!-- Footer -->
-                    <div class="d-flex justify-content-end gap-3 mt-4 pt-3 border-top">
-                        <button type="button" class="sys-btn-cancel" data-bs-dismiss="modal">CANCEL</button>
-                        <button type="button" class="sys-btn-commit" onclick="submitSystemForm()">
-                            <span class="shimmer-fx"></span>
-                            <i class="fas fa-save me-2"></i> COMMIT ANCHOR
-                        </button>
+                    <!-- THE STATE MONITOR (Bespoke Visualizer embedded in right panel) -->
+                    <div id="sys-visualizer-wrapper" class="mt-2 p-4 rounded-4" style="background: rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.05);">
+                         <div class="font-data text-muted x-small tracking-widest mb-3" id="sys-state-vector-label">LIVE PREVIEW</div>
+                         <div id="sys-visualizer-container" class="w-100 sys-viz-crossfade"></div>
                     </div>
-
                 </div>
+
             </div>
         </div>
     </div>
