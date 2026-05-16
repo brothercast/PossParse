@@ -280,7 +280,7 @@ BASE_MODAL_TEMPLATE = """
                                             <i class="fas fa-crosshairs" style="color: {{ node_info.color }}; font-size: 0.65rem;"></i>
                                             <span class="font-data small tracking-widest" style="color: #64748b; font-size: 0.62rem;">PARENT CONDITION</span>
                                         </div>
-                                        <div class="font-body fst-italic text-dark" style="font-size: 0.78rem; line-height: 1.5; max-height: 8em; overflow-y: auto;">{{ cos_content_with_pills | safe }}</div>
+                                        <div class="font-body fst-italic text-dark" data-cos-text="{{ ce_text }}" style="font-size: 0.78rem; line-height: 1.5; max-height: 8em; overflow-y: auto;">{{ cos_content_with_pills | safe }}</div>
                                     </div>
                                 </div>
 
@@ -503,13 +503,40 @@ BASE_MODAL_TEMPLATE = """
                         </div>
 
                     </div>
+                    
+                    <!-- MATCHMAKER DRAWER -->
+                    <div id="matchmaker-drawer" class="matchmaker-drawer bg-white shadow-lg">
+                        <div class="drawer-header d-flex align-items-center justify-content-between p-3 border-bottom">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="drawer-icon bg-primary text-white rounded p-1"><i class="fas fa-radar fa-spin"></i></div>
+                                <div>
+                                    <h6 class="mb-0 font-brand" id="matchmaker-title">Scanning SSPEC Network</h6>
+                                    <small class="text-muted font-body" id="matchmaker-subtitle">Finding compatible capabilities...</small>
+                                </div>
+                            </div>
+                            <button class="btn btn-sm text-muted font-data fw-bold btn-close-matchmaker"><i class="fas fa-times me-1"></i>CLOSE</button>
+                        </div>
+                        <div class="drawer-body p-3 custom-scrollbar" id="matchmaker-results">
+                            <!-- Scanning state -->
+                            <div class="text-center py-5 matchmaker-scanning">
+                                <div class="radar-container mx-auto mb-3">
+                                    <div class="radar-sweep"></div>
+                                </div>
+                                <h6 class="font-data text-primary mb-1">ANALYZING SYSTEM PHYSICS</h6>
+                                <p class="text-muted small">Cross-referencing constraints and requirements...</p>
+                            </div>
+                        </div>
+                    </div>
                     </div> <!-- End workspace content -->
                 </div>
 
-                <!-- SIDEBAR -->
+                <!-- SIDEBAR: Conversational Advocate -->
                 <div class="ai-sidebar d-flex flex-column border-start bg-white">
                     <div class="sidebar-persona-header" id="ai-sidebar-header"></div>
-                    <div class="p-3 flex-grow-1 overflow-y-auto" id="ai-sidebar-content"></div>
+                    <div class="flex-grow-1 overflow-hidden d-flex flex-column" id="ai-sidebar-content">
+                        <div class="flex-grow-1 overflow-y-auto" id="advocate-chat-feed"></div>
+                    </div>
+                    <div class="border-top bg-white flex-shrink-0" id="advocate-chat-input"></div>
                 </div>
 
             </div>
