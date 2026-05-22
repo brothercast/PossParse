@@ -6,7 +6,7 @@ from datetime import date
 from dotenv import load_dotenv
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import (create_engine, Column, String, ForeignKey, inspect, 
-                        TEXT, TypeDecorator, Text, Date, Integer, Float)
+                        TEXT, TypeDecorator, Text, Date, Integer, Float, Boolean)
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import scoped_session, sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
@@ -77,9 +77,18 @@ class COS(db.Model):
     
     # --- STATUS TRACKING ---
     status = Column(String(50), nullable=False, default='Proposed') # Proposed, Active, Complete, Verified
+    is_holographic = Column(Boolean, nullable=False, default=True) # Indicates if the COS is an AI suggestion awaiting human verification
     
     accountable_party = Column(String(255), nullable=True)
     completion_date = Column(Date, nullable=True)
+    
+    # --- PHASE DIAGNOSTICS ---
+    # Stores the Advocate's internal assessment of why action is blocked (Relatedness, Possibility, Opportunity, Action, Completion)
+    diagnostics = Column(JsonType, nullable=True, default=lambda: {})
+    
+    # --- GOVERNANCE LOG ---
+    # Stores the historical ledger of status changes, artifacts/shoebox data, and accountable sign-offs
+    governance_log = Column(JsonType, nullable=True, default=list)
     
     ssol_id = Column(UUID(as_uuid=True), ForeignKey('ssol.id'), nullable=False)
     ssol = relationship('SSOL', back_populates='cos')
@@ -90,8 +99,11 @@ class COS(db.Model):
             'id': str(self.id),
             'content': self.content,
             'status': self.status,
+            'is_holographic': self.is_holographic,
             'accountable_party': self.accountable_party,
             'completion_date': self.completion_date.isoformat() if self.completion_date else None,
+            'diagnostics': self.diagnostics or {},
+            'governance_log': self.governance_log or [],
             'ssol_id': str(self.ssol_id),
             'conditional_elements': [ce.to_dict() for ce in self.conditional_elements]
         }

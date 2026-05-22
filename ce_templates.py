@@ -123,8 +123,8 @@ BASE_MODAL_TEMPLATE = """
                              <button class="btn btn-glass font-data d-none align-items-center gap-2" id="ce-integrity-badge" style="background: rgba(255,255,255,0.15);">
                                 <i class="fas fa-shield-alt"></i> <span class="integrity-label">INTEGRITY PENDING</span>
                             </button>
-                             <button class="btn btn-glass font-data d-none d-md-flex align-items-center gap-2" id="speculate-sidebar-toggle">
-                                <i class="fas fa-sparkles"></i> ASSISTANT
+                             <button class="btn btn-glass font-data d-none d-md-flex align-items-center gap-2 active" id="speculate-sidebar-toggle">
+                                <i class="fas fa-times"></i> ASSISTANT
                             </button>
                             <div class="vr bg-white opacity-50 mx-2" style="height: 24px;"></div>
                             <button type="button" class="btn-close-custom" data-bs-dismiss="modal"><i class="fas fa-times"></i></button>
@@ -494,11 +494,16 @@ BASE_MODAL_TEMPLATE = """
                         </div>
 
                         <!-- CONNECTIONS -->
-                        <div class="tab-pane fade p-4" id="view-connections-{{ ceId }}">
-                            <div class="text-center p-5 opacity-50 mt-4">
-                                <i class="fas fa-project-diagram fa-3x mb-3" style="color: {{ node_info.color }};"></i>
-                                <h5 class="font-brand text-dark">Constellation View</h5>
-                                <p class="small text-muted">Connections will appear here as you link nodes together.</p>
+                        <div class="tab-pane fade p-4 ce-tab-pane" id="view-connections-{{ ceId }}">
+                            <div class="px-4 py-3 bg-white border-bottom d-flex justify-content-between align-items-center flex-shrink-0">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="fas fa-project-diagram" style="color: {{ node_info.color }};"></i>
+                                    <span class="font-data small tracking-widest fw-bold" style="color: #475569;">TRANSIT MAP</span>
+                                </div>
+                                <span class="font-data x-small text-muted opacity-50">All collections visualized • Double-click to edit</span>
+                            </div>
+                            <div class="flex-grow-1 p-3 overflow-hidden" id="connections-map-{{ ceId }}" style="min-height: 400px;">
+                                <!-- Populated by renderConnectionsMap() on tab shown -->
                             </div>
                         </div>
 
@@ -531,10 +536,19 @@ BASE_MODAL_TEMPLATE = """
                 </div>
 
                 <!-- SIDEBAR: Conversational Advocate -->
-                <div class="ai-sidebar d-flex flex-column border-start bg-white">
+                <div class="ai-sidebar d-flex flex-column border-start bg-white h-100 sidebar-open">
                     <div class="sidebar-persona-header" id="ai-sidebar-header"></div>
                     <div class="flex-grow-1 overflow-hidden d-flex flex-column" id="ai-sidebar-content">
-                        <div class="flex-grow-1 overflow-y-auto" id="advocate-chat-feed"></div>
+                        <div class="flex-grow-1 overflow-y-auto p-3" id="advocate-chat-feed">
+                            {% if ai_generated_data and ai_generated_data.coaching_message %}
+                            <div class="d-flex gap-3 ai-message mb-3">
+                                <div class="flex-shrink-0"><div class="avatar shadow-sm d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, {{ node_info.color }}, {{ node_info.color }}dd);"><i class="fas fa-robot text-white small"></i></div></div>
+                                <div class="p-3 rounded-4 shadow-sm font-body text-dark flex-grow-1" style="background: white; border: 1px solid rgba(0,0,0,0.05); font-size: 0.9rem;">
+                                    {{ ai_generated_data.coaching_message | safe }}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
                     <div class="border-top bg-white flex-shrink-0" id="advocate-chat-input"></div>
                 </div>

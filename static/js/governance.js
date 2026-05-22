@@ -5,6 +5,54 @@ import { showLoadingSpinner, hideLoadingSpinner } from './base_functions.js';
 
 export function initGovernance(ssolId) {
     window.engageAdvocate = engageAdvocate;
+    
+    // Listen for Charter Recalibration to inject Impact Report
+    document.addEventListener('charterRecalibrated', (e) => {
+        if (e.detail) {
+            injectGovernanceAlert(e.detail);
+        }
+    });
+}
+
+function injectGovernanceAlert(report) {
+    const list = document.getElementById('governance-alert-list');
+    if (!list) return;
+
+    let themeColor = '#0ea5e9'; // Default blue
+    let gradient = 'linear-gradient(135deg, #0ea5e9, #0284c7)';
+    let icon = 'fa-info-circle';
+    
+    if (report.severity === 'warning') {
+        themeColor = '#f59e0b';
+        gradient = 'linear-gradient(135deg, #f59e0b, #d97706)';
+        icon = 'fa-exclamation-triangle';
+    } else if (report.severity === 'danger' || report.severity === 'high') {
+        themeColor = '#ef4444';
+        gradient = 'linear-gradient(135deg, #ef4444, #b91c1c)';
+        icon = 'fa-bolt';
+    }
+
+    const alertHtml = `
+        <div class="rounded-4 p-3 border-start border-3 position-relative overflow-hidden" style="border-color: ${themeColor} !important; background: linear-gradient(90deg, ${themeColor}10 0%, transparent 100%);">
+            <div class="d-flex align-items-start gap-3 position-relative z-1">
+                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 mt-1 shadow-sm" style="width: 28px; height: 28px; background: ${gradient};">
+                    <i class="fas ${icon} text-white" style="font-size: 0.7rem;"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="font-data x-small fw-bold tracking-widest" style="color: ${themeColor};">${report.title || 'PHYSICS RECALIBRATED'}</span>
+                        <span class="font-data x-small text-muted opacity-50">Just now</span>
+                    </div>
+                    <div class="font-body small text-dark opacity-85 mb-0" style="font-size: 0.85rem; line-height: 1.5;">${report.message}</div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Inject at the top with a tiny delay for visual flow
+    setTimeout(() => {
+        list.insertAdjacentHTML('afterbegin', alertHtml);
+    }, 500);
 }
 
 /**

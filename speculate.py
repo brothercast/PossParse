@@ -91,6 +91,20 @@ CE_TYPE_ALIASES = {
     'impact assessment': 'Measurement', 'impact measurement': 'Measurement',
     'baseline metric': 'Measurement', 'success metric': 'Measurement',
     'nutritional outcome': 'Measurement', 'outcome measurement': 'Measurement',
+    # Common AI hallucinations (types the LLM invents despite instructions)
+    'partnership': 'Collaboration', 'design': 'Praxis', 'planning': 'Praxis',
+    'training': 'Advocacy', 'community engagement': 'Stakeholder',
+    'data': 'Research', 'security': 'Risk', 'strategy': 'Praxis',
+    'workforce': 'Stakeholder', 'talent': 'Stakeholder',
+    'supply chain': 'Praxis', 'logistics': 'Praxis',
+    'testing': 'Measurement', 'quality': 'Measurement',
+    'branding': 'Advocacy', 'pr': 'Advocacy', 'public relations': 'Advocacy',
+    'procurement': 'Financial', 'acquisition': 'Financial',
+    'monitoring': 'Measurement', 'evaluation': 'Research',
+    # System Physics keys that leak through as CE types (from baseline COS creation)
+    'operator': 'Praxis', 'horizon': 'Timeline', 'budget': 'Financial',
+    'directive': 'Legal', 'avoidance': 'Risk', 'scale': 'Praxis',
+    'modality': 'Praxis', 'goal': 'Praxis',
 }
 
 def normalize_ce_type(raw_type: str) -> str:
@@ -351,6 +365,7 @@ async def create_cos(USE_DATABASE: bool, ssol_id: UUID, content: str, status: st
                 'id': cos_id_str, 
                 'content': content_with_pills, 
                 'status': status, 
+                'is_holographic': True,
                 'ssol_id': str(ssol_id),
                 'accountable_party': accountable_party,
                 'completion_date': completion_date

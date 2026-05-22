@@ -194,7 +194,7 @@ def replace_ce_tags_with_pills(content: str, phase_index: Optional[int] = None) 
         icon_cls = NODES.get(ce_type, NODES['Default']).get('icon', 'fa-cube')
         
         new_tag = soup.new_tag('span', attrs={
-            'class': 'ce-capsule ce-capsule-interactive cursor-pointer',
+            'class': 'ce-capsule ce-capsule-hover ce-capsule-interactive cursor-pointer',
             'data-ce-id': tag.get('id', ''),
             'data-ce-type': ce_type,
             'style': f"--node-color: {colors['background']}; --node-icon-color: {colors['icon_color']};",
@@ -247,6 +247,38 @@ def replace_sys_tags_with_highlights(content: str, phase_index: Optional[int] = 
         
     return str(soup)
 
+def format_cos_content_badge(content: str) -> str:
+    """
+    Parses [CONSTRAINT], [GUIDELINE], and [SOFT GUIDELINE] prefixes in COS content
+    and replaces them with icon-only capsule badges. The icon IS the semantic marker.
+    """
+    if not content: return ""
+    pattern = r'^\s*\[(CONSTRAINT|GUIDELINE|SOFT GUIDELINE)\]\s*'
+    match = re.match(pattern, content, re.IGNORECASE)
+    if match:
+        tag_type = match.group(1).upper()
+        clean_text = content[match.end():]
+        if tag_type == 'CONSTRAINT':
+            badge = (
+                '<span class="cos-badge cos-badge-constraint" title="Committed · Immutable">'
+                '<i class="fa-solid fa-lock"></i>'
+                '</span>'
+            )
+        elif tag_type == 'SOFT GUIDELINE':
+            badge = (
+                '<span class="cos-badge cos-badge-soft-guideline" title="Flexible · Recommendation">'
+                '<i class="fa-solid fa-compass"></i>'
+                '</span>'
+            )
+        else: # GUIDELINE
+            badge = (
+                '<span class="cos-badge cos-badge-guideline" title="Proposed · Direction">'
+                '<i class="fa-solid fa-compass"></i>'
+                '</span>'
+            )
+        return f'{badge} {clean_text}'
+    return content
+
 def format_ssol_text(content: str, phase_index: Optional[int] = None, system_data: Optional[Dict] = None) -> str:
     """
     The master formatter used by routes.py.
@@ -275,7 +307,14 @@ async def generate_goal(user_input: str) -> List[Dict]:
             "user", "goal gen", 
             generation_config={"response_mime_type": "application/json"}
         )
-        cleaned = re.sub(r"```(?:json)?|```", "", resp).strip()
+        start_idx = min([i for i in [resp.find('['), resp.find('{')] if i >= 0], default=-1)
+        end_idx = max(resp.rfind(']'), resp.rfind('}'))
+        
+        if start_idx != -1 and end_idx != -1 and end_idx >= start_idx:
+            cleaned = resp[start_idx:end_idx+1]
+        else:
+            cleaned = re.sub(r"```(?:json)?|```", "", resp).strip().strip('` \n')
+            
         data = json.loads(cleaned)
         goals = data if isinstance(data, list) else data.get('goals', [])
         return assign_goal_colors(goals)
@@ -323,12 +362,18 @@ async def generate_outcome_data(ssol_title, ssol_description, domain, forced_con
     PHASE 1: EXEC CHARTER. Write a summary using <sys type="TYPE">Value</sys> tags for anchors.
     CRITICAL: You MUST use ONLY the following valid SYS Types: {', '.join(get_valid_system_types())}.
     PHASE 2: ROADMAP. 5 Phases (Discovery, Engagement, Action, Completion, Legacy). 
-    3-5 COS per phase. The COS should be a complete sentence. 
-    CRITICAL: Do NOT wrap the entire sentence in a <ce> tag. Instead, embed multiple <ce type="Type">noun/phrase</ce> tags AROUND specific entities, actions, or commodities WITHIN the sentence. 
-    Example: "Researched <ce type="Research">grant funding</ce> from <ce type="Partnership">environmental foundations</ce>."
-    Valid CEs: {', '.join(get_valid_node_types())}
+    First, write a 1-sentence `phase_summary` for each phase describing the overarching outcome when all conditions are met.
+    Then, write 3-5 COS per phase. Each COS must be a PRESCRIPTIVE CONDITION — a verifiable assertion written in present-perfect tense that is either TRUE or NOT YET TRUE.
+    Write each COS as: "[What has been achieved/established/completed], [verified/validated by whom or how]."
+    BAD example (narrative): "The team analyzed market data to find gaps."
+    GOOD example (prescriptive): "Comprehensive market analysis has identified at least three target demographics and two competitive gaps, validated by the analytics department."
+    CRITICAL CONSTRAINT ON <ce> TAGS:
+    1. NEVER wrap an entire sentence. Only wrap specific nouns or short phrases.
+    2. The `type` attribute MUST be chosen from this EXACT list: {', '.join([k for k in get_valid_node_types() if k != 'Default'])}.
+    3. NEVER invent new types. Do not use 'Default', 'Identity', 'Culture', 'Strategy', or any word not in the list above. If it doesn't fit the list, DO NOT use a <ce> tag.
+    Example: "Comprehensive <ce type="Research">market analysis</ce> has identified <ce type="Stakeholder">target demographics</ce> and <ce type="Risk">competitive gaps</ce>, validated by the <ce type="Collaboration">analytics department</ce>."
     
-    RETURN JSON: {{ "ssolsummary": "html...", "system_params": {{...}}, "phases": {{ "Discovery": ["cos..."], ... }} }}
+    RETURN JSON: {{ "ssolsummary": "html...", "system_params": {{...}}, "phase_summaries": {{ "Discovery": "Summary text...", ... }}, "phases": {{ "Discovery": ["cos..."], ... }} }}
     """
     
     try:
@@ -353,11 +398,47 @@ async def generate_ai_data(node_type, cos_content, ssol_goal, agent_mode='contex
     if agent_mode == 'speculate':
         return await get_grounded_data(f"Research {node_type} for {ssol_goal}", node_type)
     
-    prompt = f"Explain strategic purpose of '{node_type}'. Context: Goal '{ssol_goal}', Req '{cos_content}'. Return JSON {{ 'contextual_description': '...' }}"
+    prompt = f"""
+    You are the ADVOCATE AI, a highly skilled executive coach and workshop facilitator. 
+    The user is an EXPERT in their domain. Never talk down to them. Your job is to help them spark possibility, consider scope, and identify what is needed to fulfill their goals.
+    
+    The user has just opened a '{node_type}' workspace to fulfill the following Condition of Satisfaction: "{cos_content}"
+    The overall project goal is: "{ssol_goal}"
+    
+    Generate a short, punchy HTML-formatted greeting (1-2 short paragraphs) to act as a 'coaching_message'. 
+    - Greet them as an expert.
+    - Ask 2 or 3 specific, empowering coaching questions to spark enrollment and possibility related to this {node_type}. 
+      Examples: "Who do you know who could [X]?", "What would it take for [Y]?", "What resources are required to unlock this?"
+    
+    Format the response with basic HTML (e.g., <p>, <ul>, <li>, <strong>) for readability in a chat UI. Do not wrap in markdown code blocks.
+    
+    Return ONLY a JSON object with the key 'coaching_message' containing the HTML string.
+    """
     try:
         resp = await generate_chat_response([{"role": "user", "content": prompt}], "user", "insight", generation_config={"response_mime_type": "application/json"})
         return json.loads(resp.replace("```json", "").replace("```", "").strip())
     except: return {}
+
+async def generate_accountable_suggestions(cos_content: str, ssol_description: str) -> List[str]:
+    """Generates a list of suggested accountable parties/roles for a specific COS."""
+    prompt = f"""
+    You are the ADVOCATE AI. Analyze the following Condition of Satisfaction (COS) for the project: '{ssol_description}'.
+    
+    Condition: "{cos_content}"
+    
+    Suggest 3 to 5 specific roles, titles, or generic entities (e.g., "Marketing Lead", "Regulatory Counsel", "Local Vendor", "QA Team") that would be logically accountable for fulfilling this condition.
+    Do NOT suggest specific names of real people unless they are universally known public figures relevant to the context. Keep the suggestions to concise titles/roles.
+    
+    Return ONLY a JSON array of strings: [ "Role 1", "Role 2", ... ]
+    """
+    try:
+        resp = await generate_chat_response([{"role": "user", "content": prompt}], "user", "accountable_suggestions", generation_config={"response_mime_type": "application/json"})
+        cleaned = re.sub(r"```(?:json)?|```", "", resp).strip()
+        data = json.loads(cleaned)
+        if isinstance(data, list): return data
+        return data.get('suggestions', [])
+    except Exception as e:
+        return ["Error generating suggestions"]
 
 # ==============================================================================
 # SECTION 4: LEGACY & HELPERS

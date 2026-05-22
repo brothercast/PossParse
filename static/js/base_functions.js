@@ -146,10 +146,9 @@ function startPrinterUpdates(scriptArray) {
 
     if (spinnerInterval) clearInterval(spinnerInterval);
 
-    // Cycle through messages
+    // Cycle through messages with the Eraser-Pen wipe effect
     spinnerInterval = setInterval(() => {
         // 1. Identify current visible message
-        // Note: We select only active ones to avoid grabbing items currently animating out
         const currentMsg = stage.querySelector('.spinner-message.wipe-in:not(.wipe-out)');
         
         // 2. Prepare next message
@@ -158,30 +157,28 @@ function startPrinterUpdates(scriptArray) {
         newMsg.className = 'spinner-message';
         newMsg.innerText = nextText;
         
-        // TIMING FIX: Set explicit delay (0.3s) to create the visual "gap"
-        // This lets the wipe-out start moving before the new text appears chasing it.
-        newMsg.style.animationDelay = '0.3s';
+        // No JS delay override — the CSS animation-delay (0.18s) 
+        // creates the visual gap between the eraser and pen fronts.
         
         stage.appendChild(newMsg);
 
-        // 3. Trigger Wipe Animations
+        // 3. Trigger Wipe Animations simultaneously
+        // The CSS delay on .wipe-in makes the new text chase the old text
         if (currentMsg) {
             currentMsg.classList.remove('wipe-in');
             currentMsg.classList.add('wipe-out');
         }
-        
-        // Trigger In animation (will wait 0.3s due to style above)
         newMsg.classList.add('wipe-in');
 
-        // 4. Garbage Collection (Cleanup old DOM nodes after animation completes)
+        // 4. Garbage Collection (2.0s animation + 0.15s delay + buffer)
         setTimeout(() => {
             if (currentMsg) currentMsg.remove();
-        }, 1200);
+        }, 2400);
 
         // Loop index
         index = (index + 1) % scriptArray.length;
 
-    }, 2500); // Slower rhythm (2.5s) to accommodate the delay and let user read
+    }, 4000); // Rhythm: animation (2.15s total) + reading time (~1.85s)
 }
 
 function stopPrinterUpdates() {

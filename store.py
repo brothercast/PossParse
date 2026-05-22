@@ -2,3 +2,4 @@
 ssol_store = {}  
 cos_store = {}  
 ce_store = {}  
+goal_store = {}  

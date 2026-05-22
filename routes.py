@@ -30,7 +30,7 @@ from system_templates import (
 from ai_service import cleanup_gemini_client, generate_chat_response, generate_governance_report
 from utilities import generate_goal, analyze_user_input, is_input_compliant, \
                     generate_outcome_data, generate_ai_data, generate_image, \
-                    format_ssol_text
+                    format_ssol_text, format_cos_content_badge
 
 # --- Speculation Operations ---
 from speculate import get_ce_by_id as speculate_get_ce_by_id, \
@@ -394,6 +394,23 @@ def calculate_ssol_telemetry(sys_data, all_cos_list, phases_map=None):
         ratio = len(logic_nodes) / total_ces
         cohesion_score = min(100, int((ratio / 0.5) * 100))
 
+    # --- 5. Holographic Alignment Scanning ---
+    holographic_count = 0
+    for cos in all_cos_list:
+        if isinstance(cos, dict):
+            if cos.get('is_holographic', False): holographic_count += 1
+        else:
+            if getattr(cos, 'is_holographic', False): holographic_count += 1
+            
+    alerts = []
+    if holographic_count > 0:
+        alerts.append({
+            'type': 'Alignment',
+            'severity': 'warning',
+            'message': f"{holographic_count} AI-generated items require your review and confirmation.",
+            'action': 'ALIGN'
+        })
+
     return {
         'phase_stats': phase_stats,
         'hottest_phase': hottest_phase,
@@ -405,7 +422,8 @@ def calculate_ssol_telemetry(sys_data, all_cos_list, phases_map=None):
         },
         'cohesion_score': cohesion_score,
         'total_phases': 5,
-        'alerts': []
+        'alerts': alerts,
+        'holographic_count': holographic_count
     }
 
 # ==============================================================================
@@ -468,6 +486,10 @@ async def outcome():
             # Merge AI params with User Constraints (User wins conflicts)
             ai_params = structured_solution_json.get('system_params', {})
             final_system_data = {**ai_params, **system_constraints}
+            
+            # Capture Phase Summaries
+            if 'phase_summaries' in structured_solution_json:
+                final_system_data['_phase_summaries'] = structured_solution_json['phase_summaries']
 
             # 4. CREATE SSOL CONTAINER
             ssol_id_str = speculate_create_ssol(
@@ -496,8 +518,9 @@ async def outcome():
             }
             
             for key, value in final_system_data.items():
-                if key.startswith('_') or key == 'domain_icon':
-                    continue # Skip hidden tracking fields and UI metadata
+                # Only create Baseline CEs for valid System Ontology keys
+                if key not in SYSTEM_KEY_TO_CE_TYPE:
+                    continue 
                     
                 if value and str(value).strip():
                     # Map the system key to a real CE node type
@@ -654,6 +677,11 @@ def view_ssol(ssol_id):
 
         # 2. Executive Charter
         formatted_summary = format_ssol_text(raw_summary, phase_index=0, system_data=sys_data)
+
+        # Apply COS content badge formatting for display
+        for cos in all_cos_list:
+            if 'content' in cos:
+                cos['content'] = format_cos_content_badge(cos['content'])
 
         # 3. Phase Grid Reconstruction
         phases_ordered = ['Discovery', 'Engagement', 'Action', 'Completion', 'Legacy']
@@ -1494,7 +1522,9 @@ async def create_cos_route():
             USE_DATABASE, ssol_uuid_obj, data['content'], 
             data.get('status', 'Proposed'), data.get('accountable_party'), data.get('completion_date')
         )
-        if cos_data: return jsonify(success=True, cos=cos_data), 201
+        if cos_data:
+            cos_data['content'] = format_cos_content_badge(cos_data.get('content', ''))
+            return jsonify(success=True, cos=cos_data), 201
         return jsonify(success=False), 500
     except Exception as e:
         return jsonify(success=False, error=str(e)), 500
@@ -1504,15 +1534,124 @@ async def update_cos_route(cos_id):
     try:
         data = request.get_json()
         res = await speculate_update_cos_by_id(USE_DATABASE, cos_id, data)
-        if res['success']: return jsonify(success=True, cos=res['cos'])
+        if res['success']:
+            res['cos']['content'] = format_cos_content_badge(res['cos'].get('content', ''))
+            return jsonify(success=True, cos=res['cos'])
         return jsonify(success=False, error=res['message']), res['status_code']
     except Exception as e:
+        return jsonify(success=False, error=str(e)), 500
+
+@routes_bp.route('/api/cos/<uuid:cos_id>/govern', methods=['POST'])
+def govern_cos_route(cos_id):
+    """
+    Formally records a governance decision, capturing the accountable party,
+    the artifacts/shoebox data, review notes, and transitions the status.
+    """
+    try:
+        data = request.get_json()
+        new_status = data.get('status')
+        accountable = data.get('accountable')
+        shoebox = data.get('shoebox')
+        notes = data.get('notes')
+        
+        entry = {
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'status': new_status,
+            'accountable': accountable,
+            'shoebox': shoebox,
+            'notes': notes
+        }
+
+        if USE_DATABASE:
+            engine, session = get_engine_and_session()
+            try:
+                cos = session.query(COS).get(cos_id)
+                if not cos:
+                    return jsonify(success=False, error="COS not found"), 404
+                
+                # Append to governance_log
+                current_log = cos.governance_log or []
+                current_log.append(entry)
+                
+                # Re-assign so SQLAlchemy detects the JSON change
+                cos.governance_log = list(current_log)
+                
+                if new_status:
+                    cos.status = new_status
+                if accountable:
+                    cos.accountable_party = accountable
+                    
+                session.commit()
+                return jsonify(success=True, cos=cos.to_dict())
+            except Exception as e:
+                session.rollback()
+                raise e
+            finally:
+                session.close()
+        else:
+            # In-Memory fallback
+            cos_id_str = str(cos_id)
+            if cos_id_str in cos_store:
+                cos = cos_store[cos_id_str]
+                current_log = cos.get('governance_log', [])
+                current_log.append(entry)
+                cos['governance_log'] = current_log
+                if new_status:
+                    cos['status'] = new_status
+                if accountable:
+                    cos['accountable_party'] = accountable
+                return jsonify(success=True, cos=cos)
+            return jsonify(success=False, error="COS not found"), 404
+            
+    except Exception as e:
+        current_app.logger.error(f"Govern Route Error: {e}", exc_info=True)
         return jsonify(success=False, error=str(e)), 500
 
 @routes_bp.route('/delete_cos/<uuid:cos_id>', methods=['DELETE'])
 def delete_cos_route(cos_id):
     if speculate_delete_cos_by_id(USE_DATABASE, cos_id): return jsonify(success=True)
     return jsonify(success=False), 404
+
+@routes_bp.route('/api/cos/<uuid:cos_id>/solidify', methods=['PUT'])
+def solidify_cos_route(cos_id):
+    """Marks a holographic condition as human-verified and active."""
+    try:
+        from app import db, USE_DATABASE
+        from models import COS
+        from speculate import cos_store
+        
+        if USE_DATABASE:
+            from sqlalchemy.orm import sessionmaker
+            Session = sessionmaker(bind=db.engine)
+            session = Session()
+            try:
+                cos = session.query(COS).get(cos_id)
+                if not cos: return jsonify(success=False, error="COS not found"), 404
+                
+                cos.is_holographic = False
+                if cos.status == 'Proposed':
+                    cos.status = 'Active'
+                
+                session.commit()
+                return jsonify(success=True, cos=cos.to_dict())
+            except Exception as e:
+                session.rollback()
+                raise e
+            finally:
+                session.close()
+        else:
+            cos_id_str = str(cos_id)
+            if cos_id_str in cos_store:
+                cos = cos_store[cos_id_str]
+                cos['is_holographic'] = False
+                if cos.get('status') == 'Proposed':
+                    cos['status'] = 'Active'
+                return jsonify(success=True, cos=cos)
+            return jsonify(success=False, error="COS not found"), 404
+    except Exception as e:
+        current_app.logger.error(f"Solidify Error: {e}")
+        return jsonify(success=False, error=str(e)), 500
+
 
 @routes_bp.route('/get_ssol_image/<uuid:ssol_id>')
 def get_ssol_image_route(ssol_id):
@@ -1619,3 +1758,60 @@ Return pure JSON matching this exact structure:
     except Exception as e:
         current_app.logger.error(f"Advocate Error: {e}")
         return jsonify(success=False, error=str(e)), 500
+
+
+@routes_bp.route('/api/cos/<uuid:cos_id>/diagnose', methods=['POST'])
+async def diagnose_cos_route(cos_id):
+    from speculate import get_cos_by_id, update_cos_by_id
+    from speculate import diagnose_cos_breakdowns 
+
+    cos_id_str = str(cos_id)
+    USE_DATABASE = os.environ.get('USE_DATABASE', 'False').lower() in ('true', '1', 't', 'y', 'yes')
+    
+    cos_data = speculate_get_cos_by_id(USE_DATABASE, cos_id_str)
+    if not cos_data:
+        from flask import jsonify
+        return jsonify(error="COS not found"), 404
+        
+    ce_context = []
+    for ce in cos_data.get('conditional_elements', []):
+        ce_context.append({
+            'type': ce.get('node_type'),
+            'id': ce.get('id'),
+            'data': ce.get('data', {})
+        })
+        
+    diagnostics = await diagnose_cos_breakdowns(cos_data.get('content', ''), ce_context)
+    
+    update_payload = {'diagnostics': diagnostics}
+    await speculate_update_cos_by_id(USE_DATABASE, cos_id_str, update_payload)
+    
+    from flask import jsonify
+    return jsonify(success=True, diagnostics=diagnostics)
+
+@routes_bp.route('/api/cos/<uuid:cos_id>/workshop_accountable', methods=['POST'])
+async def workshop_accountable_route(cos_id):
+    from utilities import generate_accountable_suggestions
+    
+    cos_id_str = str(cos_id)
+    USE_DATABASE = os.environ.get('USE_DATABASE', 'False').lower() in ('true', '1', 't', 'y', 'yes')
+    
+    cos_data = speculate_get_cos_by_id(USE_DATABASE, cos_id_str)
+    if not cos_data:
+        return jsonify(error="COS not found"), 404
+        
+    ssol_data = None
+    if USE_DATABASE:
+        engine, session = get_engine_and_session()
+        try:
+            ssol_obj = session.query(SSOL).get(cos_data['ssol_id'])
+            if ssol_obj: ssol_data = ssol_obj.to_dict()
+        finally:
+            session.close()
+    else:
+        ssol_data = ssol_store.get(cos_data['ssol_id'])
+        
+    ssol_description = ssol_data.get('description', '') if ssol_data else ''
+    
+    suggestions = await generate_accountable_suggestions(cos_data.get('content', ''), ssol_description)
+    return jsonify(success=True, suggestions=suggestions)

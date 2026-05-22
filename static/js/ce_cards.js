@@ -421,19 +421,15 @@ function renderCollectionList(type) {
         container.innerHTML = html;
 
     } else if (viewMode === 'constellation') {
-        // Constellation View Placeholder (Canvas initialized via JS later)
+        // Transit Diagram View
         container.innerHTML = `
-            <div class="h-100 d-flex flex-column align-items-center justify-content-center bg-light rounded-4 position-relative" style="min-height: 300px; border: 1px solid #e2e8f0;">
-                <canvas id="canvas-${type}-${state.ceId}" class="w-100 h-100 position-absolute top-0 start-0" style="border-radius: 1rem;"></canvas>
-                <div class="position-absolute bottom-0 start-0 p-3 text-muted font-data" style="font-size: 0.7rem; pointer-events: none;">
-                    <i class="fas fa-project-diagram me-1"></i> Interactive Network Graph (Coming Soon)
-                </div>
+            <div class="h-100 position-relative" style="min-height: 300px;">
+                <div id="canvas-${type}-${state.ceId}" class="w-100 h-100"></div>
             </div>`;
             
-        // We would trigger a constellation render function here, e.g., renderConstellation(type, `canvas-${type}-${state.ceId}`)
         setTimeout(() => {
             if (window.renderConstellation) {
-                window.renderConstellation(type, `canvas-${type}-${state.ceId}`, items, state.ceType);
+                window.renderConstellation(type, `canvas-${type}-${state.ceId}`, items, state.ceType, state.tabLabels);
             }
         }, 50);
 
@@ -759,31 +755,44 @@ function renderAiSidebarContent() {
     
     // Welcome message if no history
     if (state.chatHistory.length === 0) {
-        // Build a contextual insight for the greeting
-        const totalItems = ['prerequisites', 'stakeholders', 'assumptions', 'resources', 'criteria']
-            .reduce((sum, k) => sum + (state.collections[k]?.length || 0), 0);
-        const firstKey = state.nodeSchema?.details_schema?.[0]?.key || 'summary';
-        const hasDef = state.details_data[firstKey] && state.details_data[firstKey].length > 5;
-        
-        let insightLine = '';
-        if (!hasDef && totalItems === 0) {
-            insightLine = `This workspace is fresh — want me to draft a definition to get started?`;
-        } else if (hasDef && totalItems === 0) {
-            insightLine = `You have a definition but no collections yet. Want me to generate some?`;
-        } else if ((state.collections.criteria?.length || 0) === 0 && totalItems > 0) {
-            insightLine = `You have ${totalItems} items but no criteria yet — want me to extract some?`;
+        // Did the server already inject a message?
+        const existingMsg = feed.querySelector('.ai-message');
+        if (existingMsg) {
+            const contentBox = existingMsg.querySelector('.flex-grow-1:not(.avatar)');
+            if (contentBox) {
+                state.chatHistory.push({
+                    role: 'advocate',
+                    content: contentBox.innerHTML.trim(),
+                    timestamp: Date.now()
+                });
+            }
         } else {
-            insightLine = `You're making good progress. How can I help?`;
+            // Build a contextual insight for the greeting
+            const totalItems = ['prerequisites', 'stakeholders', 'assumptions', 'resources', 'criteria']
+                .reduce((sum, k) => sum + (state.collections[k]?.length || 0), 0);
+            const firstKey = state.nodeSchema?.details_schema?.[0]?.key || 'summary';
+            const hasDef = state.details_data[firstKey] && state.details_data[firstKey].length > 5;
+            
+            let insightLine = '';
+            if (!hasDef && totalItems === 0) {
+                insightLine = `This workspace is fresh — want me to draft a definition to get started?`;
+            } else if (hasDef && totalItems === 0) {
+                insightLine = `You have a definition but no collections yet. Want me to generate some?`;
+            } else if ((state.collections.criteria?.length || 0) === 0 && totalItems > 0) {
+                insightLine = `You have ${totalItems} items but no criteria yet — want me to extract some?`;
+            } else {
+                insightLine = `You're making good progress. How can I help?`;
+            }
+            
+            html += `
+                <div class="chat-welcome">
+                    <div class="chat-welcome-icon" style="background: linear-gradient(135deg, ${nodeColor}, ${nodeColor}dd);">
+                        <i class="fas ${persona.icon}"></i>
+                    </div>
+                    <h6>${persona.title}</h6>
+                    <p>${persona.greeting}<br><span style="color: #475569; font-weight: 500;">${insightLine}</span></p>
+                </div>`;
         }
-        
-        html += `
-            <div class="chat-welcome">
-                <div class="chat-welcome-icon" style="background: linear-gradient(135deg, ${nodeColor}, ${nodeColor}dd);">
-                    <i class="fas ${persona.icon}"></i>
-                </div>
-                <h6>${persona.title}</h6>
-                <p>${persona.greeting}<br><span style="color: #475569; font-weight: 500;">${insightLine}</span></p>
-            </div>`;
     }
     
     // Render chat history
@@ -888,14 +897,31 @@ function renderAiSidebarContent() {
                 <div class="dot"></div>
                 <div class="dot"></div>
             </div>`;
+    } else if (state.chatHistory.length > 0 && state.chatHistory[state.chatHistory.length - 1].role === 'advocate') {
+        // Append context-aware SUA buttons prominently in the feed
+        const tab = state.activeTab || 'overview';
+        const suas = SUA_MAP[tab] || SUA_MAP.overview;
+        if (suas && suas.length > 0) {
+            const inlineSuaHtml = suas.map(s => 
+                `<button class="btn btn-sm w-100 font-data fw-bold shadow-sm mb-2 sua-chip sua-inline-chip" style="background: white; border: 1px solid ${nodeColor}40; color: ${nodeColor}; text-align: left; padding: 0.5rem 0.75rem;" data-prompt="${escapeAttr(s.prompt)}" ${s.speculateMode ? `data-speculate="${s.speculateMode}"` : ''}>
+                    <i class="fas ${s.icon} me-2" style="width: 16px; text-align: center;"></i> ${s.label}
+                </button>`
+            ).join('');
+            
+            html += `
+            <div class="mt-3 mb-3 px-3" style="animation: fade-in-up 0.3s ease-out;">
+                <div class="font-brand fw-bold mb-2" style="font-size: 0.7rem; color: #64748b; letter-spacing: 0.5px;"><i class="fas fa-lightbulb me-1"></i> SUGGESTED ACTIONS</div>
+                ${inlineSuaHtml}
+            </div>`;
+        }
     }
     
     feed.innerHTML = html;
     
     // Auto-scroll to bottom
-    requestAnimationFrame(() => {
+    setTimeout(() => {
         feed.scrollTop = feed.scrollHeight;
-    });
+    }, 50);
 }
 
 function renderChatInputBar() {
@@ -1410,6 +1436,14 @@ function setupEventListeners() {
             }
             renderAiSidebarContent();
             renderChatInputBar();
+            
+            // Connections Tab: Render unified transit map when shown
+            if(tid.includes('connections')) {
+                const connectionsContainer = m.querySelector(`#connections-map-${state.ceId}`);
+                if (connectionsContainer && window.renderConnectionsMap) {
+                    setTimeout(() => window.renderConnectionsMap(`connections-map-${state.ceId}`, state), 100);
+                }
+            }
         });
     }
 
@@ -1915,7 +1949,7 @@ function renderMatchmakerResults(matches, collection) {
     }
 
     const html = matches.map((m, idx) => `
-        <div class="match-card p-3 border rounded mb-3 bg-white shadow-sm position-relative overflow-hidden" style="transition: all 0.2s;">
+        <div class="match-card holographic-card p-3 border rounded mb-3 bg-white shadow-sm position-relative overflow-hidden" style="transition: all 0.2s;">
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <div>
                     <h6 class="font-brand mb-0">${escapeHtml(m.name || 'Unknown')}</h6>

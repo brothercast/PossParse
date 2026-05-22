@@ -271,12 +271,17 @@ function updateModalView() {
         statusBadge.innerHTML = '<i class="fas fa-circle" style="font-size:6px;"></i> UNSET';
     }
 
-    // Pagination Dots
-    document.getElementById('sys-counter').textContent = `CARD ${sysState.currentIndex + 1} / ${sysState.nodeKeys.length}`;
+    // Pagination Dots (Removed from DOM, kept for backwards compatibility if added back)
+    const counterEl = document.getElementById('sys-counter');
+    if (counterEl) {
+        counterEl.textContent = `CARD ${sysState.currentIndex + 1} / ${sysState.nodeKeys.length}`;
+    }
     const dotContainer = document.getElementById('sys-dots-container');
-    dotContainer.innerHTML = sysState.nodeKeys.map((k, i) => 
-        `<div class="sys-dot ${i === sysState.currentIndex ? 'active' : ''}"></div>`
-    ).join('');
+    if (dotContainer) {
+        dotContainer.innerHTML = sysState.nodeKeys.map((k, i) => 
+            `<div class="sys-dot ${i === sysState.currentIndex ? 'active' : ''}"></div>`
+        ).join('');
+    }
 
     // Reset constraint mode visuals
     resetConstraintVisuals();

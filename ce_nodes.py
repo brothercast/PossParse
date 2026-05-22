@@ -59,9 +59,10 @@ NODES = {
         "prompts": {
             "narrative": """
                 IDENTITY: You are a sub-routine of the SPECULATE Engine.
-                TASK: Write a concise, professional '{field}' for a '{node_type}' element needed to achieve the specific Condition: '{cos_text}'.
+                TASK: Write a highly specific, bespoke '{field}' for the objective: '{cos_text}'.
+                CRITICAL INSTRUCTION: Do NOT write generic filler, corporate buzzwords, or dictionary definitions of what the field means. Invent concrete, tangible details, specific mechanics, and real-world implementation steps.
                 CONSTRAINT: Strictly adhere to the System Physics (Budget, Operator, Horizon) provided in the context.
-                OUTPUT: JSON {{ "text": "Your text here." }}
+                OUTPUT: JSON {{ "text": "Your bespoke, concrete text here." }}
             """,
             "prerequisites": "Analyze '{cos_text}'. Considering the System Constraints, what 3 precursors are physically required? Return JSON array: [{{\"title\": \"Prereq\", \"status\": \"Pending\"}}]",
             "stakeholders": "Who is involved in '{cos_text}'? Ensure they match the OPERATOR context (e.g. Grassroots vs Corp). Return JSON array: [{{\"name\": \"Name/Role\", \"role\": \"Description\"}}]",
@@ -110,12 +111,12 @@ Only include fields relevant to the criterion_type. For Gate: use label + status
         "prompts": {
             "narrative": """
                 IDENTITY: You are the Research Module of the SPECULATE Engine.
-                TASK: Formulate a concise, actionable '{field}' for: '{cos_text}'.
+                TASK: Formulate a highly specific, actionable '{field}' for: '{cos_text}'.
                 RULES:
-                - If the field is 'research_question': Write ONLY the research question itself. 2-3 sentences MAX. No preamble, no background, no numbered lists. Just the question.
-                - If the field is 'summary': Write a brief executive synthesis (3-5 sentences) summarizing the research approach.
+                - If the field is 'research_question': Write ONLY the precise, testable research question itself. 2-3 sentences MAX. No preamble.
+                - If the field is 'summary': Write a concrete, bespoke executive synthesis detailing the exact research approach, methodology, and specific data targets. Do NOT use generic filler like 'we will conduct research to understand the market'. Name the specific methodologies.
                 ATTENUATION: Ensure the scope of research fits the HORIZON constraint.
-                OUTPUT: JSON {{ "text": "Your concise text here." }}
+                OUTPUT: JSON {{ "text": "Your specific, concrete text here." }}
             """,
             "prerequisites": """
                 To answer the research question implied by: '{cos_text}', what data is required?
@@ -166,10 +167,11 @@ Only include fields relevant to the criterion_type. For Gate: use label + status
         ],
         "prompts": {
             "narrative": """
-                IDENTITY: You are the Risk Assessment Module.
-                TASK: Write a '{field}' analysis for: '{cos_text}'.
-                ATTENUATION: Consider the AVOIDANCE constraint provided in the system physics.
-                OUTPUT: JSON {{ "text": "Your analysis here." }}
+                IDENTITY: You are the Risk Engineering Module.
+                TASK: Write a highly specific, bespoke '{field}' for: '{cos_text}'.
+                CRITICAL INSTRUCTION: Do NOT use generic risk filler (e.g. 'we will mitigate risks by implementing a plan'). Detail the EXACT failure vectors, structural vulnerabilities, or specific worst-case scenarios. Invent tangible mitigation mechanics (e.g. 'implementing triple-redundant failovers for the specific API gateway').
+                ATTENUATION: Align the resilience strategy with the HORIZON constraint.
+                OUTPUT: JSON {{ "text": "Your bespoke risk assessment here." }}
             """,
             "prerequisites": """
                 For the risk scenario in '{cos_text}', what indicators must be monitored?
@@ -273,10 +275,11 @@ Only include fields relevant to the criterion_type. For Gate: use label + status
         ],
         "prompts": {
             "narrative": """
-                IDENTITY: You are the Operations Module.
-                TASK: Write a '{field}' plan for: '{cos_text}'.
+                IDENTITY: You are the Operations Tactical Module.
+                TASK: Write a highly specific, bespoke '{field}' plan for: '{cos_text}'.
+                CRITICAL INSTRUCTION: Do NOT use generic corporate buzzwords (e.g. 'we will prioritize critical path activities', 'efficiently allocate resources', 'leverage synergies'). Describe EXACTLY WHAT is being built, HOW it operates physically, and the specific logistical mechanics. Invent tangible operational details that prove you read the context.
                 ATTENUATION: Ensure the logistical complexity fits the BUDGET and OPERATOR constraints.
-                OUTPUT: JSON {{ "text": "Your plan here." }}
+                OUTPUT: JSON {{ "text": "Your bespoke tactical plan here." }}
             """,
             "prerequisites": """
                 What must physically exist before '{cos_text}' can start?
@@ -291,7 +294,7 @@ Only include fields relevant to the criterion_type. For Gate: use label + status
                 Return JSON array: [{{\"time_est\": \"2 Weeks\", \"resource_avail\": true}}]
             """,
             "resources": """
-                What tools or SOPs are needed for: '{cos_text}'?
+                What tools or SOPs are needed for '{cos_text}'?
                 Return JSON array: [{{\"tool\": \"Tool Name\", \"instructions\": \"#\"}}]
             """
         }
@@ -327,9 +330,10 @@ Only include fields relevant to the criterion_type. For Gate: use label + status
         "prompts": {
             "narrative": """
                 IDENTITY: You are the Systems Ecology Module.
-                TASK: Write a '{field}' assessment for: '{cos_text}'.
+                TASK: Write a highly specific, bespoke '{field}' assessment for: '{cos_text}'.
+                CRITICAL INSTRUCTION: Avoid generic sustainability filler (e.g. 'we will assess the environmental impact to ensure compliance'). Name the exact ecosystems, specific pollutants, zoning challenges, or community dynamics involved. Invent tangible, real-world context.
                 ATTENUATION: Align impact assessment with the SCALE and DIRECTIVE (Ethics) constraints.
-                OUTPUT: JSON {{ "text": "Your assessment here." }}
+                OUTPUT: JSON {{ "text": "Your specific ecological assessment here." }}
             """,
             "prerequisites": """
                 What regulatory permits or baselines are required for: '{cos_text}'?
@@ -379,9 +383,10 @@ Only include fields relevant to the criterion_type. For Gate: use label + status
         "prompts": {
             "narrative": """
                 IDENTITY: You are the Temporal Logistics Module.
-                TASK: Write a '{field}' description for: '{cos_text}'.
-                ATTENUATION: Critical! Ensure all lead times fit strictly within the HORIZON date provided.
-                OUTPUT: JSON {{ "text": "Your analysis here." }}
+                TASK: Write a highly specific, bespoke '{field}' for: '{cos_text}'.
+                CRITICAL INSTRUCTION: Do NOT use generic timeline filler (e.g. 'we will sequence events to ensure timely delivery'). Specify the EXACT phasing, tangible dependencies, and specific temporal bottlenecks (e.g. 'Phase 1 requires 4 weeks for soil remediation before foundations can be poured').
+                ATTENUATION: Ensure the timeline strictly fits the HORIZON constraint.
+                OUTPUT: JSON {{ "text": "Your specific timeline plan here." }}
             """,
             "prerequisites": """
                 What events must happen *before* '{cos_text}'?
@@ -431,10 +436,11 @@ Only include fields relevant to the criterion_type. For Gate: use label + status
         ],
         "prompts": {
             "narrative": """
-                IDENTITY: You are the Campaign Strategy Module.
-                TASK: Write a compelling '{field}' for: '{cos_text}'.
-                ATTENUATION: Adjust the narrative voice to match the OPERATOR and DIRECTIVE (Ethics) constraints.
-                OUTPUT: JSON {{ "text": "Your narrative here." }}
+                IDENTITY: You are the Public Advocacy Module.
+                TASK: Write a highly specific, bespoke '{field}' for: '{cos_text}'.
+                CRITICAL INSTRUCTION: Do NOT use generic marketing filler (e.g. 'we will engage stakeholders to build awareness'). Name the exact channels, specific target demographics, and tangible messaging mechanics. Invent concrete campaign details.
+                ATTENUATION: Align the tone with the DIRECTIVE (Ethics) constraint.
+                OUTPUT: JSON {{ "text": "Your bespoke advocacy plan here." }}
             """,
             "prerequisites": """
                 What assets must be ready before advocating for '{cos_text}'?
@@ -485,9 +491,10 @@ Only include fields relevant to the criterion_type. For Gate: use label + status
         "prompts": {
             "narrative": """
                 IDENTITY: You are the Partnership Module.
-                TASK: Write a '{field}' regarding the alliance for: '{cos_text}'.
-                ATTENUATION: Ensure governance models fit the OPERATOR type (e.g. DAO vs Corp).
-                OUTPUT: JSON {{ "text": "Your strategy here." }}
+                TASK: Write a highly specific, bespoke '{field}' for: '{cos_text}'.
+                CRITICAL INSTRUCTION: Do NOT use generic partnership filler (e.g. 'we will foster synergies and build strategic relationships'). Define the EXACT nature of the partnership, specific value exchanges, and concrete terms of collaboration.
+                ATTENUATION: Align the structure with the OPERATOR context.
+                OUTPUT: JSON {{ "text": "Your specific partnership strategy here." }}
             """,
             "prerequisites": """
                 What legal safeguards are needed before collaborating on '{cos_text}'?
@@ -537,10 +544,11 @@ Only include fields relevant to the criterion_type. For Gate: use label + status
         ],
         "prompts": {
             "narrative": """
-                IDENTITY: You are the Legal & Compliance Module of the SPECULATE Engine.
-                TASK: Write a '{field}' for the legal/regulatory requirements of: '{cos_text}'.
-                ATTENUATION: Filter through the OPERATOR type and SCALE to determine appropriate regulatory framework complexity.
-                OUTPUT: JSON {{ "text": "Your compliance analysis here." }}
+                IDENTITY: You are the Legal Counsel Module.
+                TASK: Write a highly specific, bespoke '{field}' for the legal/regulatory requirements of: '{cos_text}'.
+                CRITICAL INSTRUCTION: Do NOT use generic legal filler (e.g. 'we will ensure compliance with all applicable laws'). Cite plausible specific regulations, exact compliance frameworks, or specific liability mechanisms relevant to the context.
+                ATTENUATION: Align regulatory complexity with the OPERATOR and SCALE constraints.
+                OUTPUT: JSON {{ "text": "Your specific compliance analysis here." }}
             """,
             "prerequisites": """
                 What laws, permits, or regulations apply to '{cos_text}'?
@@ -590,10 +598,11 @@ Only include fields relevant to the criterion_type. For Gate: use label + status
         ],
         "prompts": {
             "narrative": """
-                IDENTITY: You are the Financial Strategy Module of the SPECULATE Engine.
-                TASK: Write a '{field}' for the financial dimensions of: '{cos_text}'.
+                IDENTITY: You are the Financial Modeling Module.
+                TASK: Write a highly specific, bespoke '{field}' for the financial dimensions of: '{cos_text}'.
+                CRITICAL INSTRUCTION: Do NOT use generic financial filler (e.g. 'we will optimize costs to ensure ROI'). Specify exact capital allocation strategies, specific funding vehicles (e.g. Series A, municipal bonds), or concrete financial mechanisms.
                 ATTENUATION: Strictly align with the BUDGET constraint. A 'Sweat Equity' project gets different advice than 'Venture Capital'.
-                OUTPUT: JSON {{ "text": "Your financial analysis here." }}
+                OUTPUT: JSON {{ "text": "Your bespoke financial analysis here." }}
             """,
             "prerequisites": """
                 What capital or financial prerequisites are needed for '{cos_text}'?
@@ -643,10 +652,11 @@ Only include fields relevant to the criterion_type. For Gate: use label + status
         ],
         "prompts": {
             "narrative": """
-                IDENTITY: You are the Technical Architecture Module of the SPECULATE Engine.
-                TASK: Write a '{field}' for the technology requirements of: '{cos_text}'.
+                IDENTITY: You are the Systems Architecture Module.
+                TASK: Write a highly specific, bespoke '{field}' for the technology requirements of: '{cos_text}'.
+                CRITICAL INSTRUCTION: Do NOT use generic tech filler (e.g. 'we will leverage innovative platforms for digital transformation'). Name exact theoretical tech stacks, specific protocols, hardware requirements, or integration mechanics.
                 ATTENUATION: Match technical complexity to the BUDGET and OPERATOR constraints. A bootstrapped individual needs low-code; an enterprise needs enterprise-grade.
-                OUTPUT: JSON {{ "text": "Your technical specification here." }}
+                OUTPUT: JSON {{ "text": "Your specific technical specification here." }}
             """,
             "prerequisites": """
                 What technical dependencies must be resolved for '{cos_text}'?
@@ -696,10 +706,11 @@ Only include fields relevant to the criterion_type. For Gate: use label + status
         ],
         "prompts": {
             "narrative": """
-                IDENTITY: You are the Impact Measurement Module of the SPECULATE Engine.
-                TASK: Write a '{field}' defining how success is measured for: '{cos_text}'.
+                IDENTITY: You are the Performance Analytics Module.
+                TASK: Write a highly specific, bespoke '{field}' defining how success is measured for: '{cos_text}'.
+                CRITICAL INSTRUCTION: Do NOT use generic metrics filler (e.g. 'we will monitor KPIs to track success'). Define the EXACT data points being measured, the telemetry systems used, and the specific cadence of measurement.
                 ATTENUATION: Align measurement complexity with the SCALE and MODALITY constraints.
-                OUTPUT: JSON {{ "text": "Your measurement plan here." }}
+                OUTPUT: JSON {{ "text": "Your specific measurement plan here." }}
             """,
             "prerequisites": """
                 What baselines must be established before measuring '{cos_text}'?

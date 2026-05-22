@@ -39,7 +39,7 @@ const DEFAULTS = {
     MODALITY: [
         { id: 'Iterative', label: 'Iterative (Build & Learn)', icon: 'fa-rotate', hint: "The 'Agile' approach. We build a small version, test it, learn, and improve. Best for unknowns." },
         { id: 'Linear', label: 'Linear Planning (Step-by-Step)', icon: 'fa-layer-group', hint: "The 'Waterfall' approach. Measure twice, cut once. We plan everything before starting. Best for construction/hardware." },
-        { id: 'Swarm', label: 'Decentralized Swarm', icon: 'fa-hive', hint: "No central command. Parallel autonomous groups working on shared protocols. Best for movements." },
+        { id: 'Swarm', label: 'Decentralized Swarm', icon: 'fa-share-nodes', hint: "No central command. Parallel autonomous groups working on shared protocols. Best for movements." },
         { id: 'Crisis', label: 'Emergency Response (Triage)', icon: 'fa-truck-medical', hint: "Speed is life. We prioritize immediate action over efficiency or cost. Best for disasters." },
         { id: 'Consensus', label: 'Consensus (Democratic)', icon: 'fa-users-rectangle', hint: "Slow but steady. Decisions are made by vote or agreement. High buy-in, slower execution." },
         { id: 'Research', label: 'Experimental / Research', icon: 'fa-flask', hint: "The Lab approach. The goal is discovery, not shipping a product. We focus on data validity and hypothesis testing." }
@@ -339,6 +339,7 @@ function submitConfigLogic() {
     document.getElementById('form-title').value = State.selectedCardData.title;
     document.getElementById('form-domain').value = State.selectedCardData.domain;
     document.getElementById('form-domain-icon').value = State.selectedCardData.icon;
+    document.getElementById('form-gallery-state').value = JSON.stringify(State.colorData);
     
     // Clear old dynamics
     form.querySelectorAll('.dynamic-param').forEach(e => e.remove());
@@ -391,7 +392,10 @@ function submitConfigLogic() {
     const atomHtml = `
     <div class="atom-wrapper fade-in">
         <div class="atom-rainbow-border"></div>
-        <div class="atom-bg-dots"></div>
+        <div class="atom-bg-quad atom-bg-quad--tl"></div>
+        <div class="atom-bg-quad atom-bg-quad--tr"></div>
+        <div class="atom-bg-quad atom-bg-quad--bl"></div>
+        <div class="atom-bg-quad atom-bg-quad--br"></div>
         
         <!-- 3D Scene -->
         <div class="atom-scene">
@@ -955,8 +959,8 @@ function renderForkScreen() {
             <div class="border-top pt-4 mt-auto">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="d-flex flex-column">
-                        <h6 class="font-data text-dark fw-bold small mb-0" style="letter-spacing: 1px;">INCREASE PRECISION (OPTIONAL)</h6>
-                        <span class="font-body x-small text-muted">Select factors to fine-tune the Engine's logic.</span>
+                        <h6 class="font-data text-white fw-bold small mb-0" style="letter-spacing: 1px;">INCREASE PRECISION (OPTIONAL)</h6>
+                        <span class="font-body x-small text-white-50">Select factors to fine-tune the Engine's logic.</span>
                     </div>
                 </div>
                 
@@ -1043,8 +1047,8 @@ function injectHeroContent(cardWrapper, goalData) {
             <div class="border-top pt-4 mt-auto">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="d-flex flex-column">
-                        <h6 class="font-data text-dark fw-bold small mb-0" style="letter-spacing: 1px;">INCREASE PRECISION (OPTIONAL)</h6>
-                        <span class="font-body x-small text-muted">Select factors to fine-tune the Engine's logic.</span>
+                        <h6 class="font-data text-white fw-bold small mb-0" style="letter-spacing: 1px;">INCREASE PRECISION (OPTIONAL)</h6>
+                        <span class="font-body x-small text-white-50">Select factors to fine-tune the Engine's logic.</span>
                     </div>
                 </div>
                 
@@ -1120,9 +1124,11 @@ function injectPillToHero(type, value, icon) {
     };
 
     let dispValue = value.length > 25 ? value.substring(0, 22) + '...' : value;
+    let sentenceCaseType = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+    
     pill.innerHTML = `
         <div class="icon-box" style="width: 28px; height: 28px; border-radius: 50%; background: var(--active-theme-color, #333); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; flex-shrink: 0;"><i class="fas ${icon}"></i></div>
-        <div style="display: flex; flex-direction: column; line-height: 1.1;"><span style="font-size: 0.55rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: #64748b; margin-bottom: 1px;">${type}</span><span class="value-text" style="font-size: 0.8rem; font-weight: 700; color: #1e293b;">${dispValue}</span></div>`;
+        <div style="display: flex; flex-direction: column; line-height: 1.1;"><span style="font-size: 0.55rem; font-weight: 800; letter-spacing: 0.05em; color: #64748b; margin-bottom: 1px;">${sentenceCaseType}</span><span class="value-text" style="font-size: 0.8rem; font-weight: 700; color: #1e293b;">${dispValue}</span></div>`;
     stack.appendChild(pill);
 }
 
@@ -1130,20 +1136,22 @@ function injectPillToHero(type, value, icon) {
 // 8. BOOTSTRAP (Init)
 // =============================================================================
 
-function renderNewGoals(goals, gridElement) {
-    gridElement.innerHTML = '';
+function renderNewGoals(goals, gridElement, append = false, baseIndex = 0) {
+    if (!append) gridElement.innerHTML = '';
     
-    goals.forEach((goal, index) => {
+    goals.forEach((goal, i) => {
+        const index = baseIndex + i;
         const hue = goal.color_hue || (index * 60) % 360;
         const cardId = `goal-${index}`;
         
         const cardWrapper = document.createElement('div');
-        // Add 'violation' class if needed
-        cardWrapper.className = `flip-card-wrapper ${!goal.is_compliant ? 'violation' : ''}`;
+        // If appending (new generations), we DO NOT add 'dealt' immediately so they can animate in when transitionTo('DEALING') is called.
+        cardWrapper.className = `flip-card-wrapper ${!append ? 'dealt' : ''} ${!goal.is_compliant ? 'violation' : ''}`;
         
         cardWrapper.dataset.cardId = cardId;
         cardWrapper.dataset.cardTitle = goal.title;
         cardWrapper.dataset.colorHue = hue;
+        cardWrapper.dataset.goalIndex = index;
         
         // Use Backend Gradients (Python assigns specific red themes for violations)
         // FIX: Do not force #2c3e50 if violation; use the goal.card_gradient (which is red)
@@ -1208,10 +1216,10 @@ function renderNewGoals(goals, gridElement) {
                      </div>
                 </div>
             </div>
-            <!-- Pill Dock -->
+            
             <div class="system-pill-dock position-absolute top-0 start-0 w-100 p-4 d-flex flex-column gap-2" style="z-index: 5; pointer-events: none;"></div>
         `;
-        
+
         // Attach Listeners
         if (goal.is_compliant) {
             const btn = cardWrapper.querySelector('.btn-select-pill-large');
@@ -1277,20 +1285,16 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if(gridContainer) {
         gridContainer.addEventListener('click', (e) => {
-            // Check if we clicked the button (or icon inside it)
             const btn = e.target.closest('.btn-select-pill-large');
             const wrapper = e.target.closest('.flip-card-wrapper');
             
             if (btn && wrapper) {
-                e.stopPropagation(); // Stop bubbling
-                console.log("Button Click Detected via Delegation");
+                e.stopPropagation();
                 if (wrapper.classList.contains('violation')) return;
-                
                 handleCardClick(wrapper);
                 return;
             }
             
-            // Allow card body click as fallback
             if (wrapper && !btn) {
                 if (wrapper.classList.contains('violation')) return;
                 handleCardClick(wrapper);
@@ -1305,21 +1309,73 @@ document.addEventListener('DOMContentLoaded', () => {
         if (iconEl) card.dataset.originalIcon = iconEl.className;
     });
 
-    // 3. START THE ENGINE (This was missing!)
-    // This removes 'opacity: 0' and triggers the dealt animation
+    // 3. START THE ENGINE
     transitionTo('DEALING');
-    
-    // 4. Initialize Navigation Dots
     initFooterDots();
+
+    // 4. Initialize Gallery State
+    State.galleryPage = 0; // 0-indexed
+    
+    // 4.5. Sliding State Resumption
+    if (window.INITIAL_WIZARD_STATE && window.INITIAL_WIZARD_STATE.GOAL) {
+        // Find which goal was selected
+        const targetTitle = window.INITIAL_WIZARD_STATE.GOAL;
+        const targetIndex = State.colorData.findIndex(g => g.title === targetTitle);
+        
+        if (targetIndex !== -1) {
+            // Determine which page it's on
+            State.galleryPage = Math.floor(targetIndex / 3);
+            
+            // Re-render grid if it's not the first page
+            if (State.galleryPage > 0) {
+                const grid = document.getElementById('goalCardsContainer');
+                const start = State.galleryPage * 3;
+                renderNewGoals(State.colorData.slice(start, start + 3), grid);
+                
+                // Fix index offset
+                const newCards = grid.querySelectorAll('.flip-card-wrapper');
+                newCards.forEach((c, i) => {
+                    c.dataset.goalIndex = start + i;
+                    c.dataset.cardId = `goal-${start + i}`;
+                });
+            }
+            
+            // After dealing, auto-click the card and populate config
+            setTimeout(() => {
+                const targetCard = document.querySelector(`.flip-card-wrapper[data-goal-index="${targetIndex}"]`);
+                if (targetCard) {
+                    handleCardClick(targetCard);
+                    
+                    // Pre-populate Wizard Config
+                    setTimeout(() => {
+                        for (const [key, value] of Object.entries(window.INITIAL_WIZARD_STATE)) {
+                            if (key !== 'GOAL' && key !== 'domain_icon' && !key.startsWith('_')) {
+                                State.config[key] = value;
+                                // Handle extraParams tracking for toggle pills
+                                if (!State.extraParams.includes(key) && window.WIZARD_CONFIG[key] && !window.WIZARD_CONFIG[key].required) {
+                                    State.extraParams.push(key);
+                                    State.steps.push({ id: key, ...window.WIZARD_CONFIG[key] });
+                                }
+                                
+                                let icon = 'fa-check-circle';
+                                if (window.WIZARD_CONFIG[key]) icon = window.WIZARD_CONFIG[key].icon;
+                                injectPillToHero(key, value, icon);
+                            }
+                        }
+                    }, 1200); // Wait for the 3D flip and wizard initialization
+                }
+            }, 600); // Wait for 'DEALING' animation
+        }
+    }
+    
+    updateGalleryControls();
 
     // 5. Bind "Generate New Goals" Button
     const newSpeculateBtn = document.getElementById('generate-new-goals');
     if (newSpeculateBtn) {
-        // Clone to remove old listeners (safety)
-        const clone = newSpeculateBtn.cloneNode(true);
-        newSpeculateBtn.parentNode.replaceChild(clone, newSpeculateBtn);
-        
-        clone.addEventListener('click', async () => {
+        newSpeculateBtn.addEventListener('click', async () => {
+            if (State.colorData.length >= 9) return; // Cap at 9
+
             const display = document.querySelector('.user-input-display');
             const edit = document.querySelector('.user-input-edit');
             const grid = document.getElementById('goalCardsContainer');
@@ -1332,24 +1388,207 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (text) {
-                showLoadingSpinner('Analysing Trajectories...', 'fa-sync-alt');
+                // Engage the Global Loading Spinner (as requested)
+                showLoadingSpinner("GENERATING GOALS", "fa-layer-group", "LIST");
+                
                 try {
                     const data = await regenerateGoals(text);
                     if (data && data.goals) {
-                        State.colorData = data.goals;
-                        window.GOAL_COLOR_DATA = data.goals;
-                        renderNewGoals(data.goals, grid);
+                        const startIndex = State.colorData.length;
+                        // Append new goals
+                        State.colorData = State.colorData.concat(data.goals);
+                        window.GOAL_COLOR_DATA = State.colorData;
                         
-                        State.phase = 'INIT';
-                        State.selectedCardId = null;
-                        setTimeout(() => transitionTo('DEALING'), 50);
+                        // Hide Spinner (Wait a tiny bit for UI update)
+                        setTimeout(() => {
+                            hideLoadingSpinner();
+                            
+                            // Render new cards into the DOM (offscreen right)
+                            renderNewGoals(data.goals, grid, true, startIndex);
+                            
+                            // Prevent them from flashing before animation
+                            const newCards = Array.from(grid.querySelectorAll('.flip-card-wrapper')).slice(startIndex);
+                            newCards.forEach(c => { c.classList.add('state-dealing'); });
+
+                            // Slide the carousel to the left (to the new page)
+                            const newPage = Math.floor(startIndex / 3);
+                            window.goToCarouselPage(newPage);
+                            
+                            // Wait for the slide to finish (0.6s), then flip them over
+                            setTimeout(() => {
+                                State.phase = 'INIT';
+                                State.selectedCardId = null;
+                                
+                                newCards.forEach((card, i) => {
+                                    setTimeout(() => {
+                                        card.classList.remove('state-dealing');
+                                        card.classList.add('state-revealing');
+                                        
+                                        setTimeout(() => {
+                                            card.classList.remove('state-revealing');
+                                            card.classList.add('state-selection');
+                                        }, 1200);
+                                        
+                                    }, 100 + (i * 200));
+                                });
+                                
+                                setTimeout(() => {
+                                    State.phase = 'SELECTION';
+                                }, 400 + (newCards.length * 200) + 1400);
+
+                            }, 600); // 600ms matches the CSS transform transition duration
+                        }, 500);
+                    } else {
+                        hideLoadingSpinner();
+                        alert("Error generating goals.");
                     }
                 } catch (error) { 
                     console.error("Failed to regenerate goals:", error); 
-                } finally { 
-                    hideLoadingSpinner(); 
+                    hideLoadingSpinner();
+                    alert("Network Error.");
                 }
             }
         });
     }
+
+    // 6. Bind Pagination Arrows (Carousel logic)
+    State.currentPage = 0; // Track which page (set of 3) we are on
+    const prevBtn = document.getElementById('gallery-prev-btn');
+    const nextBtn = document.getElementById('gallery-next-btn');
+
+    window.goToCarouselPage = function(pageIndex) {
+        const grid = document.getElementById('goalCardsContainer');
+        if (!grid) return;
+        
+        const totalPages = Math.ceil(State.colorData.length / 3);
+        if (pageIndex < 0 || pageIndex >= totalPages) return;
+        
+        State.currentPage = pageIndex;
+        State.currentCarouselIndex = pageIndex * 3; // roughly active card
+        
+        // Assuming cards are 340px wide + 24px gap (rem) or 1.5rem (24px).
+        // Since it's fixed 3 cards per page, translating -100% of the visible track is tricky 
+        // if grid width is max-content. 
+        // Each card is roughly 340px + gap. A page is ~ 3 * 340 + 2 * 24 = 1068px.
+        // We can just translate by index * (100% of the wrapper container).
+        // A safer way is to translate by the exact width of one page.
+        // Or simply translate by (pageIndex * -1140)px if fixed width.
+        // Let's calculate dynamically based on the width of 3 cards.
+        
+        const cards = grid.querySelectorAll('.flip-card-wrapper');
+        if (cards.length > 0) {
+            const cardWidth = cards[0].offsetWidth;
+            const gap = parseFloat(window.getComputedStyle(grid).gap) || 24;
+            const pageWidth = (cardWidth + gap) * 3;
+            
+            grid.style.transform = `translateX(-${State.currentPage * pageWidth}px)`;
+        }
+        
+        updateGalleryControls();
+    };
+
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            window.goToCarouselPage(State.currentPage - 1);
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            window.goToCarouselPage(State.currentPage + 1);
+        });
+    }
+    
+    // 7. Carousel Scroll Observer
+    State.currentCarouselIndex = 0;
+    const scrollGrid = document.getElementById('goalCardsContainer');
+    if (scrollGrid) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const idx = parseInt(entry.target.dataset.goalIndex);
+                    if(!isNaN(idx)) {
+                        State.currentCarouselIndex = idx;
+                        updateGalleryControls();
+                    }
+                }
+            });
+        }, {
+            root: scrollGrid,
+            threshold: 0.6 // Card must be 60% visible to trigger active state
+        });
+
+        window.observeCarouselCards = function() {
+            const cards = scrollGrid.querySelectorAll('.flip-card-wrapper');
+            cards.forEach(c => observer.observe(c));
+        };
+        window.observeCarouselCards();
+    }
 });
+
+window.scrollToCard = function(index) {
+    const grid = document.getElementById('goalCardsContainer');
+    const card = grid.querySelector(`[data-goal-index="${index}"]`);
+    if(card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+};
+
+function updateGalleryControls() {
+    const totalItems = State.colorData.length;
+    
+    const prevBtn = document.getElementById('gallery-prev-btn');
+    const nextBtn = document.getElementById('gallery-next-btn');
+    const indicator = document.getElementById('gallery-page-indicator');
+    const generateBtn = document.getElementById('generate-new-goals');
+    const coachingBanner = document.getElementById('gallery-coaching-banner');
+
+    if (totalItems > 3) {
+        indicator.classList.remove('d-none');
+        
+        // Build Dot Indicator (One dot per PAGE)
+        let indicatorHTML = '';
+        const totalPages = Math.ceil(totalItems / 3);
+        
+        for (let i = 0; i < totalPages; i++) {
+            // Pick color of first card on that page for the dot
+            const cardData = State.colorData[i * 3];
+            const hue = cardData ? (cardData.color_hue || (i * 60) % 360) : 180;
+            const dotColor = `hsl(${hue}, 70%, 50%)`;
+            const dimColor = `hsl(${hue}, 30%, 80%)`; 
+            
+            if (i === State.currentPage) {
+                // Active Page
+                indicatorHTML += `<div style="width: 28px; height: 6px; border-radius: 3px; background: ${dotColor}; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer;" onclick="window.goToCarouselPage(${i})"></div>`;
+            } else {
+                // Inactive Page
+                indicatorHTML += `<div style="width: 6px; height: 6px; border-radius: 50%; background: ${dimColor}; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer;" onclick="window.goToCarouselPage(${i})"></div>`;
+            }
+        }
+        indicator.innerHTML = indicatorHTML;
+        
+        // Show/hide arrows based on PAGE bounds
+        if (State.currentPage > 0) {
+            prevBtn.classList.remove('d-none');
+        } else {
+            prevBtn.classList.add('d-none');
+        }
+
+        if (State.currentPage < totalPages - 1) {
+            nextBtn.classList.remove('d-none');
+        } else {
+            nextBtn.classList.add('d-none');
+        }
+    } else {
+        indicator.classList.add('d-none');
+        if (prevBtn) prevBtn.classList.add('d-none');
+        if (nextBtn) nextBtn.classList.add('d-none');
+    }
+
+    // 9-card cap logic
+    if (totalItems >= 9) {
+        if (generateBtn) generateBtn.classList.add('d-none');
+        if (coachingBanner) coachingBanner.classList.remove('d-none');
+    } else {
+        if (generateBtn) generateBtn.classList.remove('d-none');
+        if (coachingBanner) coachingBanner.classList.add('d-none');
+    }
+}

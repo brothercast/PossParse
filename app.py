@@ -13,6 +13,8 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 from rich.logging import RichHandler
+from rich import box
+from rich.align import Align
 
 # ----------------------
 # Windows asyncio fix
@@ -29,6 +31,8 @@ ARCHIVE_FOLDER = os.environ.get("SSPEC_ARCHIVE_FOLDER", "./SSPEC_Prompt_Archive"
 # ----------------------
 # Rich console setup
 # ----------------------
+from rich.theme import Theme
+
 ms365_theme = {
     "white": "#FFFFFF",
     "tan": "#CC3802",
@@ -43,7 +47,8 @@ ms365_theme = {
     "danger": "#CC3802",
     "success": "#64C5B1"
 }
-console = Console()
+custom_theme = Theme(ms365_theme)
+console = Console(theme=custom_theme)
 
 # ----------------------
 # Logging config
@@ -141,24 +146,39 @@ def get_latest_version(archive_folder: str) -> str:
 
 def print_title_screen():
     version = get_latest_version(ARCHIVE_FOLDER)
-    table = Table.grid(padding=1)
-    table.add_row("[cyan]Author:[/cyan]", "Tone Pettit")
-    table.add_row("[cyan]Organization:[/cyan]", "Structured Speculation Foundation")
-    table.add_row("[cyan]Version:[/cyan]", version)
-    table.add_row("[cyan]Date:[/cyan]", datetime.now().strftime("%Y-%m-%d"))
+    table = Table.grid(padding=(0, 2))
+    table.add_row("[sky]Author:[/sky]", "[white]Tone Pettit[/white]")
+    table.add_row("[sky]Organization:[/sky]", "[white]Structured Speculation Foundation[/white]")
+    table.add_row("[sky]Version:[/sky]", f"[white]{version}[/white]")
+    table.add_row("[sky]Date:[/sky]", f"[white]{datetime.now().strftime('%Y-%m-%d')}[/white]")
 
-    panel = Panel(
-        table,
-        title="[bold magenta]SSPEC Horizon Possibility Parser[/bold magenta]",
-        subtitle="[green]Structured Speculation Foundation[/green]",
-        border_style="bright_blue",
-        padding=(1, 2),
+    info_panel = Panel(
+        Align.center(table),
+        title="[bold plum]SSPEC Horizon Possibility Parser[/bold plum]",
+        subtitle="[mint]Structured Speculation Foundation[/mint]",
+        border_style="teal",
+        box=box.ROUNDED,
+        padding=(1, 4),
         expand=False
     )
+    
+    # Beautiful Typography Layout for the ASCII Art
+    art_text = Text()
+    art_text.append("\n🅢 🅣 🅡 🅤 🅒 🅣 🅤 🅡 🅔 🅓\n", style="#86BBD8") # Sky without bold
+    art_text.append("🅢 🅟 🅔 🅒 🅤 🅛 🅐 🅣 🅘 🅞 🅝\n", style="#64C5B1") # Mint without bold
+
+    art_panel = Panel(
+        Align.center(art_text),
+        border_style="#9A348E", # Plum
+        box=box.DOUBLE,
+        padding=(0, 4),
+        expand=False
+    )
+
     console.clear()
-    console.print(Text("✨ POSSIBILITY PATHFINDER ✨", style="bold white on purple"), justify="center")
     console.print("\n")
-    console.print(panel, justify="center")
+    console.print(Align.center(art_panel))
+    console.print(Align.center(info_panel))
     console.print("\n")
 
 # ----------------------
